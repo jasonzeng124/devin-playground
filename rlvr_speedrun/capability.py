@@ -72,7 +72,6 @@ def _mmlu_prompt(shots: Sequence[dict], row: dict, include_answer: bool = False)
         parts.append("")
     if include_answer:
         return "\n".join(parts)
-    # The final blank line is unnecessary and makes exact prompt inspection harder.
     return "\n".join(parts[:-1])
 
 
