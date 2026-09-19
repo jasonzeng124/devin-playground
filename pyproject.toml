@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rlvr-speedrun"
+version = "0.1.0"
+description = "RLVR speedrun experiments for Countdown arithmetic puzzles"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "pytest>=8",
+  "torch>=2.1",
+  "transformers>=4.40",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.uv]
+package = true
+
+[tool.setuptools]
+packages = ["rlvr_speedrun", "scripts"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

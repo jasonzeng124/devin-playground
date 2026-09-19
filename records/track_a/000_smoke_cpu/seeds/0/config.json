@@ -1,0 +1,23 @@
+{
+  "model": "HuggingFaceTB/SmolLM2-135M",
+  "ref_model": null,
+  "group_size": 4,
+  "prompts_per_step": 2,
+  "lr": 1e-06,
+  "kl_coef": 0.02,
+  "temperature": 1.0,
+  "max_new_tokens": 32,
+  "few_shot": 3,
+  "max_steps": 2,
+  "eval_every": 2,
+  "eval_limit": 20,
+  "eval_batch_size": 32,
+  "target_solve_rate": 1.0,
+  "grad_clip": 1.0,
+  "save_every": 0,
+  "seed": 0,
+  "device": "cpu",
+  "dtype": null,
+  "out_dir": "records/track_a/000_smoke_cpu/seeds/0",
+  "no_save": false
+}

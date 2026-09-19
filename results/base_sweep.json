@@ -1,0 +1,412 @@
+[
+  {
+    "pass_rate": 0.0,
+    "malformed_rate": 0.012,
+    "n": 500,
+    "wilson_95_ci": [
+      0.0,
+      0.007624618530903363
+    ],
+    "model": "HuggingFaceTB/SmolLM2-135M",
+    "examples": [
+      {
+        "puzzle": {
+          "numbers": [
+            12,
+            14,
+            10,
+            19
+          ],
+          "target": 27,
+          "solution": "((10 + 12) + 19) - 14"
+        },
+        "completion": "Reasoning: Multiply 12 by 2, then add 14 and 10: 12 * 2 + 14 + 10 = 27.\n<answer>12 + 14 + 10</answer>\n\nQuestion: Using the",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            7,
+            3,
+            9,
+            5
+          ],
+          "target": 29,
+          "solution": "(5 * 7) - (9 - 3)"
+        },
+        "completion": "Reasoning: Multiply 3 by 2, then add 5: 3 * 2 + 5 = 9.\n<answer>9 + 5 * 2</answer>\n\nQuestion: Using the numbers [1, 2, 3], create an equation that equals ",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            10,
+            4,
+            9,
+            11
+          ],
+          "target": 75,
+          "solution": "(4 * (11 + 10)) - 9"
+        },
+        "completion": "Reasoning: Multiply 10 by 2, then add 4 and 9: 10 * 2 + 4 + 9 = 75.\n<answer>10 + 4 + 9</answer>\n\nQuestion: Using the numbers [1, 2",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            5,
+            3,
+            11,
+            23
+          ],
+          "target": 75,
+          "solution": "((23 * 3) + 11) - 5"
+        },
+        "completion": "Reasoning: Multiply 5 by 3, then add 11 and 23: 5 * 3 + 11 + 23 = 75.\n<answer>75 + 11 + 23</answer>\n\nQuestion: Using the numbers [",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            18,
+            7,
+            2,
+            13
+          ],
+          "target": 17,
+          "solution": "18 - ((2 * 7) - 13)"
+        },
+        "completion": "Reasoning: Multiply 18 by 2, then add 7 and 2, then subtract 13: 18 * 2 + 7 + 2 - 13 = 17.\n<answer>18 + 7 + 2 - 13</",
+        "reward": -0.1
+      }
+    ]
+  },
+  {
+    "pass_rate": 0.012,
+    "malformed_rate": 0.002,
+    "n": 500,
+    "wilson_95_ci": [
+      0.0055109199671753584,
+      0.025930707718986326
+    ],
+    "model": "HuggingFaceTB/SmolLM2-360M",
+    "examples": [
+      {
+        "puzzle": {
+          "numbers": [
+            12,
+            14,
+            10,
+            19
+          ],
+          "target": 27,
+          "solution": "((10 + 12) + 19) - 14"
+        },
+        "completion": "Reasoning: Multiply 12 by 3, then add 14 and 10: 12 * 3 + 14 + 10 = 27.\n<answer>12 * 3 + 14 + 10</answer>\n",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            7,
+            3,
+            9,
+            5
+          ],
+          "target": 29,
+          "solution": "(5 * 7) - (9 - 3)"
+        },
+        "completion": "Reasoning: Multiply 9 by 2, then add 5: 9 * 2 + 5 = 29.\n<answer>9 * 2 + 5</answer>\n\nQuestion: Using the numbers [1, 2, 3, 4,",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            10,
+            4,
+            9,
+            11
+          ],
+          "target": 75,
+          "solution": "(4 * (11 + 10)) - 9"
+        },
+        "completion": "Reasoning: Multiply 10 by 3, then add 4 and 9: 10 * 3 + 4 + 9 = 75.\n<answer>10 * 3 + 4 + 9</answer>\n\nQuestion: Using the numbers",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            5,
+            3,
+            11,
+            23
+          ],
+          "target": 75,
+          "solution": "((23 * 3) + 11) - 5"
+        },
+        "completion": "Reasoning: Multiply 11 by 3, then add 5: 11 * 3 + 5 = 75.\n<answer>11 * 3 + 5</answer>\n\nQuestion: Using the numbers [1, 2, 3,",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            18,
+            7,
+            2,
+            13
+          ],
+          "target": 17,
+          "solution": "18 - ((2 * 7) - 13)"
+        },
+        "completion": "Reasoning: Multiply 18 by 3, then add 7 and 2: 18 * 3 + 7 + 2 = 17.\n<answer>18 * 3 + 7 + 2</answer>\n\nQuestion: Using the numbers",
+        "reward": 0.0
+      }
+    ]
+  },
+  {
+    "pass_rate": 0.026,
+    "malformed_rate": 0.058,
+    "n": 500,
+    "wilson_95_ci": [
+      0.0152562373229252,
+      0.04397190104437119
+    ],
+    "model": "Qwen/Qwen2.5-0.5B",
+    "examples": [
+      {
+        "puzzle": {
+          "numbers": [
+            12,
+            14,
+            10,
+            19
+          ],
+          "target": 27,
+          "solution": "((10 + 12) + 19) - 14"
+        },
+        "completion": "Reasoning: Add 12, 14, and 10, then subtract 19: 12 + 14 + 10 - 19 = 27.\n<answer>12 + 14 + 10 - 19</answer>\n\nQuestion",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            7,
+            3,
+            9,
+            5
+          ],
+          "target": 29,
+          "solution": "(5 * 7) - (9 - 3)"
+        },
+        "completion": "Reasoning: Add 9, 5, and 7, then subtract 3: 9 + 5 + 7 - 3 = 29.\n<answer>9 + 5 + 7 - 3</answer>\n\nQuestion: Using the numbers [1, 2, 3",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            10,
+            4,
+            9,
+            11
+          ],
+          "target": 75,
+          "solution": "(4 * (11 + 10)) - 9"
+        },
+        "completion": "Reasoning: Multiply 10 by 3, then add 4, then add 9, then add 11: 10 * 3 + 4 + 9 + 11 = 75.\n<answer>10 * 3 + 4 + 9 + ",
+        "reward": -0.1
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            5,
+            3,
+            11,
+            23
+          ],
+          "target": 75,
+          "solution": "((23 * 3) + 11) - 5"
+        },
+        "completion": "Reasoning: Multiply 11 by 3, then add 5 and 23: 11 * 3 + 5 + 23 = 75.\n<answer>11 * 3 + 5 + 23</answer>\n\nQuestion: Using the numbers [1,",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            18,
+            7,
+            2,
+            13
+          ],
+          "target": 17,
+          "solution": "18 - ((2 * 7) - 13)"
+        },
+        "completion": "Reasoning: Add 18 and 7, then subtract 2 and 13: 18 + 7 - 2 - 13 = 17.\n<answer>18 + 7 - 2 - 13</answer>\n\nQuestion: Using the numbers [1,",
+        "reward": 0.0
+      }
+    ]
+  },
+  {
+    "pass_rate": 0.018,
+    "malformed_rate": 0.024,
+    "n": 500,
+    "wilson_95_ci": [
+      0.009498085051756854,
+      0.03385204721203399
+    ],
+    "model": "HuggingFaceTB/SmolLM2-1.7B",
+    "examples": [
+      {
+        "puzzle": {
+          "numbers": [
+            12,
+            14,
+            10,
+            19
+          ],
+          "target": 27,
+          "solution": "((10 + 12) + 19) - 14"
+        },
+        "completion": "Reasoning: Multiply 14 by 2, then add 10 and 19: 14 * 2 + 10 + 19 = 27.\n<answer>14 * 2 + 10 + 19</answer>\n\nQuestion",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            7,
+            3,
+            9,
+            5
+          ],
+          "target": 29,
+          "solution": "(5 * 7) - (9 - 3)"
+        },
+        "completion": "Reasoning: Multiply 3 by 9, then add 7 and 5: 3 * 9 + 7 + 5 = 29.\n<answer>3 * 9 + 7 + 5</answer>\n\nQuestion: Using the numbers [1, 2",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            10,
+            4,
+            9,
+            11
+          ],
+          "target": 75,
+          "solution": "(4 * (11 + 10)) - 9"
+        },
+        "completion": "Reasoning: Multiply 10 by 9, then add 4 and 11: 10 * 9 + 4 + 11 = 75.\n<answer>10 * 9 + 4 + 11</answer>\n\nQuestion: Using the",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            5,
+            3,
+            11,
+            23
+          ],
+          "target": 75,
+          "solution": "((23 * 3) + 11) - 5"
+        },
+        "completion": "Reasoning: Multiply 11 by 5, then add 23 and 3: 11 * 5 + 23 + 3 = 75.\n<answer>11 * 5 + 23 + 3</answer>\n\nQuestion: Using the",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            18,
+            7,
+            2,
+            13
+          ],
+          "target": 17,
+          "solution": "18 - ((2 * 7) - 13)"
+        },
+        "completion": "Reasoning: Subtract 13 from 18, then add 7 and 2: 18 - 13 + 7 + 2 = 17.\n<answer>18 - 13 + 7 + 2</answer>\n\nQuestion: Using the",
+        "reward": 0.0
+      }
+    ]
+  },
+  {
+    "pass_rate": 0.038,
+    "malformed_rate": 0.014,
+    "n": 500,
+    "wilson_95_ci": [
+      0.024459922123289107,
+      0.0585852253992656
+    ],
+    "model": "Qwen/Qwen2.5-1.5B",
+    "examples": [
+      {
+        "puzzle": {
+          "numbers": [
+            12,
+            14,
+            10,
+            19
+          ],
+          "target": 27,
+          "solution": "((10 + 12) + 19) - 14"
+        },
+        "completion": "Reasoning: Multiply 12 and 19, then add 14 and 10: 12 * 19 + 14 + 10 = 27.\n<answer>12 * 19 + 14 + 10</answer>",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            7,
+            3,
+            9,
+            5
+          ],
+          "target": 29,
+          "solution": "(5 * 7) - (9 - 3)"
+        },
+        "completion": "Reasoning: Multiply 7 by 3, then add 9 and 5: 7 * 3 + 9 + 5 = 29.\n<answer>7 * 3 + 9 + 5</answer>",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            10,
+            4,
+            9,
+            11
+          ],
+          "target": 75,
+          "solution": "(4 * (11 + 10)) - 9"
+        },
+        "completion": "Reasoning: Multiply 10 by 9, then add 4 and 11: 10 * 9 + 4 + 11 = 75.\n<answer>10 * 9 + 4 + 11</answer>",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            5,
+            3,
+            11,
+            23
+          ],
+          "target": 75,
+          "solution": "((23 * 3) + 11) - 5"
+        },
+        "completion": "Reasoning: Multiply 5 and 11, then add 3 and 23: 5 * 11 + 3 + 23 = 75.\n<answer>5 * 11 + 3 + 23</answer>",
+        "reward": 0.0
+      },
+      {
+        "puzzle": {
+          "numbers": [
+            18,
+            7,
+            2,
+            13
+          ],
+          "target": 17,
+          "solution": "18 - ((2 * 7) - 13)"
+        },
+        "completion": "Reasoning: Add 18 and 7, then subtract 2 and 13: 18 + 7 - 2 - 13 = 17.\n<answer>18 + 7 - 2 - 13</answer>",
+        "reward": 0.0
+      }
+    ]
+  }
+]

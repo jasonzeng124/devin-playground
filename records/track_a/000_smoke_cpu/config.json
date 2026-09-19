@@ -1,0 +1,1 @@
+{"track":"track_a","description":"CPU pipeline-smoke record, not a real entry","model":"HuggingFaceTB/SmolLM2-135M","seed":0,"few_shot":3,"eval_limit":30,"grpo_steps":2}

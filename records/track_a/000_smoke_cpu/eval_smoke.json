@@ -1,0 +1,82 @@
+{
+  "pass_rate": 0.0,
+  "malformed_rate": 0.0,
+  "n": 30,
+  "wilson_95_ci": [
+    0.0,
+    0.113517091390478
+  ],
+  "model": "HuggingFaceTB/SmolLM2-135M",
+  "examples": [
+    {
+      "puzzle": {
+        "numbers": [
+          12,
+          14,
+          10,
+          19
+        ],
+        "target": 27,
+        "solution": "((10 + 12) + 19) - 14"
+      },
+      "completion": "Reasoning: Multiply 12 by 2, then add 14 and 10: 12 * 2 + 14 + 10 = 27.\n<answer>12 + 14 + 10</answer>\n\nQuestion:",
+      "reward": 0.0
+    },
+    {
+      "puzzle": {
+        "numbers": [
+          7,
+          3,
+          9,
+          5
+        ],
+        "target": 29,
+        "solution": "(5 * 7) - (9 - 3)"
+      },
+      "completion": "Reasoning: Multiply 3 by 2, then add 5 and 9: 3 * 2 + 5 + 9 = 29.\n<answer>3 + 5 + 9</answer>\n\nQuestion: Using the numbers [1, 2,",
+      "reward": 0.0
+    },
+    {
+      "puzzle": {
+        "numbers": [
+          10,
+          4,
+          9,
+          11
+        ],
+        "target": 75,
+        "solution": "(4 * (11 + 10)) - 9"
+      },
+      "completion": "Reasoning: Multiply 10 by 2, then add 4 and 9: 10 * 2 + 4 + 9 = 75.\n<answer>10 + 4 + 9</answer>\n\nQuestion: Using the numbers [1,",
+      "reward": 0.0
+    },
+    {
+      "puzzle": {
+        "numbers": [
+          5,
+          3,
+          11,
+          23
+        ],
+        "target": 75,
+        "solution": "((23 * 3) + 11) - 5"
+      },
+      "completion": "Reasoning: Multiply 5 by 3, then add 11 and 23: 5 * 3 + 11 + 23 = 75.\n<answer>75 + 11 + 23</answer>\n\nQuestion: Using the",
+      "reward": 0.0
+    },
+    {
+      "puzzle": {
+        "numbers": [
+          18,
+          7,
+          2,
+          13
+        ],
+        "target": 17,
+        "solution": "18 - ((2 * 7) - 13)"
+      },
+      "completion": "Reasoning: Multiply 7 by 2, then add 13 and 18: 7 * 2 + 13 + 18 = 17.\n<answer>17 + 18</answer>\n\nQuestion: Using the numbers [1,",
+      "reward": 0.0
+    }
+  ]
+}
