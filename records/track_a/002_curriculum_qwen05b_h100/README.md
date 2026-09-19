@@ -1,6 +1,6 @@
 # Record 002 — GRPO + easy-puzzle curriculum, Qwen2.5-0.5B, 1xH100
 
-First real Track A entry (tier `1xH100`). 3 seeds, all reach the 10% threshold
+First real Track A entry (1x H100). 3 seeds, all reach the 10% threshold
 on the full 2,000-puzzle frozen eval.
 
 | seed | time to 10% | steps | final pass rate |
@@ -54,3 +54,14 @@ follows within ~75 steps.
 * Tune the curriculum length (200 steps may be too long; seeds 0/2 crossed
   10% only 25 steps after the curriculum ended).
 * Drop the reference model forward pass (KL=0) and check the guardrail holds.
+
+Tried (not a record): KL=0 + curriculum 100 + evals deferred to step 125
+(`results/record3_h100_fast` on branch `devin/1789858286-grpo-speedups`).
+Step time fell 2.9 -> 2.4 s, but learning plateaued at ~7% for 200 steps, so
+time-to-10% got *worse*: 978 / 658 / 914 s (850 +- 170 s). The shorter
+curriculum, not the eval deferral or KL removal, is the likely culprit —
+worth re-running with curriculum 200 and KL=0 to isolate.
+
+## Reproduction on other hardware
+
+[repro_4090/](repro_4090/) — the same recipe on a single RTX 4090 (unranked).

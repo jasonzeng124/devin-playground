@@ -12,24 +12,20 @@ saturation ceiling, and the verifier runs in microseconds. See
 
 ## Leaderboard
 
-Track A base model: **Qwen/Qwen2.5-0.5B** (pretrained-only checkpoint, no
-post-training). Threshold: **10% pass rate** on the frozen 2,000-puzzle eval.
-One leaderboard per hardware tier; times are never compared across tiers.
+Hardware: **one H100 80GB**. Track A base model: **Qwen/Qwen2.5-0.5B**
+(pretrained-only checkpoint, no post-training). Threshold: **10% pass rate**
+on the frozen 2,000-puzzle eval, 3 seeds.
 
-### Track A — 1xH100 tier
+### Track A — fixed base model, RL only
 
 | # | record | time to 10% (mean ± std, N=3) | final pass rate | author |
 |---|--------|------------------------------:|----------------:|--------|
 | 1 | [002_curriculum_qwen05b_h100](records/track_a/002_curriculum_qwen05b_h100) | 783 ± 216 s | 0.104 | Devin / @jasonzeng124 |
 
-### Track A — 1x4090 tier
-
-| # | record | time to 10% (mean ± std, N=3) | final pass rate | author |
-|---|--------|------------------------------:|----------------:|--------|
-| — | [003_curriculum_qwen05b_4090](records/track_a/003_curriculum_qwen05b_4090) | provisional (eval on 500 puzzles, see README) | — | Devin / @jasonzeng124 |
-
-Smoke runs (not entries): [000_smoke_cpu](records/track_a/000_smoke_cpu),
-[001_smoke_gpu_qwen05b](records/track_a/001_smoke_gpu_qwen05b).
+Not ranked: [000_smoke_cpu](records/track_a/000_smoke_cpu),
+[001_smoke_gpu_qwen05b](records/track_a/001_smoke_gpu_qwen05b) (pipeline
+smoke tests), and the RTX 4090 reproduction of record 002 in
+[002_curriculum_qwen05b_h100/repro_4090](records/track_a/002_curriculum_qwen05b_h100/repro_4090).
 
 ### Track B — full stack (pretrain + RL)
 

@@ -57,18 +57,16 @@ preservation is part of the objective by construction:
   chosen independently; the first accepted Track B record sets them and they
   are then frozen in `records/track_b/README.md`.
 
-## Hardware tiers
+## Hardware
 
-Records are grouped by hardware so single-GPU contributors can participate:
+The leaderboard hardware spec is **one H100 80GB** (SXM or PCIe, state which;
+Modal/RunPod/Lambda all offer it for ~$2-4/hr). Only records run on exactly
+this hardware are ranked. An `8xH100` tier will be opened once single-GPU
+records saturate the threshold.
 
-| tier | spec |
-|------|------|
-| `1x4090` | one 24 GB consumer GPU (RTX 4090; 3090 accepted, state which) |
-| `1xH100` | one 80 GB H100 (SXM or PCIe, state which) |
-| `8xH100` | one 8xH100 SXM node (the modded-nanogpt spec) |
-
-Each tier has its own leaderboard. Wall-clock times are only comparable within
-a tier; a record never competes against a record from another tier.
+Runs on other hardware (e.g. an RTX 4090) are welcome as unranked
+reproductions inside a record's folder — they help contributors without H100
+access verify a record, but their times are never compared to ranked ones.
 
 ## Seeds and statistics
 
