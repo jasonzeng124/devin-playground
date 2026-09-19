@@ -61,6 +61,8 @@ On a fresh GPU box (e.g. a RunPod `runpod/pytorch` container) run
 `bash scripts/gpu_setup.sh` instead of `uv sync`. On Modal (`pip install modal`),
 `scripts/modal_run.py` runs all seeds in parallel on H100s and copies logs back
 (see record 002 for the exact command).
+For Track A submissions, run the capability guardrail probe described in
+[RULES.md](RULES.md) after training.
 
 ## Layout
 

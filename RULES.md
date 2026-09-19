@@ -39,12 +39,12 @@ template used *during training*, systems/kernels.
   Evaluation time counts. (Threshold set from the first Qwen2.5-0.5B baseline,
   which reaches ~10-12% in 300 GRPO steps; it will be raised once records
   saturate it — a raised threshold starts a new leaderboard table.)
-* **Capability guardrail** (anti-reward-hacking): the final model must stay
-  within `0.05` nats of the base model's loss on the fixed FineWeb validation
-  shard used by modded-nanogpt (`fineweb_val_000000.bin`, first 10M tokens),
-  measured with `scripts/capability_probe.py` (planned — until it lands,
-  report base vs. final loss on any 1M-token FineWeb sample and include the
-  command).
+* **Capability guardrail** (anti-reward-hacking): after the run stops, probe the
+  final checkpoint with `python -m rlvr_speedrun.capability --model <ckpt>
+  --base Qwen/Qwen2.5-0.5B`. Every seed must have
+  `fineweb_loss_delta <= 0.05` nats and `mmlu_lite_acc_delta >= -0.03`.
+  Probe time does **not** count toward the clock. Records 002/003 predate this
+  probe and are marked “guardrail: not measured”.
 
 ### Track B — full stack (pretrain + RL speedrun)
 
@@ -84,7 +84,7 @@ overlap; use judgement and say so in the PR.
    and `seeds/<seed>/{train_log.jsonl,eval_log.jsonl,result.json}` for each seed.
    Do not commit model weights.
 4. Run `python scripts/validate_record.py records/<track>/<NNN>_<slug>` — it
-   must pass.
+   must pass; the validator also checks the capability probe when present.
 5. Open a PR; put the summary table in the description. Add yourself to the
    leaderboard in `README.md`.
 
