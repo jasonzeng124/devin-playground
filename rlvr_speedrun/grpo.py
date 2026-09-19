@@ -32,6 +32,7 @@ class GRPOConfig:
     few_shot: int = 3
     max_steps: int = 100
     eval_every: int = 10
+    eval_start_step: int = 0
     eval_limit: int = 200
     eval_batch_size: int = 32
     target_solve_rate: float = 1.0
@@ -112,15 +113,19 @@ def grpo_step(model, ref_model, tokenizer, puzzles, config: GRPOConfig, optimize
     for i in range(0, generated.shape[0], micro):
         ids, mask, adv = generated[i : i + micro], attention[i : i + micro], advantages[i : i + micro]
         policy_lp, completion_mask = _completion_logprobs(model, ids, mask, prompt_width)
-        with torch.no_grad():
-            ref_lp, _ = _completion_logprobs(ref_model, ids, mask, prompt_width)
         policy_lp = policy_lp[completion_mask]
-        ref_lp = ref_lp[completion_mask]
         repeated_advantages = adv.unsqueeze(1).expand(-1, completion_mask.shape[1])[completion_mask]
-        kl_tokens = torch.exp(ref_lp - policy_lp) - (ref_lp - policy_lp) - 1
         policy_loss = -(repeated_advantages * policy_lp).sum() / token_count
-        kl = kl_tokens.sum() / token_count
-        loss = policy_loss + config.kl_coef * kl
+        if ref_model is None:
+            kl = torch.zeros((), device=device)
+            loss = policy_loss
+        else:
+            with torch.no_grad():
+                ref_lp, _ = _completion_logprobs(ref_model, ids, mask, prompt_width)
+            ref_lp = ref_lp[completion_mask]
+            kl_tokens = torch.exp(ref_lp - policy_lp) - (ref_lp - policy_lp) - 1
+            kl = kl_tokens.sum() / token_count
+            loss = policy_loss + config.kl_coef * kl
         loss.backward()
         loss_total += loss.detach()
         kl_total += kl.detach()
@@ -173,10 +178,12 @@ def run(config: GRPOConfig) -> dict:
     (out_dir / "config.json").write_text(json.dumps(asdict(config), indent=2) + "\n", encoding="utf-8")
     tokenizer = load_tokenizer(config.model)
     model, device = load_causal_model(config.model, config.device, config.dtype)
-    ref_name = config.ref_model or config.model
-    ref_model, _ = load_causal_model(ref_name, str(device), config.dtype)
-    for parameter in ref_model.parameters():
-        parameter.requires_grad_(False)
+    ref_model = None
+    if config.kl_coef > 0:
+        ref_name = config.ref_model or config.model
+        ref_model, _ = load_causal_model(ref_name, str(device), config.dtype)
+        for parameter in ref_model.parameters():
+            parameter.requires_grad_(False)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr)
     stream = train_puzzle_stream(config.seed)
     easy_streams = [
@@ -210,7 +217,7 @@ def run(config: GRPOConfig) -> dict:
                 checkpoint = out_dir / f"ckpt_{step}"
                 model.save_pretrained(checkpoint)
                 tokenizer.save_pretrained(checkpoint)
-            if step % config.eval_every == 0 or step == config.max_steps:
+            if (step >= config.eval_start_step and step % config.eval_every == 0) or step == config.max_steps:
                 result = _evaluate(model, tokenizer, eval_puzzles, config, device)
                 result.update({"step": step, "wall_s": time.perf_counter() - start})
                 eval_log.write(json.dumps(result) + "\n")
