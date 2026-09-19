@@ -21,6 +21,7 @@ on the frozen 2,000-puzzle eval, 3 seeds.
 | # | record | time to 10% (mean ± std, N=3) | final pass rate | author |
 |---|--------|------------------------------:|----------------:|--------|
 | 1 | [002_curriculum_qwen05b_h100](records/track_a/002_curriculum_qwen05b_h100) | 783 ± 216 s | 0.104 | Devin / @jasonzeng124 |
+| 2 | [003_nokl_deferred_eval_h100](records/track_a/003_nokl_deferred_eval_h100) | 573 ± 214 s | 0.105 | Devin / @jasonzeng124 |
 
 Not ranked: [000_smoke_cpu](records/track_a/000_smoke_cpu),
 [001_smoke_gpu_qwen05b](records/track_a/001_smoke_gpu_qwen05b) (pipeline
