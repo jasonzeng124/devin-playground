@@ -12,12 +12,24 @@ saturation ceiling, and the verifier runs in microseconds. See
 
 ## Leaderboard
 
-### Track A — fixed base model, 1xGPU tier
+Track A base model: **Qwen/Qwen2.5-0.5B** (pretrained-only checkpoint, no
+post-training). Threshold: **10% pass rate** on the frozen 2,000-puzzle eval.
+One leaderboard per hardware tier; times are never compared across tiers.
 
-| # | record | base model | time to 50% (mean ± std, N seeds) | final pass rate | author |
-|---|--------|------------|-----------------------------------|-----------------|--------|
-| 0 | [000_smoke_cpu](records/track_a/000_smoke_cpu) | SmolLM2-135M | — (pipeline smoke test, CPU) | 0.00 | — |
-| 1 | [001_smoke_gpu_qwen05b](records/track_a/001_smoke_gpu_qwen05b) | Qwen2.5-0.5B | — (60-step smoke, 1 seed, RTX 4090) | 0.005 | — |
+### Track A — 1xH100 tier
+
+| # | record | time to 10% (mean ± std, N=3) | final pass rate | author |
+|---|--------|------------------------------:|----------------:|--------|
+| 1 | [002_curriculum_qwen05b_h100](records/track_a/002_curriculum_qwen05b_h100) | 783 ± 216 s | 0.104 | Devin / @jasonzeng124 |
+
+### Track A — 1x4090 tier
+
+| # | record | time to 10% (mean ± std, N=3) | final pass rate | author |
+|---|--------|------------------------------:|----------------:|--------|
+| — | [003_curriculum_qwen05b_4090](records/track_a/003_curriculum_qwen05b_4090) | provisional (eval on 500 puzzles, see README) | — | Devin / @jasonzeng124 |
+
+Smoke runs (not entries): [000_smoke_cpu](records/track_a/000_smoke_cpu),
+[001_smoke_gpu_qwen05b](records/track_a/001_smoke_gpu_qwen05b).
 
 ### Track B — full stack (pretrain + RL)
 
@@ -40,15 +52,18 @@ bash scripts/sweep_base_models.sh
 
 # GRPO
 uv run python -m rlvr_speedrun.grpo --model Qwen/Qwen2.5-0.5B \
-    --group-size 8 --prompts-per-step 16 --max-steps 300 --eval-every 25 \
-    --target-solve-rate 0.5 --out-dir records/track_a/001_grpo_baseline/seeds/0
+    --group-size 16 --prompts-per-step 8 --curriculum-steps 200 --max-steps 400 \
+    --eval-every 25 --eval-limit 2000 --target-solve-rate 0.1 --device cuda \
+    --no-save --seed 0 --out-dir records/track_a/00N_my_record/seeds/0
 
 # validate a record before opening a PR
-uv run python scripts/validate_record.py records/track_a/001_grpo_baseline
+uv run python scripts/validate_record.py records/track_a/00N_my_record
 ```
 
 On a fresh GPU box (e.g. a RunPod `runpod/pytorch` container) run
-`bash scripts/gpu_setup.sh` instead of `uv sync`.
+`bash scripts/gpu_setup.sh` instead of `uv sync`. On Modal (`pip install modal`),
+`scripts/modal_run.py` runs all seeds in parallel on H100s and copies logs back
+(see record 002 for the exact command).
 
 ## Layout
 
@@ -63,6 +78,7 @@ scripts/
   validate_record.py   checks a records/ entry and prints seed statistics
   sweep_base_models.sh base-model pass-rate sweep
   gpu_setup.sh         one-shot setup on a CUDA container
+  modal_run.py         run N seeds in parallel on Modal GPUs
 data/countdown_eval.jsonl   2,000 frozen eval puzzles (seed 20240601)
 records/<track>/<NNN>_<slug>/  one folder per record (logs, config, README)
 results/                     base-model sweep outputs
@@ -85,15 +101,16 @@ First sweep (500 eval puzzles, 3-shot, greedy, RTX 4090 — `results/base_sweep.
 | SmolLM2-1.7B | 0.018 | 0.024 | [0.010, 0.034] |
 | Qwen2.5-1.5B | 0.038 | 0.014 | [0.025, 0.059] |
 
-Pass rate lifts off zero around 360M–0.5B; **Qwen2.5-0.5B** is the provisional
-Track A base. Solves are sparse enough that early GRPO signal comes mostly from
-the malformed penalty (see record 001), so a curriculum or lower sampling
-temperature is the obvious first real record.
+Pass rate lifts off zero around 360M–0.5B; **Qwen2.5-0.5B** is the Track A
+base. Solves are sparse enough that plain GRPO has almost no signal (record
+001); a 2→3→4-number curriculum on the training stream fixes that (record 002:
+2.6% → 10% held-out in ~13 min on one H100).
 
 ## Good first records
 
-* Tune `lr`, `kl_coef`, `group_size`, `temperature` on the baseline.
-* Curriculum: start with 3-number puzzles / small targets, anneal to the eval distribution.
+* Tune `lr`, `kl_coef`, `group_size`, `temperature`, `curriculum_steps` on record 002.
+* Evaluate less often (every full-eval costs ~15 s on the clock).
+* Drop the reference model (kl_coef=0) and show the capability guardrail still holds.
 * Reward shaping from the verifier output (e.g. partial credit for using all numbers).
 * Rollout throughput: batched generation, KV-cache reuse, `torch.compile`.
 * Replace AdamW with Muon on the policy.

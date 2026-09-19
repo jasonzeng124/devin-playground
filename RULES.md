@@ -35,8 +35,10 @@ output), KL schedule, curriculum, group size, rollout batching, prompt
 template used *during training*, systems/kernels.
 
 * Clock starts at the first RL optimizer step and stops at the first
-  evaluation where `pass_rate >= 0.50` on the full 2,000-puzzle eval set.
-  Evaluation time counts.
+  evaluation where `pass_rate >= 0.10` on the full 2,000-puzzle eval set.
+  Evaluation time counts. (Threshold set from the first Qwen2.5-0.5B baseline,
+  which reaches ~10-12% in 300 GRPO steps; it will be raised once records
+  saturate it — a raised threshold starts a new leaderboard table.)
 * **Capability guardrail** (anti-reward-hacking): the final model must stay
   within `0.05` nats of the base model's loss on the fixed FineWeb validation
   shard used by modded-nanogpt (`fineweb_val_000000.bin`, first 10M tokens),
@@ -61,10 +63,12 @@ Records are grouped by hardware so single-GPU contributors can participate:
 
 | tier | spec |
 |------|------|
-| `1xGPU` | one 24 GB consumer GPU (RTX 3090/4090) or one 80 GB datacenter GPU — state which |
+| `1x4090` | one 24 GB consumer GPU (RTX 4090; 3090 accepted, state which) |
+| `1xH100` | one 80 GB H100 (SXM or PCIe, state which) |
 | `8xH100` | one 8xH100 SXM node (the modded-nanogpt spec) |
 
-Wall-clock times are only comparable within a tier.
+Each tier has its own leaderboard. Wall-clock times are only comparable within
+a tier; a record never competes against a record from another tier.
 
 ## Seeds and statistics
 

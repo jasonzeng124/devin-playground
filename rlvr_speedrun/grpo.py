@@ -37,6 +37,7 @@ class GRPOConfig:
     target_solve_rate: float = 1.0
     grad_clip: float = 1.0
     micro_batch_size: int = 16
+    curriculum_steps: int = 0
     save_every: int = 0
     seed: int = 0
     device: str = "auto"
@@ -178,6 +179,11 @@ def run(config: GRPOConfig) -> dict:
         parameter.requires_grad_(False)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr)
     stream = train_puzzle_stream(config.seed)
+    easy_streams = [
+        train_puzzle_stream(config.seed + 500_000, n_numbers=2, target_range=(1, 50)),
+        train_puzzle_stream(config.seed + 600_000, n_numbers=3, target_range=(1, 50)),
+    ]
+    mix_rng = random.Random(config.seed)
     eval_puzzles = load_puzzles("data/countdown_eval.jsonl")[: config.eval_limit]
     train_log = (out_dir / "train_log.jsonl").open("w", encoding="utf-8")
     eval_log = (out_dir / "eval_log.jsonl").open("w", encoding="utf-8")
@@ -185,7 +191,12 @@ def run(config: GRPOConfig) -> dict:
     threshold_time = None
     try:
         for step in range(1, config.max_steps + 1):
-            puzzles = [next(stream) for _ in range(config.prompts_per_step)]
+            easy_frac = max(0.0, 1.0 - step / config.curriculum_steps) if config.curriculum_steps > 0 else 0.0
+            puzzles = []
+            for _ in range(config.prompts_per_step):
+                u = mix_rng.random()
+                source = stream if u >= easy_frac else easy_streams[int(u >= easy_frac / 2)]
+                puzzles.append(next(source))
             step_start = time.perf_counter()
             info = grpo_step(model, ref_model, tokenizer, puzzles, config, optimizer, device)
             step_elapsed = time.perf_counter() - step_start
