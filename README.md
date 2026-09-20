@@ -77,6 +77,11 @@ uv run python -m rlvr_speedrun.grpo --model Qwen/Qwen2.5-0.5B \
     --seed 0 --out-dir records/track_a/00N_my_record/seeds/0
 # (keeps seeds/0/final/ for the capability probe; weights are gitignored)
 
+# data-parallel (unranked until the 8xH100 tier opens): same command under torchrun,
+# prompts_per_step is sharded across ranks; CPU/gloo works for testing
+uv run torchrun --standalone --nproc_per_node 2 -m rlvr_speedrun.grpo --model HuggingFaceTB/SmolLM2-135M \
+    --device cpu --group-size 4 --prompts-per-step 4 --max-steps 2 --eval-limit 6 --kl-coef 0 --no-save --out-dir /tmp/ddp
+
 # scaffold a record from the current holder, then validate it before opening a PR
 uv run python scripts/new_record.py my_record --provider runpod
 uv run python scripts/validate_record.py records/track_a/00N_my_record --compare-to records/track_a/005_prefix_kv_compile_h100
@@ -100,6 +105,7 @@ rlvr_speedrun/
   data.py          frozen eval set builder, training puzzle stream
   eval.py          few-shot pass-rate eval + multi-model sweep table
   grpo.py          minimal GRPO loop (plain PyTorch + transformers)
+  distributed.py   torchrun data-parallel helpers (shard prompts, sum grads, gather evals)
   model_utils.py   model/tokenizer loading, stopping criteria
 scripts/
   validate_record.py   checks a records/ entry, prints seed statistics, --compare-to holder

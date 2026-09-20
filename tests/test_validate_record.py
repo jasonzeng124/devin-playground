@@ -230,3 +230,10 @@ def test_validate_all_records_ranked_vs_unranked(tmp_path):
     (smoke / "config.json").write_text(json.dumps({"track": "track_a"}) + "\n")
     ok, lines = validate_all(records, None)
     assert not ok and any("000_smoke (ranked): FAIL" in line for line in lines)
+
+
+def test_multi_gpu_run_is_unranked(tmp_path):
+    record = make_record(tmp_path, "006_ddp", [400.0, 500.0, 450.0], env={**ENV, "world_size": 8})
+    valid, message = validate_record(record)
+    assert not valid and "world_size 1" in message
+    assert validate_record(record, allow_fewer_seeds=True)[0]

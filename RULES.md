@@ -92,8 +92,13 @@ The leaderboard hardware is **one NVIDIA H100 80GB SXM** (`torch.cuda.get_device
 sell for ~$2.5-4/hr). Only runs on exactly this GPU are ranked: the H100
 PCIe has ~40% less memory bandwidth (2.0 vs 3.35 TB/s) and the H100 NVL more
 (94 GB, 3.9 TB/s), and a 0.5B-model rollout loop is bandwidth-bound, so
-neither is interchangeable. An `8xH100` tier will be opened once a
-distributed trainer exists and single-GPU records saturate the threshold.
+neither is interchangeable. Ranked runs are also **single-process**
+(`environment.world_size == 1`): the trainer has a data-parallel mode
+(`torchrun --nproc_per_node N -m rlvr_speedrun.grpo ...`, `prompts_per_step`
+sharded across ranks, gradients summed, so N ranks take the same optimizer step
+as one process on the whole batch), but multi-GPU results are unranked until an
+`8xH100` tier is opened with its own baseline record, once single-GPU records
+saturate the threshold.
 
 Runs on other hardware (an RTX 4090, an H100 PCIe) are welcome as unranked
 reproductions inside a record's folder (`repro_<gpu>/`) — they help

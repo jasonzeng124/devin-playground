@@ -310,6 +310,11 @@ def validate_record(record: Path, allow_fewer_seeds: bool = False) -> tuple[bool
         lines.append(f"gpu: {', '.join(gpus)}" + ("" if gpus == [RANKED_GPU] else f" (UNRANKED: leaderboard hardware is {RANKED_GPU})"))
         if gpus != [RANKED_GPU] and not allow_fewer_seeds:
             errors.append(f"ranked records must run on {RANKED_GPU}; found {gpus}")
+        world_sizes = sorted({int(env.get("world_size", 1)) for env in envs.values() if isinstance(env, dict)})
+        if world_sizes != [1]:
+            lines.append(f"world_size: {world_sizes} (UNRANKED: the leaderboard is single-GPU; the 8xH100 tier is not open yet)")
+            if not allow_fewer_seeds:
+                errors.append(f"ranked records must run single-process (world_size 1); found {world_sizes}")
         software = sorted({f"torch {env.get('torch')} / transformers {env.get('transformers')} / cuda {env.get('cuda')}" for env in envs.values() if isinstance(env, dict)})
         lines.append(f"software: {'; '.join(software)}")
     else:
