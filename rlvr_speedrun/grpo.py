@@ -55,14 +55,19 @@ def _set_seed(seed: int) -> None:
     torch.manual_seed(seed)
 
 
-def _completion_logprobs(model, input_ids: torch.Tensor, attention_mask: torch.Tensor, prompt_width: int):
+def _completion_logprobs(model, input_ids: torch.Tensor, attention_mask: torch.Tensor, prompt_width: int, temperature: float = 1.0):
+    """Per-token log-probs (at the sampling temperature) and entropies of completion tokens."""
     start = max(0, prompt_width - 1)
     hidden = model.base_model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False).last_hidden_state
-    logits = model.get_output_embeddings()(hidden[:, start:-1]).float()
+    logits = model.get_output_embeddings()(hidden[:, start:-1]).float() / temperature
     labels = input_ids[:, start + 1 :]
-    token_lp = logits.gather(-1, labels.unsqueeze(-1)).squeeze(-1) - torch.logsumexp(logits, dim=-1)
+    log_z = torch.logsumexp(logits, dim=-1)
+    token_lp = logits.gather(-1, labels.unsqueeze(-1)).squeeze(-1) - log_z
+    with torch.no_grad():
+        probs = torch.softmax(logits, dim=-1)
+        entropy = log_z - (probs * logits).sum(-1)
     completion_mask = attention_mask[:, start + 1 :].bool()
-    return token_lp, completion_mask
+    return token_lp, completion_mask, entropy
 
 
 def _generate_chunked(model, tokenizer, encoded, config: GRPOConfig) -> tuple[torch.Tensor, torch.Tensor]:
@@ -167,11 +172,13 @@ def grpo_step(model, ref_model, tokenizer, puzzles, config: GRPOConfig, optimize
     optimizer.zero_grad(set_to_none=True)
     loss_total = torch.zeros((), device=device)
     kl_total = torch.zeros((), device=device)
+    entropy_total = torch.zeros((), device=device)
     micro = max(1, config.micro_batch_size)
     for i in range(0, generated.shape[0], micro):
         ids, mask, adv = generated[i : i + micro], attention[i : i + micro], advantages[i : i + micro]
-        policy_lp, completion_mask = _completion_logprobs(model, ids, mask, prompt_width)
+        policy_lp, completion_mask, entropy = _completion_logprobs(model, ids, mask, prompt_width, config.temperature)
         policy_lp = policy_lp[completion_mask]
+        entropy_total += entropy[completion_mask].sum()
         repeated_advantages = adv.unsqueeze(1).expand(-1, completion_mask.shape[1])[completion_mask]
         policy_loss = -(repeated_advantages * policy_lp).sum() / token_count
         if ref_model is None:
@@ -179,7 +186,7 @@ def grpo_step(model, ref_model, tokenizer, puzzles, config: GRPOConfig, optimize
             loss = policy_loss
         else:
             with torch.no_grad():
-                ref_lp, _ = _completion_logprobs(ref_model, ids, mask, prompt_width)
+                ref_lp, _, _ = _completion_logprobs(ref_model, ids, mask, prompt_width, config.temperature)
             ref_lp = ref_lp[completion_mask]
             kl_tokens = torch.exp(ref_lp - policy_lp) - (ref_lp - policy_lp) - 1
             kl = kl_tokens.sum() / token_count
@@ -197,6 +204,7 @@ def grpo_step(model, ref_model, tokenizer, puzzles, config: GRPOConfig, optimize
         "malformed_rate": (all_rewards == -0.1).float().mean().item(),
         "informative_groups": informative_groups,
         "kept_groups": int(kept.shape[0]),
+        "entropy": (entropy_total / token_count).item(),
         "kl": kl.detach().item(),
         "loss": loss.detach().item(),
         "tokens": int(token_count.item()),
