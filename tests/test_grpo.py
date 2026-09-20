@@ -1,7 +1,7 @@
-import pytest
 import json
 import copy
 
+import pytest
 import torch
 from transformers import BatchEncoding, GPT2Config, GPT2LMHeadModel
 

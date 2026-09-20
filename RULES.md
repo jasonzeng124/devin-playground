@@ -39,6 +39,12 @@ template used *during training*, systems/kernels.
   Evaluation time counts. (Threshold set from the first Qwen2.5-0.5B baseline,
   which reaches ~10-12% in 300 GRPO steps; it will be raised once records
   saturate it — a raised threshold starts a new leaderboard table.)
+* Untimed warm-up before the clock starts is allowed (model loading,
+  `torch.compile`, CUDA-graph capture, a warm-up rollout) as long as it performs
+  **no optimizer step** and no rollout on puzzles that are then reused for
+  training (`--compile` in the reference GRPO does exactly this, from a puzzle
+  stream disjoint from the training stream). Warm-up time is reported in the
+  record README.
 * **Capability guardrail** (anti-reward-hacking): after the run stops, probe the
   final checkpoint with `python -m rlvr_speedrun.capability --model <ckpt>
   --base Qwen/Qwen2.5-0.5B`. Every seed must have
