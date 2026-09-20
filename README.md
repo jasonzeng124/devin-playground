@@ -14,21 +14,26 @@ saturation ceiling, and the verifier runs in microseconds. See
 
 Hardware: **one H100 80GB**. Track A base model: **Qwen/Qwen2.5-0.5B**
 (pretrained-only checkpoint, no post-training). Threshold: **10% pass rate**
-on the frozen 2,000-puzzle eval, 3 seeds.
+on the frozen 2,000-puzzle eval, N >= 3 consecutive seeds; a new record holder
+must beat the old one at `p < 0.05` (one-sided Welch t-test, see
+[RULES.md](RULES.md)).
 
 ### Track A — fixed base model, RL only
 
-| # | record | time to 10% (mean ± std, N=3) | final pass rate | guardrail | author |
-|---|--------|------------------------------:|----------------:|-----------|--------|
-| 1 | [002_curriculum_qwen05b_h100](records/track_a/002_curriculum_qwen05b_h100) | 783 ± 216 s | 0.104 | not measured | Devin / @jasonzeng124 |
-| 2 | [003_nokl_deferred_eval_h100](records/track_a/003_nokl_deferred_eval_h100) | 573 ± 214 s | 0.105 | not measured | Devin / @jasonzeng124 |
-| 3 | [004_nokl_guardrail_h100](records/track_a/004_nokl_guardrail_h100) | 655 ± 116 s | 0.110 | pass (Δloss +0.001) | Devin / @jasonzeng124 |
-| 4 | [005_prefix_kv_compile_h100](records/track_a/005_prefix_kv_compile_h100) | 511 ± 123 s | 0.110 | pass (Δloss +0.002) | Devin / @jasonzeng124 |
+| # | record | time to 10% (mean ± std) | N | final pass rate | guardrail | vs previous | author |
+|---|--------|-------------------------:|--:|----------------:|-----------|-------------|--------|
+| 1 | [002_curriculum_qwen05b_h100](records/track_a/002_curriculum_qwen05b_h100) | 783 ± 216 s | 3 | 0.104 | not measured | first record | Devin / @jasonzeng124 |
+| 2 | [003_nokl_deferred_eval_h100](records/track_a/003_nokl_deferred_eval_h100) | 573 ± 214 s | 3 | 0.105 | not measured | untested (pre-dates the rule) | Devin / @jasonzeng124 |
+| 3 | [004_nokl_guardrail_h100](records/track_a/004_nokl_guardrail_h100) | 958 ± 348 s | 10 | 0.106 | pass (Δloss +0.001) | same recipe as 003 | Devin / @jasonzeng124 |
+| 4 | **[005_prefix_kv_compile_h100](records/track_a/005_prefix_kv_compile_h100)** (holder) | **460 ± 196 s** | 10 | 0.108 | pass (Δloss +0.001) | beats 004, p = 0.0007 | Devin / @jasonzeng124 |
 
 Record 004 is the same recipe as 003 with the guardrail measured; 005 is the
-same recipe again on a 2x faster trainer (shared-prefix KV reuse, compiled
-static-cache decode). Both are listed separately because RL seed variance
-(~±120-200 s) is currently larger than most recipe changes. Reducing that
+same RL recipe on a 2x faster trainer (shared-prefix KV reuse, compiled
+static-cache decode, full-softmax sampler). Both were first submitted with 3
+seeds (004: 655 ± 116 s, 005: 511 ± 123 s — a difference that was *not*
+significant, p = 0.11) and then extended to 10 seeds each to measure the real
+variance: 004's first three seeds turned out to be lucky draws, and the
+std of time-to-threshold is 200-350 s, i.e. 40 % of the mean. Reducing that
 variance is itself a good record. Negative results (dynamic sampling, T=1.0,
 Dr. GRPO advantages) are written up in record 005's README.
 
@@ -127,7 +132,7 @@ base. Solves are sparse enough that plain GRPO has almost no signal (record
   of a decode step outside the model (`--compile` only compiles the forward); a
   hand-rolled sampling loop over the static cache, or a vLLM/SGLang rollout
   worker, is the obvious next systems record.
-* Fewer optimizer steps to threshold: seeds need 250-450 steps with ±100 s
+* Fewer optimizer steps to threshold: seeds need 150-600 steps with ±200 s
   spread; anything that tightens that (longer/adaptive curriculum, LR schedule,
   Muon instead of AdamW) beats another 20% of step time.
 

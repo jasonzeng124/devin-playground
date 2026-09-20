@@ -1,0 +1,24 @@
+`torch_dtype` is deprecated! Use `dtype` instead!
+warmup (untimed): 36.2s
+{
+  "final_pass_rate": 0.1065,
+  "pass_rate": 0.1065,
+  "time_to_threshold_s": 780.9332303348929,
+  "total_steps": 525,
+  "total_wall": 780.9334789980203
+}
+The tokenizer you are loading from '/workspace/results/record005_extra/rerun_1200/seeds/8/final' with an incorrect regex pattern: https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503/discussions/84#69121093e8b480e709447d5e. This will lead to incorrect tokenization. You should set the `fix_mistral_regex=True` flag when loading this tokenizer to fix this issue.
+`torch_dtype` is deprecated! Use `dtype` instead!
+{
+  "model": "/workspace/results/record005_extra/rerun_1200/seeds/8/final",
+  "fineweb_loss": 2.5949913517602967,
+  "mmlu_lite_acc": 0.474,
+  "n_docs": 256,
+  "n_questions": 500,
+  "base": "Qwen/Qwen2.5-0.5B",
+  "base_fineweb_loss": 2.593734367952888,
+  "base_mmlu_lite_acc": 0.476,
+  "fineweb_loss_delta": 0.0012569838074085737,
+  "mmlu_lite_acc_delta": -0.0020000000000000018,
+  "passes_guardrail": true
+}

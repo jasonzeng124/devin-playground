@@ -1,0 +1,13 @@
+{
+  "model": "/workspace/results/record004_extra/seeds/5/final",
+  "fineweb_loss": 2.594918999419987,
+  "mmlu_lite_acc": 0.484,
+  "n_docs": 256,
+  "n_questions": 500,
+  "base": "Qwen/Qwen2.5-0.5B",
+  "base_fineweb_loss": 2.593734367952888,
+  "base_mmlu_lite_acc": 0.476,
+  "fineweb_loss_delta": 0.0011846314670989067,
+  "mmlu_lite_acc_delta": 0.008000000000000007,
+  "passes_guardrail": true
+}

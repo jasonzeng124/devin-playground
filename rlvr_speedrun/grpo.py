@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
+import platform
 import random
+import subprocess
 import time
 import weakref
 from dataclasses import asdict, dataclass, fields
@@ -13,12 +14,13 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import transformers
 from transformers import StaticCache
 
 from .countdown import split_prompt, verify
 from .data import load_puzzles, train_puzzle_stream
 from .eval import aggregate_results
-from .model_utils import answer_stopping_criteria, load_causal_model, load_tokenizer, resolve_device
+from .model_utils import answer_stopping_criteria, load_causal_model, load_tokenizer
 
 
 @dataclass
@@ -375,6 +377,25 @@ def _evaluate(model, tokenizer, puzzles, config: GRPOConfig, device: torch.devic
     return result
 
 
+def environment_info(device: torch.device) -> dict:
+    """Hardware/software identity recorded in result.json (RULES.md, 'Reproducibility')."""
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parent, capture_output=True, text=True, check=True
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        commit = None
+    return {
+        "gpu": torch.cuda.get_device_name(device) if device.type == "cuda" else device.type,
+        "gpu_count": torch.cuda.device_count() if device.type == "cuda" else 0,
+        "cuda": torch.version.cuda,
+        "torch": torch.__version__,
+        "transformers": transformers.__version__,
+        "python": platform.python_version(),
+        "git_commit": commit,
+    }
+
+
 def _warmup(model, tokenizer, config: GRPOConfig, eval_puzzles, device: torch.device, caches: StaticCachePool) -> None:
     """Untimed warm-up: compile the decode graph for the rollout and eval batch shapes.
 
@@ -414,10 +435,12 @@ def run(config: GRPOConfig) -> dict:
     train_log = (out_dir / "train_log.jsonl").open("w", encoding="utf-8")
     eval_log = (out_dir / "eval_log.jsonl").open("w", encoding="utf-8")
     caches = StaticCachePool(model) if config.compile else None
+    warmup_s = 0.0
     if caches is not None:
         warm_start = time.perf_counter()
         _warmup(model, tokenizer, config, eval_puzzles, device, caches)
-        print(f"warmup (untimed): {time.perf_counter() - warm_start:.1f}s", flush=True)
+        warmup_s = time.perf_counter() - warm_start
+        print(f"warmup (untimed): {warmup_s:.1f}s", flush=True)
     start = time.perf_counter()
     threshold_time = None
     try:
@@ -464,6 +487,9 @@ def run(config: GRPOConfig) -> dict:
         "time_to_threshold_s": threshold_time,
         "total_steps": len((out_dir / "train_log.jsonl").read_text().splitlines()),
         "total_wall": total_wall,
+        "warmup_s": warmup_s,
+        "max_steps": config.max_steps,
+        "environment": environment_info(device),
     }
     (out_dir / "result.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     return result
