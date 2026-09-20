@@ -13,6 +13,9 @@ class TinyTokenizer:
     pad_token_id = 0
     eos_token_id = 1
 
+    def __len__(self):
+        return 40
+
     def __call__(self, prompts, return_tensors="pt", padding=True):
         rows = []
         for prompt in prompts:

@@ -65,12 +65,18 @@ def _completion_logprobs(model, input_ids: torch.Tensor, attention_mask: torch.T
     return token_lp, completion_mask
 
 
-def _generate_chunked(model, tokenizer, encoded, config: GRPOConfig) -> torch.Tensor:
+def _generate_chunked(model, tokenizer, encoded, config: GRPOConfig) -> tuple[torch.Tensor, torch.Tensor]:
+    """Sample `group_size` completions per prompt; returns (sequences, finished_at).
+
+    `finished_at[i]` is the generated length at which row i emitted `</answer>`
+    (-1 if it never did), so trailing pad tokens can be excluded from the loss.
+    """
     n_prompts = encoded["input_ids"].shape[0]
     chunk = config.gen_batch_size if config.gen_batch_size > 0 else n_prompts
-    outputs = []
+    outputs, finished = [], []
     with torch.no_grad():
         for i in range(0, n_prompts, chunk):
+            criteria = answer_stopping_criteria(tokenizer)
             outputs.append(
                 model.generate(
                     input_ids=encoded["input_ids"][i : i + chunk],
@@ -80,12 +86,17 @@ def _generate_chunked(model, tokenizer, encoded, config: GRPOConfig) -> torch.Te
                     temperature=config.temperature,
                     pad_token_id=tokenizer.pad_token_id,
                     num_return_sequences=config.group_size,
-                    stopping_criteria=answer_stopping_criteria(tokenizer),
+                    stopping_criteria=criteria,
                 )
             )
+            rows = outputs[-1].shape[0]
+            finished_at = criteria[0].finished_at
+            if finished_at is None:
+                finished_at = torch.full((rows,), -1, dtype=torch.long, device=outputs[-1].device)
+            finished.append(finished_at)
     width = max(out.shape[1] for out in outputs)
     padded = [torch.nn.functional.pad(out, (0, width - out.shape[1]), value=tokenizer.pad_token_id) for out in outputs]
-    return torch.cat(padded, dim=0)
+    return torch.cat(padded, dim=0), torch.cat(finished, dim=0)
 
 
 def select_groups(rewards: torch.Tensor, keep: int) -> torch.Tensor:
@@ -108,26 +119,27 @@ def select_groups(rewards: torch.Tensor, keep: int) -> torch.Tensor:
 def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.device):
     prompts = [format_prompt(puzzle, few_shot=config.few_shot) for puzzle in puzzles]
     encoded = tokenizer(prompts, return_tensors="pt", padding=True).to(device)
-    generated = _generate_chunked(model, tokenizer, encoded, config)
+    generated, finished_at = _generate_chunked(model, tokenizer, encoded, config)
     prompt_width = encoded["input_ids"].shape[1]
     completions = tokenizer.batch_decode(generated[:, prompt_width:], skip_special_tokens=True)
     expanded = [puzzle for puzzle in puzzles for _ in range(config.group_size)]
     rewards = torch.tensor([verify(text, puzzle).reward for text, puzzle in zip(completions, expanded)], dtype=torch.float32, device=device)
     prompt_attention = encoded["attention_mask"].repeat_interleave(config.group_size, dim=0)
     completion = generated[:, prompt_width:]
-    completion_attention = torch.ones_like(completion, dtype=prompt_attention.dtype)
+    positions = torch.arange(completion.shape[1], device=device).unsqueeze(0)
+    stop_at = torch.where(finished_at >= 0, finished_at, torch.full_like(finished_at, completion.shape[1]))
+    valid = positions < stop_at.unsqueeze(1)
     if tokenizer.eos_token_id is not None and completion.shape[1]:
-        positions = torch.arange(completion.shape[1], device=device).unsqueeze(0)
         eos_positions = torch.where(
             completion.eq(tokenizer.eos_token_id),
             positions,
             torch.full_like(positions, completion.shape[1]),
         )
         first_eos = eos_positions.min(dim=1, keepdim=True).values
-        valid = positions <= first_eos
+        valid &= positions <= first_eos
         if tokenizer.pad_token_id is not None and tokenizer.pad_token_id != tokenizer.eos_token_id:
             valid &= completion.ne(tokenizer.pad_token_id)
-        completion_attention = valid.to(prompt_attention.dtype)
+    completion_attention = valid.to(prompt_attention.dtype)
     attention = torch.cat([prompt_attention, completion_attention], dim=1)
     return generated, attention, completions, expanded, rewards, prompt_width
 
