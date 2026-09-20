@@ -470,9 +470,11 @@ def run(config: GRPOConfig) -> dict:
 
 
 def _config_from_args(args) -> GRPOConfig:
+    names = {field.name for field in fields(GRPOConfig)}
     values = {}
     if args.config:
-        values.update(json.loads(Path(args.config).read_text(encoding="utf-8")))
+        loaded = json.loads(Path(args.config).read_text(encoding="utf-8"))
+        values.update({key: value for key, value in loaded.items() if key in names})
     for field in fields(GRPOConfig):
         value = getattr(args, field.name, None)
         if value is not None:

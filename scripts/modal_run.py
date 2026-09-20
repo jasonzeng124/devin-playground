@@ -39,29 +39,52 @@ def _flag_value(grpo_args: list[str], flag: str) -> str | None:
     return None
 
 
-def _model_from_args(grpo_args: list[str]) -> str:
+def _split_config(grpo_args: list[str]) -> tuple[list[str], dict]:
+    """Load a local `--config` file and remove the flag from the pass-through args.
+
+    The file only exists on the launching machine, so its contents are shipped to the
+    GPU container as a dict and re-materialised there.
+    """
+    config_path = _flag_value(grpo_args, "--config")
+    if config_path is None:
+        return list(grpo_args), {}
+    remaining, skip = [], False
+    for arg in grpo_args:
+        if skip:
+            skip = False
+        elif arg == "--config":
+            skip = True
+        elif not arg.startswith("--config="):
+            remaining.append(arg)
+    return remaining, json.loads(Path(config_path).read_text(encoding="utf-8"))
+
+
+def _model_from_args(grpo_args: list[str], config: dict) -> str:
     """Resolve the base model the way `rlvr_speedrun.grpo` does: `--model` overrides `--config`.
 
-    Runs locally (the config file lives on the launching machine) before any GPU is
-    started, so a missing model fails fast instead of after training.
+    Runs locally before any GPU is started, so a missing model fails fast instead of
+    after training.
     """
-    model = _flag_value(grpo_args, "--model")
-    config_path = _flag_value(grpo_args, "--config")
-    if model is None and config_path is not None:
-        model = json.loads(Path(config_path).read_text(encoding="utf-8")).get("model")
+    model = _flag_value(grpo_args, "--model") or config.get("model")
     if not model:
         raise ValueError("--model is required in --args (or in --config) when --probe is enabled")
     return model
 
 
-def _run(seed: int, run_name: str, grpo_args: list[str], probe: bool = True, base_model: str | None = None) -> str:
+def _run(seed: int, run_name: str, grpo_args: list[str], probe: bool = True, base_model: str | None = None, config: dict | None = None) -> str:
     out_dir = f"/results/{run_name}/seeds/{seed}"
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
     train_args = [arg for arg in grpo_args if arg != "--no-save"]
     if not probe:
         train_args.append("--no-save")
+    if config:
+        # the probe needs the `final` checkpoint, so a config's `no_save` must not win
+        launch_config = {key: value for key, value in config.items() if key != "no_save"}
+        config_path = Path(out_dir) / "launch_config.json"
+        config_path.write_text(json.dumps(launch_config, indent=2) + "\n", encoding="utf-8")
+        train_args = ["--config", str(config_path), *train_args]
     cmd = ["python", "-m", "rlvr_speedrun.grpo", *train_args, "--seed", str(seed), "--device", "cuda", "--out-dir", out_dir]
     proc = subprocess.run(cmd, cwd="/root/rlvr", capture_output=True, text=True)
-    Path(out_dir).mkdir(parents=True, exist_ok=True)
     (Path(out_dir) / "stdout.log").write_text(proc.stdout + "\n" + proc.stderr)
     volume.commit()
     if proc.returncode != 0:
@@ -74,7 +97,7 @@ def _run(seed: int, run_name: str, grpo_args: list[str], probe: bool = True, bas
             "--model",
             f"{out_dir}/final",
             "--base",
-            base_model or _model_from_args(grpo_args),
+            base_model or _model_from_args(grpo_args, config or {}),
             "--device",
             "cuda",
             "--out",
@@ -92,24 +115,27 @@ def _run(seed: int, run_name: str, grpo_args: list[str], probe: bool = True, bas
 
 
 @app.function(gpu="H100", timeout=6 * 3600, volumes={"/results": volume})
-def run_h100(seed: int, run_name: str, grpo_args: list[str], probe: bool = True, base_model: str | None = None) -> str:
-    return _run(seed, run_name, grpo_args, probe, base_model)
+def run_h100(seed: int, run_name: str, grpo_args: list[str], probe: bool = True, base_model: str | None = None, config: dict | None = None) -> str:
+    return _run(seed, run_name, grpo_args, probe, base_model, config)
 
 
 @app.function(gpu="A100-80GB", timeout=6 * 3600, volumes={"/results": volume})
-def run_a100(seed: int, run_name: str, grpo_args: list[str], probe: bool = True, base_model: str | None = None) -> str:
-    return _run(seed, run_name, grpo_args, probe, base_model)
+def run_a100(seed: int, run_name: str, grpo_args: list[str], probe: bool = True, base_model: str | None = None, config: dict | None = None) -> str:
+    return _run(seed, run_name, grpo_args, probe, base_model, config)
 
 
 @app.local_entrypoint()
 def main(gpu: str = "H100", seeds: str = "0", out: str = "results/modal_run", args: str = "", probe: bool = True):
     run_name = Path(out).name
     fn = run_h100 if gpu.upper() == "H100" else run_a100
-    grpo_args = shlex.split(args)
-    base_model = _model_from_args(grpo_args) if probe else None
+    grpo_args, config = _split_config(shlex.split(args))
+    base_model = _model_from_args(grpo_args, config) if probe else None
     seed_list = [int(s) for s in seeds.split(",")]
     results = list(
-        fn.map(seed_list, kwargs={"run_name": run_name, "grpo_args": grpo_args, "probe": probe, "base_model": base_model})
+        fn.map(
+            seed_list,
+            kwargs={"run_name": run_name, "grpo_args": grpo_args, "probe": probe, "base_model": base_model, "config": config},
+        )
     )
     for seed, result in zip(seed_list, results):
         print(f"seed {seed}: {result}")
