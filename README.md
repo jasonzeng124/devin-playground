@@ -23,10 +23,14 @@ on the frozen 2,000-puzzle eval, 3 seeds.
 | 1 | [002_curriculum_qwen05b_h100](records/track_a/002_curriculum_qwen05b_h100) | 783 ± 216 s | 0.104 | not measured | Devin / @jasonzeng124 |
 | 2 | [003_nokl_deferred_eval_h100](records/track_a/003_nokl_deferred_eval_h100) | 573 ± 214 s | 0.105 | not measured | Devin / @jasonzeng124 |
 | 3 | [004_nokl_guardrail_h100](records/track_a/004_nokl_guardrail_h100) | 655 ± 116 s | 0.110 | pass (Δloss +0.001) | Devin / @jasonzeng124 |
+| 4 | [005_prefix_kv_compile_h100](records/track_a/005_prefix_kv_compile_h100) | 511 ± 123 s | 0.110 | pass (Δloss +0.002) | Devin / @jasonzeng124 |
 
-Record 004 is the same recipe as 003 with the guardrail measured; it is listed
-separately because RL seed variance (~±200 s) is currently larger than most
-recipe changes. Reducing that variance is itself a good record.
+Record 004 is the same recipe as 003 with the guardrail measured; 005 is the
+same recipe again on a 2x faster trainer (shared-prefix KV reuse, compiled
+static-cache decode). Both are listed separately because RL seed variance
+(~±120-200 s) is currently larger than most recipe changes. Reducing that
+variance is itself a good record. Negative results (dynamic sampling, T=1.0,
+Dr. GRPO advantages) are written up in record 005's README.
 
 Not ranked: [000_smoke_cpu](records/track_a/000_smoke_cpu),
 [001_smoke_gpu_qwen05b](records/track_a/001_smoke_gpu_qwen05b) (pipeline
@@ -52,10 +56,12 @@ uv run python -m rlvr_speedrun.eval --model Qwen/Qwen2.5-0.5B --few-shot 3 --lim
 # sweep several base checkpoints, print a markdown table
 bash scripts/sweep_base_models.sh
 
-# GRPO
+# GRPO (record 005 recipe; drop --compile/--pad-to-multiple for eager generation)
 uv run python -m rlvr_speedrun.grpo --model Qwen/Qwen2.5-0.5B \
-    --group-size 16 --prompts-per-step 8 --curriculum-steps 200 --max-steps 400 \
-    --eval-every 25 --eval-limit 2000 --target-solve-rate 0.1 --device cuda \
+    --group-size 16 --prompts-per-step 8 --micro-batch-size 128 --temperature 0.8 \
+    --lr 5e-6 --kl-coef 0 --curriculum-steps 200 --max-steps 600 \
+    --eval-every 25 --eval-start-step 150 --eval-limit 2000 --eval-batch-size 1000 \
+    --target-solve-rate 0.1 --compile --pad-to-multiple 64 --device cuda \
     --no-save --seed 0 --out-dir records/track_a/00N_my_record/seeds/0
 
 # validate a record before opening a PR
@@ -113,11 +119,17 @@ base. Solves are sparse enough that plain GRPO has almost no signal (record
 
 ## Good first records
 
-* Tune `lr`, `kl_coef`, `group_size`, `temperature`, `curriculum_steps` on record 002.
-* Evaluate less often (every full-eval costs ~15 s on the clock).
+* Tune `lr`, `kl_coef`, `group_size`, `temperature`, `curriculum_steps` on record 005.
+* Trigger the full eval off the in-batch solve rate instead of a fixed schedule
+  (each eval costs ~10 s on the clock; `--eval-start-step` is a blunt version).
 * Reward shaping from the verifier output (e.g. partial credit for using all numbers).
-* Rollout throughput: batched generation, KV-cache reuse, `torch.compile`.
-* Replace AdamW with Muon on the policy.
+* Rollout throughput: rollouts are now ~70% of a step. HF `generate` spends most
+  of a decode step outside the model (`--compile` only compiles the forward); a
+  hand-rolled sampling loop over the static cache, or a vLLM/SGLang rollout
+  worker, is the obvious next systems record.
+* Fewer optimizer steps to threshold: seeds need 250-450 steps with ±100 s
+  spread; anything that tightens that (longer/adaptive curriculum, LR schedule,
+  Muon instead of AdamW) beats another 20% of step time.
 
 ## Credits
 
