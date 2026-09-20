@@ -26,7 +26,10 @@ app = modal.App("rlvr-speedrun-bench", image=image)
 
 def _run(cmd: str) -> str:
     proc = subprocess.run(shlex.split(cmd), cwd="/root/rlvr", capture_output=True, text=True, env={**os.environ, "PYTHONPATH": "/root/rlvr"})
-    return proc.stdout + "\n--- stderr ---\n" + proc.stderr[-6000:]
+    output = proc.stdout + "\n--- stderr ---\n" + proc.stderr[-6000:]
+    if proc.returncode != 0:
+        raise RuntimeError(f"exit {proc.returncode}\n{output}")
+    return output
 
 
 @app.function(gpu="H100", timeout=3600)

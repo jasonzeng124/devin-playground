@@ -111,7 +111,10 @@ def _load_target(target, device: str, dtype: str | None, tokenizer=None):
         return model, tokenizer, resolved
     if tokenizer is None:
         raise ValueError("a tokenizer is required when probing an in-memory model")
-    resolved = torch.device(device) if isinstance(device, str) else device
+    if isinstance(device, str) and device == "auto":
+        resolved = next(target.parameters()).device
+    else:
+        resolved = torch.device(device) if isinstance(device, str) else device
     return target, tokenizer, resolved
 
 

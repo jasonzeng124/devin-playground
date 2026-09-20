@@ -19,7 +19,7 @@ from rlvr_speedrun.model_utils import answer_stopping_criteria, load_causal_mode
 
 
 def _bench(model, tokenizer, encoded, args, label: str, **generate_kwargs) -> None:
-    times = []
+    times, tokens = [], []
     for i in range(args.warmup + args.repeat):
         torch.manual_seed(i)
         if torch.cuda.is_available():
@@ -42,10 +42,10 @@ def _bench(model, tokenizer, encoded, args, label: str, **generate_kwargs) -> No
         elapsed = time.perf_counter() - start
         if i >= args.warmup:
             times.append(elapsed)
+            tokens.append(out.shape[0] * (out.shape[1] - encoded["input_ids"].shape[1]))
         print(f"{label} iter {i}: {elapsed:.2f}s (out {tuple(out.shape)})", flush=True)
     mean = sum(times) / len(times)
-    tokens = out.shape[0] * (out.shape[1] - encoded["input_ids"].shape[1])
-    print(f"{label}: mean {mean:.2f}s over {len(times)} runs, ~{tokens / mean:.0f} tok/s", flush=True)
+    print(f"{label}: mean {mean:.2f}s over {len(times)} runs, ~{sum(tokens) / sum(times):.0f} tok/s", flush=True)
 
 
 def main() -> None:

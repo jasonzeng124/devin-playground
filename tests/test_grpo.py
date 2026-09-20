@@ -220,6 +220,25 @@ def test_chunked_generation_matches_unchunked_shapes():
     assert len(out_b[4]) == 6 and out_a[5] == out_b[5]
 
 
+def test_cross_chunk_padding_is_excluded_even_when_pad_equals_eos(monkeypatch):
+    class PadIsEosTokenizer(TinyTokenizer):
+        pad_token_id = 1
+        eos_token_id = 1
+
+    tokenizer = PadIsEosTokenizer()
+    puzzles = [Puzzle((1, 2), 3), Puzzle((3, 4), 7)]
+    config = GRPOConfig(group_size=1, prompts_per_step=2, max_new_tokens=4, gen_batch_size=1)
+    encoded, _ = grpo._encode_prompts(tokenizer, puzzles, config, torch.device("cpu"))
+    prompt_width = encoded["input_ids"].shape[1]
+    # chunk 0 generated 4 tokens (no EOS); chunk 1 generated 2 and was padded with pad==eos to width 4
+    completions = torch.tensor([[5, 6, 7, 8], [5, 6, 1, 1]])
+    generated = torch.cat([encoded["input_ids"], completions], dim=1)
+    finished_at = torch.tensor([4, 2])
+    monkeypatch.setattr(grpo, "_generate_chunked", lambda *args, **kwargs: (generated, finished_at))
+    _, attention, *_ = grpo._sample_batch(model=None, tokenizer=tokenizer, puzzles=puzzles, config=config, device=torch.device("cpu"))
+    assert attention[:, prompt_width:].tolist() == [[1, 1, 1, 1], [1, 1, 0, 0]]
+
+
 def test_group_advantages_std_and_none():
     groups = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
     centred = grpo.group_advantages(groups, "none")

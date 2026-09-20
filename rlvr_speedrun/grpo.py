@@ -7,6 +7,7 @@ import json
 import math
 import random
 import time
+import weakref
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 
@@ -139,8 +140,9 @@ def _generate_chunked(model, tokenizer, encoded, config: GRPOConfig, caches: Sta
     transformers versions default to `top_k=50`) so the sampler matches the policy
     log-probs used in the loss.
 
-    `finished_at[i]` is the generated length at which row i emitted `</answer>`
-    (-1 if it never did), so trailing pad tokens can be excluded from the loss.
+    `finished_at[i]` is the generated length of row i: the position at which it
+    emitted `</answer>`, or its chunk's generated width if it never did. Tokens at
+    or beyond it (forced pads, cross-chunk padding) are excluded from the loss.
     """
     n_prompts = encoded["input_ids"].shape[0]
     chunk = config.gen_batch_size if config.gen_batch_size > 0 else n_prompts
@@ -164,11 +166,11 @@ def _generate_chunked(model, tokenizer, encoded, config: GRPOConfig, caches: Sta
                     **_cache_kwargs(caches, ids.shape[0] * config.group_size, ids.shape[1], config),
                 )
             )
-            rows = outputs[-1].shape[0]
+            rows, gen_len = outputs[-1].shape[0], outputs[-1].shape[1] - ids.shape[1]
             finished_at = criteria[0].finished_at
             if finished_at is None:
                 finished_at = torch.full((rows,), -1, dtype=torch.long, device=outputs[-1].device)
-            finished.append(finished_at)
+            finished.append(torch.where(finished_at >= 0, finished_at, torch.full_like(finished_at, gen_len)))
     width = max(out.shape[1] for out in outputs)
     padded = [torch.nn.functional.pad(out, (0, width - out.shape[1]), value=tokenizer.pad_token_id) for out in outputs]
     return torch.cat(padded, dim=0), torch.cat(finished, dim=0)
@@ -204,7 +206,7 @@ def group_advantages(groups: torch.Tensor, adv_norm: str) -> torch.Tensor:
     return torch.where(stds > 0, centred / (stds + 1e-4), torch.zeros_like(centred))
 
 
-_SPLIT_IS_EXACT: dict[int, bool] = {}
+_SPLIT_IS_EXACT: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 
 
 def _encode_prompts(tokenizer, puzzles, config: GRPOConfig, device: torch.device) -> tuple[dict, int]:
@@ -219,11 +221,10 @@ def _encode_prompts(tokenizer, puzzles, config: GRPOConfig, device: torch.device
     parts = [split_prompt(puzzle, few_shot=config.few_shot) for puzzle in puzzles]
     prefix_ids = tokenizer.encode(parts[0][0])
     suffix_ids = [tokenizer.encode(suffix, add_special_tokens=False) for _, suffix in parts]
-    key = id(tokenizer)
-    if key not in _SPLIT_IS_EXACT:
-        _SPLIT_IS_EXACT[key] = tokenizer.encode(parts[0][0] + parts[0][1]) == prefix_ids + suffix_ids[0]
+    if tokenizer not in _SPLIT_IS_EXACT:
+        _SPLIT_IS_EXACT[tokenizer] = tokenizer.encode(parts[0][0] + parts[0][1]) == prefix_ids + suffix_ids[0]
     multiple = max(1, config.pad_to_multiple)
-    if not _SPLIT_IS_EXACT[key]:
+    if not _SPLIT_IS_EXACT[tokenizer]:
         prompts = [prefix + suffix for prefix, suffix in parts]
         kwargs = {"pad_to_multiple_of": multiple} if multiple > 1 else {}
         encoded = tokenizer(prompts, return_tensors="pt", padding=True, **kwargs)
@@ -258,8 +259,7 @@ def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.d
     prompt_attention = encoded["attention_mask"].repeat_interleave(config.group_size, dim=0)
     completion = generated[:, prompt_width:]
     positions = torch.arange(completion.shape[1], device=device).unsqueeze(0)
-    stop_at = torch.where(finished_at >= 0, finished_at, torch.full_like(finished_at, completion.shape[1]))
-    valid = positions < stop_at.unsqueeze(1)
+    valid = positions < finished_at.unsqueeze(1)
     if tokenizer.eos_token_id is not None and completion.shape[1]:
         eos_positions = torch.where(
             completion.eq(tokenizer.eos_token_id),
@@ -378,13 +378,16 @@ def _evaluate(model, tokenizer, puzzles, config: GRPOConfig, device: torch.devic
 def _warmup(model, tokenizer, config: GRPOConfig, eval_puzzles, device: torch.device, caches: StaticCachePool) -> None:
     """Untimed warm-up: compile the decode graph for the rollout and eval batch shapes.
 
-    Uses a puzzle stream disjoint from training and performs no optimizer step, so the
-    policy is unchanged when the clock starts.
+    Uses a puzzle stream disjoint from training and performs no optimizer step, and
+    restores the RNG state afterwards, so the policy and the seeded sampling sequence
+    are unchanged when the clock starts.
     """
     warm_stream = train_puzzle_stream(config.seed + 700_000)
     rollout = [next(warm_stream) for _ in range(config.prompts_per_step * max(1, config.oversample))]
-    _sample_batch(model, tokenizer, rollout, config, device, caches)
-    _evaluate(model, tokenizer, eval_puzzles[: config.eval_batch_size], config, device, caches)
+    devices = [device] if device.type == "cuda" else []
+    with torch.random.fork_rng(devices=devices):
+        _sample_batch(model, tokenizer, rollout, config, device, caches)
+        _evaluate(model, tokenizer, eval_puzzles[: config.eval_batch_size], config, device, caches)
 
 
 def run(config: GRPOConfig) -> dict:
@@ -395,7 +398,7 @@ def run(config: GRPOConfig) -> dict:
     tokenizer = load_tokenizer(config.model)
     model, device = load_causal_model(config.model, config.device, config.dtype)
     ref_model = None
-    if config.kl_coef > 0:
+    if config.kl_coef != 0:
         ref_name = config.ref_model or config.model
         ref_model, _ = load_causal_model(ref_name, str(device), config.dtype)
         for parameter in ref_model.parameters():

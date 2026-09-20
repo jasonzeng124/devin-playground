@@ -2,22 +2,23 @@
 
 from __future__ import annotations
 
+import weakref
 from typing import Sequence
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList
 
 
-_CLOSE_TOKEN_IDS: dict[int, torch.Tensor] = {}
+_CLOSE_TOKEN_IDS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 
 
 def _tokens_containing(tokenizer, text: str) -> torch.Tensor:
-    """Vocabulary ids whose decoded string contains `text` (cached per tokenizer)."""
-    key = id(tokenizer)
-    if key not in _CLOSE_TOKEN_IDS:
+    """Vocabulary ids whose decoded string contains `text` (cached per tokenizer instance)."""
+    cached = _CLOSE_TOKEN_IDS.setdefault(tokenizer, {})
+    if text not in cached:
         ids = [i for i in range(len(tokenizer)) if text in tokenizer.decode([i], skip_special_tokens=False)]
-        _CLOSE_TOKEN_IDS[key] = torch.tensor(ids, dtype=torch.long)
-    return _CLOSE_TOKEN_IDS[key]
+        cached[text] = torch.tensor(ids, dtype=torch.long)
+    return cached[text]
 
 
 class AnswerTagStoppingCriteria(StoppingCriteria):
