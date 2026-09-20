@@ -65,7 +65,12 @@ Run one at a time on a RunPod `NVIDIA H100 80GB HBM3` (SXM) pod, torch
 at commit `2bc076e` (seeds 0-2 ran on Modal H100 80GB HBM3, torch 2.5.1 /
 transformers 4.57, on the pre-review version of the same trainer; the review
 fixes in between — RNG restore after warm-up, padding mask across prefix
-chunks — do not change the recipe). Step time matches Modal (1.2-1.5 s/step).
+chunks — do not change the recipe). Step time (evals excluded) was 1.39-1.45
+s/step on Modal and 1.27-1.53 s/step on RunPod (`t_sample` 0.81 vs 0.82-0.88 s),
+so the RunPod host is a few percent slower per step; the RunPod seeds
+nevertheless averaged 438 s vs 511 s on Modal because two of them crossed at
+step 150. Provider differences are within seed noise here, but the README of a
+record must say which host each seed ran on so this can be checked.
 Untimed warm-up (`warmup_s`, in `stdout.log`): 67 s for seed 3 (cold inductor
 cache), 36-40 s for the rest. Same `--args` as below plus
 `--seed N --device cuda --out-dir <record>/seeds/N`, then

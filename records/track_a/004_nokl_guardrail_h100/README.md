@@ -39,8 +39,11 @@ threshold).
 Run on a RunPod `NVIDIA H100 80GB HBM3` (SXM) pod, torch 2.5.1+cu124,
 transformers 4.57.6, Python 3.11, driver 580.126, with the trainer at commit
 `fa9e0c3` (the pre-005 trainer used for seeds 0-2, which ran on Modal H100
-80GB HBM3 with torch 2.5.1 / transformers 4.57). Step time is the same on both providers
-(2.3-2.6 s/step). This trainer predates `warmup_s` / `environment` in
+80GB HBM3 with torch 2.5.1 / transformers 4.57). Step time (evals excluded)
+was 2.19-2.39 s/step on Modal and 2.24-2.58 s/step on RunPod, i.e. the RunPod
+host is ~5-8 % slower per step; the longer RunPod times are dominated by
+steps-to-threshold (Modal seeds crossed at 250-325 steps, RunPod seeds at
+300-600), not by hardware. This trainer predates `warmup_s` / `environment` in
 `result.json`; it does no untimed warm-up (eager generation), so the clock
 starts at the first rollout with cold kernels.
 

@@ -105,6 +105,14 @@ exact command that produced the seeds, so that a third party can reproduce
 the record on a rented H100 with no guesswork. The reference environment is
 `torch 2.5.1` + `transformers 4.57` + bf16 (`scripts/modal_run.py`).
 
+The same GPU model on different hosts is not identical: between Modal and
+RunPod H100 SXM pods we measured a 5-8 % per-step gap (host CPU, driver,
+PCIe/NVLink topology), which is small next to seed-to-seed variance in
+steps-to-threshold but not zero. A record's README must therefore say which
+provider/host each seed ran on, and a record whose seeds are split across
+providers should report per-provider step times so readers can separate
+hardware from learning variance.
+
 ## Seeds and statistics
 
 RL time-to-threshold is high-variance and right-skewed: over 10 seeds each,
