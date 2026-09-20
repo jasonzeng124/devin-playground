@@ -134,16 +134,30 @@ FEW_SHOT_EXAMPLES = [
 ]
 
 
-def format_prompt(puzzle: Puzzle, few_shot: int = 0) -> str:
-    """Format a puzzle, optionally preceded by up to three worked examples."""
+_PREFIX_SPLIT = "Using the numbers"
+
+
+def split_prompt(puzzle: Puzzle, few_shot: int = 0) -> tuple[str, str]:
+    """Split the prompt into (shared prefix, puzzle-specific suffix).
+
+    The prefix is identical for every puzzle at a given `few_shot`, and the split
+    falls on a whitespace boundary so BPE tokenization of the parts concatenates to
+    the tokenization of the whole prompt. `"".join(split_prompt(p, k)) == format_prompt(p, k)`.
+    """
+    question = PROMPT_TEMPLATE.format(numbers=list(puzzle.numbers), target=puzzle.target)
+    head, _, tail = question.partition(_PREFIX_SPLIT)
     if few_shot <= 0:
-        return PROMPT_TEMPLATE.format(numbers=list(puzzle.numbers), target=puzzle.target)
+        return head + _PREFIX_SPLIT, tail
     examples = []
     for example_puzzle, reasoning, answer in FEW_SHOT_EXAMPLES[: min(few_shot, len(FEW_SHOT_EXAMPLES))]:
-        question = PROMPT_TEMPLATE.format(numbers=list(example_puzzle.numbers), target=example_puzzle.target)
-        examples.append(f"Question: {question}Reasoning: {reasoning}\n{answer}")
-    question = PROMPT_TEMPLATE.format(numbers=list(puzzle.numbers), target=puzzle.target)
-    return "\n\n".join(examples + [f"Question: {question}"])
+        example = PROMPT_TEMPLATE.format(numbers=list(example_puzzle.numbers), target=example_puzzle.target)
+        examples.append(f"Question: {example}Reasoning: {reasoning}\n{answer}")
+    return "\n\n".join(examples + [f"Question: {head}{_PREFIX_SPLIT}"]), tail
+
+
+def format_prompt(puzzle: Puzzle, few_shot: int = 0) -> str:
+    """Format a puzzle, optionally preceded by up to three worked examples."""
+    return "".join(split_prompt(puzzle, few_shot))
 
 
 # --------------------------------------------------------------------------

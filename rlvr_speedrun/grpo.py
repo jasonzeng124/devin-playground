@@ -12,8 +12,9 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from transformers import StaticCache
 
-from .countdown import format_prompt, verify
+from .countdown import split_prompt, verify
 from .data import load_puzzles, train_puzzle_stream
 from .eval import aggregate_results
 from .model_utils import answer_stopping_criteria, load_causal_model, load_tokenizer, resolve_device
@@ -58,11 +59,40 @@ def _set_seed(seed: int) -> None:
     torch.manual_seed(seed)
 
 
-def _completion_logprobs(model, input_ids: torch.Tensor, attention_mask: torch.Tensor, prompt_width: int, temperature: float = 1.0):
-    """Per-token log-probs (at the sampling temperature) and entropies of completion tokens."""
+def _completion_logprobs(
+    model,
+    input_ids: torch.Tensor,
+    attention_mask: torch.Tensor,
+    prompt_width: int,
+    temperature: float = 1.0,
+    prefix_len: int = 0,
+):
+    """Per-token log-probs (at the sampling temperature) and entropies of completion tokens.
+
+    Positions follow the attention mask (as in `generate`), so padding may sit anywhere.
+    If `prefix_len > 0`, columns `[:prefix_len]` are identical and fully attended in
+    every row: that prefix is run once and its KV cache broadcast to the batch, which
+    is exact under causal attention and skips ~`(rows-1) * prefix_len` tokens of
+    forward/backward compute.
+    """
     start = max(0, prompt_width - 1)
-    hidden = model.base_model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False).last_hidden_state
-    logits = model.get_output_embeddings()(hidden[:, start:-1]).float() / temperature
+    position_ids = (attention_mask.long().cumsum(-1) - 1).clamp_min(0)
+    if 0 < prefix_len <= start:
+        prefix = model.base_model(input_ids=input_ids[:1, :prefix_len], position_ids=position_ids[:1, :prefix_len], use_cache=True)
+        cache = prefix.past_key_values
+        cache.batch_repeat_interleave(input_ids.shape[0])
+        hidden = model.base_model(
+            input_ids=input_ids[:, prefix_len:],
+            attention_mask=attention_mask,
+            position_ids=position_ids[:, prefix_len:],
+            past_key_values=cache,
+            use_cache=True,
+        ).last_hidden_state
+        hidden = hidden[:, start - prefix_len : -1]
+    else:
+        hidden = model.base_model(input_ids=input_ids, attention_mask=attention_mask, position_ids=position_ids, use_cache=False).last_hidden_state
+        hidden = hidden[:, start:-1]
+    logits = model.get_output_embeddings()(hidden).float() / temperature
     labels = input_ids[:, start + 1 :]
     log_z = torch.logsumexp(logits, dim=-1)
     token_lp = logits.gather(-1, labels.unsqueeze(-1)).squeeze(-1) - log_z
@@ -73,8 +103,41 @@ def _completion_logprobs(model, input_ids: torch.Tensor, attention_mask: torch.T
     return token_lp, completion_mask, entropy
 
 
-def _generate_chunked(model, tokenizer, encoded, config: GRPOConfig) -> tuple[torch.Tensor, torch.Tensor]:
+class StaticCachePool:
+    """One persistent `StaticCache` per batch size, reset between `generate` calls.
+
+    HF's built-in `cache_implementation="static"` rebuilds the cache whenever the
+    batch size changes, and every fresh cache object re-triggers `torch.compile`
+    (~25 s on an H100); with alternating rollout/eval batch sizes that happens every
+    switch. Reusing the same objects keeps the compiled graphs' guards valid.
+    """
+
+    def __init__(self, model):
+        self.model = model
+        self._caches: dict[int, StaticCache] = {}
+
+    def get(self, rows: int, max_cache_len: int) -> StaticCache:
+        cache = self._caches.get(rows)
+        if cache is None or cache.max_cache_len < max_cache_len:
+            cache = StaticCache(config=self.model.config, max_cache_len=max_cache_len)
+            self._caches[rows] = cache
+        else:
+            cache.reset()
+        return cache
+
+
+def _cache_kwargs(caches: StaticCachePool | None, rows: int, prompt_width: int, config: GRPOConfig) -> dict:
+    if caches is None:
+        return {}
+    return {"past_key_values": caches.get(rows, prompt_width + config.max_new_tokens)}
+
+
+def _generate_chunked(model, tokenizer, encoded, config: GRPOConfig, caches: StaticCachePool | None = None) -> tuple[torch.Tensor, torch.Tensor]:
     """Sample `group_size` completions per prompt; returns (sequences, finished_at).
+
+    Sampling is from the full tempered softmax (`top_k=0`, `top_p=1.0`; some
+    transformers versions default to `top_k=50`) so the sampler matches the policy
+    log-probs used in the loss.
 
     `finished_at[i]` is the generated length at which row i emitted `</answer>`
     (-1 if it never did), so trailing pad tokens can be excluded from the loss.
@@ -85,16 +148,20 @@ def _generate_chunked(model, tokenizer, encoded, config: GRPOConfig) -> tuple[to
     with torch.no_grad():
         for i in range(0, n_prompts, chunk):
             criteria = answer_stopping_criteria(tokenizer)
+            ids = encoded["input_ids"][i : i + chunk]
             outputs.append(
                 model.generate(
-                    input_ids=encoded["input_ids"][i : i + chunk],
+                    input_ids=ids,
                     attention_mask=encoded["attention_mask"][i : i + chunk],
                     max_new_tokens=config.max_new_tokens,
                     do_sample=True,
                     temperature=config.temperature,
+                    top_k=0,
+                    top_p=1.0,
                     pad_token_id=tokenizer.pad_token_id,
                     num_return_sequences=config.group_size,
                     stopping_criteria=criteria,
+                    **_cache_kwargs(caches, ids.shape[0] * config.group_size, ids.shape[1], config),
                 )
             )
             rows = outputs[-1].shape[0]
@@ -137,15 +204,53 @@ def group_advantages(groups: torch.Tensor, adv_norm: str) -> torch.Tensor:
     return torch.where(stds > 0, centred / (stds + 1e-4), torch.zeros_like(centred))
 
 
-def _encode_prompts(tokenizer, puzzles, config: GRPOConfig, device: torch.device):
-    prompts = [format_prompt(puzzle, few_shot=config.few_shot) for puzzle in puzzles]
-    kwargs = {"pad_to_multiple_of": config.pad_to_multiple} if config.pad_to_multiple > 0 else {}
-    return tokenizer(prompts, return_tensors="pt", padding=True, **kwargs).to(device)
+_SPLIT_IS_EXACT: dict[int, bool] = {}
 
 
-def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.device):
-    encoded = _encode_prompts(tokenizer, puzzles, config, device)
-    generated, finished_at = _generate_chunked(model, tokenizer, encoded, config)
+def _encode_prompts(tokenizer, puzzles, config: GRPOConfig, device: torch.device) -> tuple[dict, int]:
+    """Tokenize prompts as `[shared prefix][pad...][puzzle suffix]`; returns (encoding, prefix_len).
+
+    Padding between prefix and suffix (rather than on the left) keeps the prefix
+    column-aligned across rows. With mask-derived positions this is equivalent to
+    left padding for generation, and it lets training reuse the prefix's KV cache.
+    Falls back to plain left padding (prefix_len 0) if the tokenizer does not split
+    cleanly at the prefix boundary.
+    """
+    parts = [split_prompt(puzzle, few_shot=config.few_shot) for puzzle in puzzles]
+    prefix_ids = tokenizer.encode(parts[0][0])
+    suffix_ids = [tokenizer.encode(suffix, add_special_tokens=False) for _, suffix in parts]
+    key = id(tokenizer)
+    if key not in _SPLIT_IS_EXACT:
+        _SPLIT_IS_EXACT[key] = tokenizer.encode(parts[0][0] + parts[0][1]) == prefix_ids + suffix_ids[0]
+    multiple = max(1, config.pad_to_multiple)
+    if not _SPLIT_IS_EXACT[key]:
+        prompts = [prefix + suffix for prefix, suffix in parts]
+        kwargs = {"pad_to_multiple_of": multiple} if multiple > 1 else {}
+        encoded = tokenizer(prompts, return_tensors="pt", padding=True, **kwargs)
+        return {"input_ids": encoded["input_ids"].to(device), "attention_mask": encoded["attention_mask"].to(device)}, 0
+    width = len(prefix_ids) + max(len(ids) for ids in suffix_ids)
+    width = -(-width // multiple) * multiple
+    pad = tokenizer.pad_token_id
+    rows, mask = [], []
+    for ids in suffix_ids:
+        fill = width - len(prefix_ids) - len(ids)
+        rows.append(prefix_ids + [pad] * fill + ids)
+        mask.append([1] * len(prefix_ids) + [0] * fill + [1] * len(ids))
+    return {
+        "input_ids": torch.tensor(rows, dtype=torch.long, device=device),
+        "attention_mask": torch.tensor(mask, dtype=torch.long, device=device),
+    }, len(prefix_ids)
+
+
+def _now(device: torch.device) -> float:
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    return time.perf_counter()
+
+
+def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.device, caches: StaticCachePool | None = None):
+    encoded, prefix_len = _encode_prompts(tokenizer, puzzles, config, device)
+    generated, finished_at = _generate_chunked(model, tokenizer, encoded, config, caches)
     prompt_width = encoded["input_ids"].shape[1]
     completions = tokenizer.batch_decode(generated[:, prompt_width:], skip_special_tokens=True)
     expanded = [puzzle for puzzle in puzzles for _ in range(config.group_size)]
@@ -167,11 +272,17 @@ def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.d
             valid &= completion.ne(tokenizer.pad_token_id)
     completion_attention = valid.to(prompt_attention.dtype)
     attention = torch.cat([prompt_attention, completion_attention], dim=1)
-    return generated, attention, completions, expanded, rewards, prompt_width
+    return generated, attention, completions, expanded, rewards, prompt_width, prefix_len
 
 
-def grpo_step(model, ref_model, tokenizer, puzzles, config: GRPOConfig, optimizer, device: torch.device) -> dict:
-    generated, attention, completions, expanded, rewards, prompt_width = _sample_batch(model, tokenizer, puzzles, config, device)
+def grpo_step(
+    model, ref_model, tokenizer, puzzles, config: GRPOConfig, optimizer, device: torch.device, caches: StaticCachePool | None = None
+) -> dict:
+    t0 = _now(device)
+    generated, attention, completions, expanded, rewards, prompt_width, prefix_len = _sample_batch(
+        model, tokenizer, puzzles, config, device, caches
+    )
+    t_sample = _now(device) - t0
     all_rewards = rewards
     all_groups = all_rewards.reshape(len(puzzles), config.group_size)
     informative_groups = int((all_groups.std(dim=1, unbiased=False) > 0).sum().item())
@@ -194,7 +305,7 @@ def grpo_step(model, ref_model, tokenizer, puzzles, config: GRPOConfig, optimize
     micro = max(1, config.micro_batch_size)
     for i in range(0, generated.shape[0], micro):
         ids, mask, adv = generated[i : i + micro], attention[i : i + micro], advantages[i : i + micro]
-        policy_lp, completion_mask, entropy = _completion_logprobs(model, ids, mask, prompt_width, config.temperature)
+        policy_lp, completion_mask, entropy = _completion_logprobs(model, ids, mask, prompt_width, config.temperature, prefix_len)
         policy_lp = policy_lp[completion_mask]
         entropy_total += entropy[completion_mask].sum()
         repeated_advantages = adv.unsqueeze(1).expand(-1, completion_mask.shape[1])[completion_mask]
@@ -204,7 +315,7 @@ def grpo_step(model, ref_model, tokenizer, puzzles, config: GRPOConfig, optimize
             loss = policy_loss
         else:
             with torch.no_grad():
-                ref_lp, _, _ = _completion_logprobs(ref_model, ids, mask, prompt_width, config.temperature)
+                ref_lp, _, _ = _completion_logprobs(ref_model, ids, mask, prompt_width, config.temperature, prefix_len)
             ref_lp = ref_lp[completion_mask]
             kl_tokens = torch.exp(ref_lp - policy_lp) - (ref_lp - policy_lp) - 1
             kl = kl_tokens.sum() / token_count
@@ -216,6 +327,7 @@ def grpo_step(model, ref_model, tokenizer, puzzles, config: GRPOConfig, optimize
     if config.grad_clip > 0:
         torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
     optimizer.step()
+    t_update = _now(device) - t0 - t_sample
     return {
         "mean_reward": all_rewards.mean().item(),
         "solve_rate_in_batch": (all_rewards == 1.0).float().mean().item(),
@@ -226,12 +338,14 @@ def grpo_step(model, ref_model, tokenizer, puzzles, config: GRPOConfig, optimize
         "kl": kl.detach().item(),
         "loss": loss.detach().item(),
         "tokens": int(token_count.item()),
+        "t_sample": t_sample,
+        "t_update": t_update,
         "completions": completions,
         "rewards": rewards.detach().cpu().tolist(),
     }
 
 
-def _evaluate(model, tokenizer, puzzles, config: GRPOConfig, device: torch.device) -> dict:
+def _evaluate(model, tokenizer, puzzles, config: GRPOConfig, device: torch.device, caches: StaticCachePool | None = None) -> dict:
     all_completions = []
     with torch.no_grad():
         for start in range(0, len(puzzles), config.eval_batch_size):
@@ -239,13 +353,14 @@ def _evaluate(model, tokenizer, puzzles, config: GRPOConfig, device: torch.devic
             n_real = len(batch)
             if config.compile and n_real < config.eval_batch_size:
                 batch = batch + [batch[0]] * (config.eval_batch_size - n_real)
-            encoded = _encode_prompts(tokenizer, batch, config, device)
+            encoded, _ = _encode_prompts(tokenizer, batch, config, device)
             generated = model.generate(
                 **encoded,
                 max_new_tokens=config.max_new_tokens,
                 do_sample=False,
                 pad_token_id=tokenizer.pad_token_id,
                 stopping_criteria=answer_stopping_criteria(tokenizer),
+                **_cache_kwargs(caches, encoded["input_ids"].shape[0], encoded["input_ids"].shape[1], config),
             )
             all_completions.extend(tokenizer.batch_decode(generated[:n_real, encoded["input_ids"].shape[1] :], skip_special_tokens=True))
     result = aggregate_results(all_completions, puzzles)
@@ -260,24 +375,16 @@ def _evaluate(model, tokenizer, puzzles, config: GRPOConfig, device: torch.devic
     return result
 
 
-def _warmup(model, tokenizer, config: GRPOConfig, eval_puzzles, device: torch.device) -> None:
-    """Untimed warm-up: trigger torch.compile / static-cache capture for the rollout and eval shapes.
+def _warmup(model, tokenizer, config: GRPOConfig, eval_puzzles, device: torch.device, caches: StaticCachePool) -> None:
+    """Untimed warm-up: compile the decode graph for the rollout and eval batch shapes.
 
     Uses a puzzle stream disjoint from training and performs no optimizer step, so the
     policy is unchanged when the clock starts.
     """
-    model.generation_config.cache_implementation = "static"
-    rollout_rows = config.prompts_per_step * max(1, config.oversample) * config.group_size
-    if config.eval_batch_size != rollout_rows:
-        print(
-            f"warning: eval_batch_size={config.eval_batch_size} != rollout rows={rollout_rows}; "
-            "the static cache is rebuilt (and recompiled) at every train/eval switch",
-            flush=True,
-        )
     warm_stream = train_puzzle_stream(config.seed + 700_000)
     rollout = [next(warm_stream) for _ in range(config.prompts_per_step * max(1, config.oversample))]
-    _sample_batch(model, tokenizer, rollout, config, device)
-    _evaluate(model, tokenizer, eval_puzzles[: config.eval_batch_size], config, device)
+    _sample_batch(model, tokenizer, rollout, config, device, caches)
+    _evaluate(model, tokenizer, eval_puzzles[: config.eval_batch_size], config, device, caches)
 
 
 def run(config: GRPOConfig) -> dict:
@@ -303,9 +410,10 @@ def run(config: GRPOConfig) -> dict:
     eval_puzzles = load_puzzles("data/countdown_eval.jsonl")[: config.eval_limit]
     train_log = (out_dir / "train_log.jsonl").open("w", encoding="utf-8")
     eval_log = (out_dir / "eval_log.jsonl").open("w", encoding="utf-8")
-    if config.compile:
+    caches = StaticCachePool(model) if config.compile else None
+    if caches is not None:
         warm_start = time.perf_counter()
-        _warmup(model, tokenizer, config, eval_puzzles, device)
+        _warmup(model, tokenizer, config, eval_puzzles, device, caches)
         print(f"warmup (untimed): {time.perf_counter() - warm_start:.1f}s", flush=True)
     start = time.perf_counter()
     threshold_time = None
@@ -318,7 +426,7 @@ def run(config: GRPOConfig) -> dict:
                 source = stream if u >= easy_frac else easy_streams[int(u >= easy_frac / 2)]
                 puzzles.append(next(source))
             step_start = time.perf_counter()
-            info = grpo_step(model, ref_model, tokenizer, puzzles, config, optimizer, device)
+            info = grpo_step(model, ref_model, tokenizer, puzzles, config, optimizer, device, caches)
             step_elapsed = time.perf_counter() - step_start
             elapsed = time.perf_counter() - start
             tokens = info.pop("tokens")
@@ -331,7 +439,7 @@ def run(config: GRPOConfig) -> dict:
                 model.save_pretrained(checkpoint)
                 tokenizer.save_pretrained(checkpoint)
             if (step >= config.eval_start_step and step % config.eval_every == 0) or step == config.max_steps:
-                result = _evaluate(model, tokenizer, eval_puzzles, config, device)
+                result = _evaluate(model, tokenizer, eval_puzzles, config, device, caches)
                 result.update({"step": step, "wall_s": time.perf_counter() - start})
                 eval_log.write(json.dumps(result) + "\n")
                 eval_log.flush()

@@ -7,6 +7,7 @@ from transformers import BatchEncoding, GPT2Config, GPT2LMHeadModel
 
 from rlvr_speedrun.countdown import Puzzle
 import rlvr_speedrun.grpo as grpo
+from rlvr_speedrun.countdown import split_prompt as _split_prompt
 from rlvr_speedrun.grpo import GRPOConfig, grpo_step, run
 
 
@@ -17,11 +18,11 @@ class TinyTokenizer:
     def __len__(self):
         return 40
 
-    def __call__(self, prompts, return_tensors="pt", padding=True):
-        rows = []
-        for prompt in prompts:
-            ids = [2 + (ord(char) % 30) for char in prompt[:12]]
-            rows.append(ids)
+    def encode(self, text, add_special_tokens=True):
+        return [2 + (ord(char) % 30) for char in text[:12]]
+
+    def __call__(self, prompts, return_tensors="pt", padding=True, pad_to_multiple_of=None):
+        rows = [self.encode(prompt) for prompt in prompts]
         width = max(map(len, rows))
         input_ids = [[self.pad_token_id] * (width - len(row)) + row for row in rows]
         mask = [[int(token != self.pad_token_id) for token in row] for row in input_ids]
@@ -230,3 +231,63 @@ def test_group_advantages_std_and_none():
     assert z[0][0] > centred[0][0]
     with pytest.raises(ValueError):
         grpo.group_advantages(groups, "bogus")
+
+
+class CharTokenizer(TinyTokenizer):
+    """Exact per-character tokenizer, so prefix/suffix tokenization concatenates cleanly."""
+
+    def encode(self, text, add_special_tokens=True):
+        return [2 + (ord(char) % 30) for char in text]
+
+
+def test_encode_prompts_aligns_shared_prefix_and_pads_in_the_middle():
+    tokenizer = CharTokenizer()
+    puzzles = [Puzzle((1, 2), 3), Puzzle((10, 20, 30), 60)]
+    config = GRPOConfig(few_shot=0, pad_to_multiple=8)
+    encoded, prefix_len = grpo._encode_prompts(tokenizer, puzzles, config, torch.device("cpu"))
+    ids, mask = encoded["input_ids"], encoded["attention_mask"]
+    assert prefix_len == len(tokenizer.encode("Using the numbers"))
+    assert ids.shape[1] % 8 == 0
+    assert torch.equal(ids[0, :prefix_len], ids[1, :prefix_len])
+    assert bool(mask[:, :prefix_len].all()) and bool(mask[:, -1].all())
+    assert not bool(mask[0].all())  # the shorter prompt has internal padding
+    row = ids[0][mask[0].bool()].tolist()
+    assert row == tokenizer.encode("".join(_split_prompt(puzzles[0], 0)))
+
+
+def test_prefix_cache_logprobs_match_full_forward():
+    torch.manual_seed(3)
+    model = _tiny_model().eval()  # GPT2Config defaults to dropout>0, which breaks exact comparison
+    prefix_len, width, prompt_width = 6, 20, 14
+    ids = torch.randint(2, 40, (3, width))
+    ids[:, :prefix_len] = ids[0, :prefix_len]
+    mask = torch.ones_like(ids)
+    mask[1, prefix_len : prefix_len + 3] = 0
+    mask[2, prefix_len : prefix_len + 1] = 0
+    ids[mask == 0] = 0
+
+    def score(prefix):
+        model.zero_grad(set_to_none=True)
+        lp, cm, ent = grpo._completion_logprobs(model, ids, mask, prompt_width, 0.7, prefix)
+        (lp * cm).sum().backward()
+        grad = model.transformer.wte.weight.grad.clone()
+        return lp.detach(), cm, ent, grad
+
+    lp_full, cm_full, ent_full, grad_full = score(0)
+    lp_pref, cm_pref, ent_pref, grad_pref = score(prefix_len)
+    assert torch.equal(cm_full, cm_pref)
+    assert torch.allclose(lp_full[cm_full], lp_pref[cm_pref], atol=1e-5)
+    assert torch.allclose(ent_full[cm_full], ent_pref[cm_pref], atol=1e-5)
+    assert torch.allclose(grad_full, grad_pref, atol=1e-5)
+
+
+def test_grpo_step_with_prefix_cache_path():
+    torch.manual_seed(4)
+    model = GPT2LMHeadModel(
+        GPT2Config(vocab_size=40, n_positions=512, n_ctx=512, n_embd=16, n_layer=1, n_head=2, pad_token_id=0, eos_token_id=1)
+    )
+    tokenizer = CharTokenizer()
+    config = GRPOConfig(group_size=2, prompts_per_step=2, few_shot=0, max_new_tokens=4, kl_coef=0.0)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    result = grpo_step(model, None, tokenizer, [Puzzle((1, 2), 3), Puzzle((10, 20, 30), 60)], config, optimizer, torch.device("cpu"))
+    assert torch.isfinite(torch.tensor(result["loss"]))
