@@ -29,6 +29,7 @@ class GRPOConfig:
     gen_batch_size: int = 0
     compile: bool = False
     pad_to_multiple: int = 0
+    adv_norm: str = "std"
     lr: float = 1e-6
     kl_coef: float = 0.02
     temperature: float = 1.0
@@ -123,6 +124,19 @@ def select_groups(rewards: torch.Tensor, keep: int) -> torch.Tensor:
     return torch.argsort(score, descending=True, stable=True)[:keep]
 
 
+def group_advantages(groups: torch.Tensor, adv_norm: str) -> torch.Tensor:
+    """Group-relative advantages: `std` is GRPO's per-group z-score, `none` is the
+    Dr. GRPO variant (mean-centred only), which removes the difficulty bias that
+    up-weights groups where only one or two samples disagree with the rest."""
+    centred = groups - groups.mean(dim=1, keepdim=True)
+    if adv_norm == "none":
+        return centred
+    if adv_norm != "std":
+        raise ValueError(f"unknown adv_norm {adv_norm!r} (expected 'std' or 'none')")
+    stds = groups.std(dim=1, unbiased=False, keepdim=True)
+    return torch.where(stds > 0, centred / (stds + 1e-4), torch.zeros_like(centred))
+
+
 def _encode_prompts(tokenizer, puzzles, config: GRPOConfig, device: torch.device):
     prompts = [format_prompt(puzzle, few_shot=config.few_shot) for puzzle in puzzles]
     kwargs = {"pad_to_multiple_of": config.pad_to_multiple} if config.pad_to_multiple > 0 else {}
@@ -169,10 +183,7 @@ def grpo_step(model, ref_model, tokenizer, puzzles, config: GRPOConfig, optimize
         completions = [completions[r] for r in row_list]
         expanded = [expanded[r] for r in row_list]
     groups = rewards.reshape(kept.shape[0], config.group_size)
-    means = groups.mean(dim=1, keepdim=True)
-    stds = groups.std(dim=1, unbiased=False, keepdim=True)
-    advantages = (groups - means) / (stds + 1e-4)
-    advantages = torch.where(stds > 0, advantages, torch.zeros_like(advantages)).reshape(-1)
+    advantages = group_advantages(groups, config.adv_norm).reshape(-1)
 
     completion_valid = attention[:, prompt_width:].bool()
     token_count = completion_valid.sum().clamp_min(1)

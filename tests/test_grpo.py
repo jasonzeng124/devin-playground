@@ -1,3 +1,4 @@
+import pytest
 import json
 import copy
 
@@ -216,3 +217,16 @@ def test_chunked_generation_matches_unchunked_shapes():
     assert out_a[1].shape[0] == out_b[1].shape[0] == 6
     assert out_a[0].shape[1] == out_a[1].shape[1] and out_b[0].shape[1] == out_b[1].shape[1]
     assert len(out_b[4]) == 6 and out_a[5] == out_b[5]
+
+
+def test_group_advantages_std_and_none():
+    groups = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
+    centred = grpo.group_advantages(groups, "none")
+    assert torch.allclose(centred[0], torch.tensor([0.75, -0.25, -0.25, -0.25]))
+    assert torch.all(centred[1] == 0)
+    z = grpo.group_advantages(groups, "std")
+    assert torch.all(z[1] == 0)
+    assert torch.allclose(z[0].mean(), torch.tensor(0.0), atol=1e-6)
+    assert z[0][0] > centred[0][0]
+    with pytest.raises(ValueError):
+        grpo.group_advantages(groups, "bogus")
