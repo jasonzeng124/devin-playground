@@ -42,7 +42,11 @@ template used *during training*, systems/kernels.
 * **Threshold**: `pass_rate >= 0.10` on the full 2,000-puzzle eval set with
   the fixed eval protocol above. Set from the first Qwen2.5-0.5B baseline
   (~10-12% in 300 GRPO steps); it will be raised once records saturate it —
-  a raised threshold starts a new leaderboard table.
+  a raised threshold starts a new leaderboard table. What the N=10 logs say
+  about 10 % (eval noise is worth ±30-100 s of crossing time, 18/20 crossing
+  evals are within the eval's own 95 % interval of the threshold, the curve is
+  shallow between 8 % and 10 %) is in
+  [docs/threshold_calibration.md](docs/threshold_calibration.md).
 * **Clock**: `time_to_threshold_s` is measured by the training process with a
   monotonic clock. It **starts** immediately before the first training rollout
   (nothing that updates the weights or produces training data may run before

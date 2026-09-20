@@ -38,8 +38,11 @@ seeds (004: 655 ± 116 s, 005: 511 ± 123 s — a difference that was *not*
 significant, p = 0.11) and then extended to 10 seeds each to measure the real
 variance: 004's first three seeds turned out to be lucky draws, and the
 std of time-to-threshold is 200-350 s, i.e. 40 % of the mean. Reducing that
-variance is itself a good record. Negative results (dynamic sampling, T=1.0,
-Dr. GRPO advantages) are written up in record 005's README.
+variance is itself a good record: per
+[docs/threshold_calibration.md](docs/threshold_calibration.md) 97 % of it is
+steps-to-threshold (learning speed), not host speed or eval noise. Negative
+results (dynamic sampling, T=1.0, Dr. GRPO advantages) are written up in
+record 005's README.
 
 Not ranked: [000_smoke_cpu](records/track_a/000_smoke_cpu),
 [001_smoke_gpu_qwen05b](records/track_a/001_smoke_gpu_qwen05b) (pipeline
@@ -102,6 +105,7 @@ scripts/
   validate_record.py   checks a records/ entry, prints seed statistics, --compare-to holder
   validate_all_records.py  CI: every record passes + is on the leaderboard
   new_record.py        scaffold records/<track>/<NNN>_<slug>/ from the current holder
+  analyze_threshold.py offline eval-noise / slope / variance analysis of record logs
   sweep_base_models.sh base-model pass-rate sweep
   gpu_setup.sh         one-shot setup on a CUDA container
   modal_run.py         run N seeds in parallel on Modal GPUs (+ capability probe)
