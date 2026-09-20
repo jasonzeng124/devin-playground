@@ -31,12 +31,14 @@ volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True)
 
 
 def _flag_value(grpo_args: list[str], flag: str) -> str | None:
+    """Last value of `--flag VALUE` / `--flag=VALUE`, matching argparse's last-wins rule."""
+    value = None
     for index, arg in enumerate(grpo_args):
         if arg == flag and index + 1 < len(grpo_args):
-            return grpo_args[index + 1]
-        if arg.startswith(flag + "="):
-            return arg.split("=", 1)[1]
-    return None
+            value = grpo_args[index + 1]
+        elif arg.startswith(flag + "="):
+            value = arg.split("=", 1)[1]
+    return value
 
 
 def _split_config(grpo_args: list[str]) -> tuple[list[str], dict]:
