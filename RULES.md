@@ -105,13 +105,33 @@ exact command that produced the seeds, so that a third party can reproduce
 the record on a rented H100 with no guesswork. The reference environment is
 `torch 2.5.1` + `transformers 4.57` + bf16 (`scripts/modal_run.py`).
 
-The same GPU model on different hosts is not identical: between Modal and
-RunPod H100 SXM pods we measured a 5-8 % per-step gap (host CPU, driver,
-PCIe/NVLink topology), which is small next to seed-to-seed variance in
-steps-to-threshold but not zero. A record's README must therefore say which
-provider/host each seed ran on, and a record whose seeds are split across
-providers should report per-provider step times so readers can separate
-hardware from learning variance.
+**Reference provider.** The same GPU model on different hosts is not
+identical: between Modal and RunPod H100 SXM pods we measured a 5-8 %
+per-step gap (host CPU, driver, PCIe/NVLink topology), and in record 004 the
+seeds that happened to run on RunPod took 1088 s vs 655 s on Modal
+(two-sided Welch p = 0.017, n = 7 vs 3) — a gap in *steps*-to-threshold that
+identical code on identical GPUs should not produce, and that record 005's
+split (438 s RunPod vs 511 s Modal) does not reproduce. We cannot separate
+host effects from a heavy right tail at this N. Hence:
+
+* **All seeds of a ranked record run on one provider/host type**, declared in
+  `config.json` as `"provider"` (a string such as `"modal"`, `"runpod"`,
+  `"lambda"`, or a `{seed: provider}` map). `validate_record.py` rejects a
+  ranked record whose seeds span providers. Any provider selling the exact
+  ranked GPU is allowed — the benchmark does not yet have a sponsored
+  reference machine, and contributors bring their own compute.
+* `--compare-to` prints a warning when the two records are on different
+  providers and, when they overlap, same-provider subset tests. A holder
+  claim whose margin is within the host gap (a few % of the time) across
+  providers is not accepted until one record is reproduced on the other's
+  provider (`repro_<provider>/`, unranked but citable).
+* Once a reference machine is secured (the modded-nanogpt model: one fixed
+  setup on which the maintainers re-time holder claims), this section will
+  name it and holder status will require a reproduction there.
+
+Records 002-005 predate this rule: 002/003 are Modal-only, 004/005 are mixed
+(seeds 0-2 Modal, 3-9 RunPod) and stay grandfathered with the split disclosed
+and per-provider tests in their READMEs.
 
 ## Seeds and statistics
 
@@ -182,7 +202,10 @@ consumed), so identical seed IDs buy reproducibility, not pairing.
 Records 002-004 predate this section and were accepted on `mean` alone;
 005 is the first record whose claim over its predecessor was tested: not
 significant at N=3 (p = 0.11), significant after both records were extended
-to N=10 (p = 0.0007).
+to N=10 (p = 0.0007). Both extensions ran on RunPod, so the N=10 claim rests
+on mixed-provider samples; within the same provider it is p = 0.0007 on the
+7 vs 7 RunPod seeds and p = 0.11 on the 3 vs 3 Modal seeds (no power at
+n = 3). Future records are single-provider, so this ambiguity does not recur.
 
 ## Submitting a record
 
@@ -190,7 +213,7 @@ to N=10 (p = 0.0007).
 2. Name it `records/<track>/<NNN>_<short_slug>/` with the next number.
 3. Include: `README.md` (what changed, hardware, exact install + command,
    number of exploratory runs, warm-up time), `config.json` (with `track`,
-   `model`, `hardware`, `seeds` and the RL hyperparameters), and
+   `model`, `hardware`, `provider`, `seeds` and the RL hyperparameters), and
    `seeds/<seed>/{config.json,train_log.jsonl,eval_log.jsonl,result.json,probe.json}`
    for each declared seed; `extra/` for everything else that was launched.
    Do not commit model weights.

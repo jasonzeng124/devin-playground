@@ -69,8 +69,14 @@ chunks — do not change the recipe). Step time (evals excluded) was 1.39-1.45
 s/step on Modal and 1.27-1.53 s/step on RunPod (`t_sample` 0.81 vs 0.82-0.88 s),
 so the RunPod host is a few percent slower per step; the RunPod seeds
 nevertheless averaged 438 s vs 511 s on Modal because two of them crossed at
-step 150. Provider differences are within seed noise here, but the README of a
-record must say which host each seed ran on so this can be checked.
+step 150 (two-sided Welch p = 0.5 for time, steps and s/step). Provider
+differences are within seed noise here, unlike record 004 where the RunPod
+seeds were significantly slower (see its README), so the comparison with 004
+is also reported per provider: on the 7 vs 7 RunPod seeds 005 wins at
+p = 0.0007 (438 vs 1088 s); on the 3 vs 3 Modal seeds p = 0.11 (511 vs
+655 s) — no power at n = 3. RULES.md now requires all seeds of a ranked
+record on one provider; this record is grandfathered as mixed-provider
+(`config.json` `provider` maps each seed).
 Untimed warm-up (`warmup_s`, in `stdout.log`): 67 s for seed 3 (cold inductor
 cache), 36-40 s for the rest. Same `--args` as below plus
 `--seed N --device cuda --out-dir <record>/seeds/N`, then

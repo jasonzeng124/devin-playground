@@ -12,11 +12,11 @@ saturation ceiling, and the verifier runs in microseconds. See
 
 ## Leaderboard
 
-Hardware: **one H100 80GB**. Track A base model: **Qwen/Qwen2.5-0.5B**
-(pretrained-only checkpoint, no post-training). Threshold: **10% pass rate**
-on the frozen 2,000-puzzle eval, N >= 3 consecutive seeds; a new record holder
-must beat the old one at `p < 0.05` (one-sided Welch t-test, see
-[RULES.md](RULES.md)).
+Hardware: **one H100 80GB SXM**, all seeds of a record on one provider. Track A
+base model: **Qwen/Qwen2.5-0.5B** (pretrained-only checkpoint, no
+post-training). Threshold: **10% pass rate** on the frozen 2,000-puzzle eval,
+N >= 3 consecutive seeds; a new record holder must beat the old one at
+`p < 0.05` (one-sided Welch t-test, see [RULES.md](RULES.md)).
 
 ### Track A — fixed base model, RL only
 
@@ -24,8 +24,12 @@ must beat the old one at `p < 0.05` (one-sided Welch t-test, see
 |---|--------|-------------------------:|--:|----------------:|-----------|-------------|--------|
 | 1 | [002_curriculum_qwen05b_h100](records/track_a/002_curriculum_qwen05b_h100) | 783 ± 216 s | 3 | 0.104 | not measured | first record | Devin / @jasonzeng124 |
 | 2 | [003_nokl_deferred_eval_h100](records/track_a/003_nokl_deferred_eval_h100) | 573 ± 214 s | 3 | 0.105 | not measured | untested (pre-dates the rule) | Devin / @jasonzeng124 |
-| 3 | [004_nokl_guardrail_h100](records/track_a/004_nokl_guardrail_h100) | 958 ± 348 s | 10 | 0.106 | pass (Δloss +0.001) | same recipe as 003 | Devin / @jasonzeng124 |
-| 4 | **[005_prefix_kv_compile_h100](records/track_a/005_prefix_kv_compile_h100)** (holder) | **460 ± 196 s** | 10 | 0.108 | pass (Δloss +0.001) | beats 004, p = 0.0007 | Devin / @jasonzeng124 |
+| 3 | [004_nokl_guardrail_h100](records/track_a/004_nokl_guardrail_h100) | 958 ± 348 s ¹ | 10 | 0.106 | pass (Δloss +0.001) | same recipe as 003 | Devin / @jasonzeng124 |
+| 4 | **[005_prefix_kv_compile_h100](records/track_a/005_prefix_kv_compile_h100)** (holder) | **460 ± 196 s** ¹ | 10 | 0.108 | pass (Δloss +0.001) | beats 004, p = 0.0007 (p = 0.0007 on the 7 vs 7 RunPod seeds) | Devin / @jasonzeng124 |
+
+¹ Mixed provider (seeds 0-2 Modal, 3-9 RunPod), grandfathered; 004's RunPod
+seeds were significantly slower than its Modal seeds (1088 vs 655 s), see its
+README. Ranked records now run all seeds on one provider.
 
 Record 004 is the same recipe as 003 with the guardrail measured; 005 is the
 same RL recipe on a 2x faster trainer (shared-prefix KV reuse, compiled

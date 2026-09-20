@@ -41,9 +41,20 @@ transformers 4.57.6, Python 3.11, driver 580.126, with the trainer at commit
 `fa9e0c3` (the pre-005 trainer used for seeds 0-2, which ran on Modal H100
 80GB HBM3 with torch 2.5.1 / transformers 4.57). Step time (evals excluded)
 was 2.19-2.39 s/step on Modal and 2.24-2.58 s/step on RunPod, i.e. the RunPod
-host is ~5-8 % slower per step; the longer RunPod times are dominated by
-steps-to-threshold (Modal seeds crossed at 250-325 steps, RunPod seeds at
-300-600), not by hardware. This trainer predates `warmup_s` / `environment` in
+host is ~5-8 % slower per step (2.30 vs 2.48 s/step incl. evals, two-sided
+Welch p = 0.075). The wall-time split is much larger than that: Modal seeds
+655 s vs RunPod seeds 1088 s (two-sided Welch p = 0.017, exact permutation
+p = 0.067), and it sits entirely in steps-to-threshold (283 vs 436 steps,
+p = 0.017; Modal 250-325, RunPod 300-600 with two at the cap). Identical code
+(`fa9e0c3` and `c6d844b` differ only by the probe file) on the same GPU
+should not learn slower on one host, so this is either the heavy right tail
+landing in the n = 7 group or a numerics difference (driver / cuBLAS /
+transformers patch) producing different draws; record 005's split points the
+other way (RunPod faster), which argues for the former. We cannot settle it
+without re-running these seeds on the other provider, so RULES.md now requires
+all seeds of a ranked record to run on one provider; this record is
+grandfathered as mixed-provider (`config.json` `provider` maps each seed).
+This trainer predates `warmup_s` / `environment` in
 `result.json`; it does no untimed warm-up (eager generation), so the clock
 starts at the first rollout with cold kernels.
 

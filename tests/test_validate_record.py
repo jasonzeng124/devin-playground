@@ -28,7 +28,7 @@ def make_record(
     seed_names: list[str] | None = None,
 ) -> Path:
     record = root / "track_a" / name
-    config = {"track": "track_a", "model": "Qwen/Qwen2.5-0.5B", "hardware": "1x H100", "target_solve_rate": 0.1, "eval_limit": 2000}
+    config = {"track": "track_a", "model": "Qwen/Qwen2.5-0.5B", "hardware": "1x H100", "provider": "modal", "target_solve_rate": 0.1, "eval_limit": 2000}
     if declare_seeds:
         config["seeds"] = list(range(len(times)))
     config.update(config_extra or {})
@@ -162,6 +162,39 @@ def test_unranked_gpu_fails_ranked_validation(tmp_path):
     valid, message = validate_record(record)
     assert not valid and "UNRANKED" in message
     assert validate_record(record, allow_fewer_seeds=True)[0]
+
+
+def test_single_provider_required_after_record_005(tmp_path):
+    legacy = make_record(tmp_path, "005_legacy", [400.0, 500.0, 450.0], config_extra={"provider": {"0": "modal", "1": "modal", "2": "runpod"}})
+    valid, message = validate_record(legacy)
+    assert valid and "MIXED" in message and "grandfathered" in message
+    mixed = make_record(tmp_path, "006_mixed", [400.0, 500.0, 450.0], config_extra={"provider": {"0": "modal", "1": "modal", "2": "runpod"}})
+    valid, message = validate_record(mixed)
+    assert not valid and "one provider" in message
+    undeclared = make_record(tmp_path, "007_noprov", [400.0, 500.0, 450.0], config_extra={"provider": None})
+    valid, message = validate_record(undeclared)
+    assert not valid and "declare 'provider'" in message
+    partial = make_record(tmp_path, "008_partial", [400.0, 500.0, 450.0], config_extra={"provider": {"0": "modal"}})
+    valid, message = validate_record(partial)
+    assert not valid and "declare 'provider'" in message
+    runpod = make_record(tmp_path, "009_runpod", [400.0, 500.0, 450.0], config_extra={"provider": "RunPod"})
+    valid, message = validate_record(runpod)
+    assert valid and "provider: runpod" in message
+
+
+def test_compare_reports_same_provider_subsets(tmp_path):
+    split = {str(i): ("modal" if i < 3 else "runpod") for i in range(6)}
+    old = make_record(tmp_path, "004_old", [600.0, 640.0, 620.0, 900.0, 950.0, 1000.0], config_extra={"provider": split})
+    new = make_record(tmp_path, "005_new", [400.0, 420.0, 410.0, 430.0, 450.0, 440.0], config_extra={"provider": split})
+    significant, report = compare_records(new, old)
+    assert significant
+    assert "span providers" in report and "modal: n=3 vs 3" in report and "runpod: n=3 vs 3" in report
+    other = make_record(tmp_path, "006_lambda", [400.0, 420.0, 410.0], config_extra={"provider": "lambda"})
+    same = make_record(tmp_path, "007_modal", [600.0, 640.0, 620.0])
+    _, report = compare_records(other, same)
+    assert "no provider in common" in report
+    _, report = compare_records(make_record(tmp_path, "008_modal", [400.0, 420.0, 410.0]), same)
+    assert "span providers" not in report
 
 
 def test_seed_protocol(tmp_path):

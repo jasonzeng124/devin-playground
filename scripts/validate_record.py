@@ -19,9 +19,10 @@ from pathlib import Path
 
 RANKED_GPU = "NVIDIA H100 80GB HBM3"
 ALPHA = 0.05
-# Records accepted before the probe / environment requirements existed (RULES.md).
+# Records accepted before the probe / environment / single-provider requirements existed (RULES.md).
 PROBE_EXEMPT_MAX_RECORD = 3
 ENVIRONMENT_EXEMPT_MAX_RECORD = 5
+PROVIDER_EXEMPT_MAX_RECORD = 5
 MAX_EXACT_PERMUTATIONS = 500_000
 
 
@@ -254,6 +255,23 @@ def _pass_rate(result: dict) -> float:
     return float(result["final_pass_rate"] if "final_pass_rate" in result else result["pass_rate"])
 
 
+def _providers(loaded: LoadedRecord) -> dict[str, str] | None:
+    """Seed -> provider from config.json 'provider' (a string for all seeds, or a {seed: provider} map)."""
+    declared = loaded.config.get("provider")
+    if isinstance(declared, str):
+        return {seed: declared.lower() for seed in loaded.seeds}
+    if isinstance(declared, dict) and all(isinstance(v, str) for v in declared.values()):
+        return {seed: declared[seed].lower() for seed in loaded.seeds if seed in declared}
+    return None
+
+
+def _provider_summary(providers: dict[str, str]) -> str:
+    groups: dict[str, list[str]] = {}
+    for seed, provider in providers.items():
+        groups.setdefault(provider, []).append(seed)
+    return ", ".join(f"{p} (seeds {','.join(s)})" for p, s in sorted(groups.items()))
+
+
 def _is_ranked_hardware(loaded: LoadedRecord) -> bool:
     gpus = [res.get("environment", {}).get("gpu") for res in loaded.results.values()]
     if all(isinstance(g, str) for g in gpus) and gpus:
@@ -296,6 +314,24 @@ def validate_record(record: Path, allow_fewer_seeds: bool = False) -> tuple[bool
         lines.append(f"software: {'; '.join(software)}")
     else:
         lines.append(f"hardware (declared): {loaded.config.get('hardware', 'unknown')}")
+
+    # provider: all seeds of a ranked record on one declared host/provider
+    providers = _providers(loaded)
+    if providers is None or set(providers) != set(loaded.seeds):
+        if number > PROVIDER_EXEMPT_MAX_RECORD and not allow_fewer_seeds:
+            errors.append("config.json must declare 'provider' (the cloud/host every seed ran on)")
+        elif "provider" in loaded.config:
+            errors.append("config.json 'provider' must be a string or a {seed: provider} map covering every seed")
+        else:
+            lines.append("provider: not declared (record predates the rule)")
+    else:
+        distinct = sorted(set(providers.values()))
+        if len(distinct) == 1:
+            lines.append(f"provider: {distinct[0]}")
+        else:
+            lines.append(f"provider: MIXED — {_provider_summary(providers)}" + (" (grandfathered)" if number <= PROVIDER_EXEMPT_MAX_RECORD else ""))
+            if number > PROVIDER_EXEMPT_MAX_RECORD and not allow_fewer_seeds:
+                errors.append(f"all seeds of a ranked record must run on one provider; found {distinct}")
 
     # capability guardrail
     probes = loaded.probes
@@ -367,6 +403,21 @@ def compare_records(new: Path, old: Path) -> tuple[bool, str]:
     ]
     if (cmp.p_perm < ALPHA) != cmp.significant:
         lines.append("note: Welch and permutation tests disagree at alpha; report both in the PR")
+    prov_new, prov_old = _providers(a), _providers(b)
+    if prov_new is not None and prov_old is not None:
+        shared = sorted(set(prov_new.values()) & set(prov_old.values()))
+        if len(set(prov_new.values()) | set(prov_old.values())) > 1:
+            lines.append("note: records span providers (host speed differs by a few % per step); same-provider subsets:")
+            if not shared:
+                lines.append("  no provider in common — the difference includes a host effect; reproduce one record on the other's provider")
+            for provider in shared:
+                sub_new = [float(a.results[s]["time_to_threshold_s"]) for s, p in prov_new.items() if p == provider]
+                sub_old = [float(b.results[s]["time_to_threshold_s"]) for s, p in prov_old.items() if p == provider]
+                if len(sub_new) < 2 or len(sub_old) < 2:
+                    lines.append(f"  {provider}: n={len(sub_new)} vs {len(sub_old)}, too few to test")
+                    continue
+                sub = compare_times(sub_new, sub_old)
+                lines.append(f"  {provider}: n={sub.n_new} vs {sub.n_old}, mean {sub.mean_new:.1f} vs {sub.mean_old:.1f} s, welch p={sub.p_welch:.4f}, permutation p={sub.p_perm:.4f}")
     return cmp.significant, "\n".join(lines)
 
 
