@@ -27,6 +27,8 @@ class GRPOConfig:
     prompts_per_step: int = 8
     oversample: int = 1
     gen_batch_size: int = 0
+    compile: bool = False
+    pad_to_multiple: int = 0
     lr: float = 1e-6
     kl_coef: float = 0.02
     temperature: float = 1.0
@@ -121,9 +123,14 @@ def select_groups(rewards: torch.Tensor, keep: int) -> torch.Tensor:
     return torch.argsort(score, descending=True, stable=True)[:keep]
 
 
-def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.device):
+def _encode_prompts(tokenizer, puzzles, config: GRPOConfig, device: torch.device):
     prompts = [format_prompt(puzzle, few_shot=config.few_shot) for puzzle in puzzles]
-    encoded = tokenizer(prompts, return_tensors="pt", padding=True).to(device)
+    kwargs = {"pad_to_multiple_of": config.pad_to_multiple} if config.pad_to_multiple > 0 else {}
+    return tokenizer(prompts, return_tensors="pt", padding=True, **kwargs).to(device)
+
+
+def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.device):
+    encoded = _encode_prompts(tokenizer, puzzles, config, device)
     generated, finished_at = _generate_chunked(model, tokenizer, encoded, config)
     prompt_width = encoded["input_ids"].shape[1]
     completions = tokenizer.batch_decode(generated[:, prompt_width:], skip_special_tokens=True)
@@ -218,7 +225,10 @@ def _evaluate(model, tokenizer, puzzles, config: GRPOConfig, device: torch.devic
     with torch.no_grad():
         for start in range(0, len(puzzles), config.eval_batch_size):
             batch = puzzles[start : start + config.eval_batch_size]
-            encoded = tokenizer([format_prompt(p, few_shot=config.few_shot) for p in batch], return_tensors="pt", padding=True).to(device)
+            n_real = len(batch)
+            if config.compile and n_real < config.eval_batch_size:
+                batch = batch + [batch[0]] * (config.eval_batch_size - n_real)
+            encoded = _encode_prompts(tokenizer, batch, config, device)
             generated = model.generate(
                 **encoded,
                 max_new_tokens=config.max_new_tokens,
@@ -226,7 +236,7 @@ def _evaluate(model, tokenizer, puzzles, config: GRPOConfig, device: torch.devic
                 pad_token_id=tokenizer.pad_token_id,
                 stopping_criteria=answer_stopping_criteria(tokenizer),
             )
-            all_completions.extend(tokenizer.batch_decode(generated[:, encoded["input_ids"].shape[1] :], skip_special_tokens=True))
+            all_completions.extend(tokenizer.batch_decode(generated[:n_real, encoded["input_ids"].shape[1] :], skip_special_tokens=True))
     result = aggregate_results(all_completions, puzzles)
     result["examples"] = [
         {
@@ -237,6 +247,26 @@ def _evaluate(model, tokenizer, puzzles, config: GRPOConfig, device: torch.devic
         for puzzle, completion in list(zip(puzzles, all_completions))[:2]
     ]
     return result
+
+
+def _warmup(model, tokenizer, config: GRPOConfig, eval_puzzles, device: torch.device) -> None:
+    """Untimed warm-up: trigger torch.compile / static-cache capture for the rollout and eval shapes.
+
+    Uses a puzzle stream disjoint from training and performs no optimizer step, so the
+    policy is unchanged when the clock starts.
+    """
+    model.generation_config.cache_implementation = "static"
+    rollout_rows = config.prompts_per_step * max(1, config.oversample) * config.group_size
+    if config.eval_batch_size != rollout_rows:
+        print(
+            f"warning: eval_batch_size={config.eval_batch_size} != rollout rows={rollout_rows}; "
+            "the static cache is rebuilt (and recompiled) at every train/eval switch",
+            flush=True,
+        )
+    warm_stream = train_puzzle_stream(config.seed + 700_000)
+    rollout = [next(warm_stream) for _ in range(config.prompts_per_step * max(1, config.oversample))]
+    _sample_batch(model, tokenizer, rollout, config, device)
+    _evaluate(model, tokenizer, eval_puzzles[: config.eval_batch_size], config, device)
 
 
 def run(config: GRPOConfig) -> dict:
@@ -262,6 +292,10 @@ def run(config: GRPOConfig) -> dict:
     eval_puzzles = load_puzzles("data/countdown_eval.jsonl")[: config.eval_limit]
     train_log = (out_dir / "train_log.jsonl").open("w", encoding="utf-8")
     eval_log = (out_dir / "eval_log.jsonl").open("w", encoding="utf-8")
+    if config.compile:
+        warm_start = time.perf_counter()
+        _warmup(model, tokenizer, config, eval_puzzles, device)
+        print(f"warmup (untimed): {time.perf_counter() - warm_start:.1f}s", flush=True)
     start = time.perf_counter()
     threshold_time = None
     try:
@@ -329,7 +363,7 @@ def main() -> None:
     parser.add_argument("--config")
     for field in fields(GRPOConfig):
         arg = "--" + field.name.replace("_", "-")
-        if field.name == "no_save":
+        if field.name in {"no_save", "compile"}:
             parser.add_argument(arg, action="store_true", default=None)
         else:
             parser.add_argument(arg, type=type(field.default) if field.default is not None else str, default=None)
