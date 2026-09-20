@@ -133,8 +133,7 @@ def run_probe(
     docs = fineweb_docs if fineweb_docs is not None else _load_jsonl(FINEWEB_PATH)[:fineweb_limit]
     rows = mmlu_rows if mmlu_rows is not None else _load_jsonl(MMLU_PATH)
     tests = [row for row in rows if row.get("kind") == "test"][:mmlu_limit]
-    if mmlu_rows is None:
-        rows = [row for row in rows if row.get("kind") == "shot"] + tests
+    rows = [row for row in rows if row.get("kind") == "shot"] + tests
     model, model_tokenizer, resolved = _load_target(model_name, device, dtype, tokenizer)
     result = {
         "model": str(model_name),
