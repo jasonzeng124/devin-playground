@@ -25,6 +25,8 @@ class GRPOConfig:
     ref_model: str | None = None
     group_size: int = 8
     prompts_per_step: int = 8
+    oversample: int = 1
+    gen_batch_size: int = 0
     lr: float = 1e-6
     kl_coef: float = 0.02
     temperature: float = 1.0
@@ -63,19 +65,50 @@ def _completion_logprobs(model, input_ids: torch.Tensor, attention_mask: torch.T
     return token_lp, completion_mask
 
 
+def _generate_chunked(model, tokenizer, encoded, config: GRPOConfig) -> torch.Tensor:
+    n_prompts = encoded["input_ids"].shape[0]
+    chunk = config.gen_batch_size if config.gen_batch_size > 0 else n_prompts
+    outputs = []
+    with torch.no_grad():
+        for i in range(0, n_prompts, chunk):
+            outputs.append(
+                model.generate(
+                    input_ids=encoded["input_ids"][i : i + chunk],
+                    attention_mask=encoded["attention_mask"][i : i + chunk],
+                    max_new_tokens=config.max_new_tokens,
+                    do_sample=True,
+                    temperature=config.temperature,
+                    pad_token_id=tokenizer.pad_token_id,
+                    num_return_sequences=config.group_size,
+                    stopping_criteria=answer_stopping_criteria(tokenizer),
+                )
+            )
+    width = max(out.shape[1] for out in outputs)
+    padded = [torch.nn.functional.pad(out, (0, width - out.shape[1]), value=tokenizer.pad_token_id) for out in outputs]
+    return torch.cat(padded, dim=0)
+
+
+def select_groups(rewards: torch.Tensor, keep: int) -> torch.Tensor:
+    """Return indices of the `keep` most informative groups (rows of `rewards`).
+
+    Groups with reward variance carry gradient; among those, groups containing a
+    correct solve rank above groups whose only variance is malformed-vs-wrong.
+    Zero-variance groups are used last (their advantages are zero).
+    """
+    n = rewards.shape[0]
+    if keep >= n:
+        return torch.arange(n, device=rewards.device)
+    stds = rewards.std(dim=1, unbiased=False)
+    solved = (rewards.max(dim=1).values >= 1.0).float()
+    informative = (stds > 0).float()
+    score = informative * (1.0 + solved) * 10.0 + stds
+    return torch.argsort(score, descending=True, stable=True)[:keep]
+
+
 def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.device):
     prompts = [format_prompt(puzzle, few_shot=config.few_shot) for puzzle in puzzles]
     encoded = tokenizer(prompts, return_tensors="pt", padding=True).to(device)
-    with torch.no_grad():
-        generated = model.generate(
-            **encoded,
-            max_new_tokens=config.max_new_tokens,
-            do_sample=True,
-            temperature=config.temperature,
-            pad_token_id=tokenizer.pad_token_id,
-            num_return_sequences=config.group_size,
-            stopping_criteria=answer_stopping_criteria(tokenizer),
-        )
+    generated = _generate_chunked(model, tokenizer, encoded, config)
     prompt_width = encoded["input_ids"].shape[1]
     completions = tokenizer.batch_decode(generated[:, prompt_width:], skip_special_tokens=True)
     expanded = [puzzle for puzzle in puzzles for _ in range(config.group_size)]
@@ -91,14 +124,27 @@ def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.d
             torch.full_like(positions, completion.shape[1]),
         )
         first_eos = eos_positions.min(dim=1, keepdim=True).values
-        completion_attention = (positions <= first_eos).to(prompt_attention.dtype)
+        valid = positions <= first_eos
+        if tokenizer.pad_token_id is not None and tokenizer.pad_token_id != tokenizer.eos_token_id:
+            valid &= completion.ne(tokenizer.pad_token_id)
+        completion_attention = valid.to(prompt_attention.dtype)
     attention = torch.cat([prompt_attention, completion_attention], dim=1)
     return generated, attention, completions, expanded, rewards, prompt_width
 
 
 def grpo_step(model, ref_model, tokenizer, puzzles, config: GRPOConfig, optimizer, device: torch.device) -> dict:
     generated, attention, completions, expanded, rewards, prompt_width = _sample_batch(model, tokenizer, puzzles, config, device)
-    groups = rewards.reshape(len(puzzles), config.group_size)
+    all_rewards = rewards
+    all_groups = all_rewards.reshape(len(puzzles), config.group_size)
+    informative_groups = int((all_groups.std(dim=1, unbiased=False) > 0).sum().item())
+    kept = select_groups(all_groups, config.prompts_per_step)
+    if kept.shape[0] < len(puzzles):
+        rows = (kept.unsqueeze(1) * config.group_size + torch.arange(config.group_size, device=kept.device)).reshape(-1)
+        generated, attention, rewards = generated[rows], attention[rows], rewards[rows]
+        row_list = rows.tolist()
+        completions = [completions[r] for r in row_list]
+        expanded = [expanded[r] for r in row_list]
+    groups = rewards.reshape(kept.shape[0], config.group_size)
     means = groups.mean(dim=1, keepdim=True)
     stds = groups.std(dim=1, unbiased=False, keepdim=True)
     advantages = (groups - means) / (stds + 1e-4)
@@ -134,9 +180,11 @@ def grpo_step(model, ref_model, tokenizer, puzzles, config: GRPOConfig, optimize
         torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
     optimizer.step()
     return {
-        "mean_reward": rewards.mean().item(),
-        "solve_rate_in_batch": (rewards == 1.0).float().mean().item(),
-        "malformed_rate": (rewards == -0.1).float().mean().item(),
+        "mean_reward": all_rewards.mean().item(),
+        "solve_rate_in_batch": (all_rewards == 1.0).float().mean().item(),
+        "malformed_rate": (all_rewards == -0.1).float().mean().item(),
+        "informative_groups": informative_groups,
+        "kept_groups": int(kept.shape[0]),
         "kl": kl.detach().item(),
         "loss": loss.detach().item(),
         "tokens": int(token_count.item()),
@@ -200,7 +248,7 @@ def run(config: GRPOConfig) -> dict:
         for step in range(1, config.max_steps + 1):
             easy_frac = max(0.0, 1.0 - step / config.curriculum_steps) if config.curriculum_steps > 0 else 0.0
             puzzles = []
-            for _ in range(config.prompts_per_step):
+            for _ in range(config.prompts_per_step * max(1, config.oversample)):
                 u = mix_rng.random()
                 source = stream if u >= easy_frac else easy_streams[int(u >= easy_frac / 2)]
                 puzzles.append(next(source))

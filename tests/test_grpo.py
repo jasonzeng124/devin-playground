@@ -160,3 +160,56 @@ def test_run_with_zero_kl_does_not_load_reference_model(monkeypatch, tmp_path):
     result = run(config)
     assert result["total_steps"] == 2
     assert len(calls) == 1
+
+
+def _tiny_model():
+    return GPT2LMHeadModel(
+        GPT2Config(vocab_size=40, n_positions=64, n_ctx=64, n_embd=16, n_layer=1, n_head=2, pad_token_id=0, eos_token_id=1)
+    )
+
+
+def test_select_groups_prefers_solved_then_informative_then_zero_variance():
+    rewards = torch.tensor(
+        [
+            [0.0, 0.0, 0.0],  # zero variance
+            [0.0, -0.1, 0.0],  # informative, no solve
+            [1.0, 0.0, 0.0],  # informative, contains solve
+            [-0.1, -0.1, -0.1],  # zero variance
+            [1.0, 1.0, 0.0],  # informative, contains solve
+        ]
+    )
+    kept = grpo.select_groups(rewards, 3).tolist()
+    assert set(kept[:2]) == {2, 4}
+    assert kept[2] == 1
+    assert grpo.select_groups(rewards, 4).tolist()[3] in {0, 3}
+    assert grpo.select_groups(rewards, 5).tolist() == [0, 1, 2, 3, 4]
+    assert grpo.select_groups(rewards, 9).tolist() == [0, 1, 2, 3, 4]
+
+
+def test_grpo_step_with_oversample_keeps_prompts_per_step_groups():
+    torch.manual_seed(2)
+    model = _tiny_model()
+    tokenizer = TinyTokenizer()
+    config = GRPOConfig(group_size=2, prompts_per_step=2, oversample=3, max_new_tokens=4, kl_coef=0.0)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    puzzles = [Puzzle((1, 2), 3)] * (config.prompts_per_step * config.oversample)
+    result = grpo_step(model, None, tokenizer, puzzles, config, optimizer, torch.device("cpu"))
+    assert result["kept_groups"] == 2
+    assert 0 <= result["informative_groups"] <= 6
+    assert len(result["rewards"]) == 4
+    assert torch.isfinite(torch.tensor(result["loss"]))
+
+
+def test_chunked_generation_matches_unchunked_shapes():
+    torch.manual_seed(3)
+    model = _tiny_model()
+    tokenizer = TinyTokenizer()
+    puzzles = [Puzzle((1, 2), 3), Puzzle((3, 4), 7), Puzzle((5, 6), 11)]
+    base = GRPOConfig(group_size=2, prompts_per_step=3, max_new_tokens=4)
+    chunked = GRPOConfig(group_size=2, prompts_per_step=3, max_new_tokens=4, gen_batch_size=1)
+    out_a = grpo._sample_batch(model, tokenizer, puzzles, base, torch.device("cpu"))
+    out_b = grpo._sample_batch(model, tokenizer, puzzles, chunked, torch.device("cpu"))
+    assert out_a[0].shape[0] == out_b[0].shape[0] == 6
+    assert out_a[1].shape[0] == out_b[1].shape[0] == 6
+    assert out_a[0].shape[1] == out_a[1].shape[1] and out_b[0].shape[1] == out_b[1].shape[1]
+    assert len(out_b[4]) == 6 and out_a[5] == out_b[5]
