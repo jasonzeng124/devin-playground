@@ -209,19 +209,27 @@ n = 3). Future records are single-provider, so this ambiguity does not recur.
 
 ## Submitting a record
 
-1. Copy `records/track_a/000_smoke_cpu/` as a template.
-2. Name it `records/<track>/<NNN>_<short_slug>/` with the next number.
-3. Include: `README.md` (what changed, hardware, exact install + command,
+1. `python scripts/new_record.py <short_slug> --provider <host>` creates
+   `records/<track>/<NNN>_<slug>/` with the next number, a `config.json`
+   copied from the current holder and a README skeleton. The record's
+   `config.json` is also the trainer config
+   (`python -m rlvr_speedrun.grpo --config <record>/config.json --seed S`).
+2. Include: `README.md` (what changed, hardware, exact install + command,
    number of exploratory runs, warm-up time), `config.json` (with `track`,
    `model`, `hardware`, `provider`, `seeds` and the RL hyperparameters), and
    `seeds/<seed>/{config.json,train_log.jsonl,eval_log.jsonl,result.json,probe.json}`
    for each declared seed; `extra/` for everything else that was launched.
-   Do not commit model weights.
-4. Run `python scripts/validate_record.py records/<track>/<NNN>_<slug>` — it
+   Do not commit model weights (`seeds/*/final/` is gitignored).
+3. Run `python scripts/validate_record.py records/<track>/<NNN>_<slug>` — it
    must pass. Run it again with `--compare-to` against the current record
    holder and paste both outputs into the PR.
-5. Open a PR; put the summary table in the description. Add yourself to the
-   leaderboard in `README.md`.
+4. Open a PR; the template has the summary table and checklist. Add yourself
+   to the leaderboard in `README.md`.
+5. CI (`.github/workflows/ci.yml`) runs the tests, checks the frozen data
+   hashes, and runs `scripts/validate_all_records.py`: every record must pass
+   the ranked checks and be linked from the README, unless its `config.json`
+   says `"unranked": true` (pipeline smoke tests, cheap-GPU reproductions —
+   these never appear on the leaderboard).
 
 ## Forbidden
 

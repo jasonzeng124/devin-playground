@@ -1,12 +1,12 @@
-import json
 import copy
+import json
 
 import pytest
 import torch
 from transformers import BatchEncoding, GPT2Config, GPT2LMHeadModel
 
-from rlvr_speedrun.countdown import Puzzle
 import rlvr_speedrun.grpo as grpo
+from rlvr_speedrun.countdown import Puzzle
 from rlvr_speedrun.countdown import split_prompt as _split_prompt
 from rlvr_speedrun.grpo import GRPOConfig, grpo_step, run
 

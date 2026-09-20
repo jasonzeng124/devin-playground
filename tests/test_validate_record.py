@@ -207,3 +207,26 @@ def test_seed_protocol(tmp_path):
     mismatch = make_record(tmp_path, "008_mismatch", [400.0, 500.0, 450.0], seed_names=["0", "1", "3"])
     valid, message = validate_record(mismatch)
     assert not valid and "exactly the declared seeds" in message
+
+
+def test_validate_all_records_ranked_vs_unranked(tmp_path):
+    from scripts.validate_all_records import validate_all
+
+    records = tmp_path / "records"
+    make_record(records, "006_ranked", [400.0, 500.0, 450.0])
+    smoke = make_record(records, "000_smoke", [None], config_extra={"unranked": True, "seeds": None})
+    readme = tmp_path / "README.md"
+
+    readme.write_text("| 1 | [006_ranked](records/track_a/006_ranked) |\n")
+    ok, lines = validate_all(records, readme)
+    assert ok, "\n".join(lines)
+    assert any("000_smoke (unranked): OK" in line for line in lines)
+    assert any("006_ranked (ranked): OK" in line for line in lines)
+
+    readme.write_text("empty leaderboard\n")
+    ok, lines = validate_all(records, readme)
+    assert not ok and any("not linked" in line for line in lines)
+
+    (smoke / "config.json").write_text(json.dumps({"track": "track_a"}) + "\n")
+    ok, lines = validate_all(records, None)
+    assert not ok and any("000_smoke (ranked): FAIL" in line for line in lines)

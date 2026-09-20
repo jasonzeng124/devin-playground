@@ -71,11 +71,16 @@ uv run python -m rlvr_speedrun.grpo --model Qwen/Qwen2.5-0.5B \
     --lr 5e-6 --kl-coef 0 --curriculum-steps 200 --max-steps 600 \
     --eval-every 25 --eval-start-step 150 --eval-limit 2000 --eval-batch-size 1000 \
     --target-solve-rate 0.1 --compile --pad-to-multiple 64 --device cuda \
-    --no-save --seed 0 --out-dir records/track_a/00N_my_record/seeds/0
+    --seed 0 --out-dir records/track_a/00N_my_record/seeds/0
+# (keeps seeds/0/final/ for the capability probe; weights are gitignored)
 
-# validate a record before opening a PR
-uv run python scripts/validate_record.py records/track_a/00N_my_record
+# scaffold a record from the current holder, then validate it before opening a PR
+uv run python scripts/new_record.py my_record --provider runpod
+uv run python scripts/validate_record.py records/track_a/00N_my_record --compare-to records/track_a/005_prefix_kv_compile_h100
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the record workflow; CI validates
+every record in `records/` on each PR.
 
 On a fresh GPU box (e.g. a RunPod `runpod/pytorch` container) run
 `bash scripts/gpu_setup.sh` instead of `uv sync`. On Modal (`pip install modal`),
@@ -94,7 +99,9 @@ rlvr_speedrun/
   grpo.py          minimal GRPO loop (plain PyTorch + transformers)
   model_utils.py   model/tokenizer loading, stopping criteria
 scripts/
-  validate_record.py   checks a records/ entry and prints seed statistics
+  validate_record.py   checks a records/ entry, prints seed statistics, --compare-to holder
+  validate_all_records.py  CI: every record passes + is on the leaderboard
+  new_record.py        scaffold records/<track>/<NNN>_<slug>/ from the current holder
   sweep_base_models.sh base-model pass-rate sweep
   gpu_setup.sh         one-shot setup on a CUDA container
   modal_run.py         run N seeds in parallel on Modal GPUs (+ capability probe)

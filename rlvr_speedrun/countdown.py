@@ -12,7 +12,6 @@ import random
 import re
 from dataclasses import dataclass, field
 from fractions import Fraction
-from typing import Optional
 
 ANSWER_RE = re.compile(r"<answer>(.*?)</answer>", re.DOTALL | re.IGNORECASE)
 
@@ -25,13 +24,13 @@ INCORRECT_REWARD = 0.0
 class Puzzle:
     numbers: tuple[int, ...]
     target: int
-    solution: Optional[str] = None  # one known-valid expression, never shown to the model
+    solution: str | None = None  # one known-valid expression, never shown to the model
 
     def to_dict(self) -> dict:
         return {"numbers": list(self.numbers), "target": self.target, "solution": self.solution}
 
     @staticmethod
-    def from_dict(d: dict) -> "Puzzle":
+    def from_dict(d: dict) -> Puzzle:
         return Puzzle(tuple(int(x) for x in d["numbers"]), int(d["target"]), d.get("solution"))
 
 
@@ -41,8 +40,8 @@ class VerifyResult:
     correct: bool
     malformed: bool
     reason: str
-    expression: Optional[str] = None
-    value: Optional[Fraction] = field(default=None, repr=False)
+    expression: str | None = None
+    value: Fraction | None = field(default=None, repr=False)
 
 
 # --------------------------------------------------------------------------
@@ -209,7 +208,7 @@ def safe_eval(expression: str) -> tuple[Fraction, list[int]]:
     return value, leaves
 
 
-def extract_expression(response: str) -> Optional[str]:
+def extract_expression(response: str) -> str | None:
     """Pull the candidate expression out of a model response. Prefers the
     last <answer> block; falls back to the last non-empty line, with an
     optional trailing '= N' stripped."""

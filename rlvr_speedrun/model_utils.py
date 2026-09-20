@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import weakref
-from typing import Sequence
+from collections.abc import Sequence
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList
-
 
 _CLOSE_TOKEN_IDS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 
