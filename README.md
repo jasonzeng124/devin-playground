@@ -18,10 +18,15 @@ on the frozen 2,000-puzzle eval, 3 seeds.
 
 ### Track A — fixed base model, RL only
 
-| # | record | time to 10% (mean ± std, N=3) | final pass rate | author |
-|---|--------|------------------------------:|----------------:|--------|
-| 1 | [002_curriculum_qwen05b_h100](records/track_a/002_curriculum_qwen05b_h100) | 783 ± 216 s | 0.104 | Devin / @jasonzeng124 |
-| 2 | [003_nokl_deferred_eval_h100](records/track_a/003_nokl_deferred_eval_h100) | 573 ± 214 s | 0.105 | Devin / @jasonzeng124 |
+| # | record | time to 10% (mean ± std, N=3) | final pass rate | guardrail | author |
+|---|--------|------------------------------:|----------------:|-----------|--------|
+| 1 | [002_curriculum_qwen05b_h100](records/track_a/002_curriculum_qwen05b_h100) | 783 ± 216 s | 0.104 | not measured | Devin / @jasonzeng124 |
+| 2 | [003_nokl_deferred_eval_h100](records/track_a/003_nokl_deferred_eval_h100) | 573 ± 214 s | 0.105 | not measured | Devin / @jasonzeng124 |
+| 3 | [004_nokl_guardrail_h100](records/track_a/004_nokl_guardrail_h100) | 655 ± 116 s | 0.110 | pass (Δloss +0.001) | Devin / @jasonzeng124 |
+
+Record 004 is the same recipe as 003 with the guardrail measured; it is listed
+separately because RL seed variance (~±200 s) is currently larger than most
+recipe changes. Reducing that variance is itself a good record.
 
 Not ranked: [000_smoke_cpu](records/track_a/000_smoke_cpu),
 [001_smoke_gpu_qwen05b](records/track_a/001_smoke_gpu_qwen05b) (pipeline
@@ -77,7 +82,8 @@ scripts/
   validate_record.py   checks a records/ entry and prints seed statistics
   sweep_base_models.sh base-model pass-rate sweep
   gpu_setup.sh         one-shot setup on a CUDA container
-  modal_run.py         run N seeds in parallel on Modal GPUs
+  modal_run.py         run N seeds in parallel on Modal GPUs (+ capability probe)
+  capability.py        (rlvr_speedrun/) FineWeb-Edu loss + MMLU-lite guardrail probe
 data/countdown_eval.jsonl   2,000 frozen eval puzzles (seed 20240601)
 records/<track>/<NNN>_<slug>/  one folder per record (logs, config, README)
 results/                     base-model sweep outputs
@@ -109,7 +115,6 @@ base. Solves are sparse enough that plain GRPO has almost no signal (record
 
 * Tune `lr`, `kl_coef`, `group_size`, `temperature`, `curriculum_steps` on record 002.
 * Evaluate less often (every full-eval costs ~15 s on the clock).
-* Drop the reference model (kl_coef=0) and show the capability guardrail still holds.
 * Reward shaping from the verifier output (e.g. partial credit for using all numbers).
 * Rollout throughput: batched generation, KV-cache reuse, `torch.compile`.
 * Replace AdamW with Muon on the policy.
