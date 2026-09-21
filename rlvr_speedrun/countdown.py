@@ -12,7 +12,6 @@ import random
 import re
 from dataclasses import dataclass, field
 from fractions import Fraction
-from typing import Optional
 
 ANSWER_RE = re.compile(r"<answer>(.*?)</answer>", re.DOTALL | re.IGNORECASE)
 
@@ -25,13 +24,13 @@ INCORRECT_REWARD = 0.0
 class Puzzle:
     numbers: tuple[int, ...]
     target: int
-    solution: Optional[str] = None  # one known-valid expression, never shown to the model
+    solution: str | None = None  # one known-valid expression, never shown to the model
 
     def to_dict(self) -> dict:
         return {"numbers": list(self.numbers), "target": self.target, "solution": self.solution}
 
     @staticmethod
-    def from_dict(d: dict) -> "Puzzle":
+    def from_dict(d: dict) -> Puzzle:
         return Puzzle(tuple(int(x) for x in d["numbers"]), int(d["target"]), d.get("solution"))
 
 
@@ -41,8 +40,8 @@ class VerifyResult:
     correct: bool
     malformed: bool
     reason: str
-    expression: Optional[str] = None
-    value: Optional[Fraction] = field(default=None, repr=False)
+    expression: str | None = None
+    value: Fraction | None = field(default=None, repr=False)
 
 
 # --------------------------------------------------------------------------
@@ -134,16 +133,30 @@ FEW_SHOT_EXAMPLES = [
 ]
 
 
-def format_prompt(puzzle: Puzzle, few_shot: int = 0) -> str:
-    """Format a puzzle, optionally preceded by up to three worked examples."""
+_PREFIX_SPLIT = "Using the numbers"
+
+
+def split_prompt(puzzle: Puzzle, few_shot: int = 0) -> tuple[str, str]:
+    """Split the prompt into (shared prefix, puzzle-specific suffix).
+
+    The prefix is identical for every puzzle at a given `few_shot`, and the split
+    falls on a whitespace boundary so BPE tokenization of the parts concatenates to
+    the tokenization of the whole prompt. `"".join(split_prompt(p, k)) == format_prompt(p, k)`.
+    """
+    question = PROMPT_TEMPLATE.format(numbers=list(puzzle.numbers), target=puzzle.target)
+    head, _, tail = question.partition(_PREFIX_SPLIT)
     if few_shot <= 0:
-        return PROMPT_TEMPLATE.format(numbers=list(puzzle.numbers), target=puzzle.target)
+        return head + _PREFIX_SPLIT, tail
     examples = []
     for example_puzzle, reasoning, answer in FEW_SHOT_EXAMPLES[: min(few_shot, len(FEW_SHOT_EXAMPLES))]:
-        question = PROMPT_TEMPLATE.format(numbers=list(example_puzzle.numbers), target=example_puzzle.target)
-        examples.append(f"Question: {question}Reasoning: {reasoning}\n{answer}")
-    question = PROMPT_TEMPLATE.format(numbers=list(puzzle.numbers), target=puzzle.target)
-    return "\n\n".join(examples + [f"Question: {question}"])
+        example = PROMPT_TEMPLATE.format(numbers=list(example_puzzle.numbers), target=example_puzzle.target)
+        examples.append(f"Question: {example}Reasoning: {reasoning}\n{answer}")
+    return "\n\n".join(examples + [f"Question: {head}{_PREFIX_SPLIT}"]), tail
+
+
+def format_prompt(puzzle: Puzzle, few_shot: int = 0) -> str:
+    """Format a puzzle, optionally preceded by up to three worked examples."""
+    return "".join(split_prompt(puzzle, few_shot))
 
 
 # --------------------------------------------------------------------------
@@ -195,7 +208,7 @@ def safe_eval(expression: str) -> tuple[Fraction, list[int]]:
     return value, leaves
 
 
-def extract_expression(response: str) -> Optional[str]:
+def extract_expression(response: str) -> str | None:
     """Pull the candidate expression out of a model response. Prefers the
     last <answer> block; falls back to the last non-empty line, with an
     optional trailing '= N' stripped."""

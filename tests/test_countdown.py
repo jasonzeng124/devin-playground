@@ -5,16 +5,16 @@ import pytest
 
 from rlvr_speedrun.countdown import (
     CORRECT_REWARD,
+    FEW_SHOT_EXAMPLES,
     INCORRECT_REWARD,
     MALFORMED_PENALTY,
-    FEW_SHOT_EXAMPLES,
     Puzzle,
     extract_expression,
+    format_prompt,
     generate_puzzle,
     generate_puzzles,
     safe_eval,
     verify,
-    format_prompt,
 )
 
 P = Puzzle((3, 5, 7, 2), 24)

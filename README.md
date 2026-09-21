@@ -12,15 +12,37 @@ saturation ceiling, and the verifier runs in microseconds. See
 
 ## Leaderboard
 
-Hardware: **one H100 80GB**. Track A base model: **Qwen/Qwen2.5-0.5B**
-(pretrained-only checkpoint, no post-training). Threshold: **10% pass rate**
-on the frozen 2,000-puzzle eval, 3 seeds.
+Hardware: **one H100 80GB SXM**, all seeds of a record on one provider. Track A
+base model: **Qwen/Qwen2.5-0.5B** (pretrained-only checkpoint, no
+post-training). Threshold: **10% pass rate** on the frozen 2,000-puzzle eval,
+N >= 3 consecutive seeds; a new record holder must beat the old one at
+`p < 0.05` (one-sided Welch t-test, see [RULES.md](RULES.md)).
 
 ### Track A — fixed base model, RL only
 
-| # | record | time to 10% (mean ± std, N=3) | final pass rate | author |
-|---|--------|------------------------------:|----------------:|--------|
-| 1 | [002_curriculum_qwen05b_h100](records/track_a/002_curriculum_qwen05b_h100) | 783 ± 216 s | 0.104 | Devin / @jasonzeng124 |
+| # | record | time to 10% (mean ± std) | N | final pass rate | guardrail | vs previous | author |
+|---|--------|-------------------------:|--:|----------------:|-----------|-------------|--------|
+| 1 | [002_curriculum_qwen05b_h100](records/track_a/002_curriculum_qwen05b_h100) | 783 ± 216 s | 3 | 0.104 | not measured | first record | Devin / @jasonzeng124 |
+| 2 | [003_nokl_deferred_eval_h100](records/track_a/003_nokl_deferred_eval_h100) | 573 ± 214 s | 3 | 0.105 | not measured | untested (pre-dates the rule) | Devin / @jasonzeng124 |
+| 3 | [004_nokl_guardrail_h100](records/track_a/004_nokl_guardrail_h100) | 958 ± 348 s ¹ | 10 | 0.106 | pass (Δloss +0.001) | same recipe as 003 | Devin / @jasonzeng124 |
+| 4 | **[005_prefix_kv_compile_h100](records/track_a/005_prefix_kv_compile_h100)** (holder) | **460 ± 196 s** ¹ | 10 | 0.108 | pass (Δloss +0.001) | beats 004, p = 0.0007 (p = 0.0007 on the 7 vs 7 RunPod seeds) | Devin / @jasonzeng124 |
+
+¹ Mixed provider (seeds 0-2 Modal, 3-9 RunPod), grandfathered; 004's RunPod
+seeds were significantly slower than its Modal seeds (1088 vs 655 s), see its
+README. Ranked records now run all seeds on one provider.
+
+Record 004 is the same recipe as 003 with the guardrail measured; 005 is the
+same RL recipe on a 2x faster trainer (shared-prefix KV reuse, compiled
+static-cache decode, full-softmax sampler). Both were first submitted with 3
+seeds (004: 655 ± 116 s, 005: 511 ± 123 s — a difference that was *not*
+significant, p = 0.11) and then extended to 10 seeds each to measure the real
+variance: 004's first three seeds turned out to be lucky draws, and the
+std of time-to-threshold is 200-350 s, i.e. 40 % of the mean. Reducing that
+variance is itself a good record: per
+[docs/threshold_calibration.md](docs/threshold_calibration.md) 97 % of it is
+steps-to-threshold (learning speed), not host speed or eval noise. Negative
+results (dynamic sampling, T=1.0, Dr. GRPO advantages) are written up in
+record 005's README.
 
 Not ranked: [000_smoke_cpu](records/track_a/000_smoke_cpu),
 [001_smoke_gpu_qwen05b](records/track_a/001_smoke_gpu_qwen05b) (pipeline
@@ -46,20 +68,34 @@ uv run python -m rlvr_speedrun.eval --model Qwen/Qwen2.5-0.5B --few-shot 3 --lim
 # sweep several base checkpoints, print a markdown table
 bash scripts/sweep_base_models.sh
 
-# GRPO
+# GRPO (record 005 recipe; drop --compile/--pad-to-multiple for eager generation)
 uv run python -m rlvr_speedrun.grpo --model Qwen/Qwen2.5-0.5B \
-    --group-size 16 --prompts-per-step 8 --curriculum-steps 200 --max-steps 400 \
-    --eval-every 25 --eval-limit 2000 --target-solve-rate 0.1 --device cuda \
-    --no-save --seed 0 --out-dir records/track_a/00N_my_record/seeds/0
+    --group-size 16 --prompts-per-step 8 --micro-batch-size 128 --temperature 0.8 \
+    --lr 5e-6 --kl-coef 0 --curriculum-steps 200 --max-steps 600 \
+    --eval-every 25 --eval-start-step 150 --eval-limit 2000 --eval-batch-size 1000 \
+    --target-solve-rate 0.1 --compile --pad-to-multiple 64 --device cuda \
+    --seed 0 --out-dir records/track_a/00N_my_record/seeds/0
+# (keeps seeds/0/final/ for the capability probe; weights are gitignored)
 
-# validate a record before opening a PR
-uv run python scripts/validate_record.py records/track_a/00N_my_record
+# data-parallel (unranked until the 8xH100 tier opens): same command under torchrun,
+# prompts_per_step is sharded across ranks; CPU/gloo works for testing
+uv run torchrun --standalone --nproc_per_node 2 -m rlvr_speedrun.grpo --model HuggingFaceTB/SmolLM2-135M \
+    --device cpu --group-size 4 --prompts-per-step 4 --max-steps 2 --eval-limit 6 --kl-coef 0 --no-save --out-dir /tmp/ddp
+
+# scaffold a record from the current holder, then validate it before opening a PR
+uv run python scripts/new_record.py my_record --provider runpod
+uv run python scripts/validate_record.py records/track_a/00N_my_record --compare-to records/track_a/005_prefix_kv_compile_h100
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the record workflow; CI validates
+every record in `records/` on each PR.
 
 On a fresh GPU box (e.g. a RunPod `runpod/pytorch` container) run
 `bash scripts/gpu_setup.sh` instead of `uv sync`. On Modal (`pip install modal`),
 `scripts/modal_run.py` runs all seeds in parallel on H100s and copies logs back
 (see record 002 for the exact command).
+For Track A submissions, run the capability guardrail probe described in
+[RULES.md](RULES.md) after training.
 
 ## Layout
 
@@ -69,12 +105,17 @@ rlvr_speedrun/
   data.py          frozen eval set builder, training puzzle stream
   eval.py          few-shot pass-rate eval + multi-model sweep table
   grpo.py          minimal GRPO loop (plain PyTorch + transformers)
+  distributed.py   torchrun data-parallel helpers (shard prompts, sum grads, gather evals)
   model_utils.py   model/tokenizer loading, stopping criteria
 scripts/
-  validate_record.py   checks a records/ entry and prints seed statistics
+  validate_record.py   checks a records/ entry, prints seed statistics, --compare-to holder
+  validate_all_records.py  CI: every record passes + is on the leaderboard
+  new_record.py        scaffold records/<track>/<NNN>_<slug>/ from the current holder
+  analyze_threshold.py offline eval-noise / slope / variance analysis of record logs
   sweep_base_models.sh base-model pass-rate sweep
   gpu_setup.sh         one-shot setup on a CUDA container
-  modal_run.py         run N seeds in parallel on Modal GPUs
+  modal_run.py         run N seeds in parallel on Modal GPUs (+ capability probe)
+  capability.py        (rlvr_speedrun/) FineWeb-Edu loss + MMLU-lite guardrail probe
 data/countdown_eval.jsonl   2,000 frozen eval puzzles (seed 20240601)
 records/<track>/<NNN>_<slug>/  one folder per record (logs, config, README)
 results/                     base-model sweep outputs
@@ -104,12 +145,17 @@ base. Solves are sparse enough that plain GRPO has almost no signal (record
 
 ## Good first records
 
-* Tune `lr`, `kl_coef`, `group_size`, `temperature`, `curriculum_steps` on record 002.
-* Evaluate less often (every full-eval costs ~15 s on the clock).
-* Drop the reference model (kl_coef=0) and show the capability guardrail still holds.
+* Tune `lr`, `kl_coef`, `group_size`, `temperature`, `curriculum_steps` on record 005.
+* Trigger the full eval off the in-batch solve rate instead of a fixed schedule
+  (each eval costs ~10 s on the clock; `--eval-start-step` is a blunt version).
 * Reward shaping from the verifier output (e.g. partial credit for using all numbers).
-* Rollout throughput: batched generation, KV-cache reuse, `torch.compile`.
-* Replace AdamW with Muon on the policy.
+* Rollout throughput: rollouts are now ~70% of a step. HF `generate` spends most
+  of a decode step outside the model (`--compile` only compiles the forward); a
+  hand-rolled sampling loop over the static cache, or a vLLM/SGLang rollout
+  worker, is the obvious next systems record.
+* Fewer optimizer steps to threshold: seeds need 150-600 steps with ±200 s
+  spread; anything that tightens that (longer/adaptive curriculum, LR schedule,
+  Muon instead of AdamW) beats another 20% of step time.
 
 ## Credits
 

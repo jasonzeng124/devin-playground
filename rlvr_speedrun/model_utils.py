@@ -2,26 +2,54 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+import weakref
+from collections.abc import Sequence
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList
 
+_CLOSE_TOKEN_IDS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+
+
+def _tokens_containing(tokenizer, text: str) -> torch.Tensor:
+    """Vocabulary ids whose decoded string contains `text` (cached per tokenizer instance)."""
+    cached = _CLOSE_TOKEN_IDS.setdefault(tokenizer, {})
+    if text not in cached:
+        ids = [i for i in range(len(tokenizer)) if text in tokenizer.decode([i], skip_special_tokens=False)]
+        cached[text] = torch.tensor(ids, dtype=torch.long)
+    return cached[text]
+
 
 class AnswerTagStoppingCriteria(StoppingCriteria):
-    """Stop batched generation once every sequence has emitted an answer tag."""
+    """Per-sequence stop as soon as a row emits `</answer>`.
 
-    def __init__(self, tokenizer, tail_tokens: int = 64):
+    Only rows whose newest token can close a tag (contains '>') are decoded, so the
+    check is a GPU mask plus a handful of decodes per step instead of one decode per
+    row per step. `finished_at[i]` is the generated length of row i when it was
+    stopped (-1 if it never emitted the tag), which lets callers mask the pad tokens
+    the generator writes after a stopped row.
+    """
+
+    def __init__(self, tokenizer, tail_tokens: int = 16):
         self.tokenizer = tokenizer
         self.tail_tokens = tail_tokens
         self.start_length = None
+        self.finished_at: torch.Tensor | None = None
+        self._close_ids = _tokens_containing(tokenizer, ">")
 
-    def __call__(self, input_ids, scores, **kwargs) -> bool:
-        if self.start_length is None:
+    def __call__(self, input_ids, scores, **kwargs) -> torch.Tensor:
+        if self.start_length is None or self.finished_at is None:
             self.start_length = input_ids.shape[1] - 1
-        generated = input_ids[:, self.start_length :]
-        tails = generated[:, -self.tail_tokens :]
-        return all("</answer>" in self.tokenizer.decode(tail, skip_special_tokens=False) for tail in tails)
+            self.finished_at = torch.full((input_ids.shape[0],), -1, dtype=torch.long, device=input_ids.device)
+            self._close_ids = self._close_ids.to(input_ids.device)
+        gen_len = input_ids.shape[1] - self.start_length
+        candidates = torch.isin(input_ids[:, -1], self._close_ids) & (self.finished_at < 0)
+        if bool(candidates.any()):
+            tail_start = max(self.start_length, input_ids.shape[1] - self.tail_tokens)
+            for row in candidates.nonzero().flatten().tolist():
+                if "</answer>" in self.tokenizer.decode(input_ids[row, tail_start:], skip_special_tokens=False):
+                    self.finished_at[row] = gen_len
+        return self.finished_at >= 0
 
 
 def answer_stopping_criteria(tokenizer) -> StoppingCriteriaList:

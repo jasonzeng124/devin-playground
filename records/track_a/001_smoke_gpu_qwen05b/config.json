@@ -1,1 +1,13 @@
-{"track":"track_a","description":"GPU GRPO smoke record (1 seed, 60 steps), not a real entry","model":"Qwen/Qwen2.5-0.5B","hardware":"1x RTX 4090 (RunPod)","seeds":[0],"few_shot":3,"eval_limit":200,"grpo_steps":60}
+{
+  "unranked": true,
+  "track": "track_a",
+  "description": "GPU GRPO smoke record (1 seed, 60 steps), not a real entry",
+  "model": "Qwen/Qwen2.5-0.5B",
+  "hardware": "1x RTX 4090 (RunPod)",
+  "seeds": [
+    0
+  ],
+  "few_shot": 3,
+  "eval_limit": 200,
+  "grpo_steps": 60
+}
