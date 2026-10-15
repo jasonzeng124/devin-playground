@@ -7,7 +7,8 @@ that add a folder under `records/v3/track_{a,d}/`. CI validates every record on 
 
 1. **Develop on the dev ladder.** Tune on `data/ladder_v3_dev.jsonl` (the trainer's in-loop eval).
    Never evaluate on the test ladder until the final runs. The smoke configs in
-   `records/v3/smoke/` run in a few minutes on any GPU and exercise the whole pipeline.
+   `records/v3/smoke/` run in a few minutes on any GPU and exercise the whole pipeline; run them
+   with `STAGE=train` so the development loop stops before the test ladder.
 2. **Create the record folder**, `records/v3/track_{a,d}/<NNN>_<slug>/`, with:
    - `config.json`: the trainer config plus a `v3` block:
      `{"track": "A"|"D", "sampler": {"temperature", "constrain", "think_budget"}, "pretrain": {...}}`
@@ -42,25 +43,33 @@ that add a folder under `records/v3/track_{a,d}/`. CI validates every record on 
    p < 0.05. Add the record to the leaderboard table in [README.md](README.md).
 
 Running 5 seeds costs ~25-30 H100-hours: roughly $100-200 at cloud on-demand prices.
-`scripts/aws/spot_launch.sh` (`V3=1`) runs one seed per self-terminating AWS instance and pushes
-the results to S3.
+`scripts/modal_v3.py` runs a seed on a Modal H100 and has produced a complete track A seed.
+`scripts/aws/spot_launch.sh` (`V3=1`) is meant to run one seed per self-terminating AWS instance
+and push the results to S3, but it has only been smoke-tested on an A10G, and its defaults
+(security group, key, AMI, record) are the maintainer's: override them.
 
 ## Code changes
 
 * Run `uv sync && uv run pytest -q && uv run ruff check .` before pushing.
-* The verifier, the prompt, the ladders and the scorer (`countdown.py`, `ladder.py`,
-  `ladder_confirm.py`, `data/`) define the benchmark. Changing them means a new benchmark
+* The verifier, the prompt, the ladders and the scorer define the benchmark: `countdown.py`,
+  `ladder.py`, `ladder_confirm.py`, the reference constraint behind the scorer's `--constrain`
+  (`constrained.py`, `vllm_constrained.py`), and `data/`. Changing them means a new benchmark
   version, and changes to `data/` fail CI by design.
 * Trainer changes are fine. A speedup should come with a record that demonstrates it, or be off
   by default.
 
 ## Good first records
 
-* **Track D:** the plateau at ~0.17 is the open problem. Things not tried yet: process rewards
+* **Track D:** no pilot has gone past ~0.17 on the dev ladder, and the H100 records sit at ~0.12
+  on the test ladder; that plateau is the open problem. Things not tried yet: process rewards
   for correct intermediate arithmetic, learned critics, other architectures, better use of the
   6 h split, math-aware filtering of FineWeb-Edu (it has almost no written arithmetic:
   0.005 equations per document in the baseline shards).
-* **Track A:** training on the ladder mix with answer-constrained decoding roughly doubled the
-  dev score in pilots (record 001). Tuning around it is cheap to try.
+* **Track A:** record 001 (ladder mix, answer-constrained decoding, lr 4e-6) nearly doubled the
+  baseline's test score, but its three changes were never separated: at the baseline's lr 2e-6,
+  the same mix and constraint scored below the baseline in pilots. The missing ablation (ladder
+  mix at lr 4e-6 without the constraint) is cheap. So is the optimizer: the trainer updates bf16
+  weights with no fp32 master copy, so most updates at these learning rates round to zero
+  (RULES_v3, "Baselines").
 * Both tracks: anything that gets more learning out of each GPU hour (rollout throughput,
   dynamic sampling, curriculum).

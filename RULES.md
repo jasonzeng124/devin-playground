@@ -1,5 +1,8 @@
 # RLVR Speedrun — Rules
 
+> **Retired:** these are the rules of benchmarks v1 and v2, kept for their records. The current
+> benchmark is v3: [docs/RULES_v3.md](docs/RULES_v3.md).
+
 The speedrun measures **wall-clock time to teach a language model to solve
 Countdown arithmetic puzzles with reinforcement learning from verifiable
 rewards (RLVR)**. Everything is scored by a deterministic, CPU-only verifier

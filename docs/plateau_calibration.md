@@ -1,7 +1,11 @@
 # Benchmark v2 threshold: plateau calibration and recipe sweeps
 
+> **Retired with v2:** v3 replaced the threshold with a fixed budget scored on a difficulty ladder
+> ([RULES_v3.md](RULES_v3.md), [v3_design.md](v3_design.md)). The planned first v2 record,
+> `006_os2_baseline_v2_h100`, was never completed.
+
 **Decision (2026-09-26): the v2 threshold is 0.20** (`benchmark.THRESHOLD`; v1 used 0.10). The
-first v2 record, `006_os2_baseline_v2_h100`, is a recipe chosen because every seed reaches it.
+first v2 record was to be a recipe chosen because every seed reaches it.
 
 All runs below are step-based (GPU speed does not matter), with the threshold disabled, 2,000
 steps, and an eval every 50 steps on the full 2,000-puzzle stopping set. They were run on MIT ORCD

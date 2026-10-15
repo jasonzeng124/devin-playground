@@ -15,31 +15,42 @@ the evidence behind each choice is in [docs/v3_design.md](docs/v3_design.md).
 
 | track | start from | budget (1x H100 80GB SXM) | data |
 |---|---|---|---|
-| **A** | `Qwen/Qwen3-1.7B-Base` (pinned revision) | 5 h of training | generated puzzles + verifier verdicts |
+| **A** | `Qwen/Qwen3-1.7B-Base` (pinned revision) | 5 h of GPU wall clock | generated puzzles + verifier verdicts |
 | **D** (experimental) | random init, any architecture | 6 h **including pretraining** | FineWeb-Edu (pinned) for pretraining; RL as track A |
 
-Track D is labelled experimental: every pilot plateaus at ~0.15-0.17 on the dev ladder, whatever
-the optimizer, model size, pretraining length or exploration settings. The models learn a few
-fixed answer templates and never do arithmetic. Breaking 0.20 is the open challenge.
+Track D is labelled experimental. In the H200 pilots, the best recipes reached about 0.15-0.17 on
+the dev ladder, and nothing tried went past that: longer pretraining, Muon, a 335M model, more
+exploration, a think budget. The H100 records score lower, about 0.12 on the test ladder, and
+GPU speed doesn't explain the gap ([docs/RULES_v3.md](docs/RULES_v3.md), "Baselines"). The models
+learn a few fixed answer templates and write no intermediate arithmetic. Breaking 0.20 is the
+open challenge.
 
 ## Leaderboard (v3)
 
 ### Track A
 
-| # | record | test ladder score (mean ± sd) | N | clock | author |
-|---|---|---:|--:|---|---|
-| 000 | [000_baseline](records/v3/track_a/000_baseline) | 0.1295 ± 0.0098 | 5 | 290 min GRPO | @jasonzeng124 |
+| # | record | test ladder score (mean ± sd) | N | sampler | clock (measured) | author |
+|---|---|---:|--:|---|---|---|
+| 000 | [000_baseline](records/v3/track_a/000_baseline) | 0.1295 ± 0.0098 | 5 | free | 291 min GRPO | @jasonzeng124 |
+| 001 | **[001_ladder_constrained](records/v3/track_a/001_ladder_constrained)** (holder) | **0.2481 ± 0.0460** | 5 | constrained | 291-292 min GRPO | @jasonzeng124 |
+
+001 beats 000 with one-sided Welch p = 0.0019. One of its seeds collapsed into ~40-token single
+guesses and still scored 0.186, so its seed spread is ~5x the baseline's (see its README).
 
 ### Track D
 
-| # | record | test ladder score (mean ± sd) | N | clock | author |
-|---|---|---:|--:|---|---|
-| 000 | [000_baseline](records/v3/track_d/000_baseline) | 0.1166 ± 0.0163 | 5 | 112 min pretraining + 234 min GRPO | @jasonzeng124 |
+| # | record | test ladder score (mean ± sd) | N | sampler | clock (measured) | author |
+|---|---|---:|--:|---|---|---|
+| 000 | [000_baseline](records/v3/track_d/000_baseline) | 0.1166 ± 0.0163 | 5 | constrained | 112 min pretraining + 236 min GRPO | @jasonzeng124 |
 
 Not records: [track D 001_muon_pretrain](records/v3/track_d/001_muon_pretrain) (0.1162 ± 0.0156,
 p = 0.52 against 000; a negative result).
 
-A new record must beat the holder's mean with a one-sided Welch t-test (p < 0.05) over >= 5 seeds.
+All samplers run at T = 1 with no think budget. "Constrained" is answer-constrained decoding:
+inside `<answer>`, only well-formed expressions over the puzzle's numbers and operators can be
+sampled. At scoring it adds about +0.011-0.014 to track A 000 and +0.016 to 001's healthy seeds
+(001's README). A new record must beat the holder's mean with a one-sided Welch t-test
+(p < 0.05) over >= 5 seeds.
 
 ## Quickstart
 
@@ -51,19 +62,25 @@ uv run pytest -q
 pip install "vllm==0.30.0" "transformers==5.17.0" pyarrow numpy accelerate huggingface_hub && pip install -e . --no-deps
 python scripts/prepare_track_d_data.py            # track D only: pinned FineWeb-Edu shards + tokenizer (CPU, untimed)
 
-# one seed end to end: (pretraining,) GRPO, clock.json, test-ladder score with the record's sampler
-bash scripts/run_seed_v3.sh records/v3/track_d/000_baseline 0
+# cheap development loop on any GPU (4 min runs, unranked; STAGE=train stops before the test ladder)
+STAGE=train bash scripts/run_seed_v3.sh records/v3/smoke/track_d 0
 
-# cheap development loop on any GPU (4 min runs; unranked)
-bash scripts/run_seed_v3.sh records/v3/smoke/track_d 0
+# one seed of a new record end to end: (pretraining,) GRPO, clock.json, test-ladder score
+mkdir -p records/v3/track_d/002_my_record && cp records/v3/track_d/000_baseline/config.json records/v3/track_d/002_my_record/
+bash scripts/run_seed_v3.sh records/v3/track_d/002_my_record 0
 
 # check a record before opening a PR
-uv run python scripts/validate_record_v3.py records/v3/track_d/001_my_record --compare-to records/v3/track_d/000_baseline
+uv run python scripts/validate_record_v3.py records/v3/track_d/002_my_record --compare-to records/v3/track_d/000_baseline
 ```
 
-`scripts/aws/spot_launch.sh` (`V3=1`) runs seeds on fresh AWS GPU instances that terminate
-themselves and push results to S3. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to submit a
-record.
+A seed folder that already holds a run is never overwritten, so the committed records' seeds
+can't be rerun in place.
+
+Hosted GPUs: `scripts/modal_v3.py` runs a seed on a Modal H100 (it produced one complete track A
+seed, `records/v3/track_a/000_baseline/extra/modal_0`). `scripts/aws/spot_launch.sh` (`V3=1`)
+is meant to run seeds on self-terminating AWS instances, but it has only been smoke-tested on an
+A10G, and its defaults (security group, key, AMI, record) are the maintainer's, so override them.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to submit a record.
 
 ## Layout
 
@@ -72,7 +89,8 @@ rlvr_speedrun/
   countdown.py       puzzle generator, prompt, verifier (part of the benchmark: do not change)
   ladder.py          the v3 difficulty ladder and its training stream
   ladder_confirm.py  the v3 scorer (test ladder, 16 samples, the record's sampler)
-  constrained.py     answer-constrained decoding (vLLM logits processor + trainer renormalisation)
+  constrained.py     answer-constrained decoding (logits processor + trainer renormalisation)
+  vllm_constrained.py  the vLLM V1 adapter for it
   grpo.py            the GRPO trainer (vLLM rollouts); config fields are CLI flags
   benchmark.py       protocol constants and pins
 scripts/
@@ -97,7 +115,7 @@ from. The v1 leaderboard is kept as history.
 Hardware: **one H100 80GB SXM**, all seeds of a record on one provider. Track A
 base model: **Qwen/Qwen2.5-0.5B** (pretrained-only checkpoint, no
 post-training). Threshold: **20% pass rate** (v2; v1: 10%) on the frozen 2,000-puzzle eval,
-N >= 3 consecutive seeds; a new record holder must beat the old one at
+N >= 3 consecutive seeds (v2: 10); a new record holder must beat the old one at
 `p < 0.05` (one-sided Welch t-test, see [RULES.md](RULES.md)).
 
 #### v1 Track A — fixed base model, RL only

@@ -1,4 +1,4 @@
-"""Answer-constrained decoding (`--constrain-answer`, track D pilot).
+"""Answer-constrained decoding (`--constrain-answer` in training, `--constrain` in `ladder_confirm`).
 
 Free text is unconstrained until the completion contains `<answer>`. From there on, only tokens
 that keep the text a prefix of `EXPR</answer>` may be sampled, where EXPR uses each of the

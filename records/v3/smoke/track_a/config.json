@@ -23,10 +23,10 @@
   "sample_every": 0,
   "oversample": 1,
   "prompt_style": "r1",
-  "micro_batch_tokens": 16384,
+  "micro_batch_tokens": 8192,
   "grad_checkpoint": true,
   "eval_set": "data/ladder_v3_dev.jsonl",
-  "description": "Track A baseline: GRPO on generator puzzles from Qwen3-1.7B-Base, lr 2e-6, zero-shot r1 prompt, 1,024 tokens (290 min).",
+  "description": "Smoke test of the track A pipeline (unranked, not a record): the baseline recipe for 4 min on any GPU. Run it with STAGE=train so it stops before the test ladder.",
   "v3": {
     "track": "A",
     "sampler": {

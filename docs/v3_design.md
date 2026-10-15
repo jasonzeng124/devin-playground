@@ -1,10 +1,10 @@
-# Benchmark v3 design notes (draft, 2026-09-27)
+# Benchmark v3 design notes (lab notebook, 2026-09-27 to 2026-10-14)
 
-v2 (threshold 0.20, 64 tokens, few-shot "think briefly" prompt) is on hold. The analysis in
+v2 (threshold 0.20, 64 tokens, few-shot "think briefly" prompt) was retired for v3. The analysis in
 docs/plateau_calibration.md and `scripts/analyze_solves.py` showed it cannot reward search:
 
 * 39.7 % of stopping-set puzzles can be solved with + and - only, so 0.20 needs no multiplication.
-  The 0.07 shelf is the "add all four numbers" template (exactly 7.0 % of targets are the sum).
+  The 0.07 shelf is the "add all four numbers" template (6.95 % of targets, 139 of 2,000, are the sum).
 * At 64 tokens a second attempt is cut off before `<answer>` and scores -0.1, which is below a
   one-line wrong guess (0). RL therefore learns to guess in one line, and its "reasoning" is
   decoration with false arithmetic.
@@ -254,7 +254,7 @@ Results (2026-10-02; greedy ladder, 100 per level, one seed each unless noted; d
 Seeds 1-2 of temperature 1.2 and 120 min pretraining queued; probes moved to mit_preemptable.
 
 Full-ladder probes (2,400 puzzles, sampled pass@1 at T=1 with k=16, level-weighted; results/probe_ladder_{A,2048,full}.json on Engaging):
-- Track A seed spread: 8 Qwen3-1.7B finals of the 5 h recipe family score 0.123-0.155 (mean 0.138, sd 0.011). One-sided alpha 0.05 / power 0.8 detects a gain of ~0.022 at N=3, 0.017 at N=5, 0.012 at N=10. Track D (3 d07 seeds, 100-per-level greedy) has the same sd, 0.011.
+- Track A seed spread: 8 Qwen3-1.7B finals of the 5 h recipe family score 0.123-0.155 (mean 0.138, sd 0.011). One-sided alpha 0.05 / power 0.8 detects a gain of ~0.022 at N=3, 0.017 at N=5, 0.012 at N=10. Track D (3 d07 seeds, 100-per-level greedy) has the same sd, 0.011. (Superseded: the 5-seed H100 records measure 0.0098 for A and 0.0163 for D, and the Welch test needs ~0.017 / ~0.028 for 80 % power; RULES_v3.)
 - Token cap: the best Qwen at 2,048 tokens scores 0.157 vs 0.155 at 1,024 (truncation 1 % vs 2 %); the cap does not bind once training ends. (Greedy truncation is 39 %: greedy loops, sampling does not.)
 - Constraint on Qwen: the best Qwen with constrained answers scores 0.168 vs 0.155 (+0.013, L1 0.71 vs 0.69, L2 0.12 vs 0.10). The constraint helps a trained model only a little; its effect on the d110m models and on the bases is pending (probe_D rerun after a fix: Qwen samples padded vocab ids past the tokenizer).
 - Capability guardrail: best Qwen final FineWeb loss +0.003 nats, MMLU-lite -0.006 vs base; far inside v2's 0.05 / -0.03 bounds.
@@ -301,7 +301,7 @@ sweep_d13 results (2026-10-05; in-loop dev ladder, greedy):
 | 335M, Muon 120 min (val 2.79, 0.97B tokens) + 4 h RL, lr 3e-5 | 0.113 / 0.162 | the bigger model gets fewer tokens and slower RL in the same time |
 | same, lr 1e-5 | 0.087 | |
 Lower pretraining loss does not reliably buy RL score beyond ~2.8 nats, and in a fixed 6 h budget a 3x larger model is not better. The plateau stays ~0.15-0.17.
-Muon 60 min + 5 h RL, all seeds: 0.142 / 0.177 / 0.137 / 0.165, plus s3 at 0.172 when preempted at 202 min (it resumes). Mean ~0.155, level with AdamW 120 min + 4 h (0.160).
+Muon 60 min + 5 h RL, all seeds: 0.142 / 0.177 / 0.137 / 0.165, plus s3 at 0.172 when preempted at 202 min (it resumes). Mean ~0.155, level with AdamW 120 min + 4 h (0.160). (Final, all 5 seeds at 5 h: 0.142 / 0.177 / 0.137 / 0.172 / 0.165, mean 0.158.)
 
 sweep_d14 (queued 2026-10-05): oversample 4 / 8 / 16 on the Muon 60 min model, 5 h RL, 1 seed each. In d13 runs only 3-5 of 64 groups per step are informative after the first ~20 min.
 
@@ -325,3 +325,21 @@ Control: d10 pre120 (dev 0.175 / 0.167 / 0.137).
 sweep_d15 data (2026-10-07): **FineWeb-Edu has almost no written arithmetic.** The two pinned shards hold 1,455,000 documents and 7,899 regex-matched equations (0.005 per document). Only 810 documents (0.06 %; 0.14 % of characters; 3M tokens) have >= 3. Examples: `55+21=76`, `35 * 15 = 525`.
 
 The legal arm (mathfilter120) reaches only a 1.2 % share even with 8 repeats, so it was cancelled: reaching 20 % would mean ~100 repeats of 3M tokens. The FineMath arm (finemath120: 0.53B tokens, 23.5 % of the mix) stays queued.
+
+Later (2026-10-12) finemath120 ran on Engaging, but its RL config (calibration/sweep_d15/finemath120/config.json) inherited `few_shot: 3` and `max_steps: 2000` from an older template, so it is not comparable with the control and no conclusion is drawn from it.
+
+## Outcomes (2026-10-14)
+
+Records, all trained on Engaging's H100 node2906 (test ladder, 5 seeds each):
+| record | test (mean ± sd) | notes |
+|---|---|---|
+| A 000 baseline | 0.1295 ± 0.0098 | free sampling |
+| A 001 ladder mix + constraint + lr 4e-6 | **0.2481 ± 0.0460** | new record, Welch p = 0.0019; seed 2 collapsed into ~40-token guesses by minute 60 and still scored 0.186 |
+| D 000 baseline | 0.1166 ± 0.0163 | scored on L40S nodes |
+| D 001 Muon 56 min + 290 min RL | 0.1162 ± 0.0156 | not a record (p = 0.52) |
+
+- Track A pilots for 001 (calibration/sweep_a01, sweep_a02; the record's README has the numbers): at lr 2e-6 the ladder mix alone matched the baseline and adding the constraint halved the score; only the combination at lr 4e-6 worked, and lr 6e-6 / 8e-6 collapsed into short answers within the first hour. The ablation that would separate the three changes (ladder mix at lr 4e-6 without the constraint) hasn't been run.
+- Sampler diagnostic (calibration/diag_sampler, dev ladder): the constraint at scoring adds +0.011-0.014 to A 000 and ~+0.016 to A 001's healthy seeds, but +0.074 to the collapsed seed. On a common sampler, A 001 still beats A 000 by +0.09 to +0.11.
+- Track D on the H100 came out below the H200 pilots (in-loop dev 0.119 vs 0.159, p = 0.025) at about the same RL steps per minute; each pilot arm had shared one pretrained model.
+- The trainer runs AdamW on bf16 weights with no fp32 master copy: after 5 h only 2.2 % (A 000) and 4.4 % (A 001) of the weights differ from the base model.
+- The corrections made to the launched docs are listed in docs/REVIEW_v3.md.

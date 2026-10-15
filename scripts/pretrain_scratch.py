@@ -1,10 +1,10 @@
-"""Pretrain a small Llama-style model from scratch on FineWeb-Edu (track D feasibility pilot).
+"""Pretrain a small Llama-style model from scratch on FineWeb-Edu (the track D baseline's pretraining).
 
     python scripts/pretrain_scratch.py tokenize --parquet <dir> --tokenizer <dir> --out tokens.bin
     python scripts/pretrain_scratch.py train --tokens tokens.bin --tokenizer <dir> --out <model dir> [--minutes 60]
 
 `tokenize` streams parquet row groups through the tokenizer and writes uint16 ids, EOS after each document. `train` runs next-token
-prediction with AdamW (warmup, cosine decay), bf16 autocast and torch.compile, stopping after
+prediction with AdamW or Muon (`--optimizer`; warmup, cosine decay), bf16 autocast and torch.compile, stopping after
 --minutes of training or --max-tokens, and saves a `LlamaForCausalLM` plus the tokenizer so
 `rlvr_speedrun.grpo` and vLLM can load it like any HF model. Deliberately plain (no speedrun
 tricks): the question is whether RL can start from a model of roughly GPT-2-small quality.

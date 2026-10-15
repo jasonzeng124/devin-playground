@@ -29,7 +29,7 @@
   "constrain_answer": true,
   "train_mix": "ladder",
   "adv_norm": "none",
-  "description": "Track D baseline: 110M Llama-style model, AdamW pretraining on FineWeb-Edu (112 min), then Dr. GRPO on the ladder mix with answer-constrained decoding (234 min).",
+  "description": "Smoke test of the track D pipeline (unranked, not a record): the baseline recipe with 3 min of pretraining and 4 min of RL on any GPU. Run it with STAGE=train so it stops before the test ladder.",
   "v3": {
     "track": "D",
     "pretrain": {

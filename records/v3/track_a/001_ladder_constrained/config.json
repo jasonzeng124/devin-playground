@@ -26,7 +26,7 @@
   "micro_batch_tokens": 8192,
   "grad_checkpoint": true,
   "eval_set": "data/ladder_v3_dev.jsonl",
-  "description": "Track A 001: the baseline trained on the ladder mix with answer-constrained decoding at lr 4e-6, scored with --constrain (calibration/sweep_a01 ladder_constrained_lr4e-6: dev 0.250 / 0.250 at 5 h on H200).",
+  "description": "Track A 001: the baseline trained on the ladder mix with answer-constrained decoding at lr 4e-6, scored with --constrain (calibration/sweep_a01 ladder_constrained_lr4e-6: in-loop dev 0.235 / 0.233 at 5 h on H200).",
   "v3": {
     "track": "A",
     "sampler": {

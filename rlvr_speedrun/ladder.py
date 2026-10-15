@@ -1,4 +1,4 @@
-"""Difficulty ladder for benchmark v3 (draft): Countdown levels scored with equal weight.
+"""Difficulty ladder for benchmark v3: Countdown levels scored with equal weight.
 
 Each level fixes how many numbers a puzzle has, which operators it allows (stated in the prompt,
 enforced by the verifier) and what the target must need, so that an easy trick cannot carry the

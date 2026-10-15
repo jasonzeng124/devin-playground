@@ -1,19 +1,21 @@
 # RLVR Speedrun v3 — Rules
 
 Status: final for launch; the maintainer approved it on 2026-10-07 (`docs/REVIEW_v3.md` lists every
-decision). Edge cases the text doesn't settle are arbitrated by the maintainer, and rulings are added
+decision, and the corrections made after launch). Edge cases the text doesn't settle are arbitrated by the maintainer, and rulings are added
 here. v3 replaces v2's "time to a threshold" with a **fixed compute budget, scored on a
 difficulty ladder**, and has two tracks. Evidence for each choice is in `docs/v3_design.md`.
 Constants live in `rlvr_speedrun/benchmark.py` (v3 block); `scripts/validate_record_v3.py`
-enforces these rules.
+checks what can be checked from a record's files (see Submissions).
 
 ## The task
 
 Countdown: given numbers and a target, write an arithmetic expression that uses every number
 exactly once, only the operators the puzzle allows, and evaluates to the target. The prompt is
 the fixed zero-shot `r1` prompt (`countdown.format_prompt(puzzle, 0, "r1")`). The answer is the
-expression inside the first `<answer>...</answer>`; `countdown.verify` decides correctness with
-exact rational arithmetic. The prompt and the verifier are part of the benchmark and may not be
+expression inside the last `<answer>...</answer>` block or, if there is none, the last non-empty
+line of the completion, with anything after an `=` dropped (`countdown.extract_expression`). The
+scorer stops each sample at its first `</answer>`, so a scored sample has at most one block.
+`countdown.verify` decides correctness with exact rational arithmetic. The prompt and the verifier are part of the benchmark and may not be
 changed.
 
 ## Scoring
@@ -38,23 +40,29 @@ expression scores ~0.02; "add everything" scores 0 on L1).
 The **dev ladder** (`data/ladder_v3_dev.jsonl`, same construction, disjoint) is for in-loop
 evals and tuning. The test ladder may not be evaluated during training or used to pick
 checkpoints, hyperparameters or seeds. Training streams skip every puzzle of both ladders
-(`data.train_puzzle_stream`, `ladder.ladder_stream`).
+(`data.train_puzzle_stream` matches puzzles on numbers and target, `ladder.ladder_stream` on
+numbers, target and operators). The ladder mix can therefore still draw a ladder puzzle's numbers
+and target under another operator set: 0.06-0.07 % of its draws, worth at most ~0.015 of a seed's
+score even if every such puzzle were memorised. Closing this gap changes the training streams, so
+it is left for the next benchmark version.
 
 ## Tracks
 
 ### Track A — pinned base model
 
 - Start from `Qwen/Qwen3-1.7B-Base` at revision `ea980cb0a6c2ae4b936e82123acc929f1cec04c1`.
-- Budget: **5 h** of training on one H100 80GB SXM.
+- Budget: **5 h** of GPU wall clock on one H100 80GB SXM (see "Clock and hardware").
 - Data: puzzles from the generator (`countdown.generate_puzzle`, `ladder.ladder_stream`, or any
   other program that produces (numbers, target, operators) without solving them) and the
   verifier's verdicts. Nothing else: no other models, datasets or text.
 
 ### Track D — from scratch
 
-**Status: experimental.** Pilots plateau at ~0.15-0.17 (dev ladder) whatever the pretraining
-length, optimizer (AdamW or Muon), model size (110M or 335M), exploration settings or think
-budget. The models learn a few fixed answer shapes (one product, then additions and
+**Status: experimental.** In the H200 pilots the best recipes reached about 0.15-0.17 on the dev
+ladder, and nothing tried went past that: longer pretraining (30-120 min), Muon instead of AdamW,
+a 335M model instead of 110M, more exploration (temperature 1.2, dynamic sampling, oversampling,
+Clip-Cov) or a think budget (which scored lower, 0.07-0.12). The H100 records score lower still
+(see Baselines). The models learn a few fixed answer shapes (one product, then additions and
 subtractions), and L3 and L5 stay near 0. Records are welcome, but the maintainer may revise this
 track's ladder (e.g. an easier L5) at any time. A revision gets a new version number, and the
 existing records stay on the old leaderboard.
@@ -101,8 +109,8 @@ Forbidden:
 
 The submission is the final weights plus a sampler configuration. Allowed: temperature,
 answer-constrained decoding (`--constrain`: after `<answer>`, only well-formed uses of the
-puzzle's numbers and operators), a think budget (`--think-budget`), or another sampler the
-entrant implements, provided it:
+puzzle's numbers and operators), a think budget (`--think-budget`, which needs `--constrain`:
+it forces `<answer>` after N free tokens), or another sampler the entrant implements, provided it:
 
 - produces each sample independently, in one pass, from the prompt alone;
 - never evaluates arithmetic, never sees the target's relation to an expression, and never calls
@@ -117,9 +125,12 @@ carefully. The README must describe what the sampler changes and why, and the co
 enough to read. The maintainer may reject a sampler that meets the letter of the rules but does
 part of the solving (e.g. a grammar that encodes which expressions tend to be right).
 
-Why the sampler is part of the submission: a model trained with answer-constrained decoding
-scores 0.000 without it, because the constraint is part of its policy. The constraint by itself
-solves nothing (bases: 0.003-0.011), and it adds only +0.011 to a trained Qwen model.
+Why the sampler is part of the submission: a model trained with answer-constrained decoding can
+score 0.000 without it (a track D pilot did), because the constraint is part of its policy. The
+constraint by itself solves nothing (base models: 0.003-0.011). On trained Qwen models it adds
++0.011 (a pilot trained without it; `docs/v3_design.md`), +0.011-0.014 (track A 000) and about
++0.016 (track A 001's healthy seeds), but +0.074 for 001's collapsed seed (dev ladder,
+`calibration/diag_sampler`).
 
 ## Clock and hardware
 
@@ -132,6 +143,9 @@ solves nothing (bases: 0.003-0.011), and it adds only +0.011 to a trained Qwen m
 - Scoring on the test ladder happens after the clock stops and is not timed. It may run as a
   separate job, on any GPU, but always with `ladder_confirm` under the reference software below.
 - Training runs on other GPUs are unranked.
+- All seeds of a record train on one provider (one cloud, or one cluster), so differences between
+  hosts don't mix into the seed spread. Runs elsewhere go in `extra/` with a note (for example
+  track A 000's Modal run, `extra/modal_0`).
 - Reference software (`benchmark.V3_REFERENCE_SOFTWARE`): vLLM 0.30.0, torch 2.13.0+cu130,
   transformers 5.17.0. The baselines use it, and the scorer always runs in it. Records may train with
   other software if the README says which.
@@ -143,8 +157,11 @@ solves nothing (bases: 0.003-0.011), and it adds only +0.011 to a trained Qwen m
   machine) may be rerun under the same seed, if the failed attempt goes in `extra/` with a note.
 - In track D a seed is the whole pipeline: each seed pretrains its own model (with that seed)
   before RL. Sharing one pretrained model across seeds is not allowed.
-- The record's score is the mean seed score. The baselines' seed-to-seed standard deviations
-  are 0.010 (track A) and 0.016 (track D), so 5 seeds detect gains of ~0.015 and ~0.025.
+- The record's score is the mean seed score. The baselines' seed standard deviations are 0.0098
+  (track A) and 0.0163 (track D). With 5 seeds against 5, the one-sided Welch test has 80 % power
+  for gains of about 0.017 (A) and 0.028 (D), about 1.75 sd. A noisier holder needs larger gains:
+  track A 001's sd is 0.046 because one seed collapsed, so a challenger needs about +0.06 if it is
+  as stable as 000, or about +0.08 if it is as noisy as 001.
 - A new record must beat the holder's mean with a one-sided Welch t-test at p < 0.05 on the
   seed scores.
 
@@ -153,33 +170,57 @@ solves nothing (bases: 0.003-0.011), and it adds only +0.011 to a trained Qwen m
 `scripts/run_seed_v3.sh <record> <seed>` runs one seed end to end and writes `clock.json` with
 the timed total. The steps are pretraining (track D), GRPO, then the test ladder with the record's
 sampler. `STAGE=train` / `STAGE=confirm` split the timed part from the scoring.
-`scripts/aws/spot_launch.sh` (`V3=1`) runs seeds on fresh AWS instances.
+`scripts/modal_v3.py` runs a seed on Modal. `scripts/aws/spot_launch.sh` (`V3=1`) has not run on
+an H100 yet, and its account defaults must be overridden.
 
 `records/v3/track_{a,d}/<NNN>_<slug>/` holds:
 - `config.json`: the trainer config plus a `v3` block with the track, sampler and track D
   pretraining;
 - `README.md`: recipe, clock time per seed, sampler and test score;
 - any code that differs from this repository;
-- per seed, `seeds/<i>/{train_log.jsonl, result.json, clock.json, confirm_v3.json}`, plus
-  `pretrain_log.jsonl` for track D;
+- per seed, `seeds/<i>/{config.json, train_log.jsonl, eval_log.jsonl, result.json, clock.json,
+  confirm_v3.json}` as `run_seed_v3.sh` writes them, plus `pretrain_log.jsonl` for track D;
 - `extra/`: every other run.
 
-`python scripts/validate_record_v3.py <record> [--compare-to <holder>]` must pass. It checks the
-seeds, the clock (ranked GPU, within budget), a full test-ladder score with the record's own
-sampler, the pinned track A revision, per-seed pretraining for track D, and the Welch test.
+`python scripts/validate_record_v3.py <record> [--compare-to <holder>]` must pass. It checks:
+- the seeds, and that each seed's config matches the record's and ran its in-loop evals on the
+  dev ladder;
+- the clock: ranked GPU, one GPU, within budget, and arithmetic that matches the eval log;
+- a full test-ladder score of each seed's own final weights with the record's sampler;
+- the pinned track A revision, and per-seed pretraining for track D;
+- with `--compare-to`, the Welch test.
+
+It can't see how the test ladder was used, which provider ran the seeds, or what the training
+data was. Those rest on the submission's scripts and on review.
 
 ## Baselines (records 000)
 
 - Track A (`records/v3/track_a/000_baseline`): GRPO on the generator mix, lr 2e-6, r1 prompt,
-  1,024 tokens, 290 min, free sampling at T=1. This is calibration/sweep_008 `q3_17b_lr2e-6`
-  with `micro_batch_tokens` lowered from 16384 to 8192 so it fits in 80 GB, which doesn't change the
-  update. H200 pilots: test ladder 0.153 / 0.123.
+  1,024 tokens, a 290-min GRPO budget (291 min on the clock), free sampling at T=1. This is
+  calibration/sweep_008 `q3_17b_lr2e-6` with `micro_batch_tokens` lowered from 16384 to 8192 so
+  it fits in 80 GB, which doesn't change the update. H200 pilots: test ladder 0.153 / 0.123. Those
+  pilots were trained before the test ladder was drawn, so their streams were not filtered
+  against it (sweep_008 seed 0's stream holds ~8.5 % of the test ladder's (numbers, target)
+  pairs).
 - Track D (`records/v3/track_d/000_baseline`): 110M Llama-style model, 112 min of AdamW pretraining
-  on FineWeb-Edu, then 234 min of Dr. GRPO at lr 3e-5 on the ladder mix with answer-constrained
-  decoding, scored with `--constrain` (calibration/sweep_d10 `pre120`). H200 pilots: dev ladder
-  0.175 / 0.167 / 0.137.
+  on FineWeb-Edu, then a 234-min Dr. GRPO budget (236 min on the clock) at lr 3e-5 on the ladder
+  mix with answer-constrained decoding, scored with `--constrain`. This is calibration/sweep_d10
+  `pre120` (120 + 240 min) shortened to fit. H200 pilots: dev ladder 0.175 / 0.167 / 0.137.
 
-Both leave ~10 min of the budget for start-up, loading and saving, which count. Muon at 60 min of
-pretraining matched AdamW at 120 min in the pilots. The baseline keeps plain AdamW and leaves
-Muon for records. The record READMEs give the H100 test scores; the pilot numbers above are
-from H200s, which do more work per minute.
+The measured clocks are 291 of 300 min (A) and 348 of 360 min (D). Start-up, loading and saving
+take 1-2 min, so about 9-12 min of each budget is unused.
+
+The trainer updates bf16 weights directly with AdamW, with no fp32 master copy, so an update
+smaller than half a weight's bf16 spacing is lost. At track A's learning rates most updates
+round to zero: after 5 h, 2.2 % of the weights differ from the base model in 000 (lr 2e-6) and
+4.4 % in 001 (lr 4e-6). The trainer is not part of the benchmark, so records may change this.
+
+Pilots against records: the record READMEs give the H100 test scores, and the pilot numbers above
+are from H200s. In track A the H200 pilots ran 3-18 % more steps per minute, for 300 min instead
+of 290. In track D speed doesn't explain the gap. RL ran 47-58 steps/min on the H100 against 52-55
+on the H200, and pretraining 359-373k tokens/s against ~383k. Yet the H100 baseline's final
+in-loop dev evals average 0.119, against 0.159 for the pre120 pilots (one-sided Welch p = 0.025).
+Each pilot arm shared one pretrained model across its seeds, so one lucky pretraining run could
+explain it. The pilots' pretraining commands are in sbatch files on Engaging and were not
+rechecked. Muon at 60 min of pretraining matched AdamW at 120 min in the pilots, but on the H100
+it didn't help (track D 001: 0.1162 against 0.1166).

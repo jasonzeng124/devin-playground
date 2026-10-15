@@ -1,35 +1,37 @@
 <!-- Delete the section that does not apply. -->
 
-## Record submission
+## Record submission (benchmark v3)
 
-Record: `records/<track>/<NNN>_<slug>/` — one sentence on what changed vs. the parent record.
+Record: `records/v3/track_<a|d>/<NNN>_<slug>/`: one sentence on what changed vs. the holder.
 
 | | |
 |---|---|
-| mean ± sd (N) | `... ± ... s (N=...)` |
-| 95% CI | `[..., ...] s` |
-| vs. holder | `welch p = ..., permutation p = ...` |
-| guardrail | `FineWeb Δ ..., MMLU-lite Δ ...` |
-| provider | `...` (all seeds) |
+| test ladder, mean ± sd (N) | `0.... ± 0.... (N=...)` |
+| vs. holder | `Welch t = ..., one-sided p = ...` |
+| sampler | `temperature ..., constrain ..., think_budget ...`, or a custom sampler described in the README |
+| clock per seed | `... min` (track D: pretraining + RL) |
+| GPU / provider | `NVIDIA H100 80GB HBM3` / `...` (all seeds) |
 
-<details><summary><code>validate_record.py</code> output (with <code>--compare-to</code>)</summary>
+<details><summary><code>validate_record_v3.py --compare-to</code> output</summary>
 
 ```
 paste here
 ```
 </details>
 
-Checklist (see [RULES.md](../blob/main/RULES.md)):
+Checklist (see [docs/RULES_v3.md](../blob/main/docs/RULES_v3.md)):
 
-- [ ] `config.json` declares `track`, `model`, `hardware`, `provider`, `seeds: [0..N-1]` (N ≥ 3) and the RL hyperparameters
-- [ ] every declared seed has `seeds/<seed>/{config.json,train_log.jsonl,eval_log.jsonl,result.json,probe.json}`
-- [ ] all seeds ran on the one declared provider, on the ranked GPU (`NVIDIA H100 80GB HBM3`)
-- [ ] every run launched with this configuration is disclosed (official seeds, `extra/`, or the README)
+- [ ] >= 5 seeds `0..N-1`, each with `seeds/<i>/{config.json, train_log.jsonl, eval_log.jsonl, result.json, clock.json, confirm_v3.json}` (track D: plus `pretrain_log.jsonl` from that seed's own pretraining)
+- [ ] every run launched with this configuration is reported (the seeds, or `extra/` with a note)
+- [ ] all seeds trained on one provider, on the ranked GPU, within the track's budget
+- [ ] in-loop evals used the dev ladder; the test ladder was scored once per seed, after training
+- [ ] training used only generated puzzles and verifier verdicts (track D: plus the allowed pretraining data); no solutions, other models, or synthetic arithmetic text
+- [ ] any custom sampler, reward code or pretraining script is in the record folder and described in its README
 - [ ] no model weights committed; nothing touched `data/`
-- [ ] added a row to the leaderboard table in `README.md`
-- [ ] `python scripts/validate_all_records.py` passes locally
+- [ ] added a row to the v3 leaderboard in `README.md`
+- [ ] `uv run python scripts/validate_all_records.py` passes locally
 
 ## Code change
 
-What and why. If it changes timing, generation, the verifier or the eval path,
-say how you checked that existing records are unaffected (or why they cannot be).
+What and why. If it changes the timed path, rollouts, the verifier, the ladders or the scorer,
+say how existing records are affected (or why they cannot be).
