@@ -47,12 +47,19 @@ def validate_all(records_dir: Path, readme: Path | None) -> tuple[bool, list[str
             if link not in readme_text:
                 ok = False
                 lines.append(f"   FAIL: ranked record is not linked from {readme} (add it to the leaderboard table)")
-    # benchmark v3 (docs/RULES_v3.md); its leaderboard is not in README.md yet
+    # benchmark v3 (docs/RULES_v3.md): every ranked v3 record is listed in README.md too (records or not)
     for record in sorted(p for track in sorted((records_dir / "v3").glob("track_*")) for p in track.iterdir() if p.is_dir()):
+        unranked = _is_unranked(record)
         valid, message = validate_record_v3.validate(record)
-        lines.append(f"== v3/{record.parent.name}/{record.name}: {'OK' if valid else 'FAIL'}")
+        label = " (unranked)" if unranked else ""
+        lines.append(f"== v3/{record.parent.name}/{record.name}{label}: {'OK' if valid else 'FAIL'}")
         lines.extend("   " + line for line in message.splitlines())
         ok = ok and valid
+        if valid and not unranked and readme_text is not None:
+            link = f"{records_dir.name}/v3/{record.parent.name}/{record.name}"
+            if link not in readme_text:
+                ok = False
+                lines.append(f"   FAIL: record is not linked from {readme} (add it to the v3 leaderboard)")
     return ok, lines
 
 
