@@ -129,8 +129,8 @@ Why the sampler is part of the submission: a model trained with answer-constrain
 score 0.000 without it (a track D pilot did), because the constraint is part of its policy. The
 constraint by itself solves nothing (base models: 0.003-0.011). On trained Qwen models it adds
 +0.011 (a pilot trained without it; `docs/v3_design.md`), +0.011-0.014 (track A 000) and about
-+0.016 (track A 001's healthy seeds), but +0.074 for 001's collapsed seed (dev ladder,
-`calibration/diag_sampler`).
++0.016 (track A 001's healthy seeds), but +0.074 for 001's collapsed seed
+(`calibration/diag_sampler`; 001's README says which numbers come from the dev ladder).
 
 ## Clock and hardware
 
