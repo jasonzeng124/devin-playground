@@ -1,0 +1,13 @@
+{
+  "model": "calibration/sweep_d14/os4/seeds/0/final",
+  "fineweb_loss": 3.048603931285164,
+  "mmlu_lite_acc": 0.236,
+  "n_docs": 256,
+  "n_questions": 500,
+  "base": "/home/zjason/orcd/pool/scratch-models/d110m_muon4e-3_60min",
+  "base_fineweb_loss": 2.7872801928137614,
+  "base_mmlu_lite_acc": 0.22,
+  "fineweb_loss_delta": 0.26132373847140267,
+  "mmlu_lite_acc_delta": 0.015999999999999986,
+  "passes_guardrail": false
+}

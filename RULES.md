@@ -23,6 +23,46 @@ arithmetic — `7 / 2 * 2` is fine, `7 / 2` rounded is not).
   <= 64`. `pass_rate` on all 2,000 puzzles is the headline metric. Report the
   Wilson 95% CI that the eval script prints.
 
+## Benchmark versions
+
+Records 000-005 ran under **v1**. Records **006 onward are v2** and form a new
+leaderboard table; v1 and v2 times are never compared (`validate_record.py
+--compare-to` refuses). The protocol constants live in
+`rlvr_speedrun/benchmark.py`. v2 changes, and why:
+
+* **Held-out puzzles are excluded from training.** The generator's
+  distribution is concentrated: about 0.4 % of raw training draws were exact
+  eval puzzles (same numbers and target), roughly 10 eval puzzles trained on
+  per v1 run — as large as the typical overshoot at the crossing.
+  `train_puzzle_stream` now skips every puzzle in the eval, confirmation and
+  OOD sets.
+* **Stopping and judging use different data.** The 2,000-puzzle eval set is
+  now the *stopping set*: the trainer evaluates on it during the timed run
+  and stops at its first eval with `pass_rate >= target_solve_rate`. Stopping
+  at the first lucky eval is optimistic by construction (18 of 20 v1
+  crossings were within the eval's own noise of 10 %), so each seed's final
+  checkpoint is then scored, untimed, on the frozen **confirmation set**
+  (`data/countdown_confirm.jsonl`, 4,000 puzzles, disjoint from the eval set)
+  by `python -m rlvr_speedrun.confirm`, which reads nothing from the record's
+  config. **A v2 record counts only if its mean confirmation pass rate over
+  all seeds is >= the threshold.** A recipe may stop later than the threshold
+  (`target_solve_rate` above it) to make sure it confirms; that extra time is
+  on the clock.
+* **Out-of-distribution report.** `confirm.json` also scores 1,000 5-number
+  puzzles (`data/countdown_ood5.jsonl`). Reported, not scored: it shows
+  whether a recipe learned arithmetic search or the training distribution.
+* **The eval protocol is enforced.** The validator requires `few_shot == 3`,
+  `max_new_tokens <= 64`, `eval_limit == 2000`, `target_solve_rate >=` the
+  threshold, the track's base model, `benchmark_version == 2` and the base
+  model's Hugging Face commit (`environment.model_revision`) in every
+  `result.json`.
+* **N >= 10 seeds, log-time test** (see Seeds and statistics).
+* **Threshold: 0.20** (v1: 0.10), frozen from the plateau calibration and
+  recipe sweeps in [docs/plateau_calibration.md](docs/plateau_calibration.md).
+  At 0.10 the clock mostly timed the escape from an early ~0.07 shelf and
+  record 005's recipe was still climbing at ~0.18 after 2,000 steps; at 0.20
+  it misses seeds, but stronger baselines (record 006) get every seed there.
+
 ## Tracks
 
 ### Track A — fixed base model (RL-only speedrun)
@@ -39,8 +79,9 @@ template used *during training*, systems/kernels.
   math, so "base" means no post-training, not "never saw arithmetic"). Records
   must state the Hugging Face revision they loaded (`main` at the time of the
   run is fine; a pinned commit hash is better).
-* **Threshold**: `pass_rate >= 0.10` on the full 2,000-puzzle eval set with
-  the fixed eval protocol above. Set from the first Qwen2.5-0.5B baseline
+* **Threshold**: `pass_rate >= 0.20` for v2 (records 006+; `benchmark.THRESHOLD`),
+  `>= 0.10` for v1, on the full 2,000-puzzle eval set with the fixed eval
+  protocol above. The v1 value was set from the first Qwen2.5-0.5B baseline
   (~10-12% in 300 GRPO steps); it will be raised once records saturate it —
   a raised threshold starts a new leaderboard table. What the N=10 logs say
   about 10 % (eval noise is worth ±30-100 s of crossing time, 18/20 crossing
@@ -51,7 +92,7 @@ template used *during training*, systems/kernels.
   monotonic clock. It **starts** immediately before the first training rollout
   (nothing that updates the weights or produces training data may run before
   it) and **stops** when the first full 2,000-puzzle evaluation with
-  `pass_rate >= 0.10` finishes. Everything in between counts: rollouts,
+  `pass_rate >= target_solve_rate` (at least the threshold) finishes. Everything in between counts: rollouts,
   scoring, optimizer steps, checkpointing, and every evaluation — including
   evaluations that miss the threshold, so `eval_every`/`eval_start_step` are
   part of the recipe and an eval that fires too early is a real cost.
@@ -153,8 +194,10 @@ lucky draw.
 **Seed protocol.**
 
 * A record declares its seeds in `config.json` (`"seeds": [0, 1, ..., N-1]`)
-  and must run exactly the consecutive seeds `0..N-1` with **N >= 3**; the
-  `seeds/` directory must contain exactly those. No picking seed IDs.
+  and must run exactly the consecutive seeds `0..N-1` with **N >= 10** (v2;
+  v1 records needed N >= 3); the `seeds/` directory must contain exactly
+  those. No picking seed IDs. Why 10: with a time CV of about 0.4, N = 3 per
+  side detects only a ~2x speedup at 80 % power; N = 10 detects about 35 %.
 * Fix the recipe **before** launching the declared seeds. Exploratory /
   tuning runs are fine but are not the record; the README must say how many
   were done (count and GPU-hours) so readers can judge the garden of forking
@@ -181,7 +224,11 @@ lucky draw.
 
 **Reporting.** `scripts/validate_record.py <record>` prints, over the N
 seeds, the mean, sample standard deviation and Student-t 95% CI of
-`time_to_threshold_s` and final `pass_rate`, and checks every rule above.
+`time_to_threshold_s` and final `pass_rate`, the median and geometric mean
+time, and the time split into **steps to threshold** (learning speed) and
+**seconds per step** (systems speed), so a PR can say which one it improved.
+For v2 it also prints the confirmation and OOD pass rates and the stopping
+eval's optimism (crossing minus confirmation). It checks every rule above.
 The leaderboard shows `mean ± std (N)`.
 
 **Beating a record.** A new record replaces the current best only if
@@ -190,12 +237,15 @@ The leaderboard shows `mean ± std (N)`.
 python scripts/validate_record.py records/track_a/<new> --compare-to records/track_a/<current best>
 ```
 
-reports **`p < 0.05`** for the one-sided Welch t-test of
-`mean(time_new) < mean(time_best)` over the two records' per-seed times
-(both records must be ranked-hardware, same track, same threshold). The
-validator also prints the exact permutation-test p-value for the difference
-in means as a distribution-free cross-check; if the two disagree about
-`0.05`, say so in the PR and expect discussion. Power is low at N=3 (against
+reports **`p < 0.05`** for the one-sided Welch t-test on **log** time,
+`mean(log time_new) < mean(log time_best)`, over the two records' per-seed
+times (both records must be ranked-hardware, same track, same threshold, same
+benchmark version). Times are right-skewed, so the log scale compares
+geometric means and is not dominated by one slow seed. The validator also
+prints the raw-time Welch test and the exact permutation-test p-value as
+cross-checks; if they disagree about `0.05`, say so in the PR and expect
+discussion. (Re-tested on the log scale, record 005 still beats 004,
+p = 0.0004.) Power is low at N=3 (against
 std ≈ 200-350 s a gap of several hundred seconds is needed to reach
 `p < 0.05`; with N=10 per side a ≈ 250 s gap is detectable), so a recipe that
 is faster but not significant at N=3 should run more seeds, not argue. A
@@ -223,10 +273,12 @@ n = 3). Future records are single-provider, so this ambiguity does not recur.
    copied from the current holder and a README skeleton. The record's
    `config.json` is also the trainer config
    (`python -m rlvr_speedrun.grpo --config <record>/config.json --seed S`).
+   `bash scripts/run_seed.sh <record> <seed>` trains, probes and confirms one
+   seed on any machine; `scripts/modal_run.py` does the same on Modal.
 2. Include: `README.md` (what changed, hardware, exact install + command,
    number of exploratory runs, warm-up time), `config.json` (with `track`,
    `model`, `hardware`, `provider`, `seeds` and the RL hyperparameters), and
-   `seeds/<seed>/{config.json,train_log.jsonl,eval_log.jsonl,result.json,probe.json}`
+   `seeds/<seed>/{config.json,train_log.jsonl,eval_log.jsonl,result.json,probe.json,confirm.json}`
    for each declared seed; `extra/` for everything else that was launched.
    Do not commit model weights (`seeds/*/final/` is gitignored).
 3. Run `python scripts/validate_record.py records/<track>/<NNN>_<slug>` — it
@@ -246,6 +298,10 @@ n = 3). Future records are single-provider, so this ambiguity does not recur.
 * Any learned or LLM-based reward.
 * Hard-coding a solver into the model's inference path (the model itself must
   emit the expression).
-* Changing the verifier, the eval set, or the prompt used *at evaluation*.
+* Changing the verifier, the eval, confirmation or OOD sets, or the prompt
+  used *at evaluation*.
+* Training on, or peeking at, `data/countdown_confirm.jsonl` or
+  `data/countdown_ood5.jsonl`, or selecting checkpoints or recipes by their
+  confirmation score.
 * Omitting any run launched with the record's configuration, or choosing
   which seeds to report.

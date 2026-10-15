@@ -1,0 +1,13 @@
+{
+  "model": "calibration/rollouts_os2/os2/seeds/1/final",
+  "fineweb_loss": 2.5965634848040375,
+  "mmlu_lite_acc": 0.49,
+  "n_docs": 256,
+  "n_questions": 500,
+  "base": "Qwen/Qwen2.5-0.5B",
+  "base_fineweb_loss": 2.593734367952888,
+  "base_mmlu_lite_acc": 0.476,
+  "fineweb_loss_delta": 0.0028291168511493936,
+  "mmlu_lite_acc_delta": 0.014000000000000012,
+  "passes_guardrail": true
+}

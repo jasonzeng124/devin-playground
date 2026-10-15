@@ -1,0 +1,13 @@
+{
+  "model": "calibration/sweep_001/g64/seeds/0/final",
+  "fineweb_loss": 2.5967797355875812,
+  "mmlu_lite_acc": 0.462,
+  "n_docs": 256,
+  "n_questions": 500,
+  "base": "Qwen/Qwen2.5-0.5B",
+  "base_fineweb_loss": 2.593734367952888,
+  "base_mmlu_lite_acc": 0.476,
+  "fineweb_loss_delta": 0.003045367634693097,
+  "mmlu_lite_acc_delta": -0.013999999999999957,
+  "passes_guardrail": true
+}

@@ -1,0 +1,9 @@
+{
+ "gpu": "NVIDIA H100 80GB HBM3",
+ "pretrain_s": 0.0,
+ "grpo_wall_s": 17524.560956716537,
+ "grpo_eval_s": 87.64497882686555,
+ "total_s": 17436.915977889672,
+ "budget_s": 18000,
+ "within_budget": true
+}

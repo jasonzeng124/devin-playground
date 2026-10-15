@@ -310,3 +310,123 @@ def test_grpo_step_with_prefix_cache_path():
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
     result = grpo_step(model, None, tokenizer, [Puzzle((1, 2), 3), Puzzle((10, 20, 30), 60)], config, optimizer, torch.device("cpu"))
     assert torch.isfinite(torch.tensor(result["loss"]))
+
+
+def test_length_sorted_token_micro_batches_give_the_same_gradient():
+    """micro_batch_tokens regroups and trims rows; the loss (sum over tokens / global count) must not change."""
+    torch.manual_seed(0)
+    prompt_width, rows = 4, 7
+    generated = torch.randint(2, 40, (rows, prompt_width + 9))
+    attention = torch.ones_like(generated)
+    for row, length in enumerate([9, 1, 5, 3, 9, 2, 6]):  # ragged, right-padded completions
+        attention[row, prompt_width + length :] = 0
+    advantages = torch.randn(rows)
+    grads, base = [], _tiny_model().eval()  # no dropout, as for loaded models
+    for extra in ({"micro_batch_size": 3}, {"micro_batch_tokens": 30}):
+        model = copy.deepcopy(base)
+        config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, **extra)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+        grpo._update(model, None, generated, attention, advantages, prompt_width, 0, config, optimizer, torch.device("cpu"), grpo.SINGLE)
+        grads.append([p.grad.clone() for p in model.parameters()])
+    for a, b in zip(*grads):
+        assert torch.allclose(a, b, atol=1e-6)
+
+
+def test_run_resumes_from_saved_state_after_an_interruption(monkeypatch, tmp_path):
+    _patch_tiny_training(monkeypatch, tmp_path)
+    config = GRPOConfig(
+        model="tiny",
+        group_size=2,
+        prompts_per_step=1,
+        max_new_tokens=4,
+        max_steps=4,
+        eval_every=1,
+        eval_limit=1,
+        kl_coef=0.0,
+        no_save=True,
+        sample_every=1,
+        resume_dir=str(tmp_path / "resume"),
+        resume_every_s=1e-9,
+        out_dir=str(tmp_path / "run"),
+    )
+    real_step = grpo.grpo_step
+    calls = []
+
+    def preempted_step(*args, **kwargs):
+        calls.append(True)
+        if len(calls) == 3:
+            raise KeyboardInterrupt("preempted")
+        return real_step(*args, **kwargs)
+
+    monkeypatch.setattr(grpo, "grpo_step", preempted_step)
+    with pytest.raises(KeyboardInterrupt):
+        run(config)
+    resumed_calls = []
+    monkeypatch.setattr(grpo, "grpo_step", lambda *a, **k: resumed_calls.append(True) or real_step(*a, **k))
+    result = run(config)
+    assert len(resumed_calls) == 2  # steps 3 and 4 only
+    steps = [json.loads(x)["step"] for x in (tmp_path / "run" / "train_log.jsonl").read_text().splitlines()]
+    evals = [json.loads(x)["step"] for x in (tmp_path / "run" / "eval_log.jsonl").read_text().splitlines()]
+    samples = {json.loads(x)["step"] for x in (tmp_path / "run" / "samples.jsonl").read_text().splitlines()}
+    assert steps == evals == [1, 2, 3, 4]
+    assert samples == {1, 2, 3, 4}
+    assert result["total_steps"] == 4
+
+
+class VLLMRollout:  # stands in for rlvr_speedrun.vllm_rollout.VLLMRollout (grpo._is_vllm checks the class name)
+    def __init__(self):
+        self.calls = []
+
+    def generate(self, encoded, n, temperature, max_tokens, pad_id, puzzles=None, think_budget=0):
+        self.calls.append((n, temperature))
+        ids = encoded["input_ids"].repeat_interleave(n, dim=0)
+        completion = torch.full((ids.shape[0], 2), 5, dtype=torch.long)
+        return torch.cat([ids, completion], dim=1), torch.full((ids.shape[0],), 2, dtype=torch.long)
+
+
+def test_sampled_ladder_eval_scores_every_sample_and_weighs_levels_equally():
+    # TinyTokenizer decodes even rows to a correct "1 + 2" and odd rows to a wrong "1 + 1"
+    puzzles = [Puzzle((1, 2), 3, level="L1"), Puzzle((1, 2), 3, level="L1"), Puzzle((1, 2), 3, level="L2")]
+    engine = VLLMRollout()
+    config = GRPOConfig(model="tiny", eval_samples=2, eval_batch_size=8, max_new_tokens=4)
+    result = grpo._evaluate(_tiny_model(), TinyTokenizer(), puzzles, config, torch.device("cpu"), engine)
+    assert engine.calls == [(2, 1.0)]
+    assert result["n"] == 6 and result["pass_rate"] == 0.5
+    assert result["pass_by_level"] == {"L1": 0.5, "L2": 0.5}
+    assert result["ladder_score"] == 0.5
+    greedy = grpo._evaluate(_tiny_model(), TinyTokenizer(), puzzles, GRPOConfig(model="tiny", eval_batch_size=8), torch.device("cpu"), engine)
+    assert engine.calls[-1] == (1, 0.0)
+    assert greedy["pass_by_level"] == {"L1": 0.5, "L2": 1.0} and greedy["ladder_score"] == 0.75
+
+
+def test_ladder_eval_set_is_truncated_per_level(tmp_path):
+    path = tmp_path / "ladder.jsonl"
+    rows = [Puzzle((1, 2), 3, level=lv).to_dict() for lv in ["L1"] * 5 + ["L2"] * 5]
+    path.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    kept = grpo._load_eval_set(GRPOConfig(model="tiny", eval_set=str(path), eval_limit=4))
+    assert [p.level for p in kept] == ["L1", "L1", "L2", "L2"]
+
+
+def test_partial_credit_rewards_right_numbers_and_closeness_only_for_wrong_answers():
+    from rlvr_speedrun.countdown import verify
+
+    puzzle = Puzzle((3, 7, 8, 2), 26)
+    credit = lambda text: grpo.partial_credit(verify(text, puzzle), puzzle)  # noqa: E731
+    assert credit("<answer>8 * 2 + 7 + 3</answer>") == 0.0  # correct: the verifier's 1.0 is the reward
+    assert credit("no answer") == 0.0
+    assert credit("<answer>8 * 3 + 7 - 2</answer>") > credit("<answer>8 * 3 + 7 - 2 + 5 + 5</answer>")  # extra numbers
+    assert credit("<answer>8 * 3 + 7 - 2</answer>") > credit("<answer>8 * 3 + 2 - 7</answer>")  # 29 is closer to 26 than 19
+    assert credit("<answer>26</answer>") == 0.0  # writing the target is not close to solving it
+    assert credit("<answer>8</answer>") == 0.0  # nor is writing one of the numbers
+    assert credit("<answer>8 * 3 + 7</answer>") == 0.25 * 3 / 4  # partial numbers: overlap only, no closeness
+    assert credit("<answer>8 * 3 + 7</answer>") < 0.5 <= credit("<answer>8 + 3 + 7 + 2</answer>")  # using every number pays most
+
+
+def test_cov_clip_stops_gradient_only_through_the_highest_covariance_tokens():
+    lp = torch.tensor([-0.1, -3.0, -0.2, -2.0], requires_grad=True)
+    adv = torch.tensor([1.0, 1.0, -1.0, -1.0])
+    # covariances: confident + positive (token 0) and unlikely + negative (token 3) are largest
+    out = grpo._cov_clip(lp, adv, 0.5)
+    (out * adv).sum().backward()
+    assert lp.grad.tolist() == [0.0, 1.0, -1.0, 0.0]
+    assert torch.equal(out.detach(), lp.detach())

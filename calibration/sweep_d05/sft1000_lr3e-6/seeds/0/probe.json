@@ -1,0 +1,13 @@
+{
+  "model": "calibration/sweep_d05/sft1000_lr3e-6/seeds/0/final",
+  "fineweb_loss": 3.6776156789402674,
+  "mmlu_lite_acc": 0.222,
+  "n_docs": 256,
+  "n_questions": 500,
+  "base": "/home/zjason/orcd/pool/scratch-models/d110m_sft1000",
+  "base_fineweb_loss": 3.721411374683716,
+  "base_mmlu_lite_acc": 0.222,
+  "fineweb_loss_delta": -0.04379569574344844,
+  "mmlu_lite_acc_delta": 0.0,
+  "passes_guardrail": true
+}

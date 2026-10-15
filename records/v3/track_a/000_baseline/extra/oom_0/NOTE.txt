@@ -1,0 +1,1 @@
+Engaging H100 (node2906), 2026-10-07: CUDA OOM at step 2 with micro_batch_tokens 16384 (the H200 pilot setting; the pilots used 99-108 GB). Config changed to 8192 before the real runs.

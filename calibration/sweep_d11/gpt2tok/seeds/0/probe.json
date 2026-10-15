@@ -1,0 +1,13 @@
+{
+  "model": "calibration/sweep_d11/gpt2tok/seeds/0/final",
+  "fineweb_loss": 3.280431251003318,
+  "mmlu_lite_acc": 0.23,
+  "n_docs": 256,
+  "n_questions": 500,
+  "base": "/home/zjason/orcd/pool/scratch-models/d110m_gpt2tok_60min",
+  "base_fineweb_loss": 3.269610724103894,
+  "base_mmlu_lite_acc": 0.224,
+  "fineweb_loss_delta": 0.010820526899423921,
+  "mmlu_lite_acc_delta": 0.006000000000000005,
+  "passes_guardrail": true
+}

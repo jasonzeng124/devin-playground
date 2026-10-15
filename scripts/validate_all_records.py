@@ -13,6 +13,7 @@ import argparse
 import json
 from pathlib import Path
 
+from scripts import validate_record_v3
 from scripts.validate_record import validate_record
 
 
@@ -46,6 +47,12 @@ def validate_all(records_dir: Path, readme: Path | None) -> tuple[bool, list[str
             if link not in readme_text:
                 ok = False
                 lines.append(f"   FAIL: ranked record is not linked from {readme} (add it to the leaderboard table)")
+    # benchmark v3 (docs/RULES_v3.md); its leaderboard is not in README.md yet
+    for record in sorted(p for track in sorted((records_dir / "v3").glob("track_*")) for p in track.iterdir() if p.is_dir()):
+        valid, message = validate_record_v3.validate(record)
+        lines.append(f"== v3/{record.parent.name}/{record.name}: {'OK' if valid else 'FAIL'}")
+        lines.extend("   " + line for line in message.splitlines())
+        ok = ok and valid
     return ok, lines
 
 

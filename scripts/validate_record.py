@@ -2,12 +2,14 @@
 """Validate and summarize a speedrun record directory; optionally test it against another.
 
 Implements the checks in RULES.md ("Seeds and statistics", "Hardware and
-reproducibility") with the standard library only.
+reproducibility", "Benchmark versions") with the standard library only.
 """
 
 from __future__ import annotations
 
 import argparse
+import functools
+import hashlib
 import itertools
 import json
 import math
@@ -17,6 +19,9 @@ import statistics
 from dataclasses import dataclass
 from pathlib import Path
 
+from rlvr_speedrun import benchmark
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 RANKED_GPU = "NVIDIA H100 80GB HBM3"
 ALPHA = 0.05
 # Records accepted before the probe / environment / single-provider requirements existed (RULES.md).
@@ -106,6 +111,8 @@ def _summary(values: list[float]) -> str:
 
 @dataclass
 class Comparison:
+    new: list[float]
+    old: list[float]
     n_new: int
     n_old: int
     mean_new: float
@@ -115,10 +122,19 @@ class Comparison:
     p_welch: float
     p_perm: float
     p_perm_exact: bool
+    t_log: float
+    df_log: float
+    p_welch_log: float
+
+    @property
+    def ratio(self) -> float:
+        """Geometric-mean time ratio new/old."""
+        return math.exp(statistics.mean(map(math.log, self.new)) - statistics.mean(map(math.log, self.old)))
 
     @property
     def significant(self) -> bool:
-        return self.p_welch < ALPHA
+        # times are right-skewed (sd ~ 40 % of the mean): the holder test is Welch on log time
+        return self.p_welch_log < ALPHA
 
 
 def welch_one_sided(new: list[float], old: list[float]) -> tuple[float, float, float]:
@@ -163,7 +179,8 @@ def compare_times(new: list[float], old: list[float]) -> Comparison:
         raise ValueError("need at least 2 complete seeds in each record to compare")
     t, df, p = welch_one_sided(new, old)
     p_perm, exact = permutation_one_sided(new, old)
-    return Comparison(len(new), len(old), statistics.mean(new), statistics.mean(old), t, df, p, p_perm, exact)
+    t_log, df_log, p_log = welch_one_sided([math.log(x) for x in new], [math.log(x) for x in old])
+    return Comparison(list(new), list(old), len(new), len(old), statistics.mean(new), statistics.mean(old), t, df, p, p_perm, exact, t_log, df_log, p_log)
 
 
 # --- record loading and rule checks ----------------------------------------------------
@@ -181,6 +198,7 @@ class LoadedRecord:
     seeds: list[str]
     results: dict[str, dict]
     probes: dict[str, dict]
+    confirms: dict[str, dict]
 
 
 def _load_record(record: Path, allow_fewer_seeds: bool) -> tuple[LoadedRecord | None, list[str]]:
@@ -219,6 +237,7 @@ def _load_record(record: Path, allow_fewer_seeds: bool) -> tuple[LoadedRecord | 
         errors.append("config.json must declare 'seeds': [0, ..., N-1]")
     results: dict[str, dict] = {}
     probes: dict[str, dict] = {}
+    confirms: dict[str, dict] = {}
     for seed_dir in seed_dirs:
         result_path = seed_dir / "result.json"
         if not result_path.is_file():
@@ -246,9 +265,74 @@ def _load_record(record: Path, allow_fewer_seeds: bool) -> tuple[LoadedRecord | 
                 }
             except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 errors.append(f"{seed_dir.name}: invalid probe.json ({exc})")
+        confirm_path = seed_dir / "confirm.json"
+        if confirm_path.is_file():
+            try:
+                confirm = json.loads(confirm_path.read_text(encoding="utf-8"))
+                for name in ("confirm", "ood"):
+                    float(confirm[name]["pass_rate"]), int(confirm[name]["n"]), str(confirm[name]["data_sha256"])
+                confirms[seed_dir.name] = confirm
+            except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                errors.append(f"{seed_dir.name}: invalid confirm.json ({exc})")
     if errors:
         return None, errors
-    return LoadedRecord(record, config, [p.name for p in seed_dirs], results, probes), []
+    return LoadedRecord(record, config, [p.name for p in seed_dirs], results, probes, confirms), []
+
+
+def _is_v2(record: Path) -> bool:
+    return (_record_number(record) or 0) >= benchmark.FIRST_V2_RECORD
+
+
+@functools.cache
+def _data_sha256(relpath: str) -> str:
+    return hashlib.sha256((REPO_ROOT / relpath).read_bytes()).hexdigest()
+
+
+def _check_v2(loaded: LoadedRecord, lines: list[str], errors: list[str]) -> None:
+    """Benchmark v2 rules (RULES.md, 'Benchmark versions'): protocol, N, confirmation."""
+    config = loaded.config
+    n = len(loaded.results)
+    if n < benchmark.MIN_SEEDS:
+        errors.append(f"v2 ranked records need at least {benchmark.MIN_SEEDS} seeds, found {n}")
+    if loaded.path.parent.name == "track_a" and config.get("model") != benchmark.BASE_MODEL:
+        errors.append(f"track_a base model must be {benchmark.BASE_MODEL}, got {config.get('model')!r}")
+    protocol = {
+        "few_shot": (config.get("few_shot") == benchmark.FEW_SHOT, f"== {benchmark.FEW_SHOT}"),
+        "max_new_tokens": (isinstance(config.get("max_new_tokens"), int) and config["max_new_tokens"] <= benchmark.MAX_EVAL_NEW_TOKENS, f"<= {benchmark.MAX_EVAL_NEW_TOKENS}"),
+        "eval_limit": (config.get("eval_limit") == benchmark.EVAL_SIZE, f"== {benchmark.EVAL_SIZE}"),
+        "target_solve_rate": (isinstance(config.get("target_solve_rate"), (int, float)) and config["target_solve_rate"] >= benchmark.THRESHOLD, f">= {benchmark.THRESHOLD}"),
+    }
+    for key, (ok, rule) in protocol.items():
+        if not ok:
+            errors.append(f"eval protocol: config.json '{key}' must be {rule}, got {config.get(key)!r}")
+    for seed, result in loaded.results.items():
+        if result.get("benchmark_version") != benchmark.BENCHMARK_VERSION:
+            errors.append(f"{seed}: result.json benchmark_version must be {benchmark.BENCHMARK_VERSION} (re-run with the current trainer)")
+        if not isinstance(result.get("environment", {}).get("model_revision"), str):
+            errors.append(f"{seed}: result.json environment lacks the base model's model_revision")
+    expected = {"confirm": (str(benchmark.CONFIRM_PATH), benchmark.CONFIRM_SIZE), "ood": (str(benchmark.OOD_PATH), benchmark.OOD_SIZE)}
+    for seed in loaded.seeds:
+        confirm = loaded.confirms.get(seed)
+        if confirm is None:
+            errors.append(f"confirmation: {seed} missing confirm.json (python -m rlvr_speedrun.confirm)")
+            continue
+        protocol_seen = confirm.get("protocol", {})
+        if protocol_seen.get("few_shot") != benchmark.FEW_SHOT or protocol_seen.get("max_new_tokens") != benchmark.MAX_EVAL_NEW_TOKENS or protocol_seen.get("decoding") != "greedy":
+            errors.append(f"confirmation: {seed} confirm.json was not produced with the fixed protocol ({protocol_seen})")
+        for name, (relpath, size) in expected.items():
+            if confirm[name]["n"] != size or confirm[name]["data_sha256"] != _data_sha256(relpath):
+                errors.append(f"confirmation: {seed} {name} must score all {size} puzzles of {relpath}")
+    if len(loaded.confirms) != len(loaded.seeds):
+        return
+    confirm_rates = [float(c["confirm"]["pass_rate"]) for c in loaded.confirms.values()]
+    ood_rates = [float(c["ood"]["pass_rate"]) for c in loaded.confirms.values()]
+    crossing_rates = [_pass_rate(r) for r in loaded.results.values()]
+    mean_confirm = statistics.mean(confirm_rates)
+    lines.append(f"confirm pass_rate: {_summary(confirm_rates)}")
+    lines.append(f"stopping-eval optimism (crossing - confirm): {statistics.mean(crossing_rates) - mean_confirm:+.4f}")
+    lines.append(f"ood5 pass_rate (reported, not scored): {_summary(ood_rates)}")
+    if mean_confirm < benchmark.THRESHOLD:
+        errors.append(f"confirmation: mean confirm pass_rate {mean_confirm:.4f} < threshold {benchmark.THRESHOLD} — the crossings were eval noise; stop later (raise target_solve_rate)")
 
 
 def _pass_rate(result: dict) -> float:
@@ -291,6 +375,12 @@ def validate_record(record: Path, allow_fewer_seeds: bool = False) -> tuple[bool
     censored = [seed for seed, res in loaded.results.items() if res.get("time_to_threshold_s") is None]
     times = [float(res["time_to_threshold_s"]) for res in loaded.results.values() if res.get("time_to_threshold_s") is not None]
     lines.append(f"time_to_threshold_s: {_summary(times) if times else 'no thresholds reached'}")
+    crossed = [res for res in loaded.results.values() if res.get("time_to_threshold_s") is not None and res.get("total_steps")]
+    if len(crossed) == len(times) and len(times) >= 2:
+        steps = [float(res["total_steps"]) for res in crossed]
+        lines.append(f"  median {statistics.median(times):.1f} s, geometric mean {math.exp(statistics.mean(map(math.log, times))):.1f} s")
+        lines.append(f"  steps_to_threshold (learning): {_summary(steps)}")
+        lines.append(f"  s_per_step (systems): {_summary([t / s for t, s in zip(times, steps)])}")
     if censored and not allow_fewer_seeds:
         errors.append(f"censored seeds (threshold not reached): {censored} — raise max_steps and re-run them, keep these under extra/")
     elif censored:
@@ -338,6 +428,12 @@ def validate_record(record: Path, allow_fewer_seeds: bool = False) -> tuple[bool
             if number > PROVIDER_EXEMPT_MAX_RECORD and not allow_fewer_seeds:
                 errors.append(f"all seeds of a ranked record must run on one provider; found {distinct}")
 
+    if _is_v2(record) and not allow_fewer_seeds:
+        _check_v2(loaded, lines, errors)
+    elif loaded.confirms:
+        rates = [float(c["confirm"]["pass_rate"]) for c in loaded.confirms.values()]
+        lines.append(f"confirm pass_rate: {_summary(rates)}")
+
     # capability guardrail
     probes = loaded.probes
     if not probes:
@@ -384,8 +480,12 @@ def compare_records(new: Path, old: Path) -> tuple[bool, str]:
         problems.append("records are in different tracks")
     if a.config.get("model") != b.config.get("model"):
         problems.append(f"different base models: {a.config.get('model')} vs {b.config.get('model')}")
-    if a.config.get("target_solve_rate") != b.config.get("target_solve_rate"):
+    # v2: the threshold is benchmark.THRESHOLD for every record and target_solve_rate is only the
+    # recipe's stopping point (it may sit above the threshold), so it need not match
+    if not (_is_v2(a.path) and _is_v2(b.path)) and a.config.get("target_solve_rate") != b.config.get("target_solve_rate"):
         problems.append(f"different thresholds: {a.config.get('target_solve_rate')} vs {b.config.get('target_solve_rate')}")
+    if _is_v2(a.path) != _is_v2(b.path):
+        problems.append(f"records are from different benchmark versions (v2 starts at record {benchmark.FIRST_V2_RECORD:03d})")
     if a.config.get("eval_limit") != b.config.get("eval_limit"):
         problems.append(f"different eval sizes: {a.config.get('eval_limit')} vs {b.config.get('eval_limit')}")
     for label, rec in (("new", a), ("old", b)):
@@ -401,9 +501,10 @@ def compare_records(new: Path, old: Path) -> tuple[bool, str]:
     cmp = compare_times(t_new, t_old)
     lines = [
         f"compare: {a.path.name} (n={cmp.n_new}, mean {cmp.mean_new:.1f} s) vs {b.path.name} (n={cmp.n_old}, mean {cmp.mean_old:.1f} s)",
-        f"difference: {cmp.mean_new - cmp.mean_old:+.1f} s",
-        f"welch one-sided (new < old): t={cmp.t:.3f}, df={cmp.df:.2f}, p={cmp.p_welch:.4f}",
-        f"permutation one-sided ({'exact' if cmp.p_perm_exact else 'monte carlo'}): p={cmp.p_perm:.4f}",
+        f"difference: {cmp.mean_new - cmp.mean_old:+.1f} s, geometric-mean ratio {cmp.ratio:.3f}",
+        f"welch one-sided on log time (new < old; the holder test): t={cmp.t_log:.3f}, df={cmp.df_log:.2f}, p={cmp.p_welch_log:.4f}",
+        f"welch one-sided on raw time: t={cmp.t:.3f}, df={cmp.df:.2f}, p={cmp.p_welch:.4f}",
+        f"permutation one-sided on raw time ({'exact' if cmp.p_perm_exact else 'monte carlo'}): p={cmp.p_perm:.4f}",
         f"verdict: {'BEATS' if cmp.significant else 'does not beat'} {b.path.name} at alpha={ALPHA}",
     ]
     if (cmp.p_perm < ALPHA) != cmp.significant:
@@ -422,7 +523,7 @@ def compare_records(new: Path, old: Path) -> tuple[bool, str]:
                     lines.append(f"  {provider}: n={len(sub_new)} vs {len(sub_old)}, too few to test")
                     continue
                 sub = compare_times(sub_new, sub_old)
-                lines.append(f"  {provider}: n={sub.n_new} vs {sub.n_old}, mean {sub.mean_new:.1f} vs {sub.mean_old:.1f} s, welch p={sub.p_welch:.4f}, permutation p={sub.p_perm:.4f}")
+                lines.append(f"  {provider}: n={sub.n_new} vs {sub.n_old}, mean {sub.mean_new:.1f} vs {sub.mean_old:.1f} s, log-welch p={sub.p_welch_log:.4f}, welch p={sub.p_welch:.4f}, permutation p={sub.p_perm:.4f}")
     return cmp.significant, "\n".join(lines)
 
 

@@ -6,3 +6,8 @@ __pycache__/
 records/**/final/
 *.pt
 *.safetensors
+data/track_d/
+
+# calibration: keep configs, results and logs; per-sample text and raw stdout stay on the cluster
+calibration/**/samples.jsonl
+calibration/**/stdout.log

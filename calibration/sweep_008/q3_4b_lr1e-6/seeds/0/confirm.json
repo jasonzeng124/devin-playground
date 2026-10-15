@@ -1,0 +1,34 @@
+{
+  "benchmark_version": 2,
+  "model": "calibration/sweep_008/q3_4b_lr1e-6/seeds/0/final",
+  "protocol": {
+    "few_shot": 3,
+    "max_new_tokens": 64,
+    "decoding": "greedy"
+  },
+  "gpu": "NVIDIA H200",
+  "confirm": {
+    "pass_rate": 0.08275,
+    "malformed_rate": 0.04175,
+    "n": 4000,
+    "wilson_95_ci": [
+      0.07460709758247634,
+      0.09169358723982031
+    ],
+    "data": "data/countdown_confirm.jsonl",
+    "data_sha256": "100b040eb7d3885c21b6e881797da0ab22e52044bd8721020f98684ae2e9715d",
+    "eval_s": 91.1356835491024
+  },
+  "ood": {
+    "pass_rate": 0.004,
+    "malformed_rate": 0.564,
+    "n": 1000,
+    "wilson_95_ci": [
+      0.0015565629678934295,
+      0.010239720429805971
+    ],
+    "data": "data/countdown_ood5.jsonl",
+    "data_sha256": "13665afdf37d0e4174b384fff2d1a1f979a19ede0962820d11d84c4b5616855a",
+    "eval_s": 32.58233623672277
+  }
+}

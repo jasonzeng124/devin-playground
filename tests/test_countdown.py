@@ -104,3 +104,71 @@ def test_verifier_is_fast():
 def test_reject_non_integer_or_odd_syntax(expr):
     with pytest.raises(ValueError):
         safe_eval(expr)
+
+
+def test_search_examples_are_correct_and_prompts_split_exactly():
+    from rlvr_speedrun.countdown import PROMPT_STYLES, SEARCH_EXAMPLES, split_prompt
+
+    for puzzle, _, answer in SEARCH_EXAMPLES:
+        assert verify(f"<answer>{answer}</answer>", puzzle).correct
+    for style in PROMPT_STYLES:
+        prefixes = {split_prompt(p, 3, style)[0] for p in (P, Puzzle((1, 2, 3, 4), 10))}
+        assert len(prefixes) == 1  # shared prefix, so its KV cache can be reused across the batch
+        assert "".join(split_prompt(P, 3, style)) == format_prompt(P, 3, style)
+    assert format_prompt(P, 3, "search").endswith("<think>")
+
+
+def test_level_is_the_smallest_operator_set_that_reaches_the_target():
+    from rlvr_speedrun.countdown import Puzzle, level
+
+    assert level(Puzzle([1, 2, 3, 4], 10)) == "sum"
+    assert level(Puzzle([1, 2, 3, 4], 2)) == "+-"  # 4 + 1 - 3 ... any +- expression
+    assert level(Puzzle([2, 3, 5, 7], 210)) == "+-*"
+    assert level(Puzzle([1, 3, 4, 6], 24)) == "+-*/"  # 6 / (1 - 3 / 4)
+
+
+def test_restricted_operators_are_stated_in_the_prompt_and_enforced():
+    from rlvr_speedrun.countdown import Puzzle, format_prompt, verify
+
+    default, restricted = Puzzle((3, 7, 8, 2), 26), Puzzle((3, 7, 8, 2), 26, ops="+-*")
+    assert "You may use +, -, *, / and" in format_prompt(default, 0, "r1")
+    assert "You may use +, -, * and" in format_prompt(restricted, 0, "r1")
+    assert verify("<answer>8 * 2 + 7 + 3</answer>", restricted).correct
+    result = verify("<answer>8 / 2 * 7 - 3 + 1</answer>", Puzzle((8, 2, 7, 3, 1), 26, ops="+-*"))
+    assert not result.correct and not result.malformed and "not allowed" in result.reason
+
+
+def test_ladder_levels_meet_their_requirements():
+    import random
+    from fractions import Fraction
+
+    from rlvr_speedrun.countdown import reachable, verify
+    from rlvr_speedrun.ladder import (
+        LEVELS,
+        _plus_minus_values,
+        build_ladder_eval,
+        generate_level_puzzle,
+        ladder_stream,
+        puzzle_key,
+    )
+
+    rng = random.Random(0)
+    for level in LEVELS:
+        for _ in range(20):
+            p = generate_level_puzzle(rng, level)
+            assert len(p.numbers) == level.n_numbers and p.ops in level.ops and p.level == level.name
+            assert verify(f"<answer>{p.solution}</answer>", p).correct
+            nums = tuple(sorted(Fraction(x) for x in p.numbers))
+            if level.name == "L1":
+                assert p.target != sum(p.numbers)
+            elif level.name == "L2":
+                assert Fraction(p.target) not in reachable(nums, "+-")
+            elif level.name == "L3":
+                assert Fraction(p.target) not in reachable(nums, "+-*")
+            elif level.name in ("L4", "L5"):
+                assert p.target not in _plus_minus_values(p.numbers)
+    small = build_ladder_eval(per_level=5)
+    assert small == build_ladder_eval(per_level=5)  # deterministic
+    keys = frozenset(puzzle_key(p) for p in small)
+    stream = ladder_stream(0, exclude=keys)
+    assert all(puzzle_key(next(stream)) not in keys for _ in range(50))

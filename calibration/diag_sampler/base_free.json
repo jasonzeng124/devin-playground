@@ -1,0 +1,25 @@
+{
+ "benchmark_version": 3,
+ "model": "/orcd/home/002/zjason/.cache/huggingface/hub/models--Qwen--Qwen3-1.7B-Base/snapshots/ea980cb0a6c2ae4b936e82123acc929f1cec04c1",
+ "test_set": "data/ladder_v3_dev.jsonl",
+ "n_puzzles": 2400,
+ "samples_per_puzzle": 16,
+ "sampler": {
+  "temperature": 1.0,
+  "constrain": false,
+  "think_budget": 0,
+  "max_new_tokens": 1024
+ },
+ "ladder_score": 0.0028906250000000004,
+ "pass@1_by_level": {
+  "L1": 0.01234375,
+  "L2": 0.00234375,
+  "L3": 0.00125,
+  "L4": 0.00078125,
+  "L5": 0.0,
+  "L6": 0.000625
+ },
+ "pass@16": 0.042916666666666665,
+ "truncated": 0.3298697916666667,
+ "mean_tokens": 595.9464583333333
+}

@@ -1,0 +1,25 @@
+{
+ "benchmark_version": 3,
+ "model": "/tmp/ckpts/records/v3/track_a/000_baseline/seeds/0/final",
+ "test_set": "data/ladder_v3_test.jsonl",
+ "n_puzzles": 2400,
+ "samples_per_puzzle": 16,
+ "sampler": {
+  "temperature": 1.0,
+  "constrain": false,
+  "think_budget": 0,
+  "max_new_tokens": 1024
+ },
+ "ladder_score": 0.12395833333333334,
+ "pass@1_by_level": {
+  "L1": 0.57203125,
+  "L2": 0.07578125,
+  "L3": 0.01296875,
+  "L4": 0.0140625,
+  "L5": 0.00515625,
+  "L6": 0.06375
+ },
+ "pass@16": 0.35625,
+ "truncated": 0.024453125,
+ "mean_tokens": 368.7519270833333
+}

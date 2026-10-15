@@ -1,4 +1,4 @@
-"""Run a GRPO record (one or more seeds) on a Modal GPU.
+"""Run a GRPO record (one or more seeds) on a Modal GPU: train, capability probe, confirmation eval.
 
     modal run scripts/modal_run.py --gpu H100 --seeds 0,1,2 --out results/record2 \
         --args "--model Qwen/Qwen2.5-0.5B --max-steps 300 ..."
@@ -111,6 +111,12 @@ def _run(seed: int, run_name: str, grpo_args: list[str], probe: bool = True, bas
         )
         if probe_proc.returncode != 0:
             raise RuntimeError(probe_proc.stderr[-4000:])
+        confirm_cmd = ["python", "-m", "rlvr_speedrun.confirm", "--model", f"{out_dir}/final", "--device", "cuda", "--out", f"{out_dir}/confirm.json"]
+        confirm_proc = subprocess.run(confirm_cmd, cwd="/root/rlvr", capture_output=True, text=True)
+        with (Path(out_dir) / "stdout.log").open("a") as fh:
+            fh.write("\n--- confirmation eval ---\n" + confirm_proc.stdout + "\n" + confirm_proc.stderr)
+        if confirm_proc.returncode != 0:
+            raise RuntimeError(confirm_proc.stderr[-4000:])
         shutil.rmtree(f"{out_dir}/final")
         volume.commit()
     return (Path(out_dir) / "result.json").read_text()

@@ -1,0 +1,3 @@
+Modal, one H100 80GB HBM3 ("H100!"), 2026-10-08, scripts/modal_v3.py record_seed (seed 0, same config).
+A provider check, not a record seed: the record's seeds run on Engaging, and a record uses one provider.
+Engaging seed 0: 1,162 steps, clock 17,441 s, test ladder 0.1297. Modal: 1,070 steps, clock 17,535 s, test ladder 0.1240.

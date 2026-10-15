@@ -1,0 +1,13 @@
+{
+  "model": "calibration/sweep_a01/ladder_constrained_lr4e-6/seeds/0/final",
+  "fineweb_loss": 2.3642756542347647,
+  "mmlu_lite_acc": 0.6,
+  "n_docs": 256,
+  "n_questions": 500,
+  "base": "Qwen/Qwen3-1.7B-Base",
+  "base_fineweb_loss": 2.360210082768927,
+  "base_mmlu_lite_acc": 0.61,
+  "fineweb_loss_delta": 0.004065571465837525,
+  "mmlu_lite_acc_delta": -0.010000000000000009,
+  "passes_guardrail": true
+}

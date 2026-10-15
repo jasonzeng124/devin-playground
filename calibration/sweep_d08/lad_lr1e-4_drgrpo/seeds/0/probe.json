@@ -1,0 +1,13 @@
+{
+  "model": "calibration/sweep_d08/lad_lr1e-4_drgrpo/seeds/0/final",
+  "fineweb_loss": 14.050863725098612,
+  "mmlu_lite_acc": 0.222,
+  "n_docs": 256,
+  "n_questions": 500,
+  "base": "/home/zjason/orcd/pool/scratch-models/d110m_60min",
+  "base_fineweb_loss": 2.8946302231043983,
+  "base_mmlu_lite_acc": 0.224,
+  "fineweb_loss_delta": 11.156233501994214,
+  "mmlu_lite_acc_delta": -0.0020000000000000018,
+  "passes_guardrail": false
+}

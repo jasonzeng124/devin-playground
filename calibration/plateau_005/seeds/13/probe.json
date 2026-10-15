@@ -1,0 +1,13 @@
+{
+  "model": "calibration/plateau_005/seeds/13/final",
+  "fineweb_loss": 2.5963714062117784,
+  "mmlu_lite_acc": 0.486,
+  "n_docs": 256,
+  "n_questions": 500,
+  "base": "Qwen/Qwen2.5-0.5B",
+  "base_fineweb_loss": 2.593734367952888,
+  "base_mmlu_lite_acc": 0.476,
+  "fineweb_loss_delta": 0.0026370382588902785,
+  "mmlu_lite_acc_delta": 0.010000000000000009,
+  "passes_guardrail": true
+}

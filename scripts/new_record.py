@@ -1,6 +1,6 @@
 """Scaffold a new record folder from an existing one and print the commands to fill it.
 
-    python scripts/new_record.py <slug> --provider runpod [--from records/track_a/005_...] [--seeds 3]
+    python scripts/new_record.py <slug> --provider runpod [--from records/track_a/005_...] [--seeds 10]
 
 Creates records/<track>/<NNN>_<slug>/ (next free number) with a config.json copied
 from the parent record (RL hyperparameters + metadata; edit it to describe your
@@ -16,6 +16,7 @@ import json
 import re
 from pathlib import Path
 
+from rlvr_speedrun import benchmark
 from scripts.validate_record import RANKED_GPU
 
 METADATA_KEYS = ("track", "description", "model", "hardware", "provider", "seeds", "unranked", "parent")
@@ -31,14 +32,14 @@ Hardware: one {gpu} on {provider}; software versions are in
 
 Exploratory runs before these seeds: <N> (describe or put them under `extra/`).
 
-Command (one process per seed):
+Command (one process per seed; `scripts/run_seed.sh` runs all three steps):
 
 ```bash
 {train_command}
 ```
 
-| seed | time to {target:.0%} | steps | final pass rate | FineWeb-Edu loss Δ | MMLU-lite Δ |
-|-----:|------------:|------:|----------------:|-------------------:|------------:|
+| seed | time to {target:.0%} | steps | crossing pass rate | confirm pass rate | OOD-5 pass rate | FineWeb-Edu loss Δ | MMLU-lite Δ |
+|-----:|------------:|------:|-------------------:|------------------:|----------------:|-------------------:|------------:|
 {seed_rows}
 
 **mean ± sd s** (N={n}, 95% CI [..., ...] s) — paste the `validate_record.py`
@@ -101,9 +102,10 @@ def scaffold(records_dir: Path, track: str, slug: str, provider: str, parent: Pa
         f"python -m rlvr_speedrun.grpo --config {record}/config.json --device cuda \\\n"
         f"    --seed $SEED --out-dir {record}/seeds/$SEED\n"
         f"python -m rlvr_speedrun.capability --model {record}/seeds/$SEED/final \\\n"
-        f"    --base {config['model']} --out {record}/seeds/$SEED/probe.json"
+        f"    --base {config['model']} --out {record}/seeds/$SEED/probe.json\n"
+        f"python -m rlvr_speedrun.confirm --model {record}/seeds/$SEED/final --out {record}/seeds/$SEED/confirm.json"
     )
-    seed_rows = "\n".join(f"| {seed} | | | | | |" for seed in range(n_seeds))
+    seed_rows = "\n".join(f"| {seed} | | | | | | | |" for seed in range(n_seeds))
     (record / "README.md").write_text(
         README_TEMPLATE.format(
             number=number,
@@ -128,15 +130,16 @@ def main() -> None:
     parser.add_argument("--provider", required=True, help="cloud/host every seed will run on (modal, runpod, lambda, ...)")
     parser.add_argument("--track", default="track_a", choices=["track_a", "track_b"])
     parser.add_argument("--from", dest="parent", type=Path, help="record to copy the config from (default: latest ranked record)")
-    parser.add_argument("--seeds", type=int, default=3, help="number of official seeds (0..N-1, N >= 3)")
+    parser.add_argument("--seeds", type=int, default=benchmark.MIN_SEEDS, help=f"number of official seeds (0..N-1, N >= {benchmark.MIN_SEEDS})")
     parser.add_argument("--records-dir", type=Path, default=Path("records"))
     args = parser.parse_args()
-    if args.seeds < 3:
-        parser.error("ranked records need at least 3 seeds")
+    if args.seeds < benchmark.MIN_SEEDS:
+        parser.error(f"ranked records need at least {benchmark.MIN_SEEDS} seeds (RULES.md, 'Seeds and statistics')")
     record = scaffold(args.records_dir, args.track, args.slug, args.provider, args.parent, args.seeds)
     print(f"created {record}/")
     print(f"  1. edit {record}/config.json (description + the hyperparameters you changed)")
-    print(f"  2. train every seed in {record}/config.json['seeds'] on {args.provider} (commands in README.md), or:")
+    print(f"  2. train, probe and confirm every seed in {record}/config.json['seeds'] on {args.provider}:")
+    print(f"     for SEED in $(seq 0 {args.seeds - 1}); do bash scripts/run_seed.sh {record} $SEED; done   # or, on Modal:")
     print(f"     modal run scripts/modal_run.py --gpu H100 --seeds {','.join(map(str, range(args.seeds)))} --out results/{record.name} --args \"--config {record}/config.json\"")
     print(f"  3. python scripts/validate_record.py {record} --compare-to <current holder>")
     print("  4. add the row to README.md and open a PR (the PR template lists the checklist)")

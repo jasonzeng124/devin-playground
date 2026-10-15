@@ -1,24 +1,106 @@
 # RLVR Speedrun (Countdown)
 
-A speedrun leaderboard for **reinforcement learning with verifiable rewards** —
-the RL analogue of [modded-nanogpt](https://github.com/KellerJordan/modded-nanogpt).
-The goal: teach a small language model to solve Countdown arithmetic puzzles
-(combine 4 numbers with `+ - * /`, each used once, to hit a target) **as fast as
-possible in wall-clock time**, scored by a deterministic CPU verifier.
+A leaderboard for **reinforcement learning with verifiable rewards (RLVR)**, in the spirit of
+[modded-nanogpt](https://github.com/KellerJordan/modded-nanogpt). Teach a language model to solve
+Countdown puzzles (combine the given numbers with the allowed operators, each used once, to hit
+a target) **as well as possible within a fixed GPU budget**. Training uses only puzzles and a
+deterministic verifier: no solutions, no other models.
 
-Why Countdown: synthetic (infinite data, no leakage), difficulty-tunable, no
-saturation ceiling, and the verifier runs in microseconds. See
-[RULES.md](RULES.md) for the full rules, tracks, and submission process.
+**Benchmark v3** (current) scores each entry on a frozen **difficulty ladder**: 6 levels x 400
+puzzles, from 4 numbers with `+ -` up to 6 numbers with all four operators. The score is the mean
+per-level pass@1 over 16 samples per puzzle. The rules are in [docs/RULES_v3.md](docs/RULES_v3.md);
+the evidence behind each choice is in [docs/v3_design.md](docs/v3_design.md).
 
-## Leaderboard
+## Tracks
+
+| track | start from | budget (1x H100 80GB SXM) | data |
+|---|---|---|---|
+| **A** | `Qwen/Qwen3-1.7B-Base` (pinned revision) | 5 h of training | generated puzzles + verifier verdicts |
+| **D** (experimental) | random init, any architecture | 6 h **including pretraining** | FineWeb-Edu (pinned) for pretraining; RL as track A |
+
+Track D is labelled experimental: every pilot plateaus at ~0.15-0.17 on the dev ladder, whatever
+the optimizer, model size, pretraining length or exploration settings. The models learn a few
+fixed answer templates and never do arithmetic. Breaking 0.20 is the open challenge.
+
+## Leaderboard (v3)
+
+### Track A
+
+| # | record | test ladder score (mean ± sd) | N | clock | author |
+|---|---|---:|--:|---|---|
+| 000 | [000_baseline](records/v3/track_a/000_baseline) | 0.1295 ± 0.0098 | 5 | 290 min GRPO | @jasonzeng124 |
+
+### Track D
+
+| # | record | test ladder score (mean ± sd) | N | clock | author |
+|---|---|---:|--:|---|---|
+| 000 | [000_baseline](records/v3/track_d/000_baseline) | 0.1166 ± 0.0163 | 5 | 112 min pretraining + 234 min GRPO | @jasonzeng124 |
+
+Not records: [track D 001_muon_pretrain](records/v3/track_d/001_muon_pretrain) (0.1162 ± 0.0156,
+p = 0.52 against 000; a negative result).
+
+A new record must beat the holder's mean with a one-sided Welch t-test (p < 0.05) over >= 5 seeds.
+
+## Quickstart
+
+```bash
+uv sync                      # CPU torch by default; tests run on CPU
+uv run pytest -q
+
+# on a GPU box (reference software: vllm 0.30.0, torch 2.13.0+cu130, transformers 5.17.0)
+pip install "vllm==0.30.0" "transformers==5.17.0" pyarrow numpy accelerate huggingface_hub && pip install -e . --no-deps
+python scripts/prepare_track_d_data.py            # track D only: pinned FineWeb-Edu shards + tokenizer (CPU, untimed)
+
+# one seed end to end: (pretraining,) GRPO, clock.json, test-ladder score with the record's sampler
+bash scripts/run_seed_v3.sh records/v3/track_d/000_baseline 0
+
+# cheap development loop on any GPU (4 min runs; unranked)
+bash scripts/run_seed_v3.sh records/v3/smoke/track_d 0
+
+# check a record before opening a PR
+uv run python scripts/validate_record_v3.py records/v3/track_d/001_my_record --compare-to records/v3/track_d/000_baseline
+```
+
+`scripts/aws/spot_launch.sh` (`V3=1`) runs seeds on fresh AWS GPU instances that terminate
+themselves and push results to S3. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to submit a
+record.
+
+## Layout
+
+```
+rlvr_speedrun/
+  countdown.py       puzzle generator, prompt, verifier (part of the benchmark: do not change)
+  ladder.py          the v3 difficulty ladder and its training stream
+  ladder_confirm.py  the v3 scorer (test ladder, 16 samples, the record's sampler)
+  constrained.py     answer-constrained decoding (vLLM logits processor + trainer renormalisation)
+  grpo.py            the GRPO trainer (vLLM rollouts); config fields are CLI flags
+  benchmark.py       protocol constants and pins
+scripts/
+  run_seed_v3.sh             one v3 seed end to end
+  prepare_track_d_data.py    pinned track D data (CPU)
+  pretrain_scratch.py        track D baseline pretraining (Llama-style, AdamW or Muon)
+  validate_record_v3.py      v3 record checks + holder test (CI runs validate_all_records.py)
+  aws/, slurm/               unattended runs on AWS and on a Slurm cluster
+data/ladder_v3_{dev,test}.jsonl   frozen ladders (tune on dev; test is for the final score only)
+records/v3/track_{a,d}/<NNN>_<slug>/   one folder per record
+calibration/                 pilot and sweep logs behind the design decisions
+```
+
+## Earlier versions (retired)
+
+v1 and v2 raced **Qwen2.5-0.5B** to a pass-rate threshold on 4-number puzzles (v1: 10 %, v2: 20 %
+with a separate confirmation set). Their rules are in [RULES.md](RULES.md), and the v2
+calibration is in [docs/plateau_calibration.md](docs/plateau_calibration.md). v3 replaced them
+because one threshold can't fit very different models, and a ladder shows where the gains come
+from. The v1 leaderboard is kept as history.
 
 Hardware: **one H100 80GB SXM**, all seeds of a record on one provider. Track A
 base model: **Qwen/Qwen2.5-0.5B** (pretrained-only checkpoint, no
-post-training). Threshold: **10% pass rate** on the frozen 2,000-puzzle eval,
+post-training). Threshold: **20% pass rate** (v2; v1: 10%) on the frozen 2,000-puzzle eval,
 N >= 3 consecutive seeds; a new record holder must beat the old one at
 `p < 0.05` (one-sided Welch t-test, see [RULES.md](RULES.md)).
 
-### Track A — fixed base model, RL only
+#### v1 Track A — fixed base model, RL only
 
 | # | record | time to 10% (mean ± std) | N | final pass rate | guardrail | vs previous | author |
 |---|--------|-------------------------:|--:|----------------:|-----------|-------------|--------|
@@ -49,116 +131,8 @@ Not ranked: [000_smoke_cpu](records/track_a/000_smoke_cpu),
 smoke tests), and the RTX 4090 reproduction of record 002 in
 [002_curriculum_qwen05b_h100/repro_4090](records/track_a/002_curriculum_qwen05b_h100/repro_4090).
 
-### Track B — full stack (pretrain + RL)
-
-No records yet. `X`/`Y` thresholds will be calibrated from the first baseline run.
-
-## Quickstart
-
-```bash
-uv sync                                   # or: pip install -e .
-uv run pytest -q                          # verifier, GRPO step, record validator
-
-# frozen eval set is committed; regenerate only with --force
-uv run python -m rlvr_speedrun.data build-eval --out data/countdown_eval.jsonl
-
-# zero/few-shot base-model eval (this is how the base checkpoint was chosen)
-uv run python -m rlvr_speedrun.eval --model Qwen/Qwen2.5-0.5B --few-shot 3 --limit 500
-
-# sweep several base checkpoints, print a markdown table
-bash scripts/sweep_base_models.sh
-
-# GRPO (record 005 recipe; drop --compile/--pad-to-multiple for eager generation)
-uv run python -m rlvr_speedrun.grpo --model Qwen/Qwen2.5-0.5B \
-    --group-size 16 --prompts-per-step 8 --micro-batch-size 128 --temperature 0.8 \
-    --lr 5e-6 --kl-coef 0 --curriculum-steps 200 --max-steps 600 \
-    --eval-every 25 --eval-start-step 150 --eval-limit 2000 --eval-batch-size 1000 \
-    --target-solve-rate 0.1 --compile --pad-to-multiple 64 --device cuda \
-    --seed 0 --out-dir records/track_a/00N_my_record/seeds/0
-# (keeps seeds/0/final/ for the capability probe; weights are gitignored)
-
-# data-parallel (unranked until the 8xH100 tier opens): same command under torchrun,
-# prompts_per_step is sharded across ranks; CPU/gloo works for testing
-uv run torchrun --standalone --nproc_per_node 2 -m rlvr_speedrun.grpo --model HuggingFaceTB/SmolLM2-135M \
-    --device cpu --group-size 4 --prompts-per-step 4 --max-steps 2 --eval-limit 6 --kl-coef 0 --no-save --out-dir /tmp/ddp
-
-# scaffold a record from the current holder, then validate it before opening a PR
-uv run python scripts/new_record.py my_record --provider runpod
-uv run python scripts/validate_record.py records/track_a/00N_my_record --compare-to records/track_a/005_prefix_kv_compile_h100
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the record workflow; CI validates
-every record in `records/` on each PR.
-
-On a fresh GPU box (e.g. a RunPod `runpod/pytorch` container) run
-`bash scripts/gpu_setup.sh` instead of `uv sync`. On Modal (`pip install modal`),
-`scripts/modal_run.py` runs all seeds in parallel on H100s and copies logs back
-(see record 002 for the exact command).
-For Track A submissions, run the capability guardrail probe described in
-[RULES.md](RULES.md) after training.
-
-## Layout
-
-```
-rlvr_speedrun/
-  countdown.py     puzzle generator, prompt format, verifier / reward
-  data.py          frozen eval set builder, training puzzle stream
-  eval.py          few-shot pass-rate eval + multi-model sweep table
-  grpo.py          minimal GRPO loop (plain PyTorch + transformers)
-  distributed.py   torchrun data-parallel helpers (shard prompts, sum grads, gather evals)
-  model_utils.py   model/tokenizer loading, stopping criteria
-scripts/
-  validate_record.py   checks a records/ entry, prints seed statistics, --compare-to holder
-  validate_all_records.py  CI: every record passes + is on the leaderboard
-  new_record.py        scaffold records/<track>/<NNN>_<slug>/ from the current holder
-  analyze_threshold.py offline eval-noise / slope / variance analysis of record logs
-  sweep_base_models.sh base-model pass-rate sweep
-  gpu_setup.sh         one-shot setup on a CUDA container
-  modal_run.py         run N seeds in parallel on Modal GPUs (+ capability probe)
-  capability.py        (rlvr_speedrun/) FineWeb-Edu loss + MMLU-lite guardrail probe
-data/countdown_eval.jsonl   2,000 frozen eval puzzles (seed 20240601)
-records/<track>/<NNN>_<slug>/  one folder per record (logs, config, README)
-results/                     base-model sweep outputs
-```
-
-## Open question: minimum viable base model
-
-RLVR needs a non-zero base pass rate, otherwise every GRPO group has identical
-rewards and there is no gradient. `scripts/sweep_base_models.sh` evaluates a
-ladder of small open checkpoints; results live in `results/`. Track A's frozen
-base is the smallest checkpoint that clears ~2% few-shot.
-
-First sweep (500 eval puzzles, 3-shot, greedy, RTX 4090 — `results/base_sweep.json`):
-
-| model | pass rate | malformed | Wilson 95% CI |
-|---|---:|---:|---|
-| SmolLM2-135M | 0.000 | 0.012 | [0.000, 0.008] |
-| SmolLM2-360M | 0.012 | 0.002 | [0.006, 0.026] |
-| Qwen2.5-0.5B | 0.026 | 0.058 | [0.015, 0.044] |
-| SmolLM2-1.7B | 0.018 | 0.024 | [0.010, 0.034] |
-| Qwen2.5-1.5B | 0.038 | 0.014 | [0.025, 0.059] |
-
-Pass rate lifts off zero around 360M–0.5B; **Qwen2.5-0.5B** is the Track A
-base. Solves are sparse enough that plain GRPO has almost no signal (record
-001); a 2→3→4-number curriculum on the training stream fixes that (record 002:
-2.6% → 10% held-out in ~13 min on one H100).
-
-## Good first records
-
-* Tune `lr`, `kl_coef`, `group_size`, `temperature`, `curriculum_steps` on record 005.
-* Trigger the full eval off the in-batch solve rate instead of a fixed schedule
-  (each eval costs ~10 s on the clock; `--eval-start-step` is a blunt version).
-* Reward shaping from the verifier output (e.g. partial credit for using all numbers).
-* Rollout throughput: rollouts are now ~70% of a step. HF `generate` spends most
-  of a decode step outside the model (`--compile` only compiles the forward); a
-  hand-rolled sampling loop over the static cache, or a vLLM/SGLang rollout
-  worker, is the obvious next systems record.
-* Fewer optimizer steps to threshold: seeds need 150-600 steps with ±200 s
-  spread; anything that tightens that (longer/adaptive curriculum, LR schedule,
-  Muon instead of AdamW) beats another 20% of step time.
 
 ## Credits
 
-Extends the modded-nanogpt / nanochat lineage. Contributor credit follows the
-modded-nanogpt convention: every accepted record lists its author in the table
-above.
+Extends the modded-nanogpt / nanochat lineage. Every accepted record lists its author in the
+leaderboard.

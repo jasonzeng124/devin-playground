@@ -1,69 +1,66 @@
 # Contributing
 
-Two kinds of PRs: **records** (a new leaderboard entry) and **code** (trainer,
-validator, docs). Both run the same CI: tests, frozen-data checksums, and
-`scripts/validate_all_records.py`.
+The current benchmark is **v3** ([docs/RULES_v3.md](docs/RULES_v3.md)). Records are pull requests
+that add a folder under `records/v3/track_{a,d}/`. CI validates every record on each PR.
 
 ## Submitting a record
 
-The full rules are in [RULES.md](RULES.md); this is the workflow.
+1. **Develop on the dev ladder.** Tune on `data/ladder_v3_dev.jsonl` (the trainer's in-loop eval).
+   Never evaluate on the test ladder until the final runs. The smoke configs in
+   `records/v3/smoke/` run in a few minutes on any GPU and exercise the whole pipeline.
+2. **Create the record folder**, `records/v3/track_{a,d}/<NNN>_<slug>/`, with:
+   - `config.json`: the trainer config plus a `v3` block:
+     `{"track": "A"|"D", "sampler": {"temperature", "constrain", "think_budget"}, "pretrain": {...}}`
+     (`pretrain` for track D only; see the baselines);
+   - `README.md`: what changed and why, the test score, the clock time per seed, the sampler, and
+     the software used;
+   - any code that differs from this repository: a custom sampler, reward code, a pretraining
+     script. Custom samplers and reward code are reviewed carefully (RULES_v3).
+3. **Run >= 5 seeds** (`0..N-1`) on one H100 80GB SXM (`NVIDIA H100 80GB HBM3`), all on one
+   provider:
 
-1. **Start from the holder.** `python scripts/new_record.py <slug> --provider <host>`
-   copies the current holder's `config.json` into `records/track_a/<NNN>_<slug>/`
-   and writes a README skeleton. Edit `description` and the hyperparameters you
-   change; anything that is not a trainer field (`description`, `parent`,
-   `hardware`, ...) is metadata and ignored by `--config`.
-2. **Train N ≥ 3 seeds, all on one provider, on a single H100 80GB SXM.**
-   Locally:
    ```bash
-   for SEED in 0 1 2; do
-     python -m rlvr_speedrun.grpo --config records/track_a/<NNN>_<slug>/config.json \
-         --device cuda --seed $SEED --out-dir records/track_a/<NNN>_<slug>/seeds/$SEED
-     python -m rlvr_speedrun.capability --model records/track_a/<NNN>_<slug>/seeds/$SEED/final \
-         --base Qwen/Qwen2.5-0.5B --out records/track_a/<NNN>_<slug>/seeds/$SEED/probe.json
-   done
+   python scripts/prepare_track_d_data.py              # track D, once per machine (CPU, untimed)
+   bash scripts/run_seed_v3.sh records/v3/track_d/<NNN>_<slug> <seed>
    ```
-   or on Modal, all seeds in parallel with the probe included:
-   ```bash
-   modal run scripts/modal_run.py --gpu H100 --seeds 0,1,2 --out results/<NNN>_<slug> \
-       --args "--config records/track_a/<NNN>_<slug>/config.json"
-   ```
-   then copy `results/<NNN>_<slug>/seeds/` into the record. Seeds are
-   `0..N-1`, chosen before you look at results; a seed that never reaches the
-   threshold cannot be dropped: RULES ("Seeds and statistics") says when a
-   censored seed may be re-run with a higher `max_steps` and how to report it.
-3. **Validate and compare.**
-   ```bash
-   python scripts/validate_record.py records/track_a/<NNN>_<slug>
-   python scripts/validate_record.py records/track_a/<NNN>_<slug> --compare-to records/track_a/<holder>
-   ```
-   Holder status needs one-sided Welch `p < 0.05` against the current holder.
-   A record that is not significantly faster can still be merged as a ranked
-   entry (negative and neutral results are useful) — say so in the README.
-4. **Disclose everything.** Every run launched with the record's configuration
-   goes in `seeds/` (official), `extra/` (exploratory, censored, retries) or
-   the README. `validate_record.py` cannot check this; reviewers will ask.
-5. **Open the PR** with the template filled in and a row added to the
-   leaderboard in `README.md` (CI fails if a ranked record is not linked).
 
-Unranked entries — a smoke test, a 4090 reproduction, a run on an H100 PCIe —
-set `"unranked": true` in `config.json` and skip the seed/probe/hardware checks.
-They are welcome inside an existing record's folder (`repro_<gpu>/`) or as
-their own folder, but never appear in the leaderboard table.
+   Each seed writes `seeds/<seed>/{train_log.jsonl, result.json, clock.json, confirm_v3.json}`
+   (plus `pretrain_log.jsonl` for track D). `STAGE=train` and `STAGE=confirm` run the timed part
+   and the scoring as separate jobs. Scoring is untimed and may run on any GPU. If the token file
+   sits on a network filesystem, set `LOCAL_DATA_DIR` to a node-local disk: random reads over
+   the network slowed pretraining ~9x on one cluster.
+4. **Report every run.** A run that crashed for infrastructure reasons (out of memory,
+   preemption, a lost machine) may be rerun under the same seed if the failed attempt goes in
+   `extra/` with a note. Dropping a run disqualifies the record.
+5. **Validate and open a PR:**
+
+   ```bash
+   uv run python scripts/validate_record_v3.py records/v3/track_d/<NNN>_<slug> --compare-to <current holder>
+   ```
+
+   A new record must beat the holder's mean test score with a one-sided Welch t-test at
+   p < 0.05. Add the record to the leaderboard table in [README.md](README.md).
+
+Running 5 seeds costs ~25-30 H100-hours: roughly $100-200 at cloud on-demand prices.
+`scripts/aws/spot_launch.sh` (`V3=1`) runs one seed per self-terminating AWS instance and pushes
+the results to S3.
 
 ## Code changes
 
-* `uv sync && uv run pytest -q && uv run ruff check .` before pushing.
-* Anything on the timed path (rollouts, scoring, optimizer, eval) or in the
-  verifier/eval prompt is a benchmark change. Say in the PR how existing
-  records are affected; changes to `data/` fail CI by design (the eval set is
-  frozen — regenerating it means a new benchmark version).
-* Timing-neutral tooling (validator, scripts, docs) can land without a record.
-  Speedups should come with a record that demonstrates them; a trainer change
-  without a record is fine if it is off by default.
+* Run `uv sync && uv run pytest -q && uv run ruff check .` before pushing.
+* The verifier, the prompt, the ladders and the scorer (`countdown.py`, `ladder.py`,
+  `ladder_confirm.py`, `data/`) define the benchmark. Changing them means a new benchmark
+  version, and changes to `data/` fail CI by design.
+* Trainer changes are fine. A speedup should come with a record that demonstrates it, or be off
+  by default.
 
 ## Good first records
 
-See the list at the bottom of [README.md](README.md). If you have a single
-H100 for an hour, the cheapest experiment is three seeds of the holder recipe
-with one change; `new_record.py` sets that up in one command.
+* **Track D:** the plateau at ~0.17 is the open problem. Things not tried yet: process rewards
+  for correct intermediate arithmetic, learned critics, other architectures, better use of the
+  6 h split, math-aware filtering of FineWeb-Edu (it has almost no written arithmetic:
+  0.005 equations per document in the baseline shards).
+* **Track A:** training on the ladder mix with answer-constrained decoding roughly doubled the
+  dev score in pilots (record 001). Tuning around it is cheap to try.
+* Both tracks: anything that gets more learning out of each GPU hour (rollout throughput,
+  dynamic sampling, curriculum).

@@ -1,5 +1,8 @@
 # Threshold calibration: what the N=10 logs say
 
+> **Superseded for v2:** the v2 threshold is 0.20, set by the plateau calibration and recipe
+> sweeps in [plateau_calibration.md](plateau_calibration.md). This page analyses the v1 10 % threshold.
+
 Offline analysis of the 20 official seeds of records 004 and 005 (no GPU
 needed; regenerate the tables with
 `python scripts/analyze_threshold.py --md docs/threshold_calibration.md`).

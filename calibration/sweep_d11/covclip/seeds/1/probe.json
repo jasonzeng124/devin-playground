@@ -1,0 +1,13 @@
+{
+  "model": "calibration/sweep_d11/covclip/seeds/1/final",
+  "fineweb_loss": 3.014637732459141,
+  "mmlu_lite_acc": 0.222,
+  "n_docs": 256,
+  "n_questions": 500,
+  "base": "/home/zjason/orcd/pool/scratch-models/d110m_60min",
+  "base_fineweb_loss": 2.8946302231043983,
+  "base_mmlu_lite_acc": 0.224,
+  "fineweb_loss_delta": 0.12000750935474258,
+  "mmlu_lite_acc_delta": -0.0020000000000000018,
+  "passes_guardrail": false
+}

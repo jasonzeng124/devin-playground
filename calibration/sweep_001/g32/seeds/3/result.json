@@ -1,0 +1,21 @@
+{
+  "final_pass_rate": 0.2535,
+  "pass_rate": 0.2535,
+  "time_to_threshold_s": null,
+  "total_steps": 2000,
+  "total_wall": 3839.754552714061,
+  "warmup_s": 33.63515798887238,
+  "max_steps": 2000,
+  "benchmark_version": 2,
+  "environment": {
+    "gpu": "NVIDIA H200",
+    "gpu_count": 1,
+    "world_size": 1,
+    "cuda": "12.4",
+    "torch": "2.5.1+cu124",
+    "transformers": "4.57.6",
+    "python": "3.11.16",
+    "git_commit": null,
+    "model_revision": "060db6499f32faf8b98477b0a26969ef7d8b9987"
+  }
+}

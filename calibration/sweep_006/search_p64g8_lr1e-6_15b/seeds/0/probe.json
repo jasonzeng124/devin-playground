@@ -1,0 +1,13 @@
+{
+  "model": "calibration/sweep_006/search_p64g8_lr1e-6_15b/seeds/0/final",
+  "fineweb_loss": 2.2825894589060205,
+  "mmlu_lite_acc": 0.584,
+  "n_docs": 256,
+  "n_questions": 500,
+  "base": "Qwen/Qwen2.5-1.5B",
+  "base_fineweb_loss": 2.282557298992478,
+  "base_mmlu_lite_acc": 0.584,
+  "fineweb_loss_delta": 3.2159913542439966e-05,
+  "mmlu_lite_acc_delta": 0.0,
+  "passes_guardrail": true
+}
