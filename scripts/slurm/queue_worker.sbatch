@@ -26,7 +26,7 @@
 #SBATCH --requeue
 #SBATCH --output=%x-%j.out
 set -uo pipefail
-cd ~/rlvr
+cd "${RLVR_DIR:-$HOME/rlvr}"  # RLVR_DIR: another checkout (e.g. for screens on a branch)
 source "${VENV:-$HOME/rlvr-venv}/bin/activate"  # VENV=~/orcd/pool/vllm-venv for rollout_backend=vllm runs
 if [[ -n "${VENV:-}" ]]; then  # vLLM (cu130 wheels) JIT-compiles kernels, so it needs nvcc
   module load cuda/13.0.1
@@ -35,7 +35,7 @@ fi
 export PYTHON=python DEVICE=cuda PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True HF_HOME=$HOME/.cache/huggingface
 export HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}  # models are pre-downloaded on the login node; the Hub API times out
 export CKPT_DIR=${CKPT_DIR:-$HOME/orcd/pool/rlvr-ckpts}  # checkpoints (~1 GB each) go to the 1 TB pool, not ~/rlvr
-Q=~/rlvr/queue
+Q="${RLVR_DIR:-$HOME/rlvr}/queue"
 QUEUE=${QUEUE:-pending}
 RESERVE_MIN=${RESERVE_MIN:-90}  # do not start an item with less than this much job time left
 mkdir -p "$Q/running"

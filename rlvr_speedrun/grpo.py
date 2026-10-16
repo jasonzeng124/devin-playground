@@ -85,6 +85,9 @@ class GRPOConfig:
     seed: int = 0
     device: str = "auto"
     dtype: str | None = None
+    # fp32 weights and AdamW state with a bf16-autocast forward/backward; off = pure-bf16 AdamW, where
+    # updates smaller than ~1/512 of a weight round away (as in the v3 records)
+    master_fp32: bool = False
     out_dir: str = "runs/grpo"
     no_save: bool = False
 
@@ -424,9 +427,10 @@ def _update(
         if config.grad_checkpoint:  # HF checkpoints only in train mode, and then drops the KV cache the prefix trick needs
             model.train()
         rows_allowed = None if allowed is None else [allowed[r] for r in rows.tolist()]
-        policy_lp, completion_mask, entropy = _completion_logprobs(
-            model, ids, mask, prompt_width, config.temperature, 0 if config.grad_checkpoint else prefix_len, rows_allowed
-        )
+        with torch.autocast(device.type, dtype=torch.bfloat16, enabled=config.master_fp32):
+            policy_lp, completion_mask, entropy = _completion_logprobs(
+                model, ids, mask, prompt_width, config.temperature, 0 if config.grad_checkpoint else prefix_len, rows_allowed
+            )
         model.eval()
         policy_lp = policy_lp[completion_mask]
         entropy_total += entropy[completion_mask].sum()
@@ -744,7 +748,7 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
                              constrain_answer=config.constrain_answer)
     elif config.rollout_backend != "hf":
         raise ValueError(f"unknown rollout_backend {config.rollout_backend!r} (expected 'hf' or 'vllm')")
-    model, device = load_causal_model(config.model, config.device, config.dtype)
+    model, device = load_causal_model(config.model, config.device, "fp32" if config.master_fp32 else config.dtype)
     if config.grad_checkpoint:
         model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
         model.config.use_cache = False
