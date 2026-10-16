@@ -12,6 +12,10 @@ PYTHON=${PYTHON:-python}
 out="$dir/seeds/$seed"
 weights="${CKPT_DIR:-$HOME/orcd/pool/rlvr-ckpts}/$dir/seeds/$seed"
 [[ -e "$out/train_log.jsonl" ]] && { echo "$out already holds a run" >&2; exit 1; }
+# a preempted, requeued seed starts over: keep the partial run's logs aside rather than appending to them
+stamp=$(date +%s)
+[[ -d "$weights" ]] && mv "$weights" "$weights.interrupted.$stamp"
+[[ -e "$out/stdout.log" ]] && mv "$out/stdout.log" "$out/stdout.interrupted.$stamp.log"
 mkdir -p "$out" "$weights"
 pre=$($PYTHON -c "import json,sys; print(json.load(open(sys.argv[1])).get('screen_pretrained', ''))" "$dir/config.json")
 model_flag=()
