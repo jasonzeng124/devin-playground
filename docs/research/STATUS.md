@@ -2,24 +2,26 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-10-19 12:05 EDT.
+Updated 2026-10-19 15:40 EDT.
 
 ## Running
 
-- **r1** (`calibration/research_r1`, queue `r1`; 26 dev-ladder screens, ~120 GPU-h): fp32 master
-  weights + lr sweep for A 001's recipe (with and without the constraint) and D 000's RL, plus
-  the w42 rerun of d00_fp32 seed 0. 3 running, 23 queued.
-- Workers (at most 6 GPUs at once): 3 preemptable running (they end at the maintenance start),
-  1 preemptable + 6 mit_normal_gpu pending (2 run at a time), and 4 preemptable successors
-  (26364066-69, each `afterany` on one of the 4 preemptable workers) that serve `r1:main` with
-  `RUNNER=scripts/research/run_item.sh`, so they continue with `queue/main.txt` when r1 drains.
+- **r1** (`calibration/research_r1`, queue `r1`; fp32 master weights + lr sweep for A 001's recipe
+  with and without the constraint, and for D 000's RL): 6 seed-0 screens on 6 GPUs (2
+  mit_normal_gpu, 4 preemptable), 19 queued. Done so far: none of r1 itself; `d00_fp32` (w42)
+  finished (LOG 2026-10-19 evening).
+- Preemption: five preemptable restarts today. Since a1e4502, screens on mit_preemptable save
+  resumable state hourly (`$CKPT_DIR/<arm>/resume/<seed>/`, deleted when the seed finishes); the
+  a01_fp32_lr1e-6 seed 0 rerun (job 26360542, from 15:36 EDT) is the first to use it.
+- Workers: the 4 preemptable workers end at the maintenance start (00:00 EDT); mit_normal_gpu
+  workers run one item each (4 more pending, 2 at a time); 4 preemptable successors (26364066-69,
+  `afterany` on the current 4) serve `r1:main` with `RUNNER=scripts/research/run_item.sh`.
 - Queued after r1 (`queue/main.txt`): **r2 track D data screens** (D2), 3 seeds each:
-  `calibration/research_r2/d00_dm26` and `d00_dm51` = D 000 with its pretraining tokens mixed with
-  DeepMind mathematics_dataset arithmetic (26 % / 51 % of tokens; 0.299B unique math tokens in
-  `~/orcd/pool/data/dm_math`, prepared by CPU job 26365155 in 3 min). They pretrain their own
-  models (`run_seed_v3.sh STAGE=train` via `run_item.sh`; dev ladder only).
-- Engaging maintenance 2026-10-20 00:00-21:00 EDT: nothing runs. r1 should finish around
-  2026-10-21 evening.
+  `calibration/research_r2/d00_dm26` and `d00_dm51` = D 000 pretrained on FineWeb-Edu mixed with
+  DeepMind mathematics_dataset arithmetic (26 % / 51 % of tokens; data in
+  `~/orcd/pool/data/dm_math`). They pretrain their own models (`run_seed_v3.sh STAGE=train` via
+  `run_item.sh`; dev ladder only; no resume, so preemption restarts them).
+- Engaging maintenance 2026-10-20 00:00-21:00 EDT: nothing runs.
 
 ## Best so far
 
@@ -29,11 +31,11 @@ holder's dev mean (PLAN.md).
 
 ## Next
 
-- Today ~15:40-16:10 EDT: the first r1 seeds finish (d00_fp32 s0, a01_fp32_lr1e-6 s0,
-  d00_fp32_lr3e-6 s0); read their entropy/length curves.
-- Before r1 drains (~2026-10-21): queue r2 in `queue/main.txt` from r1's results (A2 stability on
-  the best fp32 lr; a dev-ladder sampler-temperature sweep of the A 001 seeds as eval arms).
-- After the data job: track D pretraining screens on the DM-math mixes (D2).
+- 2026-10-19 ~16:40 EDT: check that the a01_fp32_lr1e-6 rerun saved its first resume state.
+- 2026-10-19 ~20:30-21:00 EDT: the six seed-0 screens finish; LOG them.
+- Before the successors reach r1's seed 1-2 items (after the maintenance, 2026-10-20 21:00 EDT):
+  prune the arms whose seed 0 failed and queue r2 for track A in `queue/main.txt` (ahead of the
+  pruned items).
 
 ## Notes
 
