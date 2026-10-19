@@ -5,7 +5,7 @@ current approach for each track, and what failed and why. Details and raw number
 `docs/v3_design.md` (a chronological lab notebook). The spec itself is `docs/RULES_v3.md`.
 
 Suggested reading order (~30 min):
-1. `docs/RULES_v3.md`: the rules (about 225 lines).
+1. `docs/RULES_v3.md`: the rules (about 255 lines).
 2. "Decisions" below: each one with the alternative and the evidence.
 3. "Failure cases" below.
 4. Optional: `rlvr_speedrun/constrained.py` (the answer grammar that every track D result depends on)
@@ -22,7 +22,7 @@ All scores are level-weighted ladder pass@1 (mean over 6 levels of the per-level
 | 1 | Fixed compute budget, score = ladder pass@1 (v2 was time to a threshold) | keep time-to-threshold | One threshold can't fit both a 1.7B model and a scratch model, and a ladder shows where gains come from |
 | 2 | Ladder: 6 levels x 400, equal weights; separate frozen dev and test sets | single eval set | Dev predicts test closely (d07 finals: dev 0.141/0.122/0.122 vs test 0.140/0.121/0.125), so tuning on dev is safe |
 | 3 | Two tracks: A = Qwen3-1.7B-Base (pinned), 5 h; D = from scratch on FineWeb-Edu, 6 h incl. pretraining | more or other tracks | Your choice (verifier-only for both) |
-| 4 | Training on solutions is banned (generator `solution` field, solver output, other models' text) | allow a capped SFT warm start | 1,000 SFT steps on generator solutions lift D from ~0.14 to 0.24, so D would turn into distillation |
+| 4 | Training on solutions is banned (generator `solution` field, solver output, other models' text; since #21, Countdown-specific data, while public datasets a model wrote are allowed) | allow a capped SFT warm start | 1,000 SFT steps on generator solutions lift D from ~0.14 to 0.24, so D would turn into distillation |
 | 5 | The eval sampler is part of the submission (**you confirmed 2026-10-07**; custom samplers get careful review and may be rejected) (temperature, answer-constrained decoding, think budget, or own code) but must not evaluate arithmetic, call the verifier or pick among samples | one fixed sampler for everyone | A D model trained with the constraint scores **0.000** without it (the constraint is part of its policy). The constraint alone solves nothing (bases 0.003-0.011). It adds +0.011 to a Qwen pilot trained without it and +0.011-0.016 to the track A records' healthy seeds, but +0.074 to A 001's collapsed seed (`calibration/diag_sampler`) |
 | 6 | 16 samples per puzzle, at most 1,024 new tokens | 2,048 tokens | The best Qwen scores 0.157 at 2,048 vs 0.155 at 1,024: the cap doesn't bind |
 | 7 | >= 5 seeds, one-sided Welch p < 0.05 vs the holder | 10 seeds (v2) | Record seed sds are 0.0098 (A 000) and 0.0163 (D 000), so N=5 has 80 % power for gains of ~0.017 (A) and ~0.028 (D). A 001's sd is 0.046 (one collapsed seed), so beating it takes ~+0.06-0.08. You said n=5 is fine |
@@ -37,10 +37,12 @@ All scores are level-weighted ladder pass@1 (mean over 6 levels of the per-level
 | 16 | A run that crashed for infrastructure reasons (OOM, preemption, a lost machine) may be rerun under the same seed if the failed attempt stays in `extra/` with a note | any rerun disqualifies | Spot instances and preemptible nodes make this routine. "All runs reported" still holds, since nothing is deleted |
 | 17 | Track A baseline uses `micro_batch_tokens` 8192 instead of the pilots' 16384 | lower vLLM's memory share | The pilot setting used 99-108 GB on H200s and ran out of memory at step 2 on an 80 GB H100 (`records/v3/track_a/000_baseline/extra/oom_0`). Smaller micro-batches change memory and speed, not the update (the loss is normalised by the global token count) |
 | 18 | Process rewards and value functions are allowed: any reward or training signal (a program or a learned critic/value/PRM) whose only inputs are the model's own outputs, the puzzle and the verifier's verdicts. Learned ones are trained on the run's own rollouts, within the budget. No solver, search, other pretrained model or external data. Reward code is reviewed like samplers. Training them counts toward the budget, and they may not be used at eval (you set both on 2026-10-07) | rewards only from the verifier's output (old wording) | You leaned this way on 2026-10-07 ("value functions should be allowed to exist"). It stays verifier-only: every signal traces back to the verifier and the model's own samples. Track D's policies do no arithmetic, so step-level signal is a real lever on the plateau. Reward hacks show up in the test score |
-| 19 | Synthetic arithmetic text (equations, expression-value pairs) is explicitly banned from training data, in pretraining and RL | allow it, or a separate "D+" track that allows it | A random expression with its value is a puzzle with its solution, which is the banned SFT shortcut (0.14 to 0.24 on track D). This only makes the old implicit ban explicit |
+| 19 | Synthetic arithmetic text (equations, expression-value pairs) is explicitly banned from training data, in pretraining and RL (since #21, only text the entrant generates; public datasets with such text are allowed) | allow it, or a separate "D+" track that allows it | A random expression with its value is a puzzle with its solution, which is the banned SFT shortcut (0.14 to 0.24 on track D). This only makes the old implicit ban explicit |
 | 20 | All seeds of a record train on one provider (added to RULES_v3 on 2026-10-14; before that it was only in CONTRIBUTING) | allow mixed providers | Host differences would mix into the seed spread: v1's record 004 had Modal seeds much faster than its RunPod seeds (655 vs 1088 s). A 000's Modal duplicate of seed 0 sits in `extra/` |
+| 21 | External data (2026-10-19, you set it: "any dataset that isn't Countdown-specific is ok, for now"): any public dataset may be used in either track and at any stage, timed, unless it was made for Countdown, the 24 game or other numbers-game puzzles, or for this benchmark; general datasets drop such items with a keyword filter; published datasets that a model wrote count as datasets, but running another model stays banned; data the entrant generates is still limited to generator puzzles, verifier verdicts and the model's own outputs | verifier-only data (the launch rules) | Your call. My reading of "Countdown-specific" includes anything generated for a submission, so the amendment doesn't reopen the generator-solutions shortcut (#4). It does admit public expression-value data such as DeepMind's `mathematics_dataset` arithmetic modules, which #19 banned when self-generated. A 000-D 001 used no external data and stay valid |
+| 22 | Rules frozen on 2026-10-19 as they stand plus #21. The open questions take their defaults: N is fixed before the first test-ladder score and every scored seed counts; each seed is scored on its final weights (no checkpoint choice); the equal-weight ladder and the budgets (5 h / 6 h) stay | keep the questions open | You asked to freeze the rules and research for a month |
 
-**2026-10-07: you approved the rules as a whole; edge cases are to be arbitrated later.** You have confirmed #5 (with careful review of custom samplers) and changed #11 (ladder revision at any time). Still open for your eyes: #15-17, #20, and "Open questions" at the end.
+**2026-10-07: you approved the rules as a whole; edge cases are to be arbitrated later.** You have confirmed #5 (with careful review of custom samplers) and changed #11 (ladder revision at any time). **2026-10-19: you froze the rules**, adding external data (#21); #15-17 and #20 stand as written, and the open questions take their defaults (#22).
 
 ## Current approach
 
@@ -141,9 +143,9 @@ A review of the launched v3 found these; RULES_v3 and the docs now say:
 - Measured clocks are quoted next to the budgets, and the README leaderboard has a sampler column.
 - The record READMEs disclose where scoring ran (track D: L40S) and report pilots without picking the best seed.
 
-## Open questions
+## Open questions (settled 2026-10-19)
 
-Defaults in brackets; nothing waits on them.
+The rules freeze (#22) adopted the defaults in brackets.
 - Optional stopping: the rules don't say whether N must be fixed before scoring. Adding seeds after a near-miss inflates the false-record rate. [N is fixed before the first test-ladder score; every scored seed counts.]
 - Checkpoint choice: the rules say "final checkpoint" but don't explicitly ban picking weights on dev while dev evals are off the clock. [Final checkpoint only.]
 - L1 (+ and - only) supplies 51-78 % of every record's score and L5 sits near 0, so the equal-weight ladder mostly measures L1, L2 and L6. [Keep it for v3; revisit for a v3.1.]

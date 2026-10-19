@@ -25,7 +25,7 @@ Checklist (see [docs/RULES_v3.md](../blob/main/docs/RULES_v3.md)):
 - [ ] every run launched with this configuration is reported (the seeds, or `extra/` with a note)
 - [ ] all seeds trained on one provider, on the ranked GPU, within the track's budget
 - [ ] in-loop evals used the dev ladder; the test ladder was scored once per seed, after training
-- [ ] training used only generated puzzles and verifier verdicts (track D: plus the allowed pretraining data); no solutions, other models, or synthetic arithmetic text
+- [ ] training used only generated puzzles, verifier verdicts, the model's own outputs and public datasets that aren't Countdown-specific (each named with its revision in the README); no solutions, no other models, no arithmetic text generated for the submission
 - [ ] any custom sampler, reward code or pretraining script is in the record folder and described in its README
 - [ ] no model weights committed; nothing touched `data/`
 - [ ] added a row to the v3 leaderboard in `README.md`
