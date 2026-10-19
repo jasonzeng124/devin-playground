@@ -47,3 +47,37 @@ Queued as r1 (`calibration/research_r1`, 26 runs, ~120 GPU-h):
 - A 001 without the constraint + fp32 at lr 5e-7, 1e-6 (2 seeds each);
 - D 000 RL + fp32 at lr 1e-6, 3e-6, 1e-5 (3 seeds each, paired on D 000's pretrained seeds 0-2);
 - d00_fp32 seed 0 again.
+
+## 2026-10-19 (evening): d00_fp32 done, first r1 seeds, preemptions
+
+`d00_fp32` (D 000's RL with fp32 master weights at D 000's lr 3e-5) has its 5th seed: seed 0
+ended at 0.090 (D 000's own seed 0: 0.087).
+
+| arm | n | dev final | ok / one-guess / diverged | median t.10 |
+|---|---|---|---|---|
+| D 000 RL + fp32 at lr 3e-5 (paired on D 000's pretrained seeds 0-4) | 5 | 0.046 ± 0.043 | 0/4/1 | never |
+| (D 000 record) | 5 | 0.119 ± 0.023 | 0/5/0 | 85 min |
+
+Paired by seed, fp32 is level on seed 0 and worse on seeds 1-4; this arm is closed.
+
+First r1 seeds (seed 0 of each arm; partial, dev at 30/60/120/180/240 min):
+
+| arm (seed 0) | reached | dev then | curve | mode |
+|---|---|---|---|---|
+| A 001 + fp32, lr 1e-6 | 254 of 290 min (preempted) | 0.188 (best 0.192) | 0.082 0.125 0.153 0.150 0.173 | one-guess from ~150 min |
+| A 001 + fp32, lr 5e-7 | 159 min (preempted later) | 0.150 | 0.043 0.057 0.113 0.150 | one-guess from ~100 min |
+| D 000 RL + fp32, lr 3e-6 | 144 min (preempted later) | 0.107 (best 0.123) | 0.067 0.077 0.123 | one-guess |
+| (A 001 record, mean of 5) | 290 min | 0.240 | 0.053 0.063 0.089 0.133 0.195 | 4 ok / 1 one-guess |
+
+What it means so far:
+- Lowering the fp32 lr 4-8x keeps the early speed (A 001 + fp32 at 1e-6 leads the record's mean
+  curve until ~180 min) but does not prevent one-guess collapse; it only delays it. In one-guess
+  mode dev still creeps up (0.15 -> 0.19), but A 001's healthy seeds gain ~0.1 in their last two
+  hours, which one-guess seeds don't. Seed 0 of lr 2.5e-7 and 2e-6 is still to come; seeds 1-2
+  of each arm are decided once all seed 0s are in.
+- Five preemptions on mit_preemptable between 11:45 and 15:20 EDT restarted r1 screens from
+  scratch (~14 GPU-h lost; a01_fp32_lr1e-6 seed 0 at 254 of 290 min). The weekend's preemptable
+  screens had none. Since a1e4502, screens on mit_preemptable save resumable state every hour
+  (off the clock) and a requeued seed continues from it. The a01_fp32_lr1e-6 seed 0 rerun
+  (started 15:36 EDT) is the first to use it. The partial runs stay in the pool as
+  `<seed>.interrupted.<stamp>/`.
