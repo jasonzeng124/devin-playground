@@ -5,8 +5,9 @@
 A seed's logs are read from <arm>/seeds/<i>/ when the run has finished, else from the running
 run's output under $CKPT_DIR/<arm>/seeds/<i>/ (scripts/slurm/screen_seed.sh). Collapse modes,
 from the last training rows:
-  diverged   malformed rate > 0.5 (the policy emits garbage)
-  one-guess  entropy < 0.03 and fewer than 10 informative groups (answers at once, stops exploring)
+  diverged   malformed rate > 0.5 in training or in the last eval (the policy emits garbage)
+  one-guess  fewer than 10 of 64 groups informative (answers at once with one guess, little signal
+             left; healthy runs keep 20-45)
   ok         anything else
 """
 
@@ -42,7 +43,7 @@ def seed_summary(arm: Path, seed: str) -> dict | None:
     ent = statistics.mean(r.get("entropy", 0) for r in tail)
     inf = statistics.mean(r.get("informative_groups", 0) for r in tail)
     mal = statistics.mean(r.get("malformed_rate", 0) for r in tail)
-    mode = "diverged" if mal > 0.5 else "one-guess" if ent < 0.03 and inf < 10 else "ok"
+    mode = "diverged" if max(mal, evals[-1].get("malformed_rate", 0)) > 0.5 else "one-guess" if inf < 10 else "ok"
     score = [e.get("pass_rate", e.get("ladder_score", 0)) for e in evals]
     t10 = next((e["train_s"] / 60 for e, x in zip(evals, score) if x >= 0.10), None)
 
