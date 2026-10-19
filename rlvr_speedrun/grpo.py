@@ -790,8 +790,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
     resumed = None
     if state_path is not None and state_path.exists():
         resumed = torch.load(state_path, map_location=device, weights_only=False)
-        model.load_state_dict(resumed["model"])
-        optimizer.load_state_dict(resumed["optimizer"])
+        model.load_state_dict(resumed.pop("model"))  # pop: free the loaded copies (a second fp32 model would not fit)
+        optimizer.load_state_dict(resumed.pop("optimizer"))
         _set_rng_state(resumed["rng"], mix_rng, device)
         # fresh puzzle streams rather than replaying every draw consumed so far
         stream, easy_streams = _train_streams(config, offset=1_000 + resumed["step"])
