@@ -3,8 +3,9 @@
 A leaderboard for **reinforcement learning with verifiable rewards (RLVR)**, in the spirit of
 [modded-nanogpt](https://github.com/KellerJordan/modded-nanogpt). Teach a language model to solve
 Countdown puzzles (combine the given numbers with the allowed operators, each used once, to hit
-a target) **as well as possible within a fixed GPU budget**. Training uses only puzzles and a
-deterministic verifier: no solutions, no other models.
+a target) **as well as possible within a fixed GPU budget**. Training uses generated puzzles, a
+deterministic verifier and, since 2026-10-19, any public dataset that isn't Countdown-specific:
+no solutions, no other models.
 
 **Benchmark v3** (current) scores each entry on a frozen **difficulty ladder**: 6 levels x 400
 puzzles, from 4 numbers with `+ -` up to 6 numbers with all four operators. The score is the mean
@@ -15,15 +16,16 @@ the evidence behind each choice is in [docs/v3_design.md](docs/v3_design.md).
 
 | track | start from | budget (1x H100 80GB SXM) | data |
 |---|---|---|---|
-| **A** | `Qwen/Qwen3-1.7B-Base` (pinned revision) | 5 h of GPU wall clock | generated puzzles + verifier verdicts |
-| **D** (experimental) | random init, any architecture | 6 h **including pretraining** | FineWeb-Edu (pinned) for pretraining; RL as track A |
+| **A** | `Qwen/Qwen3-1.7B-Base` (pinned revision) | 5 h of GPU wall clock | generated puzzles + verifier verdicts + public non-Countdown datasets |
+| **D** (experimental) | random init, any architecture | 6 h **including pretraining** | any public non-Countdown dataset (baseline: FineWeb-Edu, pinned); RL as track A |
 
 Track D is labelled experimental. In the H200 pilots, the best recipes reached about 0.15-0.17 on
 the dev ladder, and nothing tried went past that: longer pretraining, Muon, a 335M model, more
 exploration, a think budget. The H100 records score lower, about 0.12 on the test ladder, and
 GPU speed doesn't explain the gap ([docs/RULES_v3.md](docs/RULES_v3.md), "Baselines"). The models
 learn a few fixed answer templates and write no intermediate arithmetic. Breaking 0.20 is the
-open challenge.
+open challenge. Public datasets that aren't Countdown-specific (math text, worked solutions)
+became allowed on 2026-10-19 and haven't been tried yet.
 
 ## Leaderboard (v3)
 

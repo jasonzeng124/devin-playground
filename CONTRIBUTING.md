@@ -13,8 +13,8 @@ that add a folder under `records/v3/track_{a,d}/`. CI validates every record on 
    - `config.json`: the trainer config plus a `v3` block:
      `{"track": "A"|"D", "sampler": {"temperature", "constrain", "think_budget"}, "pretrain": {...}}`
      (`pretrain` for track D only; see the baselines);
-   - `README.md`: what changed and why, the test score, the clock time per seed, the sampler, and
-     the software used;
+   - `README.md`: what changed and why, the test score, the clock time per seed, the sampler,
+     the software used, and every external dataset with its revision;
    - any code that differs from this repository: a custom sampler, reward code, a pretraining
      script. Custom samplers and reward code are reviewed carefully (RULES_v3).
 3. **Run >= 5 seeds** (`0..N-1`) on one H100 80GB SXM (`NVIDIA H100 80GB HBM3`), all on one
@@ -64,7 +64,9 @@ and push the results to S3, but it has only been smoke-tested on an A10G, and it
   on the test ladder; that plateau is the open problem. Things not tried yet: process rewards
   for correct intermediate arithmetic, learned critics, other architectures, better use of the
   6 h split, math-aware filtering of FineWeb-Edu (it has almost no written arithmetic:
-  0.005 equations per document in the baseline shards).
+  0.005 equations per document in the baseline shards). Since 2026-10-19 public datasets that
+  aren't Countdown-specific are allowed (math web text, worked solutions, arithmetic sets; RULES_v3,
+  "Both tracks: external data"), and no pilot has used them yet.
 * **Track A:** record 001 (ladder mix, answer-constrained decoding, lr 4e-6) nearly doubled the
   baseline's test score, but its three changes were never separated: at the baseline's lr 2e-6,
   the same mix and constraint scored below the baseline in pilots. The missing ablation (ladder

@@ -1,7 +1,9 @@
 # RLVR Speedrun v3 — Rules
 
 Status: final for launch; the maintainer approved it on 2026-10-07 (`docs/REVIEW_v3.md` lists every
-decision, and the corrections made after launch). Edge cases the text doesn't settle are arbitrated by the maintainer, and rulings are added
+decision, and the corrections made after launch). **Frozen on 2026-10-19** with one amendment,
+external data (see "Both tracks: external data"); the rules don't change while they are frozen.
+Edge cases the text doesn't settle are arbitrated by the maintainer, and rulings are added
 here. v3 replaces v2's "time to a threshold" with a **fixed compute budget, scored on a
 difficulty ladder**, and has two tracks. Evidence for each choice is in `docs/v3_design.md`.
 Constants live in `rlvr_speedrun/benchmark.py` (v3 block); `scripts/validate_record_v3.py`
@@ -53,8 +55,9 @@ it is left for the next benchmark version.
 - Start from `Qwen/Qwen3-1.7B-Base` at revision `ea980cb0a6c2ae4b936e82123acc929f1cec04c1`.
 - Budget: **5 h** of GPU wall clock on one H100 80GB SXM (see "Clock and hardware").
 - Data: puzzles from the generator (`countdown.generate_puzzle`, `ladder.ladder_stream`, or any
-  other program that produces (numbers, target, operators) without solving them) and the
-  verifier's verdicts. Nothing else: no other models, datasets or text.
+  other program that produces (numbers, target, operators) without solving them), the
+  verifier's verdicts, and public datasets that aren't Countdown-specific (see "Both tracks:
+  external data"). No other models.
 
 ### Track D — from scratch
 
@@ -65,13 +68,15 @@ Clip-Cov) or a think budget (which scored lower, 0.07-0.12). The H100 records sc
 (see Baselines). The models learn a few fixed answer shapes (one product, then additions and
 subtractions), and L3 and L5 stay near 0. Records are welcome, but the maintainer may revise this
 track's ladder (e.g. an easier L5) at any time. A revision gets a new version number, and the
-existing records stay on the old leaderboard.
+existing records stay on the old leaderboard. Since 2026-10-19 public datasets other than
+FineWeb-Edu are allowed (see "Both tracks: external data"), and no pilot has used them yet.
 
 - Start from randomly initialised weights; any architecture and size.
 - Budget: **6 h** on one H100 80GB SXM, **pretraining included**. How to split it between
   pretraining and RL is the entrant's choice.
-- Pretraining data: `HuggingFaceFW/fineweb-edu` at revision `87f09149ef4734204d70ed1d046ddc9ca3f2b8f9` (any subset, any filtering or reweighting that
-  does not use an external model). Tokenizer: any tokenizer trained on that data, or the pinned
+- Pretraining data: any allowed dataset (see "Both tracks: external data"). The baseline uses
+  `HuggingFaceFW/fineweb-edu` at revision `87f09149ef4734204d70ed1d046ddc9ca3f2b8f9`. Filtering
+  and reweighting may not use an external model. Tokenizer: any tokenizer trained on allowed data, or the pinned
   TinyLlama tokenizer (`TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T` at revision
   `59f6f375b26bde864a6ca194a9a3044570490064`). A GPT-2 tokenizer, which merges digits, halves the
   pilot score, so the tokenizer is a real part of an entry.
@@ -89,21 +94,44 @@ the model's own outputs, the puzzle and the verifier's verdicts. For example:
 - learned value functions, critics or process reward models, trained from scratch (or from the
   entrant's own model) on the run's own rollouts and their verdicts.
 
-These may not run a solver or a search over expressions, use another pretrained model, or use
-external data. Reward code beyond the verifier is part of the submission and gets the same
+These may not run a solver or a search over expressions, use another pretrained model, or be
+trained on external data (external data may train the policy, below, but not reward signals). Reward code beyond the verifier is part of the submission and gets the same
 careful review as custom samplers. Training them counts toward the time budget. They are for
 training only: the evaluation sampler may not use a value function, critic or reward model.
 
 Forbidden:
 - Training on solutions: the generator's `Puzzle.solution` field, the output of any solver or
-  search over expressions, or any text produced by another model. (A 1,000-step SFT warm start
-  on generator solutions lifts track D from ~0.14 to 0.24, so allowing them would turn the track
-  into distillation.)
+  search over expressions, or Countdown-specific data. (A 1,000-step SFT warm start on generator
+  solutions lifts track D from ~0.14 to 0.24, so allowing them would turn the track into
+  distillation.)
+- Running another model (anything but track A's pinned base model and the entrant's own
+  weights), as a teacher, data generator, reward model or starting point.
 - Using the test ladder for anything but the final score.
 - Models or data other than those listed for the track. This includes synthetic or
-  programmatically generated text (arithmetic facts, equations, expression-value pairs), in
-  pretraining or RL: a random expression with its value is a puzzle with its solution. The model
-  may be rewarded for arithmetic it writes itself, but not trained on arithmetic text it didn't.
+  programmatically generated text that the entrant generates (arithmetic facts, equations,
+  expression-value pairs), in any stage: a random expression with its value is a puzzle with its
+  solution. The model may be rewarded for arithmetic it writes itself, and trained on arithmetic
+  text from an allowed public dataset, but not on arithmetic text generated for the submission.
+
+### Both tracks: external data
+
+From 2026-10-19, any public dataset may be used in either track, at any stage (pretraining,
+fine-tuning, or RL on its problems against its published answers), unless it is
+Countdown-specific. A dataset is Countdown-specific if it
+was made for Countdown, the 24 game or other numbers-game puzzles, or for this benchmark. A
+general dataset that contains some such items may be used once those items are removed (a
+keyword filter is enough). A published dataset that another model wrote (a distillation or
+synthetic set) counts as a dataset and is allowed. Running another model is not.
+
+Data the entrant generates is limited as before: generator puzzles, verifier verdicts and the
+model's own outputs. So the amendment admits public expression-value data, such as the
+arithmetic modules of DeepMind's `mathematics_dataset`, which the earlier rules banned as
+synthetic arithmetic text. It does not admit the same kind of text generated for a submission.
+
+Training on external data counts toward the time budget. Downloading, filtering, mixing and
+tokenizing are untimed preparation, done by a deterministic script in the submission that uses no
+model. The record README names each dataset and its revision. The records made before the
+amendment (A 000, A 001, D 000, D 001) used no external data and stay valid.
 
 ## The evaluation sampler
 
@@ -164,6 +192,10 @@ constraint by itself solves nothing (base models: 0.003-0.011). On trained Qwen 
   as stable as 000, or about +0.08 if it is as noisy as 001.
 - A new record must beat the holder's mean with a one-sided Welch t-test at p < 0.05 on the
   seed scores.
+- N is fixed before the first test-ladder score, and every scored seed counts: adding seeds
+  after a near-miss is not allowed.
+- Each seed is scored on its final weights. Choosing a checkpoint (on the dev ladder or
+  otherwise) is not allowed.
 
 ## Submissions
 
