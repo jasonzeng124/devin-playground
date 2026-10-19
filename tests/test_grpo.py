@@ -430,3 +430,33 @@ def test_cov_clip_stops_gradient_only_through_the_highest_covariance_tokens():
     (out * adv).sum().backward()
     assert lp.grad.tolist() == [0.0, 1.0, -1.0, 0.0]
     assert torch.equal(out.detach(), lp.detach())
+
+
+def test_lr_schedule_warms_up_then_decays_over_the_time_budget():
+    base = dict(lr=1e-6, time_budget_s=1000.0, lr_final_frac=0.1)
+    assert grpo.lr_at(GRPOConfig(**base), 500.0) == 1e-6
+    cosine = GRPOConfig(**base, lr_schedule="cosine", lr_warmup_s=100.0)
+    assert grpo.lr_at(cosine, 0.0) == 0.0
+    assert grpo.lr_at(cosine, 50.0) == pytest.approx(0.5e-6)
+    assert grpo.lr_at(cosine, 100.0) == pytest.approx(1e-6)
+    assert grpo.lr_at(cosine, 550.0) == pytest.approx(0.55e-6)
+    assert grpo.lr_at(cosine, 1000.0) == pytest.approx(0.1e-6)
+    assert grpo.lr_at(cosine, 2000.0) == pytest.approx(0.1e-6)
+    linear = GRPOConfig(**base, lr_schedule="linear")
+    assert grpo.lr_at(linear, 250.0) == pytest.approx(0.775e-6)
+    with pytest.raises(ValueError):
+        grpo.lr_at(GRPOConfig(lr_schedule="cosine"), 0.0)  # no time budget to decay over
+    with pytest.raises(ValueError):
+        grpo.lr_at(GRPOConfig(lr_schedule="step"), 0.0)
+
+
+def test_run_with_lr_schedule_sets_and_logs_the_learning_rate(monkeypatch, tmp_path):
+    _patch_tiny_training(monkeypatch, tmp_path)
+    common = dict(model="tiny", group_size=2, prompts_per_step=1, max_new_tokens=4, max_steps=3, eval_every=10,
+                  eval_limit=1, kl_coef=0.0, no_save=True)
+    run(GRPOConfig(**common, lr_schedule="linear", time_budget_s=1e6, out_dir=str(tmp_path / "sched")))
+    rows = [json.loads(line) for line in (tmp_path / "sched" / "train_log.jsonl").read_text().splitlines()]
+    assert len(rows) == 3 and all(0.99e-6 < row["lr"] <= 1e-6 for row in rows)
+    run(GRPOConfig(**common, out_dir=str(tmp_path / "const")))
+    rows = [json.loads(line) for line in (tmp_path / "const" / "train_log.jsonl").read_text().splitlines()]
+    assert all("lr" not in row for row in rows)

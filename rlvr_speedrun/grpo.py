@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import platform
 import random
@@ -46,6 +47,11 @@ class GRPOConfig:
     vllm_gpu_memory: float = 0.3  # share of GPU memory given to the vLLM engine (weights + KV cache)
     adv_norm: str = "std"
     lr: float = 1e-6
+    # learning rate over training time (wall clock minus evals): a linear warmup over lr_warmup_s, then
+    # "constant", or a "cosine" / "linear" decay to lr * lr_final_frac at time_budget_s
+    lr_schedule: str = "constant"
+    lr_warmup_s: float = 0.0
+    lr_final_frac: float = 0.1
     kl_coef: float = 0.02
     # partial credit for well-formed wrong answers, up to this weight (see `partial_credit`); never searches for a solution
     shaping: float = 0.0
@@ -90,6 +96,23 @@ class GRPOConfig:
     master_fp32: bool = False
     out_dir: str = "runs/grpo"
     no_save: bool = False
+
+
+def lr_at(config: GRPOConfig, train_s: float) -> float:
+    """The learning rate after `train_s` seconds of training (`GRPOConfig.lr_schedule`)."""
+    if config.lr_schedule not in ("constant", "cosine", "linear"):
+        raise ValueError(f"unknown lr_schedule {config.lr_schedule!r} (expected 'constant', 'cosine' or 'linear')")
+    if config.lr_warmup_s > 0 and train_s < config.lr_warmup_s:
+        return config.lr * max(0.0, train_s) / config.lr_warmup_s
+    if config.lr_schedule == "constant":
+        return config.lr
+    if config.time_budget_s <= config.lr_warmup_s:
+        raise ValueError(f"lr_schedule {config.lr_schedule!r} needs time_budget_s > lr_warmup_s")
+    frac = min(1.0, (train_s - config.lr_warmup_s) / (config.time_budget_s - config.lr_warmup_s))
+    floor = config.lr * config.lr_final_frac
+    if config.lr_schedule == "cosine":
+        return floor + (config.lr - floor) * 0.5 * (1.0 + math.cos(math.pi * frac))
+    return config.lr - (config.lr - floor) * frac
 
 
 def _set_seed(seed: int, rank: int = 0) -> None:
@@ -734,6 +757,8 @@ def _save_state(state_path: Path, out_dir: Path, model, optimizer, mix_rng, devi
 def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
     """Train one seed; with `dist.world_size > 1` every rank calls this and only rank 0 writes `out_dir`."""
     _check_shardable(config, dist)
+    scheduled = config.lr_schedule != "constant" or config.lr_warmup_s > 0
+    lr_at(config, config.lr_warmup_s)  # fail on a bad schedule before loading anything
     _set_seed(config.seed, dist.rank)
     out_dir = Path(config.out_dir)
     if dist.is_main:
@@ -810,6 +835,9 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
                 u = mix_rng.random()
                 source = stream if u >= easy_frac else easy_streams[int(u >= easy_frac / 2)]
                 puzzles.append(next(source))
+            if scheduled:
+                for group in optimizer.param_groups:
+                    group["lr"] = lr_at(config, time.perf_counter() - start - eval_s)
             step_start = time.perf_counter()
             info = grpo_step(model, ref_model, tokenizer, dist.shard(puzzles), config, optimizer, device, caches, dist)
             if engine is not None:
@@ -825,6 +853,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
                                             "reward": r, "completion": text}) + "\n")
             info = {key: value for key, value in info.items() if key not in {"completions", "rewards", "puzzles"}}
             info.update({"step": step, "wall_s": elapsed, "train_s": elapsed - eval_s, "tokens/s": tokens / max(step_elapsed, 1e-9)})
+            if scheduled:
+                info["lr"] = optimizer.param_groups[0]["lr"]
             out_of_time = False
             if config.time_budget_s > 0:  # rank 0 decides so all ranks stop on the same step
                 flag = torch.tensor(float(dist.is_main and elapsed - eval_s >= config.time_budget_s), device=device)
