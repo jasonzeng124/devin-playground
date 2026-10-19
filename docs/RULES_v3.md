@@ -82,13 +82,14 @@ FineWeb-Edu are allowed (see "Both tracks: external data"), and no pilot has use
   pilot score, so the tokenizer is a real part of an entry.
 - The baseline uses two shards (`benchmark.V3_TRACK_D_SHARDS`, 1.72B tokens), prepared by
   `scripts/prepare_track_d_data.py`.
-- RL data: as in track A (generator puzzles and verifier verdicts only).
+- RL data: as in track A (generator puzzles, verifier verdicts and allowed public datasets).
 
 ### Both tracks: what counts as "verifier-only"
 
 Allowed: any RL algorithm, curriculum or training mix over generated puzzles; any sampler during
 training. Rewards and training signals may be any program or learned model whose only inputs are
-the model's own outputs, the puzzle and the verifier's verdicts. For example:
+the model's own outputs, the puzzle and the verifier's verdicts (or, for a problem from an allowed
+external dataset, that dataset's published answer). For example:
 - partial credit or process rewards, e.g. checking that the arithmetic the model writes
   (`7*3=21`) is correct;
 - learned value functions, critics or process reward models, trained from scratch (or from the
