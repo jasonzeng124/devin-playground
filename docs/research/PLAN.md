@@ -5,6 +5,10 @@ data allowed) and asked for a month of autonomous research: "just autoresearch f
 see what you get". This file is the plan and the operating rules; `LOG.md` is the dated lab
 notebook. Both live on branch `research/2026-10`.
 
+**Goal (maintainer, 2026-10-19): log the best records under the current rules, and run a record
+attempt for any substantial improvement.** Screens exist to find record candidates; the month is
+judged by records logged on the leaderboard, in either track.
+
 ## Operating rules
 
 - Compute: MIT Engaging only, at most **6 GPUs at once** (mit_normal_gpu allows 2 per user;
@@ -37,7 +41,10 @@ notebook. Both live on branch `research/2026-10`.
 
 An arm becomes a record attempt when its screen seeds show **mean dev >= the holder's dev mean
 + 0.03, at least 4 of 5 seeds above the holder's dev mean, and at most 1 collapsed seed**
-(holder dev means: A 0.240, D 0.119). Then: a record folder `records/v3/track_{a,d}/<NNN>_<slug>`
+(holder dev means: A 0.240, D 0.119). A 3-seed screen with every seed at least +0.03 above the
+holder's dev mean and none collapsed also qualifies (don't wait for seeds 4-5). A record run
+counts as a screen too: its seeds' dev logs feed the next decision. After a new record lands, it
+becomes the holder for later attempts. Then: a record folder `records/v3/track_{a,d}/<NNN>_<slug>`
 on this branch, N = 5 fixed in advance, `scripts/run_seed_v3.sh` (STAGE=all) on node2906-class
 H100s (`QUEUE=record`, `REQUIRE_GPU="NVIDIA H100 80GB HBM3"`, mit_normal_gpu), all 5 seeds
 reported, `validate_record_v3.py --compare-to <holder>`. No PR without the maintainer.
