@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-10-19 11:35 EDT.
+Updated 2026-10-19 12:05 EDT.
 
 ## Running
 
@@ -13,8 +13,11 @@ Updated 2026-10-19 11:35 EDT.
   1 preemptable + 6 mit_normal_gpu pending (2 run at a time), and 4 preemptable successors
   (26364066-69, each `afterany` on one of the 4 preemptable workers) that serve `r1:main` with
   `RUNNER=scripts/research/run_item.sh`, so they continue with `queue/main.txt` when r1 drains.
-- CPU job 26365155: DeepMind mathematics_dataset arithmetic modules -> `~/orcd/pool/data/dm_math`
-  (TinyLlama tokens, and mixes with FineWeb-Edu at math share 0.2 and 0.5) for track D (D2).
+- Queued after r1 (`queue/main.txt`): **r2 track D data screens** (D2), 3 seeds each:
+  `calibration/research_r2/d00_dm26` and `d00_dm51` = D 000 with its pretraining tokens mixed with
+  DeepMind mathematics_dataset arithmetic (26 % / 51 % of tokens; 0.299B unique math tokens in
+  `~/orcd/pool/data/dm_math`, prepared by CPU job 26365155 in 3 min). They pretrain their own
+  models (`run_seed_v3.sh STAGE=train` via `run_item.sh`; dev ladder only).
 - Engaging maintenance 2026-10-20 00:00-21:00 EDT: nothing runs. r1 should finish around
   2026-10-21 evening.
 

@@ -32,8 +32,9 @@ def _rows(path: Path) -> list[dict]:
 
 
 def seed_summary(arm: Path, seed: str) -> dict | None:
-    done = (arm / "seeds" / seed / "train_log.jsonl").exists()
-    src = arm / "seeds" / seed if done else CKPT / arm / "seeds" / seed
+    local = arm / "seeds" / seed  # screens copy their logs here when done; run_seed_v3.sh (track D pretraining) writes here as it runs
+    done = (local / "train_log.jsonl").exists() and ((local / "clock.json").exists() or not (local / "pretrain_log.jsonl").exists())
+    src = local if (local / "train_log.jsonl").exists() else CKPT / arm / "seeds" / seed
     train, evals = _rows(src / "train_log.jsonl"), _rows(src / "eval_log.jsonl")
     if not train or not evals:
         return None
