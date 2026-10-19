@@ -1,0 +1,8 @@
+{
+  "description": "Research r2 (dev only): D 000 record seeds scored on the dev ladder with the record sampler (constrained, think budget 0) at temperature 0.75.",
+  "model": "~/orcd/pool/rlvr-ckpts/records/v3/track_d/000_baseline/seeds/{seed}/final",
+  "temperature": 0.75,
+  "constrain": true,
+  "think_budget": 0,
+  "limit_per_level": 0
+}
