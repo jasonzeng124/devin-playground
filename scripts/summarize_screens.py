@@ -9,6 +9,8 @@ from the last training rows:
   one-guess  fewer than 10 of 64 groups informative (answers at once with one guess, little signal
              left; healthy runs keep 20-45)
   ok         anything else
+An arm with an eval.json (scripts/research/run_item.sh) is a dev-ladder sampler eval: one line per
+seed's dev_confirm.json (16 samples per puzzle, the reference scorer) and their mean.
 """
 
 from __future__ import annotations
@@ -55,9 +57,26 @@ def seed_summary(arm: Path, seed: str) -> dict | None:
             "ent": ent, "inf": inf, "mal": mal, "mode": mode, "at": [at(m) for m in (30, 60, 120, 180, 240)]}
 
 
+def eval_arm(arm: Path) -> None:
+    done = sorted((p for p in (arm / "seeds").glob("*/dev_confirm.json")), key=lambda p: int(p.parent.name))
+    scores = []
+    for path in done:
+        r = json.loads(path.read_text())
+        scores.append(r["ladder_score"])
+        levels = " ".join(f"{v:.3f}" for v in r["pass@1_by_level"].values())
+        print(f"  {arm.name[:34]:34} s{path.parent.name} dev16 {r['ladder_score']:.4f} pass@16 {r['pass@16']:.3f} "
+              f"tokens {r['mean_tokens']:4.0f} trunc {r['truncated']:.3f} | {levels}")
+    if scores:
+        sd = statistics.stdev(scores) if len(scores) > 1 else 0.0
+        print(f"= {arm.name:36} n={len(scores)} dev16 {statistics.mean(scores):.4f} ± {sd:.4f}")
+
+
 def main(args: list[str]) -> None:
     for a in args:
         arm = Path(a.rstrip("/"))
+        if (arm / "eval.json").exists():
+            eval_arm(arm)
+            continue
         seeds_dir = arm / "seeds"
         names = {p.name for p in seeds_dir.iterdir() if p.is_dir() and p.name.isdigit()} if seeds_dir.exists() else set()
         ck = CKPT / arm / "seeds"

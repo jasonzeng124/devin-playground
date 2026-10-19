@@ -10,4 +10,4 @@ mkdir -p "$HOME/rlvr-screens/agent"
 echo "$(date -Is) starting research agent" >> "$HOME/rlvr-screens/agent/starts.log"
 PROMPT='/loop Autoresearch on RLVR v3 until 2026-11-19. Read docs/research/AGENT.md in full first and follow its hard rules; each wake, do its "Each wake" steps. Keep quiet wakes short.'
 tmux new-session -d -s research -c "$HOME/rlvr-screens" \
-  "$HOME/.local/bin/claude --model opus --effort max --permission-mode auto -n research \"$PROMPT\"; sleep 600"
+  "$HOME/.local/bin/claude --model opus --effort max --permission-mode auto -n research $(printf %q "$PROMPT"); sleep 600"

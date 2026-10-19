@@ -1,5 +1,6 @@
 #!/bin/bash
-# Work-queue worker: pops "<record dir> <seed>" lines from ~/rlvr/queue/$QUEUE.txt and runs each
+# Work-queue worker: pops "<record dir> <seed>" lines from ~/rlvr/queue/$QUEUE.txt (QUEUE=a:b: from a.txt
+# while it has lines, then b.txt) and runs each
 # with scripts/run_seed.sh until the queue is empty (or the job's time is nearly up). Submit as
 # many workers as the per-user GPU limits allow; they share the queue under flock.
 #
@@ -36,14 +37,14 @@ export PYTHON=python DEVICE=cuda PYTORCH_CUDA_ALLOC_CONF=expandable_segments:Tru
 export HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}  # models are pre-downloaded on the login node; the Hub API times out
 export CKPT_DIR=${CKPT_DIR:-$HOME/orcd/pool/rlvr-ckpts}  # checkpoints (~1 GB each) go to the 1 TB pool, not ~/rlvr
 Q="${RLVR_DIR:-$HOME/rlvr}/queue"
-QUEUE=${QUEUE:-pending}
+QUEUE=${QUEUE:-pending}  # one queue name, or several separated by colons: each item comes from the first non-empty one
 RESERVE_MIN=${RESERVE_MIN:-90}  # do not start an item with less than this much job time left
 mkdir -p "$Q/running"
 log() { echo "$(date -u +%FT%TZ) worker $SLURM_JOB_ID ($QUEUE): $*" | tee -a "$Q/worker.log"; }
 gpu=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)
 if [[ -n "${REQUIRE_GPU:-}" && "$gpu" != "$REQUIRE_GPU" ]]; then
   log "got $gpu on $(hostname), need $REQUIRE_GPU; exiting"
-  [[ -s "$Q/running/$SLURM_JOB_ID" ]] && flock "$Q/lock" bash -c 'cat "$0" - <"$1" >"$1.new" && mv "$1.new" "$1"' "$Q/running/$SLURM_JOB_ID" "$Q/$QUEUE.txt"
+  [[ -s "$Q/running/$SLURM_JOB_ID" ]] && flock "$Q/lock" bash -c 'cat "$0" - <"$1" >"$1.new" && mv "$1.new" "$1"' "$Q/running/$SLURM_JOB_ID" "$Q/${QUEUE%%:*}.txt"
   rm -f "$Q/running/$SLURM_JOB_ID"
   exit 1
 fi
@@ -56,7 +57,14 @@ minutes_left() {  # squeue %L is [D-]HH:MM:SS, MM:SS or UNLIMITED
   case ${#p[@]} in 3) h=${p[0]} m=${p[1]} ;; 2) m=${p[0]} ;; esac
   echo $(( 10#$d * 1440 + 10#$h * 60 + 10#$m ))
 }
-pop() { flock "$Q/lock" bash -c 'head -1 "$0"; sed -i 1d "$0"' "$Q/$QUEUE.txt"; }
+pop() {
+  local q item
+  for q in ${QUEUE//:/ }; do
+    [[ -s "$Q/$q.txt" ]] || continue
+    item=$(flock "$Q/lock" bash -c 'head -1 "$0"; sed -i 1d "$0"' "$Q/$q.txt")
+    [[ -n "$item" ]] && { echo "$item"; return; }
+  done
+}
 
 while true; do
   item=$(cat "$Q/running/$SLURM_JOB_ID" 2>/dev/null)
