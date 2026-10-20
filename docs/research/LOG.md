@@ -232,3 +232,36 @@ Slurm's estimate for our workers ~22:45 EDT).
   Reinforcement in LLM Reasoning"). Reinforcing sampled solutions narrows the policy, which is
   how one-guess collapse starts; pushing away from failures spreads probability over the
   alternatives. `c90_pos01` (4 seeds, 90 min) sits beside the other three in `long`.
+
+## 2026-10-20 (night): A 001's dev curves were still climbing; a01_skip seeds 0-2 moved first
+
+Still no GPU time: the four workers that started at 13:46 were preempted after 15-17 min, and
+Slurm's estimate for our next start is ~01:55 (2,652 jobs pending on mit_preemptable).
+
+Meanwhile, A 001's in-loop dev curves (greedy, 600 dev puzzles) from its record logs, with the
+training minutes in brackets:
+
+| seed | step 600 | step 800 | step 900 | end (290 min) | steps |
+|---|---|---|---|---|---|
+| 0 | 0.087 (137) | 0.197 (206) | 0.218 (247) | 0.203 (0.240 at step 1050) | 1068 |
+| 1 | 0.088 (138) | 0.140 (199) | 0.192 (236) | 0.237 | 1036 |
+| 2, one-guess | 0.133 (89) | 0.143 (110) | 0.145 (120) | 0.193 | 2514 |
+| 3 | 0.100 (142) | 0.163 (211) | 0.225 (252) | 0.268 | 989 |
+| 4 | 0.115 (150) | 0.210 (223) | 0.262 (262) | 0.300 | 970 |
+
+In plain words: every healthy seed sits at 0.06-0.09 for its first ~600 steps (~140 min). It then
+gains 0.12-0.19 over its last ~400 steps, until the budget stops it. Seeds 1, 3 and 4 are still
+rising at the end; seed 0 is noisy around 0.19-0.24 over its last 170 steps. The holder's dev
+number (0.240) is the mean of these final values, so it is set by how many steps fit in 290 min.
+`skip_zero_advantage` leaves each step's update unchanged and should fit 1.6-2.1x more steps
+(estimated from A 001's step times). That makes a01_skip the likeliest A record, unless collapse
+gets more frequent with it (seed 2 went one-guess by step ~350 and stayed at 0.14-0.19). In-loop
+evals cost 7-9 s each and are outside the budget, so more steps do not stretch a screen much.
+
+- `main` reordered: a01_skip seeds 0-2 and a01_fp32_lr1e-6_skip_cos seed 0 first, then the fp32
+  arm's seeds 1-2 and d00_fp32_lr3e-6_skip seeds 0-2, then seeds 3-4. a01_skip's 3-seed promotion
+  check then comes with the first wave (~12:00 on 10-21, if the workers start as estimated), not
+  the second. d00_fp32_lr3e-6_skip waits one wave. That costs little, because it only matters
+  once a D record exists.
+- Asked the maintainer (QUESTIONS.md) whether AWS may also run a01_skip's dev screens while
+  Engaging is this congested; the approval so far covers record attempts.

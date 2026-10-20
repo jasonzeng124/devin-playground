@@ -6,13 +6,13 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-20 17:15 EDT.
+Updated 2026-10-20 18:25 EDT.
 
 ## Running
 
 - Nothing runs yet: Engaging is crowded after its maintenance (ended ~13:45 EDT). The 4
-  preemptable workers started at 13:46, were all preempted within 15-25 min and requeued; each
-  redoes its item when it restarts (`queue/running/<job>`).
+  preemptable workers started at 13:46 and were preempted after 15-17 min (one restarted at 14:07,
+  preempted after 6 min); each redoes its item when it restarts (`queue/running/<job>`).
 - Workers: 6 preemptable (26424658-61 and, since 17:03, 26450849-50; 2-day limit), all pending on
   priority. 26424658-59 take `long` first, the others `r1` then `main`. The 6 mit_normal_gpu workers
   (26424662-67, `r1:main`, one item each) now wait for 26450849-50 to end (`afterany`). Slurm put
@@ -23,8 +23,9 @@ Updated 2026-10-20 17:15 EDT.
   - `r1`: track D sampler evals first (~1 min each: the fp32 screen's seed 0 weights at T 1.0 /
     0.5 / 0.25, D 000's seeds at T 0.25), so a D record's sampler is chosen on its own weights; then
     d00_fp32_lr3e-6 seeds 3-4 (seeds 1-2 in flight; a 5-seed D screen with seed 0).
-  - `main` (15, r2): a01_skip, a01_fp32_lr1e-6_skip_cos, d00_fp32_lr3e-6_skip seeds 0-2
-    (interleaved), then seeds 3-4 of each, dropped if seeds 0-2 rule an arm out.
+  - `main` (15, r2): a01_skip seeds 0-2 and a01_fp32_lr1e-6_skip_cos seed 0 first (one wave, so
+    a01_skip's 3-seed promotion check comes ~5.5 h sooner), then that arm's seeds 1-2 and
+    d00_fp32_lr3e-6_skip seeds 0-2, then seeds 3-4 of each, dropped if seeds 0-2 rule an arm out.
   - `long` (preemptable workers only; 30): d00_dm26 / d00_dm51 seed 0 (in flight), then r3 collapse
     screens (`calibration/research_r3/c90_*`, 90 min: malformed reward 0, T 1.2, Clip-Cov,
     positive advantages x 0.1) seeds 0-1, D2 seeds 1, collapse seeds 2-3, D2 seeds 2, then sampler
@@ -44,9 +45,11 @@ T 1.0 on all 10 holder seeds (+0.0085 A, +0.0024 D); record attempts use T 0.5.
 
 ## Next
 
-- Slurm's estimate (17:00) for the preemptable workers: ~22:45 tonight (preemptable H100s are
-  full: 2342 jobs pending). If all 6 start then: d00_fp32_lr3e-6 seeds 1-4 together (~03:15, the
-  D promotion decision), D2 seed 0s ~05:00, first collapse screens ~06:45, first r2 A screens ~08:30.
+- Slurm's estimate (18:20, with the workers' 8 CPUs / 64 GB) for the preemptable workers: ~01:55
+  tonight (2,652 jobs pending). If all 6 start then: d00_fp32_lr3e-6 seeds 1-4 ~06:30 (the D
+  promotion decision), D2 seed 0s ~08:10, first collapse screens ~10:00, a01_skip seeds 0-2 ~12:00
+  (its 3-seed promotion check).
+- Open question (QUESTIONS.md): may AWS run a01_skip's dev screens while Engaging is congested?
 - When d00_fp32_lr3e-6 seeds 1-4 are in: if seeds 0-4 meet the promotion rule, commit the D
   record config (D 000's pretraining + fp32 RL at lr 3e-6, sampler T 0.5) and flag it above.
 - About 6 h after the long workers start: first D2 pretraining screens (dm26 / dm51 seed 0); then
