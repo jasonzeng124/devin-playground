@@ -127,3 +127,25 @@ Decisions:
   (2026-10-20 21:00 EDT), 4 preemptable workers (2 take `long` first, 2 take r1 then main;
   RESERVE_MIN 380 so a 6 h item never starts too late) and 6 mit_normal_gpu workers (r1 then
   main, one item each, 2 at a time).
+
+## 2026-10-19 (late): sampler temperature on the holders' weights
+
+The record seeds' final weights scored on the whole dev ladder (2400 puzzles, 16 samples, the
+record sampler: constrained, think budget 0) at three temperatures (`calibration/research_r2/samp_*`):
+
+| | T | seed 0 | 1 | 2 | 3 | 4 | mean | pass@16 |
+|---|---|---|---|---|---|---|---|---|
+| A 001 | 1.0 | 0.2202 | 0.2495 | 0.1886 | 0.2705 | 0.3031 | 0.2464 | 0.471 |
+| A 001 | 0.75 | 0.2224 | 0.2593 | 0.1889 | 0.2805 | 0.3070 | 0.2516 | 0.458 |
+| A 001 | 0.5 | 0.2235 | 0.2676 | 0.1892 | 0.2855 | 0.3087 | 0.2549 | 0.432 |
+| D 000 | 1.0 | 0.0896 | 0.1356 | 0.1060 | 0.1205 | 0.1111 | 0.1126 | 0.160 |
+| D 000 | 0.75 | 0.0915 | 0.1385 | 0.1072 | 0.1220 | 0.1120 | 0.1142 | 0.151 |
+| D 000 | 0.5 | 0.0925 | 0.1396 | 0.1073 | 0.1230 | 0.1125 | 0.1150 | 0.141 |
+
+What it means:
+- T 0.5 beats T 1.0 on all 10 seeds, by +0.0085 on average for A 001 (+0.0007 to +0.018) and
+  +0.0024 for D 000. The gain is largest on A 001's healthy-search seeds 1 and 3, whose outputs
+  grow longer at low temperature (truncation at 1024 tokens rises to 4-8 %) and still score higher.
+  A free, small gain: later record attempts will use T 0.5 unless their own dev check says otherwise.
+- Dev at T 1.0 matches the record seeds' test scores closely (A 001: 0.220 / 0.250 / 0.189 / 0.271 /
+  0.303 against test 0.224 / 0.252 / 0.186 / 0.272 / 0.306), so the dev ladder is a faithful proxy.

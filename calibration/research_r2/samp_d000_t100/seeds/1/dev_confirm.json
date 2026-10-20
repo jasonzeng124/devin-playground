@@ -1,0 +1,25 @@
+{
+ "benchmark_version": 3,
+ "model": "/home/zjason/orcd/pool/rlvr-ckpts/records/v3/track_d/000_baseline/seeds/1/final",
+ "test_set": "data/ladder_v3_dev.jsonl",
+ "n_puzzles": 2400,
+ "samples_per_puzzle": 16,
+ "sampler": {
+  "temperature": 1.0,
+  "constrain": true,
+  "think_budget": 0,
+  "max_new_tokens": 1024
+ },
+ "ladder_score": 0.135625,
+ "pass@1_by_level": {
+  "L1": 0.4803125,
+  "L2": 0.11609375,
+  "L3": 0.0,
+  "L4": 0.04109375,
+  "L5": 0.00875,
+  "L6": 0.1675
+ },
+ "pass@16": 0.19833333333333333,
+ "truncated": 0.0,
+ "mean_tokens": 24.87322916666667
+}
