@@ -6,14 +6,14 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-20 17:40 EDT.
+Updated 2026-10-20 17:15 EDT.
 
 ## Running
 
 - Nothing runs yet: Engaging is crowded after its maintenance (ended ~13:45 EDT). The 4
   preemptable workers started at 13:46, were all preempted within 15-25 min and requeued; each
   redoes its item when it restarts (`queue/running/<job>`).
-- Workers: 6 preemptable (26424658-61 and, since 17:30, 26450849-50; 2-day limit), all pending on
+- Workers: 6 preemptable (26424658-61 and, since 17:03, 26450849-50; 2-day limit), all pending on
   priority. 26424658-59 take `long` first, the others `r1` then `main`. The 6 mit_normal_gpu workers
   (26424662-67, `r1:main`, one item each) now wait for 26450849-50 to end (`afterany`). Slurm put
   their first start at 2026-10-23 07:30 (one 4-GPU H100 node in that partition), so their two
@@ -44,7 +44,7 @@ T 1.0 on all 10 holder seeds (+0.0085 A, +0.0024 D); record attempts use T 0.5.
 
 ## Next
 
-- Slurm's estimate (17:30) for the preemptable workers: ~22:45 tonight (preemptable H100s are
+- Slurm's estimate (17:00) for the preemptable workers: ~22:45 tonight (preemptable H100s are
   full: 2342 jobs pending). If all 6 start then: d00_fp32_lr3e-6 seeds 1-4 together (~03:15, the
   D promotion decision), D2 seed 0s ~05:00, first collapse screens ~06:45, first r2 A screens ~08:30.
 - When d00_fp32_lr3e-6 seeds 1-4 are in: if seeds 0-4 meet the promotion rule, commit the D
