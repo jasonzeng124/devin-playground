@@ -75,7 +75,7 @@ while true; do
     echo "$item" >"$Q/running/$SLURM_JOB_ID"
   fi
   read -r record seed <<<"$item"
-  if [[ -f "$record/seeds/$seed/train_log.jsonl" ]]; then
+  if [[ -f "$record/seeds/$seed/train_log.jsonl" || -f "$record/seeds/$seed/pretrain_log.jsonl" ]]; then  # pretrain_log alone: stopped between track D stages
     n=$(ls -d "$record/extra/interrupted_${seed}_"* 2>/dev/null | wc -l)
     mkdir -p "$record/extra" && mv "$record/seeds/$seed" "$record/extra/interrupted_${seed}_$((n + 1))"
     log "restarting $record $seed; partial run kept under extra/"
