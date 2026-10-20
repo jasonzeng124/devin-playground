@@ -46,6 +46,9 @@ class GRPOConfig:
     rollout_backend: str = "hf"  # "hf" (model.generate) or "vllm" (colocated engine; rlvr_speedrun/vllm_rollout.py)
     vllm_gpu_memory: float = 0.3  # share of GPU memory given to the vLLM engine (weights + KV cache)
     adv_norm: str = "std"
+    # multiplies the positive advantages (W-REINFORCE, Zhu et al. 2025): below 1 damps the push toward sampled
+    # solutions, which narrows the policy, and keeps the push away from failures; 1 = unchanged
+    pos_adv_scale: float = 1.0
     lr: float = 1e-6
     # learning rate over training time (wall clock minus evals): a linear warmup over lr_warmup_s, then
     # "constant", or a "cosine" / "linear" decay to lr * lr_final_frac at time_budget_s
@@ -281,17 +284,20 @@ def select_groups(rewards: torch.Tensor, keep: int) -> torch.Tensor:
     return torch.argsort(score, descending=True, stable=True)[:keep]
 
 
-def group_advantages(groups: torch.Tensor, adv_norm: str) -> torch.Tensor:
+def group_advantages(groups: torch.Tensor, adv_norm: str, pos_scale: float = 1.0) -> torch.Tensor:
     """Group-relative advantages: `std` is GRPO's per-group z-score, `none` is the
     Dr. GRPO variant (mean-centred only), which removes the difficulty bias that
-    up-weights groups where only one or two samples disagree with the rest."""
+    up-weights groups where only one or two samples disagree with the rest.
+    `pos_scale` then multiplies the positive ones (`GRPOConfig.pos_adv_scale`)."""
     centred = groups - groups.mean(dim=1, keepdim=True)
     if adv_norm == "none":
-        return centred
-    if adv_norm != "std":
+        adv = centred
+    elif adv_norm == "std":
+        stds = groups.std(dim=1, unbiased=False, keepdim=True)
+        adv = torch.where(stds > 0, centred / (stds + 1e-4), torch.zeros_like(centred))
+    else:
         raise ValueError(f"unknown adv_norm {adv_norm!r} (expected 'std' or 'none')")
-    stds = groups.std(dim=1, unbiased=False, keepdim=True)
-    return torch.where(stds > 0, centred / (stds + 1e-4), torch.zeros_like(centred))
+    return adv if pos_scale == 1.0 else torch.where(adv > 0, pos_scale * adv, adv)
 
 
 _SPLIT_IS_EXACT: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
@@ -536,7 +542,7 @@ def grpo_step(
         completions = [completions[r] for r in row_list]
         expanded = [expanded[r] for r in row_list]
     groups = rewards.reshape(kept.shape[0], config.group_size)
-    advantages = group_advantages(groups, config.adv_norm).reshape(-1)
+    advantages = group_advantages(groups, config.adv_norm, config.pos_adv_scale).reshape(-1)
 
     allowed = _allowed_tokens(tokenizer, generated, attention, prompt_width, expanded, config.think_budget) if config.constrain_answer else None
     loss, kl, entropy_total, token_count = _update(
@@ -772,6 +778,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
     _check_shardable(config, dist)
     if config.skip_zero_advantage and (config.kl_coef != 0 or config.cov_clip_frac > 0 or dist.world_size > 1):
         raise ValueError("skip_zero_advantage needs kl_coef == 0, cov_clip_frac == 0 and one process (only then do the skipped rows carry no gradient)")
+    if config.pos_adv_scale < 0:
+        raise ValueError(f"pos_adv_scale must be >= 0, got {config.pos_adv_scale}")
     scheduled = config.lr_schedule != "constant" or config.lr_warmup_s > 0
     lr_at(config, config.lr_warmup_s)  # fail on a bad schedule before loading anything
     _set_seed(config.seed, dist.rank)

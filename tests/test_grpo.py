@@ -252,6 +252,16 @@ def test_group_advantages_std_and_none():
         grpo.group_advantages(groups, "bogus")
 
 
+def test_pos_scale_damps_only_positive_advantages():
+    groups = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], [-0.1, 0.0, 0.0, 1.0]])
+    for norm in ("none", "std"):
+        plain = grpo.group_advantages(groups, norm)
+        damped = grpo.group_advantages(groups, norm, pos_scale=0.1)
+        assert torch.allclose(damped, torch.where(plain > 0, 0.1 * plain, plain))
+        assert torch.equal(grpo.group_advantages(groups, norm, pos_scale=1.0), plain)
+    assert torch.allclose(grpo.group_advantages(groups, "none", pos_scale=0.1)[0], torch.tensor([0.075, -0.25, -0.25, -0.25]))
+
+
 class CharTokenizer(TinyTokenizer):
     """Exact per-character tokenizer, so prefix/suffix tokenization concatenates cleanly."""
 
