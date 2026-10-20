@@ -6,15 +6,18 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-20 16:00 EDT.
+Updated 2026-10-20 17:40 EDT.
 
 ## Running
 
-- Engaging's maintenance ended early (~13:45 EDT). The 4 preemptable workers started at 13:46,
-  were all preempted within 15-25 min and requeued; each redoes its item when it restarts
-  (`queue/running/<job>`). All 10 workers are pending on priority in the post-maintenance rush:
-  4 preemptable (26424658-61; 2 take `long` first, 2 take `r1` then `main`; 2-day limit) and 6
-  mit_normal_gpu (26424662-67, `r1:main`, one item each, 2 at a time). All use
+- Nothing runs yet: Engaging is crowded after its maintenance (ended ~13:45 EDT). The 4
+  preemptable workers started at 13:46, were all preempted within 15-25 min and requeued; each
+  redoes its item when it restarts (`queue/running/<job>`).
+- Workers: 6 preemptable (26424658-61 and, since 17:30, 26450849-50; 2-day limit), all pending on
+  priority. 26424658-59 take `long` first, the others `r1` then `main`. The 6 mit_normal_gpu workers
+  (26424662-67, `r1:main`, one item each) now wait for 26450849-50 to end (`afterany`). Slurm put
+  their first start at 2026-10-23 07:30 (one 4-GPU H100 node in that partition), so their two
+  slots go to preemptable workers until then, and the 6-GPU cap holds. All use
   `RUNNER=scripts/research/run_item.sh`.
 - Queues, in order (in-flight items are in `queue/running/`):
   - `r1`: d00_fp32_lr3e-6 seeds 1-2 (in flight), then seeds 3-4 (5-seed D screen with seed 0).
@@ -38,16 +41,16 @@ T 1.0 on all 10 holder seeds (+0.0085 A, +0.0024 D); record attempts use T 0.5.
 
 ## Next
 
-- Slurm's estimates (16:00): preemptable H100 jobs start ~21:20 tonight; the mit_normal_gpu
-  workers from 2026-10-21 03:30 (that partition has one 4-GPU H100 node; new H100 or H200 jobs
-  there would wait until ~10-22 15:30). Expected: d00_fp32_lr3e-6 seeds 1-2 ~01:30, seeds 3-4
-  ~05:30, D2 seed 0s ~03:30, first collapse screens ~05:00-08:00, first r2 A screens ~09:00-10:30.
-- About 4 h after the r1 workers start: d00_fp32_lr3e-6 seeds 1-2. If seeds 0-4 meet the promotion
-  rule, commit the D record config (D 000's pretraining + fp32 RL at lr 3e-6) and flag it above.
+- Slurm's estimate (17:30) for the preemptable workers: ~22:45 tonight (preemptable H100s are
+  full: 2342 jobs pending). If all 6 start then: d00_fp32_lr3e-6 seeds 1-4 together (~03:15, the
+  D promotion decision), D2 seed 0s ~05:00, first collapse screens ~06:45, first r2 A screens ~08:30.
+- When d00_fp32_lr3e-6 seeds 1-4 are in: if seeds 0-4 meet the promotion rule, commit the D
+  record config (D 000's pretraining + fp32 RL at lr 3e-6, sampler T 0.5) and flag it above.
 - About 6 h after the long workers start: first D2 pretraining screens (dm26 / dm51 seed 0); then
   the collapse screens (~1.7 h each). A collapse fix that keeps 4 of 4 seeds healthy at step 300
   (length >= 100 tokens, informative >= 15) goes into a full 5-h screen with skip + cosine.
-- Before ~2026-10-22 evening: successors for the preemptable workers (2-day limit from their start).
+- Before ~2026-10-22 evening: successors for the first 4 preemptable workers (2-day limit from
+  their start); the mit_normal_gpu workers follow 26450849-50.
 
 ## Notes
 
