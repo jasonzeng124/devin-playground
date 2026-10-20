@@ -38,6 +38,10 @@ T 1.0 on all 10 holder seeds (+0.0085 A, +0.0024 D); record attempts use T 0.5.
 
 ## Next
 
+- Slurm's estimates (16:00): preemptable H100 jobs start ~21:20 tonight; the mit_normal_gpu
+  workers from 2026-10-21 03:30 (that partition has one 4-GPU H100 node; new H100 or H200 jobs
+  there would wait until ~10-22 15:30). Expected: d00_fp32_lr3e-6 seeds 1-2 ~01:30, seeds 3-4
+  ~05:30, D2 seed 0s ~03:30, first collapse screens ~05:00-08:00, first r2 A screens ~09:00-10:30.
 - About 4 h after the r1 workers start: d00_fp32_lr3e-6 seeds 1-2. If seeds 0-4 meet the promotion
   rule, commit the D record config (D 000's pretraining + fp32 RL at lr 3e-6) and flag it above.
 - About 6 h after the long workers start: first D2 pretraining screens (dm26 / dm51 seed 0); then
