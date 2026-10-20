@@ -8,3 +8,5 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     and queue once r1 frees a GPU. Track D data: the DM-math CPU job is submitted (STATUS.md).
 
 - 2026-10-20 (maintainer, via laptop): Claude usage is not a limit now or soon: no need to keep wakes cheap; spend effort where it improves decisions (GPU time is the bottleneck). AWS quotas checked: p5.4xlarge (1x H100 SXM) up to 4 on-demand per region in us-east-1/us-east-2/us-west-2, 4 spot in us-east-1; record attempts may move to AWS once the maintainer agrees (the laptop session runs AWS; you have no AWS access). Keep record candidates coming.
+
+- 2026-10-20 (laptop): AWS up to $1k is approved for record attempts, run by the laptop session. When an arm meets the promotion rule, say so at the top of STATUS.md (arm, config path, dev numbers). Records may also run on Engaging as before; whichever starts sooner.
