@@ -149,3 +149,65 @@ What it means:
   A free, small gain: later record attempts will use T 0.5 unless their own dev check says otherwise.
 - Dev at T 1.0 matches the record seeds' test scores closely (A 001: 0.220 / 0.250 / 0.189 / 0.271 /
   0.303 against test 0.224 / 0.252 / 0.186 / 0.272 / 0.306), so the dev ladder is a faithful proxy.
+
+## 2026-10-20: when track A runs collapse (logs of the 19 runs so far); r3 queued
+
+Engaging's maintenance ended early (~13:45 EDT); the four preemptable workers started, were all
+preempted within 25 min and wait in the queue again, so no new results. Meanwhile, from the train
+logs of every track A run (A 001's seeds, w42, r1 seed 0s): mean completion length (tokens per
+sample, from `tokens/s` and the step time), entropy and informative groups by training step.
+
+| run | len @ step 100 | 200 | 300 | entropy @ 300 | informative @ 300 | dev final | mode |
+|---|---|---|---|---|---|---|---|
+| A 001 s0 | 94 | 104 | 132 | 0.63 | 16 | 0.203 | ok |
+| A 001 s1 | 100 | 127 | 146 | 0.68 | 18 | 0.237 | ok |
+| A 001 s2 | 87 | 54 | 38 | 0.19 | 15 | 0.193 | one-guess |
+| A 001 s3 | 131 | 135 | 135 | 0.68 | 18 | 0.268 | ok |
+| A 001 s4 | 123 | 129 | 160 | 0.68 | 17 | 0.300 | ok |
+| w42 a01 nc s0 | 45 | 44 | 45 | 0.03 | 6 | 0.157 | one-guess |
+| w42 a01 nc s1 | 90 | 47 | 43 | 0.06 | 11 | 0.158 | one-guess |
+| w42 a01 nc s2 | 135 | 143 | 276 | 0.26 | 21 | 0.282 | ok |
+| w42 a01 nc s3 | 113 | 45 | 46 | 0.07 | 12 | 0.163 | one-guess |
+| w42 a01 nc s4 | 111 | 123 | 174 | 0.33 | 19 | 0.227 | ok |
+| w42 a01 fp32 4e-6 s0 | 21 | 32 | 34 | 0.07 | 6 | 0.172 | one-guess |
+| w42 a01 fp32 4e-6 s1 | 619 | 700 | 20 | 0.25 | 9 | 0.000 | diverged |
+| w42 a01 fp32 4e-6 s2 | 21 | 20 | 69 | 0.43 | 9 | 0.170 | one-guess |
+| w42 a01 fp32 4e-6 s3 | 370 | 126 | 40 | 0.14 | 13 | 0.000 | diverged |
+| w42 a01 fp32 4e-6 s4 | 44 | 26 | 22 | 0.10 | 5 | 0.190 | one-guess |
+| r1 fp32 2e-6 s0 | 189 | 501 | 546 | 0.03 | 17 | 0.062 | one-guess (late) |
+| r1 fp32 1e-6 s0 | 49 | 114 | 429 | 0.07 | 20 | 0.290 | ok |
+| r1 fp32 1e-6 s0 (1st attempt) | 40 | 38 | 38 | 0.05 | 6 | 0.188 | one-guess |
+| r1 fp32 5e-7 s0 | 85 | 70 | 29 | 0.25 | 14 | 0.222 | one-guess |
+
+What it means:
+- **One-guess collapse is decided early, by step ~200-300 (30-60 min).** Every run starts long
+  (300-550 tokens, 30-55 % malformed while it learns the format) and shortens. Healthy runs stop
+  at ~100-140 tokens and then grow (300-600 tokens by 2-4 h: they list candidates and check them);
+  one-guess runs keep shortening to 20-60 tokens and never come back. At step 300 the two groups
+  don't overlap in length (>= 130 vs <= 69), and no run that was short at step 300 recovered.
+- fp32 master weights cut entropy much faster (0.15-0.2 at 30 min against 0.65-0.75 for A 001 in
+  bf16), so the length dip is deeper (~50 tokens at step 100 for both lr 1e-6 attempts); whether
+  the run then regrows looks like chance (same seed, opposite outcomes). Lowering the lr to 5e-7
+  only delays the dip. Late failures are a separate, high-lr problem (lr 2e-6, 4e-6).
+- A cheap test follows: a collapse-prevention change can be judged from 90-min runs (the length,
+  entropy and informative groups at the end) instead of 5-h runs.
+
+Queue changes (GPU time is the bottleneck, INBOX 2026-10-20):
+- Dropped `a01_fp32_lr1e-6` seeds 1-2 (r1) and r2's `_cos` / `_mal0` arms (no skipping): with
+  `skip_zero_advantage` the optimizer step is the same, so r2's `a01_fp32_lr1e-6_skip_cos` seeds
+  give the same early-collapse evidence and also test the full candidate. Listed in
+  `queue/{r1,main}_dropped_2026-10-20.txt`.
+- r3 collapse screens (`calibration/research_r3/c90_*`, 4 seeds each, 90 training minutes, fp32
+  lr 1e-6, constant lr): malformed reward 0 (`c90_mal0`, skipping), training temperature 1.2
+  (`c90_t12`, skipping), Clip-Cov on 0.1 % of tokens (`c90_cc1e-3`, no skipping). KL to the base
+  model is left out: fp32 runs already use ~79 of 80 GB, and the reference model needs ~3.4 GB more.
+  The baseline is r2's skip_cos seeds (identical per step for the first hour) plus r1's two attempts.
+- r3 sampler evals on the holders' weights: A 001 at T 0.5 with a think budget of 960 (A 001's
+  long-search seed 1 truncates 7.9 % of its samples at T 0.5, and a truncated sample scores 0),
+  A 001 at T 0.25, D 000 at T 0.25.
+- The short items sit in `queue/long.txt`, which only the preemptable workers serve: a 90-min item
+  would end a mit_normal_gpu worker early (RESERVE_MIN 330 of its 6 h). Order: collapse seeds 0-1,
+  D2 seeds 1, collapse seeds 2-3, D2 seeds 2, evals. `main` holds r2's 9 skip items; `r1` holds
+  d00_fp32_lr3e-6 seeds 3-4 (seeds 1-2 in flight).
+- Also noted: the in-loop dev eval (the promotion rule's "dev") is greedy decoding on 600 dev
+  puzzles (100 per level), not 16 samples; the sampler evals use the whole dev ladder.
