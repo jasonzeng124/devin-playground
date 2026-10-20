@@ -25,9 +25,10 @@ Updated 2026-10-20 17:40 EDT.
     d00_fp32_lr3e-6 seeds 3-4 (seeds 1-2 in flight; a 5-seed D screen with seed 0).
   - `main` (15, r2): a01_skip, a01_fp32_lr1e-6_skip_cos, d00_fp32_lr3e-6_skip seeds 0-2
     (interleaved), then seeds 3-4 of each, dropped if seeds 0-2 rule an arm out.
-  - `long` (preemptable workers only; 26): d00_dm26 / d00_dm51 seed 0 (in flight), then r3 collapse
-    screens (`calibration/research_r3/c90_*`, 90 min) seeds 0-1, D2 seeds 1, collapse seeds 2-3,
-    D2 seeds 2, then sampler evals on A 001's weights (T 0.5 + think budget 960; T 0.25).
+  - `long` (preemptable workers only; 30): d00_dm26 / d00_dm51 seed 0 (in flight), then r3 collapse
+    screens (`calibration/research_r3/c90_*`, 90 min: malformed reward 0, T 1.2, Clip-Cov,
+    positive advantages x 0.1) seeds 0-1, D2 seeds 1, collapse seeds 2-3, D2 seeds 2, then sampler
+    evals on A 001's weights (T 0.5 + think budget 960; T 0.25).
   - Dropped 2026-10-20 (LOG): a01_fp32_lr1e-6 seeds 1-2, r2's `_cos` / `_mal0` arms.
 - Preemption: screens on mit_preemptable save resumable state hourly (a1e4502). D2 items
   (`run_seed_v3.sh`) do not resume.

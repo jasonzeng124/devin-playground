@@ -211,3 +211,24 @@ Queue changes (GPU time is the bottleneck, INBOX 2026-10-20):
   d00_fp32_lr3e-6 seeds 3-4 (seeds 1-2 in flight).
 - Also noted: the in-loop dev eval (the promotion rule's "dev") is greedy decoding on 600 dev
   puzzles (100 per level), not 16 samples; the sampler evals use the whole dev ladder.
+
+## 2026-10-20 (evening): still waiting for GPUs; two more workers, a fourth collapse fix, D sampler evals first
+
+No results yet: Engaging is crowded after its maintenance (2342 jobs pending on mit_preemptable;
+Slurm's estimate for our workers ~22:45 EDT).
+
+- Workers: the mit_normal_gpu workers' first start slipped to 2026-10-23 07:30 (that partition
+  has one 4-GPU H100 node), so two preemptable workers were added (26450849-50, `r1:main:long`) and
+  the six mit_normal_gpu workers now wait for both to end (`afterany`). At most 6 GPUs at a time.
+- `r1` now starts with track D sampler evals (~1 min each): the fp32 lr 3e-6 screen's seed 0
+  weights at T 1.0 / 0.5 / 0.25 and D 000's seeds at T 0.25. A D record from that arm picks its
+  sampler on its own weights, and the decision comes with the promotion decision instead of
+  waiting behind the long queue.
+- `main`: seeds 3-4 of a01_skip, d00_fp32_lr3e-6_skip and a01_fp32_lr1e-6_skip_cos queued behind
+  seeds 0-2, so an arm that needs 5 seeds for the promotion rule doesn't wait; dropped before they
+  start if seeds 0-2 rule an arm out.
+- A fourth collapse fix (da706a8, `pos_adv_scale`, off by default): positive advantages times
+  0.1, as in W-REINFORCE (Zhu et al. 2025, "The Surprising Effectiveness of Negative
+  Reinforcement in LLM Reasoning"). Reinforcing sampled solutions narrows the policy, which is
+  how one-guess collapse starts; pushing away from failures spreads probability over the
+  alternatives. `c90_pos01` (4 seeds, 90 min) sits beside the other three in `long`.
