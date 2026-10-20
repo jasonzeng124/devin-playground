@@ -51,7 +51,10 @@ T 1.0 on all 10 holder seeds (+0.0085 A, +0.0024 D); record attempts use T 0.5.
   (its 3-seed promotion check).
 - Open question (QUESTIONS.md): may AWS run a01_skip's dev screens while Engaging is congested?
 - When d00_fp32_lr3e-6 seeds 1-4 are in: if seeds 0-4 meet the promotion rule, commit the D
-  record config (D 000's pretraining + fp32 RL at lr 3e-6, sampler T 0.5) and flag it above.
+  record config (D 000's pretraining + fp32 RL at lr 3e-6, with the sampler temperature the D
+  sampler evals pick) and flag it above. Also check whether their RL levels off early, as seed 0's
+  did (flat from ~75 of 234 min). If so, queue a split screen that moves an hour from RL to
+  pretraining (172 + 174 min).
 - About 6 h after the long workers start: first D2 pretraining screens (dm26 / dm51 seed 0); then
   the collapse screens (~1.7 h each). A collapse fix that keeps 4 of 4 seeds healthy at step 300
   (length >= 100 tokens, informative >= 15) goes into a full 5-h screen with skip + cosine.
