@@ -81,3 +81,49 @@ What it means so far:
   (off the clock) and a requeued seed continues from it. The a01_fp32_lr1e-6 seed 0 rerun
   (started 15:36 EDT) is the first to use it. The partial runs stay in the pool as
   `<seed>.interrupted.<stamp>/`.
+
+## 2026-10-19 (night): r1 seed 0s done; r1 pruned; r2 queued with a faster update
+
+All six r1 seed 0s finished (dev at 30/60/120/180/240 min, final at 290 / 234 min):
+
+| arm (seed 0) | dev final | best | curve | mode |
+|---|---|---|---|---|
+| A 001 + fp32, lr 2e-6 | 0.062 | 0.287 (92 min) | 0.077 0.098 0.287 0.118 0.173 | one-guess |
+| A 001 + fp32, lr 1e-6 | **0.290** | 0.327 (120 min) | 0.095 0.187 0.327 0.283 0.242 | ok |
+| (same seed, first attempt, preempted at 254 min) | 0.188 | 0.192 | 0.082 0.125 0.153 0.150 0.173 | one-guess |
+| A 001 + fp32, lr 5e-7 | 0.222 | 0.222 | 0.038 0.052 0.163 0.172 0.202 | one-guess |
+| (A 001 record: seed 0 / mean of 5) | 0.203 / 0.240 | | mean 0.053 0.063 0.089 0.133 0.195 | 4 ok / 1 one-guess |
+| D 000 RL + fp32, lr 1e-6 | 0.098 | 0.103 | 0.062 0.085 0.088 0.095 | one-guess |
+| D 000 RL + fp32, lr 3e-6 | **0.147** | 0.163 | 0.088 0.127 0.138 0.148 | one-guess |
+| D 000 RL + fp32, lr 1e-5 | 0.080 | 0.095 | 0.087 0.060 0.082 0.087 | one-guess |
+| (D 000 record: seed 0 / mean of 5) | 0.087 / 0.119 | | | all one-guess |
+
+What it means:
+- Track A: lr 1e-6 is the only fp32 lr whose seed 0 ended healthy, at 0.290 against A 001's
+  seed-0 0.203, but the same seed's first attempt drifted into one-guess mode, so the outcome
+  looks bimodal, as for A 001 itself. lr 2e-6 peaks earliest and highest, then collapses
+  (0.287 -> 0.062); 5e-7 is slow and ends one-guess.
+- Track D: lr 3e-6 is the best fp32 lr. On the same pretrained model (D 000's seed 0) its RL
+  ends at 0.147 against D 000's 0.087 (+0.060); 1e-6 gains +0.011, 1e-5 loses 0.007, and 3e-5
+  was worse on 4 of 5 seeds (w42).
+
+Decisions:
+- r1 keeps only a01_fp32_lr1e-6 (seeds 1-2) and d00_fp32_lr3e-6 (seeds 1-4, paired on D 000's
+  pretrained seeds 1-4: a 5-seed screen for the promotion rule). The 15 dropped items are listed
+  in `queue/r1_dropped_2026-10-19.txt` (A lr 2.5e-7, 5e-7, 2e-6; the no-constraint arms; D lr
+  1e-6 and 1e-5).
+- **Faster update (9dcb8be, `skip_zero_advantage`, off by default).** Groups whose 8 samples got
+  the same reward have zero advantage and, with no KL term, zero gradient, but the update still
+  ran their forward and backward passes. In A 001 seed 1 only 28-35 of 64 groups were
+  informative, and the update took 11-16 s of each 16-22 s step; in D 000, 5-9 of 64. Skipping
+  those rows gives the same optimizer step (tested) with the same loss normaliser, so only the
+  time changes: an estimated ~1.6x more steps in the same budget on both tracks.
+- r2 (`queue/main.txt`), 3 seeds each, in this order: A 001 + skip (`a01_skip`), fp32 lr 1e-6 +
+  skip + cosine decay to 0.1 (`a01_fp32_lr1e-6_skip_cos`), D fp32 lr 3e-6 + skip
+  (`d00_fp32_lr3e-6_skip`), then fp32 lr 1e-6 with only cosine decay (`_cos`) and with malformed
+  reward 0 (`_mal0`). The D2 data screens moved to `queue/long.txt` (6 h items, preemptable
+  workers only).
+- Workers replaced (the pending ones served r1 only): from the end of the maintenance
+  (2026-10-20 21:00 EDT), 4 preemptable workers (2 take `long` first, 2 take r1 then main;
+  RESERVE_MIN 380 so a 6 h item never starts too late) and 6 mit_normal_gpu workers (r1 then
+  main, one item each, 2 at a time).
