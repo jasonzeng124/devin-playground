@@ -59,6 +59,9 @@ class GRPOConfig:
     constrain_answer: bool = False
     think_budget: int = 0  # with constrain_answer: force "<answer>" after this many free tokens (0 = never)
     cov_clip_frac: float = 0.0  # Clip-Cov: drop the gradient of this fraction of tokens with the largest log-prob x advantage covariance
+    # update only the rows with a nonzero advantage: with kl_coef == 0 and no Clip-Cov the others carry no
+    # gradient, and the loss keeps the full token count, so the step is the same, only faster
+    skip_zero_advantage: bool = False
     malformed_reward: float | None = None  # training reward for unparseable (e.g. truncated) outputs; None = the verifier's -0.1
     temperature: float = 1.0
     max_new_tokens: int = 48
@@ -440,11 +443,15 @@ def _update(
     """
     completion_valid = attention[:, prompt_width:].bool()
     token_count = dist.all_reduce_sum_(completion_valid.sum()).clamp_min(1)
+    active = torch.arange(generated.shape[0], device=generated.device)
+    if config.skip_zero_advantage:
+        active = (advantages != 0).nonzero().squeeze(1)
     optimizer.zero_grad(set_to_none=True)
     loss_total = torch.zeros((), device=device)
     kl_total = torch.zeros((), device=device)
     entropy_total = torch.zeros((), device=device)
-    for rows in _micro_batches(completion_valid, prompt_width, config):
+    for sub in _micro_batches(completion_valid[active], prompt_width, config):
+        rows = active[sub]
         width = prompt_width + int(completion_valid[rows].any(0).nonzero().max().item()) + 1 if completion_valid[rows].any() else prompt_width + 1
         ids, mask, adv = generated[rows, :width], attention[rows, :width], advantages[rows]
         if config.grad_checkpoint:  # HF checkpoints only in train mode, and then drops the KV cache the prefix trick needs
@@ -474,6 +481,12 @@ def _update(
         loss.backward()
         loss_total += loss.detach()
         kl_total += kl.detach()
+    if config.skip_zero_advantage:
+        if active.numel() == 0:  # an all-zero gradient still moves AdamW (momentum, weight decay), as without skipping
+            for parameter in model.parameters():
+                parameter.grad = torch.zeros_like(parameter) if parameter.requires_grad else None
+        # the logged entropy (entropy_total / token_count) becomes the mean over the updated rows
+        entropy_total = entropy_total * token_count / completion_valid[active].sum().clamp_min(1)
     dist.all_reduce_grads_(model.parameters())
     if config.grad_clip > 0:
         torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
@@ -757,6 +770,8 @@ def _save_state(state_path: Path, out_dir: Path, model, optimizer, mix_rng, devi
 def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
     """Train one seed; with `dist.world_size > 1` every rank calls this and only rank 0 writes `out_dir`."""
     _check_shardable(config, dist)
+    if config.skip_zero_advantage and (config.kl_coef != 0 or config.cov_clip_frac > 0 or dist.world_size > 1):
+        raise ValueError("skip_zero_advantage needs kl_coef == 0, cov_clip_frac == 0 and one process (only then do the skipped rows carry no gradient)")
     scheduled = config.lr_schedule != "constant" or config.lr_warmup_s > 0
     lr_at(config, config.lr_warmup_s)  # fail on a bad schedule before loading anything
     _set_seed(config.seed, dist.rank)

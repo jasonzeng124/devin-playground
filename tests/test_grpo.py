@@ -332,6 +332,34 @@ def test_length_sorted_token_micro_batches_give_the_same_gradient():
         assert torch.allclose(a, b, atol=1e-6)
 
 
+@pytest.mark.parametrize("extra", [{"micro_batch_size": 3}, {"micro_batch_tokens": 30}])
+def test_skipping_zero_advantage_rows_gives_the_same_gradient(extra):
+    torch.manual_seed(1)
+    prompt_width, rows = 4, 8
+    generated = torch.randint(2, 40, (rows, prompt_width + 9))
+    attention = torch.ones_like(generated)
+    for row, length in enumerate([9, 1, 5, 3, 9, 2, 6, 4]):
+        attention[row, prompt_width + length :] = 0
+    base = _tiny_model().eval()
+    for advantages in (torch.tensor([0.0, 0.0, 1.2, -1.2, 0.0, 0.0, 0.7, -0.7]), torch.zeros(rows)):
+        grads = []
+        for skip in (False, True):
+            model = copy.deepcopy(base)
+            config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, skip_zero_advantage=skip, **extra)
+            optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+            grpo._update(model, None, generated, attention, advantages, prompt_width, 0, config, optimizer, torch.device("cpu"), grpo.SINGLE)
+            grads.append([p.grad.clone() for p in model.parameters()])
+        for a, b in zip(*grads):
+            assert torch.allclose(a, b, atol=1e-6)
+
+
+def test_skip_zero_advantage_refuses_a_kl_term(monkeypatch, tmp_path):
+    _patch_tiny_training(monkeypatch, tmp_path)
+    config = GRPOConfig(model="tiny", kl_coef=0.02, skip_zero_advantage=True, out_dir=str(tmp_path / "run"))
+    with pytest.raises(ValueError, match="skip_zero_advantage"):
+        run(config)
+
+
 def test_run_resumes_from_saved_state_after_an_interruption(monkeypatch, tmp_path):
     _patch_tiny_training(monkeypatch, tmp_path)
     config = GRPOConfig(
