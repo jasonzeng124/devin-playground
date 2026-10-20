@@ -265,3 +265,12 @@ evals cost 7-9 s each and are outside the budget, so more steps do not stretch a
   once a D record exists.
 - Asked the maintainer (QUESTIONS.md) whether AWS may also run a01_skip's dev screens while
   Engaging is this congested; the approval so far covers record attempts.
+- For comparison, r1's healthy fp32 lr 1e-6 seed 0 takes off near step 200 instead of 600: dev
+  0.187 at step 200 (43 min), 0.290 at step 300 (84 min), peak 0.327 at step 350 (109 min). It
+  then fell into a one-guess spell: from step ~500, steps took 10-14 s instead of 26-36 s, entropy
+  stayed near 0.035, the batch reward fell from 0.41 to 0.14 and dev to 0.125 at step 550. Entropy
+  then rose again (0.15-0.22) and dev recovered to 0.290 at the end. RULES_v3 scores each seed
+  on its final weights and forbids choosing a checkpoint. So the peak only counts if the run is
+  still there at the end, which is what r2's cosine decay (`a01_fp32_lr1e-6_skip_cos`) and the
+  collapse screens aim at. Track D is different: fp32 lr 3e-6 seed 0 has been flat at 0.14-0.16
+  since step ~3,500 (75 of 234 min), so extra steps from skip should matter less there.
