@@ -20,12 +20,14 @@ Updated 2026-10-20 17:40 EDT.
   slots go to preemptable workers until then, and the 6-GPU cap holds. All use
   `RUNNER=scripts/research/run_item.sh`.
 - Queues, in order (in-flight items are in `queue/running/`):
-  - `r1`: d00_fp32_lr3e-6 seeds 1-2 (in flight), then seeds 3-4 (5-seed D screen with seed 0).
-  - `main` (9, r2): a01_skip, a01_fp32_lr1e-6_skip_cos, d00_fp32_lr3e-6_skip (seeds 0-2, interleaved).
-  - `long` (preemptable workers only; 31): d00_dm26 / d00_dm51 seed 0 (in flight), then r3 collapse
+  - `r1`: track D sampler evals first (~1 min each: the fp32 screen's seed 0 weights at T 1.0 /
+    0.5 / 0.25, D 000's seeds at T 0.25), so a D record's sampler is chosen on its own weights; then
+    d00_fp32_lr3e-6 seeds 3-4 (seeds 1-2 in flight; a 5-seed D screen with seed 0).
+  - `main` (15, r2): a01_skip, a01_fp32_lr1e-6_skip_cos, d00_fp32_lr3e-6_skip seeds 0-2
+    (interleaved), then seeds 3-4 of each, dropped if seeds 0-2 rule an arm out.
+  - `long` (preemptable workers only; 26): d00_dm26 / d00_dm51 seed 0 (in flight), then r3 collapse
     screens (`calibration/research_r3/c90_*`, 90 min) seeds 0-1, D2 seeds 1, collapse seeds 2-3,
-    D2 seeds 2, then sampler evals on the holders' weights (A 001 T 0.5 + think budget 960,
-    A 001 T 0.25, D 000 T 0.25).
+    D2 seeds 2, then sampler evals on A 001's weights (T 0.5 + think budget 960; T 0.25).
   - Dropped 2026-10-20 (LOG): a01_fp32_lr1e-6 seeds 1-2, r2's `_cos` / `_mal0` arms.
 - Preemption: screens on mit_preemptable save resumable state hourly (a1e4502). D2 items
   (`run_seed_v3.sh`) do not resume.

@@ -1,0 +1,8 @@
+{
+  "description": "Research r3 (dev only): weights of the D 000 RL + fp32 master weights at lr 3e-6 screen (calibration/research_r1/d00_fp32_lr3e-6) scored on the dev ladder with the record sampler (constrained, think budget 0) at temperature 0.25, to pick the sampler for a track D record from it.",
+  "model": "~/orcd/pool/rlvr-ckpts/calibration/research_r1/d00_fp32_lr3e-6/seeds/{seed}/final",
+  "temperature": 0.25,
+  "constrain": true,
+  "think_budget": 0,
+  "limit_per_level": 0
+}
