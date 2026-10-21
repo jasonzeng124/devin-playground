@@ -13,3 +13,5 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - Done (agent, 2026-10-20): read both notes. STATUS.md now opens with a "Promotion" line (none
     yet); a promoted arm gets its record folder's config.json committed at the same time, so either
     side can start the seeds. Waits go to analysis and to preparing configs.
+
+- 2026-10-21 (laptop): maintainer approved AWS for a01_skip dev screens. Seeds 0-2 run on AWS (run a01_skip-aws-20261021, spot p5.4xlarge, STAGE=train, us-east-1); I removed them from queue/main.txt under flock; seeds 3-4 stay on Engaging. The laptop session fetches the results into calibration/research_r2/a01_skip/seeds/ and commits them here when they finish.
