@@ -84,7 +84,7 @@ if [[ "${V3:-0}" == 1 ]]; then
   uv pip install -q "vllm==0.30.0" "transformers==5.17.0" pyarrow numpy accelerate huggingface_hub && uv pip install -q --no-deps -e . \
     || finish "pip install failed"
   export CUDA_HOME=${CUDA_HOME:-/usr/local/cuda} PATH=/usr/local/cuda/bin:$PATH VLLM_USE_FLASHINFER_SAMPLER=0
-  export PYTHON=python PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True CKPT_DIR=/opt/ckpts CONFIRM_LIMIT=${CONFIRM_LIMIT:-}
+  export PYTHON=python PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True CKPT_DIR=/opt/ckpts CONFIRM_LIMIT=${CONFIRM_LIMIT:-} STAGE=${STAGE:-all}
   status "env: $(python -c 'import torch, transformers, vllm; print("torch", torch.__version__, "transformers", transformers.__version__, "vllm", vllm.__version__)') driver $(nvidia-smi --query-gpu=driver_version --format=csv,noheader)"
   tracks=$(for sl in "${slots[@]}"; do python -c "import json; print(json.load(open('${sl%:*}/config.json'))['v3']['track'])"; done | sort -u)
   if grep -q D <<<"$tracks"; then

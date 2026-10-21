@@ -15,6 +15,7 @@
 #   V3=1 AMI=ami-0c244e62d32d4ca4e RECORD=records/v3/track_d/000_baseline bash scripts/aws/spot_launch.sh 0 1 2 3 4
 # Several seeds on one 8x H100 instance (one per GPU; the argument then just names the box):
 #   V3=1 INSTANCE_TYPE=p5.48xlarge SLOTS="records/v3/track_a/000_baseline:0 records/v3/track_d/000_baseline:0" ... spot_launch.sh b0
+# Dev-only screens (no test ladder): V3=1 STAGE=train RECORD=calibration/<batch>/<arm> ...
 set -euo pipefail
 
 REGION=${REGION:-us-east-1}
@@ -54,7 +55,8 @@ EOF
 (( new_profile )) && sleep 20  # a new instance profile is not usable right away
 
 tarball=$(mktemp --suffix .tgz)
-git ls-files -co --exclude-standard | grep -v "^$RECORD/\(seeds\|extra\)/\|^results/\|^calibration/\|^records/.*/seeds/" | tar czf "$tarball" -T -
+{ git ls-files -co --exclude-standard | grep -v "^$RECORD/\(seeds\|extra\)/\|^results/\|^calibration/\|^records/.*/seeds/"
+  git ls-files -co --exclude-standard "$RECORD" | grep -v "^$RECORD/\(seeds\|extra\)/"; } | sort -u | tar czf "$tarball" -T -
 aws s3 cp --quiet "$tarball" "s3://$BUCKET/runs/$RUN/code.tgz"
 echo "run $RUN: code in s3://$BUCKET/runs/$RUN/"
 
@@ -72,6 +74,7 @@ V3=${V3:-0}
 SLOTS="${SLOTS:-}"
 AWS_DEFAULT_REGION=$REGION
 CONFIRM_LIMIT=${CONFIRM_LIMIT:-}
+STAGE=${STAGE:-all}
 DEADLINE=\$(( \$(date +%s) + $BACKSTOP_MIN * 60 ))
 ENV
 mkdir -p /opt/rlvr && aws --region $REGION s3 cp s3://$BUCKET/runs/$RUN/code.tgz /tmp/code.tgz && tar xzf /tmp/code.tgz -C /opt/rlvr
