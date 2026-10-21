@@ -6,7 +6,7 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-20 23:35 EDT.
+Updated 2026-10-21 00:45 EDT.
 
 ## Running
 
@@ -51,12 +51,15 @@ T 1.0 on all 10 holder seeds (+0.0085 A, +0.0024 D); record attempts use T 0.5.
 
 - Slurm's estimate for the preemptable workers keeps slipping as the queue grows: ~01:55 at 18:20
   (2,652 jobs pending), ~05:20 on 10-21 at 22:25 (2,925 pending; age adds no priority on
-  mit_preemptable). If all 6 start then: d00_fp32_lr3e-6 seeds 1-4 ~10:15 (the D promotion
+  mit_preemptable), and none at all at 00:30 (3,071 pending). If all 6 start ~05:20: d00_fp32_lr3e-6 seeds 1-4 ~10:15 (the D promotion
   decision), D2 seed 0s ~11:40, first collapse screens ~13:20, first `main` wave ~10:00-15:30.
 - a01_skip seeds 0-2 from AWS (~05:00-06:00 on 10-21 if the spot instances hold): the 3-seed
   promotion check (every seed healthy and >= 0.270). If it passes: commit the A record config
   (`records/v3/track_a/002_<slug>/`), flag it above, and take seeds 3-4 out of `main`. If one seed
   misses or collapses, seeds 3-4 move to the front of `main` for the 5-seed form.
+- QUESTIONS.md (00:45) asks whether d00_fp32_lr3e-6 seeds 1-4 may run on AWS as full-pipeline
+  dev screens (`calibration/research_r2/d00_fp32_lr3e-6_full`, ~25 instance-hours), and a01_skip
+  seeds 3-4 too if the 5-seed form needs them. If yes, those seeds leave the Engaging queues.
 - When d00_fp32_lr3e-6 seeds 1-4 are in: if seeds 0-4 meet the promotion rule, commit the D
   record config (D 000's pretraining + fp32 RL at lr 3e-6, with the sampler temperature the D
   sampler evals pick) and flag it above. Also check whether their RL levels off early, as seed 0's
