@@ -6,7 +6,7 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-20 18:25 EDT.
+Updated 2026-10-20 22:30 EDT.
 
 ## Running
 
@@ -45,10 +45,11 @@ T 1.0 on all 10 holder seeds (+0.0085 A, +0.0024 D); record attempts use T 0.5.
 
 ## Next
 
-- Slurm's estimate (18:20, with the workers' 8 CPUs / 64 GB) for the preemptable workers: ~01:55
-  tonight (2,652 jobs pending). If all 6 start then: d00_fp32_lr3e-6 seeds 1-4 ~06:30 (the D
-  promotion decision), D2 seed 0s ~08:10, first collapse screens ~10:00, a01_skip seeds 0-2 ~12:00
-  (its 3-seed promotion check).
+- Slurm's estimate for the preemptable workers keeps slipping as the queue grows: ~01:55 at 18:20
+  (2,652 jobs pending), ~05:20 on 10-21 at 22:25 (2,925 pending; age adds no priority on
+  mit_preemptable). If all 6 start then: d00_fp32_lr3e-6 seeds 1-4 ~10:15 (the D promotion
+  decision), D2 seed 0s ~11:40, first collapse screens ~13:20, a01_skip seeds 0-2 ~15:30 (its
+  3-seed promotion check).
 - Open question (QUESTIONS.md): may AWS run a01_skip's dev screens while Engaging is congested?
 - When d00_fp32_lr3e-6 seeds 1-4 are in: if seeds 0-4 meet the promotion rule, commit the D
   record config (D 000's pretraining + fp32 RL at lr 3e-6, with the sampler temperature the D
@@ -58,8 +59,12 @@ T 1.0 on all 10 holder seeds (+0.0085 A, +0.0024 D); record attempts use T 0.5.
 - About 6 h after the long workers start: first D2 pretraining screens (dm26 / dm51 seed 0); then
   the collapse screens (~1.7 h each). A collapse fix that keeps 4 of 4 seeds healthy at step 300
   (length >= 100 tokens, informative >= 15) goes into a full 5-h screen with skip + cosine.
-- Before ~2026-10-22 evening: successors for the first 4 preemptable workers (2-day limit from
-  their start); the mit_normal_gpu workers follow 26450849-50.
+- About 2 days after the workers start (~2026-10-23 morning if they start ~05:20 on 10-21):
+  successors for the preemptable workers; the mit_normal_gpu workers follow 26450849-50.
+  At 22:25 Claude Code's auto mode refused an `sbatch` as a shared-cluster change. It was an
+  eval-only worker for the idle H100 NVL node1708, with 26450850 to be chained behind it, and
+  nothing was submitted. If successor or record submissions are refused too, the maintainer or
+  the laptop session has to submit them, or allow `sbatch`/`scontrol` for this session.
 
 ## Notes
 
