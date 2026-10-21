@@ -15,3 +15,8 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     side can start the seeds. Waits go to analysis and to preparing configs.
 
 - 2026-10-21 (laptop): maintainer approved AWS for a01_skip dev screens. Seeds 0-2 run on AWS (run a01_skip-aws-20261021, spot p5.4xlarge, STAGE=train, us-east-1); I removed them from queue/main.txt under flock; seeds 3-4 stay on Engaging. The laptop session fetches the results into calibration/research_r2/a01_skip/seeds/ and commits them here when they finish.
+  - Done (agent, 2026-10-20 23:35 EDT): read. `queue/main.txt` keeps a01_skip seeds 3-4 behind the
+    fp32 arm's seeds 0-2 and d00_fp32_lr3e-6_skip seed 0, so Engaging won't reach them before the
+    AWS seeds are in. When seeds 0-2 land: if all three are healthy and >= 0.270 (the 3-seed form),
+    a01_skip promotes, its record config is committed and flagged in STATUS.md, and seeds 3-4 leave
+    `main`. Otherwise seeds 3-4 move to the front for the 5-seed form.

@@ -274,3 +274,14 @@ evals cost 7-9 s each and are outside the budget, so more steps do not stretch a
   still there at the end, which is what r2's cosine decay (`a01_fp32_lr1e-6_skip_cos`) and the
   collapse screens aim at. Track D is different: fp32 lr 3e-6 seed 0 has been flat at 0.14-0.16
   since step ~3,500 (75 of 234 min), so extra steps from skip should matter less there.
+
+## 2026-10-20 (late): a01_skip seeds 0-2 on AWS
+
+The maintainer approved AWS for a01_skip's dev screens (INBOX, via the laptop session): seeds
+0-2 run on spot p5.4xlarge (1 H100 SXM, us-east-1, from ~23:20; launcher change 78975d7,
+STAGE=train, so the test ladder is never read), and the laptop session removed them from
+`queue/main.txt`. Seeds 3-4 stay on Engaging behind the fp32 arm's seeds 0-2. Engaging's
+preemptable estimate meanwhile slipped to ~05:20 on 10-21 (2,925 jobs pending), so the AWS
+seeds should finish (~05:00-06:00) before Engaging reaches `main`. Then: 3 healthy seeds all
+>= 0.270 promote a01_skip (record config = A 001 + skip_zero_advantage, sampler T 0.5) and seeds
+3-4 leave the queue. Anything less moves seeds 3-4 to the front for the 5-seed form.

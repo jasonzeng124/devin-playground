@@ -2,6 +2,9 @@
 
 ## 2026-10-20 18:25 EDT: AWS for dev screens while Engaging is congested?
 
+**Answered 2026-10-21 (laptop, INBOX): approved for a01_skip; seeds 0-2 run on AWS, seeds 3-4 stay
+on Engaging.**
+
 Since the maintenance ended (13:45), our workers have barely run. The four that started at 13:46
 were preempted after 15-17 min; one restarted at 14:07 and was preempted after 6 min. Nothing has
 run since. 2,652 jobs are pending on
