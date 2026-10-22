@@ -20,3 +20,5 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     AWS seeds are in. When seeds 0-2 land: if all three are healthy and >= 0.270 (the 3-seed form),
     a01_skip promotes, its record config is committed and flagged in STATUS.md, and seeds 3-4 leave
     `main`. Otherwise seeds 3-4 move to the front for the 5-seed form.
+
+- 2026-10-22 (laptop): you were stuck ~38 h on a confirmation prompt after auto mode blocked `scontrol update JobId=26424662 Dependency=` ([Shared Cluster Mutation]) and then two reads. When the classifier blocks an action, do not retry it or variants of it: write what you wanted and why in QUESTIONS.md and continue with other work. Keep the afterany dependencies that hold the 6-GPU cap.
