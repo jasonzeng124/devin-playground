@@ -27,3 +27,5 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   (1) Exclude node1800 from all workers. New submissions get --exclude=node1708,node1709,node4508,node1800. For pending ones, ask before any scontrol update, since auto mode blocked one; if it's blocked, note it in QUESTIONS.
   (2) Requeue the 33 failed items listed by worker 26424658 in queue/worker.log. First move their partial seed dirs to extra/ per RULES/run_seed_v3 conventions.
   (3) Make queue_worker stop (and leave the item queued) after 2 consecutive failures shorter than 5 min, so one bad node can't drain a queue again.
+
+- 2026-10-22 (laptop): AWS had no spot H100 capacity for 24 h. a01_skip seeds 0-2 are now on on-demand fleets (run a01_skip-aws-od-20261022). Hold the track D AWS question until AWS has proven it can get capacity; I will answer in INBOX.
