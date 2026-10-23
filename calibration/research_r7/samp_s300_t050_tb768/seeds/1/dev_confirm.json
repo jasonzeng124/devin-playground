@@ -1,0 +1,25 @@
+{
+ "benchmark_version": 3,
+ "model": "/home/zjason/orcd/pool/rlvr-ckpts/calibration/research_r7/a01_fp32_lr1e-6_skip_cos_mal0_s300/seeds/1/final",
+ "test_set": "data/ladder_v3_dev.jsonl",
+ "n_puzzles": 2400,
+ "samples_per_puzzle": 16,
+ "sampler": {
+  "temperature": 0.5,
+  "constrain": true,
+  "think_budget": 768,
+  "max_new_tokens": 1024
+ },
+ "ladder_score": 0.3647135416666667,
+ "pass@1_by_level": {
+  "L1": 0.96265625,
+  "L2": 0.39578125,
+  "L3": 0.24421875,
+  "L4": 0.16125,
+  "L5": 0.039375,
+  "L6": 0.385
+ },
+ "pass@16": 0.5925,
+ "truncated": 0.0,
+ "mean_tokens": 610.4833854166667
+}

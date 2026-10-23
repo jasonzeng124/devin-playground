@@ -802,3 +802,24 @@ Also:
   `queue/running.26644474.moved_to_main_1802`.
 - r6: its T 0.5 eval (seed 0, no budget) is running. The tb768 eval went to `later`: r6 is parked,
   and r7's evals answer the think-budget question for the arm that matters.
+
+## 2026-10-23 (19:35): r7's sampler, seed 1: a think budget adds nothing at T 0.5
+
+```
+  samp_s300_t050                     s1 dev16 0.3748 pass@16 0.598 tokens  746 trunc 0.565 | 0.969 0.415 0.262 0.172 0.044 0.388
+  samp_s300_t050_tb960               s1 dev16 0.3762 pass@16 0.605 tokens  722 trunc 0.000 | 0.968 0.416 0.264 0.173 0.045 0.391
+  samp_s300_t050_tb768               s1 dev16 0.3647 pass@16 0.593 tokens  610 trunc 0.000 | 0.963 0.396 0.244 0.161 0.039 0.385
+  samp_t050 (r6 seed 0)              s0 dev16 0.3607 pass@16 0.585 tokens  709 trunc 0.516 | 0.952 0.406 0.265 0.131 0.040 0.370
+```
+
+- Forcing the answer at 960 tokens turns r7 seed 1's 56.5 % truncated samples into answers, and
+  almost none of them are right: +0.0014. Forcing it at 768 costs 0.010, because it also cuts off
+  searches that would have finished correctly. A search that hasn't found the answer by ~960 tokens
+  has nearly always failed.
+- r7's sampler is therefore T 0.5, constrained, no think budget, the same as A 002's. The tb960
+  evals for seeds 0 and 2 are dropped. Their no-budget evals stay, after the dm26 pipelines.
+- r6 seed 0 scores 0.361 at T 0.5 without a budget, against its in-loop 0.318. The in-loop eval
+  uses the training config's think budget (768), so that number was greedy with forced answers at
+  768. The record sampler gains more over greedy on long-search arms than on A 001 (+0.015 on
+  average): r7 seed 1 +0.027, r6 seed 0 +0.043. QUESTIONS.md now asks whether promotion should use
+  dev under the record sampler; until then the rule stays on greedy in-loop dev. r6 stays parked.

@@ -90,3 +90,21 @@ one-guess seeds since 10-22. The record's sampler may then add a think budget (`
 which forces the answer open after N tokens, so nothing truncates), chosen on dev as RULES_v3
 requires, and the test ladder decides as for any record. If you want the literal reading, say so in
 INBOX: r5 would then not promote, and I would screen penalties that keep truncation under half.
+
+## 2026-10-23 19:35 EDT: should promotion compare dev under the record sampler instead of greedy?
+
+The promotion rule compares in-loop final dev, which is greedy decoding on the 600 dev puzzles. A
+record is scored with its own sampler (16 samples at T 0.5, constrained here), and that gains more
+over greedy on arms with long searches:
+
+| weights | greedy in-loop | T 0.5, 16 samples | gain |
+|---|---|---|---|
+| A 001 record seeds (mean of 5) | 0.240 | 0.255 | +0.015 |
+| r7 `a01_fp32_lr1e-6_skip_cos_mal0_s300` seed 1 | 0.348 | 0.375 | +0.027 |
+| r6 `a01_fp32_lr1e-6_skip_cos_tb768` seed 0 | 0.318 (with r6's think budget 768) | 0.361 | +0.043 |
+
+So the rule may hold back arms that would do well as records, and it can't rank them against arms
+that didn't save weights (skip + cosine didn't). Applied: nothing. The rule stays on greedy
+in-loop dev, as for every arm so far. If you prefer dev under the record sampler, say so in INBOX.
+Arms would then save weights and get a dev eval at T 0.5. The holder line would be A 001's 0.255 +
+0.03 = 0.285, and A 002's line would come from its record seeds' evals.
