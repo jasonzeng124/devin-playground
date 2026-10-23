@@ -519,3 +519,38 @@ avoids.
 
 `c90_t12` seed 0 (training temperature 1.2) is at 0.202 after 85 min and one-guess, like the
 penalized runs: the higher temperature does not prevent the mode.
+
+## 2026-10-23 (07:50): r5 seed 0 collapses at 140-160 min; skip + cosine seeds 3-4 to the front
+
+r5 (`a01_fp32_lr1e-6_skip_cos_mal0`: skip + cosine with reward 0 for truncated outputs) seed 0 was
+the strongest run so far at 139 min, then lost it all within 20 minutes. Seed 0, in-loop dev and
+training rows (reward = solve rate, since truncation now scores 0):
+
+| min | dev (malformed) | training reward | training truncated | entropy | informative groups |
+|---|---|---|---|---|---|
+| 117 | 0.380 (0.59) | 0.50 | 0.44 | 0.086 | 24 |
+| 139 | **0.392** (0.57) | 0.39 | 0.58 | 0.063 | 28 |
+| 150 | | 0.19 | 0.70 | 0.043 | 21 |
+| 158 | | 0.06 | 0.82 | 0.115 | 6 |
+| 160 | 0.043 (0.75) | 0.04 | 0.73 | 0.155 | 7 |
+| 171 | 0.013 (0.27) | 0.02 | 0.24 | 0.399 | 7 |
+| 190 | 0.043 (0.01) | 0.03 | 0.01 | 0.228 | 8 |
+
+- In plain words: the searches kept getting longer until most of them ran out of tokens.
+  Truncation costs nothing in this arm, so nothing pushed back. With most rollouts scoring 0, few
+  groups carried a signal. The policy then fell into answering at once, at a solve rate (2-5 %)
+  below the base model's. Seeds 1 and 2 are healthy so far: 0.378 at 146 min and 0.392 at 127 min,
+  with 30-50 % truncated in training and entropy 0.08-0.10. Seed 0 went wrong when its entropy fell
+  to 0.04 and its truncation passed 0.7.
+- Promotion: seed 0 will end far below the holder's dev mean whatever the label says, so it is
+  collapsed under any reading, and r5 cannot meet the 3-seed form. The 5-seed form would need
+  seeds 3-4 both healthy and above 0.2403. I decide on that when seeds 1-2 end (~10:05, ~10:30).
+- Decision now: skip + cosine (no collapse in 3 seeds; 0.300 / 0.270 / 0.472) is the safer A
+  candidate. Its seeds 3-4 go to the front of `main`, with dm26 skip seed 2 between them, so they
+  start ~09:25 (as r5 seed 0 ends) and ~10:30. If seed 3 alone reaches 0.31 and beats 0.2403, the
+  5-seed form is met whatever seed 4 scores.
+- Next for the long-search recipe: a think budget in training (`think_budget`, plumbed through
+  rollouts, update and eval), which forces the answer open after N tokens. Then a search that runs
+  long ends in a guess that can still score, never in a truncation. The r5 sampler evals
+  (T 0.5 with budgets 960 and 768) on seeds 1-2's weights pick N first; they go to the front of
+  `long` once the weights exist.

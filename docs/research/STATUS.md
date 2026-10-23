@@ -6,7 +6,7 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-23 07:05 EDT.
+Updated 2026-10-23 07:55 EDT.
 
 ## Running
 
@@ -15,10 +15,12 @@ Updated 2026-10-23 07:05 EDT.
   mit_preemptable QOS allows 4 GPUs per user (`sacctmgr show qos mit_preemptable`: gres/gpu=4), so
   they only start when a running worker ends. Usable GPUs are 4 there + 2 on mit_normal_gpu, whose
   next H100 start is estimated at 10-25 17:00 (H200 10-25 13:50).
-  - 26644470 (`long:main`, node2701): r4 dm26 skip seed 1 (~09:50; 0.090 at 53 min, seed 0 had 0.118).
-  - 26644471 (`main:long`, node2701): r5 a01_fp32_lr1e-6_skip_cos_mal0 seed 1, done ~10:05 (0.272 at 75 min).
-  - 26644472 (`main:long`, node2700): r5 mal0 seed 0, done ~09:20 (0.380 at 117 min, 59 % truncated).
-  - 26644473 (`main:long`, node2700): r5 mal0 seed 2, done ~10:30 (0.252 at 58 min).
+  - 26644470 (`long:main`, node2701): r4 dm26 skip seed 1 (~09:50; 0.117 at 113 min, seed 0 had 0.125).
+  - 26644471 (`main:long`, node2701): r5 a01_fp32_lr1e-6_skip_cos_mal0 seed 1, done ~10:05 (0.378 at 146 min).
+    Then dm26 skip seed 2.
+  - 26644472 (`main:long`, node2700): r5 mal0 seed 0, done ~09:25. **Collapsed** at 140-160 min (0.392 -> 0.04;
+    LOG 07:50). Then skip_cos seed 3.
+  - 26644473 (`main:long`, node2700): r5 mal0 seed 2, done ~10:30 (0.392 at 127 min). Then skip_cos seed 4.
 - Both nodes run Ubuntu 24. The workers' gcc check added the multiarch paths there, and all four
   items got past vLLM's startup compile, which is where the 10-21 failures died. The fix works.
 - Successors 26649456-59, each `afterany` on one running worker (26644470-73), same queues, so
@@ -28,12 +30,13 @@ Updated 2026-10-23 07:05 EDT.
 
 ## Queues (~70 GPU-hours)
 
-- `main` (14): r4 dm26_fp32_lr3e-6_skip seed 2; d00_fp32_lr3e-6_skip seeds 0-2;
-  r4 dm51_fp32_lr3e-6_skip seeds 0-2; a01_skip seeds 3-4; then seeds 3-4 of
-  a01_fp32_lr1e-6_skip_cos and d00_fp32_lr3e-6_skip.
-- `long` (3): r4 dm26 skip seed 1, c90_cc1e-3 seed 0, c90_pos01 seed 0.
+- `main` (13): a01_fp32_lr1e-6_skip_cos seed 3, r4 dm26_fp32_lr3e-6_skip seed 2, skip_cos seed 4;
+  d00_fp32_lr3e-6_skip seeds 0-2; r4 dm51_fp32_lr3e-6_skip seeds 0-2; a01_skip seeds 3-4;
+  d00_fp32_lr3e-6_skip seeds 3-4.
+- `long` (2): c90_cc1e-3 seed 0, c90_pos01 seed 0.
 - `later` (11, read by no worker): the other c90 seeds, parked 10-23 04:45.
-- r5 sampler evals (`samp_mal0_t050`, `_tb960`, `_tb768`) get queued once r5's weights exist.
+- r5 sampler evals (`samp_mal0_t050`, `_tb960`, `_tb768`) go to the front of `long` once seeds 1-2's
+  weights exist; they pick the think budget for a training-budget arm (r6).
 - r4 arms run the RL stage from the saved D2 pretrained models (`screen_pretrained`).
 
 ## Best so far
@@ -53,12 +56,11 @@ Updated 2026-10-23 07:05 EDT.
 
 ## Next
 
-- ~09:20-10:30: r5 mal0 seeds 0-2. If they meet the promotion rule (3 seeds all >= 0.2703 and none
-  collapsed), r5 is the A record candidate: commit `records/v3/track_a/002_<slug>/config.json` with
-  the sampler chosen on r5's weights (T 0.5, think budget or not) and flag it above. If r5 misses,
-  skip_cos seeds 3-4 go to the front for the 5-seed form (draft record config in the scratchpad).
-  A "diverged" label caused only by truncated searches goes to QUESTIONS.md before any decision.
-- ~09:50 and ~13:30: dm26 skip seeds 1-2. Both >= 0.149 promotes track D (3-seed form).
+- r5 missed the 3-seed form (seed 0 collapsed). ~10:05-10:30: seeds 1-2 end; then decide whether
+  r5 seeds 3-4 run for the 5-seed form, and queue the sampler evals on their weights.
+- ~14:30-15:30: skip_cos seeds 3-4 (5-seed form; seed 3 >= 0.31 and > 0.2403 settles it alone). If
+  met: commit `records/v3/track_a/002_<slug>/config.json` (draft in the scratchpad) and flag it above.
+- ~09:50 and ~14:00: dm26 skip seeds 1-2. Both >= 0.149 promotes track D (3-seed form).
 - a01_skip AWS seeds 0-2 whenever the laptop commits them.
 - Successors for the 2 pending workers once they start.
 
