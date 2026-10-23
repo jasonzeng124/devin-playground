@@ -6,7 +6,7 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-23 07:55 EDT.
+Updated 2026-10-23 08:55 EDT.
 
 ## Running
 
@@ -15,12 +15,14 @@ Updated 2026-10-23 07:55 EDT.
   mit_preemptable QOS allows 4 GPUs per user (`sacctmgr show qos mit_preemptable`: gres/gpu=4), so
   they only start when a running worker ends. Usable GPUs are 4 there + 2 on mit_normal_gpu, whose
   next H100 start is estimated at 10-25 17:00 (H200 10-25 13:50).
-  - 26644470 (`long:main`, node2701): r4 dm26 skip seed 1 (~09:50; 0.117 at 113 min, seed 0 had 0.125).
-  - 26644471 (`main:long`, node2701): r5 a01_fp32_lr1e-6_skip_cos_mal0 seed 1, done ~10:05 (0.378 at 146 min).
-    Then dm26 skip seed 2.
+  - 26644470 (`long:main`, node2701): r4 dm26 skip seed 1 (~09:50; 0.138 at 177 min, seed 0 had 0.142).
+    Then r6 seed 0.
+  - 26644471 (`main:long`, node2701): r5 a01_fp32_lr1e-6_skip_cos_mal0 seed 1, done ~10:05. **Collapsed** at
+    175-185 min (0.378 -> 0.03). Then dm26 skip seed 2.
   - 26644472 (`main:long`, node2700): r5 mal0 seed 0, done ~09:25. **Collapsed** at 140-160 min (0.392 -> 0.04;
     LOG 07:50). Then skip_cos seed 3.
-  - 26644473 (`main:long`, node2700): r5 mal0 seed 2, done ~10:30 (0.392 at 127 min). Then skip_cos seed 4.
+  - 26644473 (`main:long`, node2700): r5 mal0 seed 2, done ~10:30 (0.377 at 185 min, entropy 0.044). Then
+    skip_cos seed 4.
 - Both nodes run Ubuntu 24. The workers' gcc check added the multiarch paths there, and all four
   items got past vLLM's startup compile, which is where the 10-21 failures died. The fix works.
 - Successors 26649456-59, each `afterany` on one running worker (26644470-73), same queues, so
@@ -28,23 +30,22 @@ Updated 2026-10-23 07:55 EDT.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
-## Queues (~70 GPU-hours)
+## Queues (~75 GPU-hours)
 
-- `main` (13): a01_fp32_lr1e-6_skip_cos seed 3, r4 dm26_fp32_lr3e-6_skip seed 2, skip_cos seed 4;
-  d00_fp32_lr3e-6_skip seeds 0-2; r4 dm51_fp32_lr3e-6_skip seeds 0-2; a01_skip seeds 3-4;
+- `main` (15): a01_fp32_lr1e-6_skip_cos seed 3, r4 dm26_fp32_lr3e-6_skip seed 2, skip_cos seed 4;
+  r6 a01_fp32_lr1e-6_skip_cos_tb768 seeds 1-2; d00_fp32_lr3e-6_skip seeds 0-2; r4 dm51_fp32_lr3e-6_skip seeds 0-2; a01_skip seeds 3-4;
   d00_fp32_lr3e-6_skip seeds 3-4.
-- `long` (2): c90_cc1e-3 seed 0, c90_pos01 seed 0.
+- `long` (3): r6 seed 0, c90_cc1e-3 seed 0, c90_pos01 seed 0.
 - `later` (11, read by no worker): the other c90 seeds, parked 10-23 04:45.
-- r5 sampler evals (`samp_mal0_t050`, `_tb960`, `_tb768`) go to the front of `long` once seeds 1-2's
-  weights exist; they pick the think budget for a training-budget arm (r6).
+- r5 sampler evals (`samp_mal0_t050`, `_tb960`, `_tb768`): only on seed 2's weights, if it ends healthy.
 - r4 arms run the RL stage from the saved D2 pretrained models (`screen_pretrained`).
 
 ## Best so far
 
 - Track A: `a01_fp32_lr1e-6_skip_cos` seeds 0-2 at **0.300 / 0.270 / 0.472** (mean 0.347; A 001 on
   the same seeds: 0.203 / 0.237 / 0.193). The 3-seed form misses by one puzzle (seed 1: 162 of 600;
-  the line is 0.2403 + 0.03 = 0.2703). `c90_mal0` (malformed reward 0, 90 min): 0.322 and 0.383; r5
-  runs it for 290 min.
+  the line is 0.2403 + 0.03 = 0.2703). `c90_mal0` (malformed reward 0, 90 min): 0.322 and 0.383; at
+  290 min (r5) it peaks near 0.39-0.41, then 2 of 3 seeds collapse (to ~0.03-0.08).
 - Track D: `dm26_fp32_lr3e-6_skip` seed 0 at **0.152** (line 0.149; seeds 1-2 decide). fp32 lr 3e-6
   RL on D 000's pretraining: 0.137 ± 0.009 over 5 seeds (D 000: 0.119; no promotion).
 - Holders: track A 001 (test 0.2481, dev 0.2403), track D 000 (test 0.1166, dev 0.1190). Promotion
@@ -56,8 +57,8 @@ Updated 2026-10-23 07:55 EDT.
 
 ## Next
 
-- r5 missed the 3-seed form (seed 0 collapsed). ~10:05-10:30: seeds 1-2 end; then decide whether
-  r5 seeds 3-4 run for the 5-seed form, and queue the sampler evals on their weights.
+- r5 is out: seeds 0 and 1 collapsed (LOG 08:55). r6 (think budget 768 in training) runs
+  ~09:50-19:30; its 3-seed form is the next A chance after skip_cos.
 - ~14:30-15:30: skip_cos seeds 3-4 (5-seed form; seed 3 >= 0.31 and > 0.2403 settles it alone). If
   met: commit `records/v3/track_a/002_<slug>/config.json` (draft in the scratchpad) and flag it above.
 - ~09:50 and ~14:00: dm26 skip seeds 1-2. Both >= 0.149 promotes track D (3-seed form).

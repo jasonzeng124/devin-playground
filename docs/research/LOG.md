@@ -554,3 +554,25 @@ training rows (reward = solve rate, since truncation now scores 0):
   long ends in a guess that can still score, never in a truncation. The r5 sampler evals
   (T 0.5 with budgets 960 and 768) on seeds 1-2's weights pick N first; they go to the front of
   `long` once the weights exist.
+
+## 2026-10-23 (08:55): r5 seed 1 collapses too; r5 is out; r6 trains with a think budget
+
+r5 seed 1 went the same way at 175-185 min: in-loop dev 0.378 (146 min), 0.333 (166 min), then 0.025
+(183 min); now 0.05 at 215 min with nearly every answer immediate. Its entropy fell to 0.033 at
+164-170 min, then truncation jumped from 0.2 to 0.6 and the solve rate from 0.33 to 0.05 within
+10 minutes. Seed 2 is still at 0.377 (185 min), but its entropy is down to 0.044, where the other two
+broke.
+
+- In plain words: with truncation free, the arm learns long searches fast and then breaks once the
+  policy is sharp enough. Two of three seeds lost everything in under 20 minutes. Skip + cosine
+  (same recipe with the -0.1 penalty) never broke in three seeds.
+- Promotion: two collapsed seeds fail both forms (at most 1 of 5), so r5 is out whatever seeds 3-4
+  would do. Seed 2 finishes (~10:30); its weights get the sampler evals only if it ends healthy.
+- r6 (`calibration/research_r6/a01_fp32_lr1e-6_skip_cos_tb768`): skip + cosine with
+  `think_budget: 768` in training and in the in-loop eval. A completion that hasn't opened the answer
+  after 768 free tokens has to answer, so nothing truncates, the malformed penalty never applies,
+  and a search that runs long ends in a guess that can still score. The aim is r5's long searches
+  without its runaway. The budget, 768 of the 1,024 tokens, leaves room for long searches while
+  capping every rollout. Weights are saved for sampler evals.
+- Queue: r6 seed 0 at the front of `long` (worker 26644470, ~09:50, ahead of the two c90 collapse
+  screens); seeds 1-2 in `main` after skip_cos seeds 3-4 and dm26 seed 2 (~14:00).
