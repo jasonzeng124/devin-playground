@@ -6,7 +6,7 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-23 05:45 EDT.
+Updated 2026-10-23 07:05 EDT.
 
 ## Running
 
@@ -15,10 +15,10 @@ Updated 2026-10-23 05:45 EDT.
   mit_preemptable QOS allows 4 GPUs per user (`sacctmgr show qos mit_preemptable`: gres/gpu=4), so
   they only start when a running worker ends. Usable GPUs are 4 there + 2 on mit_normal_gpu, whose
   next H100 start is estimated at 10-25 17:00 (H200 10-25 13:50).
-  - 26644470 (`long:main`, node2701): c90_t12 seed 0 (~05:40), then r4 dm26 skip seed 1 (~09:50).
-  - 26644471 (`main:long`, node2701): r5 a01_fp32_lr1e-6_skip_cos_mal0 seed 1, done ~10:05.
-  - 26644472 (`main:long`, node2700): r5 mal0 seed 0, done ~09:20.
-  - 26644473 (`main:long`, node2700): r5 mal0 seed 2, done ~10:30.
+  - 26644470 (`long:main`, node2701): r4 dm26 skip seed 1 (~09:50; 0.090 at 53 min, seed 0 had 0.118).
+  - 26644471 (`main:long`, node2701): r5 a01_fp32_lr1e-6_skip_cos_mal0 seed 1, done ~10:05 (0.272 at 75 min).
+  - 26644472 (`main:long`, node2700): r5 mal0 seed 0, done ~09:20 (0.380 at 117 min, 59 % truncated).
+  - 26644473 (`main:long`, node2700): r5 mal0 seed 2, done ~10:30 (0.252 at 58 min).
 - Both nodes run Ubuntu 24. The workers' gcc check added the multiarch paths there, and all four
   items got past vLLM's startup compile, which is where the 10-21 failures died. The fix works.
 - Successors 26649456-59, each `afterany` on one running worker (26644470-73), same queues, so
@@ -47,7 +47,8 @@ Updated 2026-10-23 05:45 EDT.
 - Holders: track A 001 (test 0.2481, dev 0.2403), track D 000 (test 0.1166, dev 0.1190). Promotion
   needs dev mean >= 0.2703 (A; 163 of 600) / 0.149 (D; 90 of 600), with 4 of 5 seeds above the
   holder's dev mean and at most 1 collapsed, or 3 seeds all that high and none collapsed. "Collapsed" = diverged, or one-guess
-  below the holder's dev mean (clarified 10-22, PLAN.md; QUESTIONS.md asks).
+  below the holder's dev mean (clarified 10-22, PLAN.md; QUESTIONS.md asks). On answer-constrained arms "diverged" only
+  means truncated searches, so it counts like one-guess (clarified 10-23 07:00, before r5 ended; QUESTIONS.md asks).
 - Sampler: T 0.5 (T 0.25 and think budget 960 add nothing).
 
 ## Next
