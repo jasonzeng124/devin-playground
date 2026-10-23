@@ -704,3 +704,65 @@ Seeds 0-2: 0.152 / 0.143 / 0.153, 269 puzzles, mean 0.1494.
 r6 seed 0 (think budget 768 in training) is at 0.338-0.340 from 249 to 281 min, entropy 0.05-0.08,
 22-23 informative groups: no sign of r5's collapse at the same time. It ends ~14:35. r7 seed 0's first
 eval (step 50) is 0.027, as r5's seeds were at step 50 (0.027-0.042).
+
+## 2026-10-23 (15:35): skip + cosine's five seeds average 0.324; r6 seed 0 ends at 0.318 (r6 parked); how r5 collapsed; r8 queued
+
+```
+  a01_fp32_lr1e-6_skip_cos           s0 done  290m final 0.300 best 0.300 t.10   21 spm   6.4 ent 0.08 inf  9.1 one-guess | 0.115 0.170 0.242 0.288 0.287
+  a01_fp32_lr1e-6_skip_cos           s1 done  290m final 0.270 best 0.277 t.10   21 spm  39.3 ent 0.05 inf  4.6 one-guess | 0.133 0.187 0.220 0.245 0.262
+  a01_fp32_lr1e-6_skip_cos           s2 done  290m final 0.472 best 0.482 t.10   30 spm   5.3 ent 0.06 inf 12.0 ok        | 0.112 0.192 0.353 0.428 0.455
+  a01_fp32_lr1e-6_skip_cos           s3 done  290m final 0.315 best 0.327 t.10   21 spm  37.4 ent 0.04 inf  2.7 one-guess | 0.128 0.172 0.225 0.297 0.312
+  a01_fp32_lr1e-6_skip_cos           s4 done  290m final 0.263 best 0.272 t.10   25 spm  32.3 ent 0.02 inf  2.7 one-guess | 0.135 0.168 0.233 0.248 0.267
+= a01_fp32_lr1e-6_skip_cos             n=5 final 0.324 ± 0.085  ok/1-guess/div 1/4/0  median t.10 21m
+  a01_fp32_lr1e-6_skip_cos_tb768     s0 done  290m final 0.318 best 0.340 t.10   86 spm   2.5 ent 0.10 inf 23.4 ok        | 0.050 0.072 0.212 0.305 0.318
+```
+
+- Skip + cosine, all five seeds: 972 of 3,000 dev puzzles (0.324) against A 001's 721 (0.240) on the
+  same seeds, ahead on four of five (seed 4: 0.263 against 0.300). None collapsed. The promotion
+  (14:25) stands; seed 4 changes nothing.
+- r6 seed 0 (think budget 768 in training, otherwise skip + cosine) ended at 0.318 (191 puzzles),
+  best 0.340 at step 550. It stayed healthy all 5 h: 2.5 steps/min of long searches, no
+  truncation, 20-30 informative groups to the end. But per step it learns much more slowly than r5
+  (malformed reward 0, no budget). Dev at step 300 is 0.255 against r5's 0.355-0.380, and 0.10 is
+  first reached at 86 min against r5's ~25 min. A forced answer after 768 tokens is sometimes right,
+  so a search that never finishes still earns reward now and then. That blurs the signal.
+- Decision: r6 seeds 1-2 move to `later`. Even a steady 0.32-0.34 on every seed would not beat skip +
+  cosine's 0.324 by the +0.03 a later attempt needs once A 002 is the holder. Its weights get two dev
+  sampler evals (`calibration/research_r6/samp_t050`, `_tb768`, at the front of `main`, ~5 min each)
+  to measure the T 0.5 record sampler with and without the training budget.
+
+How r5 collapsed (seed 0's training log). From step 125 on, about half the training samples ran
+out of tokens (0.44-0.59 malformed), while dev kept rising to 0.39 at step 350. Then the share rose
+quickly: 0.59 at step 355, 0.73 at 360-370, 0.82 at 395. Solve rate in the batch fell from 0.39 to
+0.04, and informative groups fell from 25-29 to 6-7. With reward 0 for a truncated output, a group
+whose samples all truncate carries no signal and is skipped. So the slide into truncation removed
+the gradient that could undo it. By step 410-420 the policy had moved elsewhere: entropy 0.04 -> 0.46,
+outputs short again (0.2 malformed), solve rate 0.02. Seeds 1 and 2 went the same way 50-150 steps
+later.
+
+Why not a smaller penalty such as -0.03? Under GRPO's per-group z-score (`adv_norm: std`), a group
+with no correct answer has rewards 0 (wrong) or the malformed reward, and the z-score removes the
+scale. Any negative malformed reward pushes those groups toward finishing just as hard as -0.1,
+which is skip + cosine's push toward one-guess early on, when most groups have no correct answer. So
+the penalty can only usefully change over time.
+
+r8 (`calibration/research_r8/a01_fp32_lr1e-6_skip_cos_mal0_until300`) is r5 (malformed reward 0)
+for the first 300 steps, then the verifier's -0.1 for malformed outputs, over the full 290-min
+budget. Hypothesis: r5's early search survives, because by step 300 half the batch's samples are correct
+(r5 seed 0: solve rate 0.50), so the +1s dominate most groups' signal. The penalty then stops the
+slide into truncation that ended r5. The risk is the one-guess push in groups with no correct
+answer, as in skip + cosine. The arm needs a new option, `malformed_reward_until` (GRPOConfig; 0 = off, so other configs are
+unchanged). It refuses to run without `malformed_reward`, and it has a test (122 pass). Seeds 0-2 are queued after
+the dm26 pipelines; weights are saved for sampler evals.
+
+Also:
+- Preemption: both workers on node2701 were preempted at 14:59, after 15 h. Worker 26644470 lost
+  c90_cc1e-3 seed 0 at 28 min, so it reruns. Worker 26644471 lost r7 seed 0 at ~68 min; its
+  resumable state was saved at 14:54. The requeued pair rank below the two never-started workers
+  26644474-75 (priority 35826 against 39536). So r7 seed 0 would have waited for a running worker to
+  end, likely ~10-24 evening. I moved the item to the front of `main` and kept 26644471's in-hand file
+  as `queue/running.26644471.moved_to_main_1600`, so 26644471 pops a fresh item when it starts. Its
+  logs come back from the resume state.
+- r7 seeds 3-4 (2 h each) are queued after the pipelines, so the 5-seed form is ready if the 3-seed
+  form misses narrowly. If seeds 0-2 settle it, I take them out.
+- r7 so far: seed 1 0.223 at step 150 (56 min; r5's seed 1 was 0.168 there), seed 2 0.065 at step 50.

@@ -370,6 +370,24 @@ def test_skip_zero_advantage_refuses_a_kl_term(monkeypatch, tmp_path):
         run(config)
 
 
+def test_malformed_reward_until_switches_to_the_verifier_reward(monkeypatch, tmp_path):
+    _patch_tiny_training(monkeypatch, tmp_path)
+    seen = []
+    step = grpo.grpo_step
+
+    def recording_step(model, ref_model, tokenizer, puzzles, config, *args):
+        seen.append(config.malformed_reward)
+        return step(model, ref_model, tokenizer, puzzles, config, *args)
+
+    monkeypatch.setattr(grpo, "grpo_step", recording_step)
+    common = dict(model="tiny", group_size=2, prompts_per_step=1, max_new_tokens=4, max_steps=3, eval_every=10,
+                  eval_limit=1, kl_coef=0.0, no_save=True)
+    run(GRPOConfig(**common, malformed_reward=0.0, malformed_reward_until=3, out_dir=str(tmp_path / "until")))
+    assert seen == [0.0, 0.0, None]
+    with pytest.raises(ValueError, match="malformed_reward_until"):
+        run(GRPOConfig(**common, malformed_reward_until=3, out_dir=str(tmp_path / "bad")))
+
+
 def test_run_resumes_from_saved_state_after_an_interruption(monkeypatch, tmp_path):
     _patch_tiny_training(monkeypatch, tmp_path)
     config = GRPOConfig(

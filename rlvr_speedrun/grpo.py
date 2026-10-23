@@ -13,7 +13,7 @@ import subprocess
 import time
 import weakref
 from collections import Counter
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
 
 import numpy as np
@@ -66,6 +66,7 @@ class GRPOConfig:
     # gradient, and the loss keeps the full token count, so the step is the same, only faster
     skip_zero_advantage: bool = False
     malformed_reward: float | None = None  # training reward for unparseable (e.g. truncated) outputs; None = the verifier's -0.1
+    malformed_reward_until: int = 0  # if > 0, malformed_reward applies before this step only, then the verifier's -0.1
     temperature: float = 1.0
     max_new_tokens: int = 48
     few_shot: int = 3
@@ -780,6 +781,9 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError("skip_zero_advantage needs kl_coef == 0, cov_clip_frac == 0 and one process (only then do the skipped rows carry no gradient)")
     if config.pos_adv_scale < 0:
         raise ValueError(f"pos_adv_scale must be >= 0, got {config.pos_adv_scale}")
+    if config.malformed_reward_until > 0 and config.malformed_reward is None:
+        raise ValueError("malformed_reward_until needs malformed_reward (it switches from it to the verifier's -0.1)")
+    late_config = replace(config, malformed_reward=None) if config.malformed_reward_until > 0 else config
     scheduled = config.lr_schedule != "constant" or config.lr_warmup_s > 0
     lr_at(config, config.lr_warmup_s)  # fail on a bad schedule before loading anything
     _set_seed(config.seed, dist.rank)
@@ -862,7 +866,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
                 for group in optimizer.param_groups:
                     group["lr"] = lr_at(config, time.perf_counter() - start - eval_s)
             step_start = time.perf_counter()
-            info = grpo_step(model, ref_model, tokenizer, dist.shard(puzzles), config, optimizer, device, caches, dist)
+            step_config = late_config if 0 < config.malformed_reward_until <= step else config
+            info = grpo_step(model, ref_model, tokenizer, dist.shard(puzzles), step_config, optimizer, device, caches, dist)
             if engine is not None:
                 engine.sync(model)
             step_elapsed = time.perf_counter() - step_start
