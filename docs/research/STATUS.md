@@ -6,7 +6,7 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-23 11:25 EDT.
+Updated 2026-10-23 10:50 EDT.
 
 ## Running
 

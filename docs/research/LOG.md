@@ -611,7 +611,7 @@ steps: malformed 0.29-0.37, against 0.58-0.72 for skip + cosine's first steps (t
 the update takes ~23 s per step, as skip + cosine's first steps did, because the penalty makes most
 groups informative. Both fall once the policy learns to answer.
 
-## 2026-10-23 (11:20): r7 stops r5 at step 300, before its collapse; r6 learns slowly
+## 2026-10-23 (10:50): r7 stops r5 at step 300, before its collapse; r6 learns slowly
 
 `scripts/summarize_screens.py` (r5 done; the others running):
 
