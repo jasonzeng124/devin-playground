@@ -6,12 +6,15 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-23 02:55 EDT.
+Updated 2026-10-23 03:50 EDT.
 
 ## Running
 
 - Workers: 6 on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
-  HBM3; node1800 and the NVL nodes excluded). 4 run, 2 pend (26644474-75, no estimate):
+  HBM3; node1800 and the NVL nodes excluded). 4 run; 26644474-75 pend on `QOSMaxGRESPerUser`: the
+  mit_preemptable QOS allows 4 GPUs per user (`sacctmgr show qos mit_preemptable`: gres/gpu=4), so
+  they only start when a running worker ends. Usable GPUs are 4 there + 2 on mit_normal_gpu, whose
+  next H100 start is estimated at 10-25 17:00 (H200 10-25 13:50).
   - 26644470 (`long:main`, node2701, since 23:59): finished d00_fp32_lr3e-6 seed 1 (0.143), the two
     T 0.25 evals and c90_mal0 seed 0 (0.322 at 90 min); now c90_mal0 seed 1, done ~04:10.
   - 26644471 (`main:long`, node2701, since 23:59): a01_fp32_lr1e-6_skip_cos seed 1, done ~05:00.
