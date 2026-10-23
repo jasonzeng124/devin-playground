@@ -69,3 +69,24 @@ It also blocks strong track A seeds: `a01_fp32_lr1e-6_skip_cos` seed 0 ended at 
 Clarification applied from now on (PLAN.md, written before seeds 1-2 of that arm or any r4 seed came
 in): collapsed = diverged, or one-guess with a final dev below the holder's dev mean. If you want
 the literal reading instead, say so in INBOX and I will apply it.
+
+## 2026-10-23 07:00 EDT: is a constrained seed "diverged" when its searches run out of tokens?
+
+`summarize_screens.py` labels a seed diverged when more than half its outputs are malformed, in
+training or in the last dev eval ("the policy emits garbage"). Under answer-constrained decoding
+(every track A arm since A 001), every answer is well-formed by construction. So "malformed" there
+only counts completions that hit the 1,024-token limit before closing the answer, and the dev
+score already counts those as failures.
+
+Arms that reward a truncated completion 0 instead of -0.1 (`malformed_reward: 0.0`) learn long
+searches. `c90_mal0` ended its 90 min at 0.322 and 0.383 with 62 % and 50 % of greedy dev outputs
+truncated, so both seeds are labeled diverged. r5 (`a01_fp32_lr1e-6_skip_cos_mal0`) runs the same
+recipe for 290 min; seed 0 was at 0.380 after 117 min with 59 % truncated. Read literally, the label
+blocks any such arm from promotion however high it scores.
+
+Reading applied from now on (PLAN.md, written before any r5 seed ended): on constrained arms, a
+diverged seed counts as collapsed only when its final dev is below the holder's dev mean, as for
+one-guess seeds since 10-22. The record's sampler may then add a think budget (`--think-budget`,
+which forces the answer open after N tokens, so nothing truncates), chosen on dev as RULES_v3
+requires, and the test ladder decides as for any record. If you want the literal reading, say so in
+INBOX: r5 would then not promote, and I would screen penalties that keep truncation under half.

@@ -56,6 +56,14 @@ are informative. That label marks every track D seed, the holder's included, and
 that solve most training prompts 8 of 8 times, such as `a01_fp32_lr1e-6_skip_cos` seed 0 (dev 0.300,
 237-token searches at the end).
 
+"Diverged" on answer-constrained arms (clarified 2026-10-23 07:00, before any `research_r5` seed
+ended; QUESTIONS.md asks the maintainer). The label means "more than half the outputs malformed",
+meant as "the policy emits garbage". Under `constrain_answer` every answer is well-formed by
+construction, so "malformed" there counts only completions that hit the 1,024-token limit before
+closing the answer, and the dev score already counts those as failures. On constrained arms a
+diverged seed therefore counts as collapsed only when its final dev is below the holder's dev
+mean, as for one-guess seeds.
+
 ## Agenda
 
 Track A (start: Qwen3-1.7B-Base, 5 h):
