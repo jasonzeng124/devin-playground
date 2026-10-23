@@ -1,0 +1,51 @@
+{
+  "model": "(pretrained by run_seed_v3.sh)",
+  "few_shot": 0,
+  "eval_limit": 600,
+  "curriculum_steps": 0,
+  "group_size": 8,
+  "prompts_per_step": 64,
+  "temperature": 1.0,
+  "lr": 3e-06,
+  "kl_coef": 0.0,
+  "eval_batch_size": 2000,
+  "max_new_tokens": 256,
+  "micro_batch_size": 8,
+  "compile": false,
+  "pad_to_multiple": 64,
+  "max_steps": 1000000,
+  "eval_start_step": 0,
+  "eval_every": 500,
+  "cache_len": 0,
+  "rollout_backend": "vllm",
+  "vllm_gpu_memory": 0.35,
+  "time_budget_s": 14040,
+  "sample_every": 0,
+  "oversample": 1,
+  "prompt_style": "r1",
+  "shaping": 0.0,
+  "eval_set": "data/ladder_v3_dev.jsonl",
+  "micro_batch_tokens": 32768,
+  "constrain_answer": true,
+  "train_mix": "ladder",
+  "adv_norm": "none",
+  "v3": {
+    "track": "D",
+    "pretrain": {
+      "minutes": 112,
+      "tokens": "/home/zjason/orcd/pool/data/dm_math/mix_0.2.bin",
+      "tokenizer": "/home/zjason/orcd/pool/data/tinyllama-tokenizer",
+      "args": "--micro-batch 32 --max-tokens 20000000000"
+    },
+    "sampler": {
+      "temperature": 1.0,
+      "constrain": true,
+      "think_budget": 0
+    },
+    "data_prep": "python scripts/prepare_track_d_data.py; python scripts/research/prepare_dm_math.py --out ~/orcd/pool/data/dm_math --tokenizer <pinned TinyLlama> --base ~/orcd/pool/data/fineweb-edu-tinyllama.bin --fracs 0.2,0.5"
+  },
+  "master_fp32": true,
+  "skip_zero_advantage": true,
+  "no_save": true,
+  "description": "Research r4 (dev only): seeds 3-4 of dm26_fp32_lr3e-6_skip as full pipelines (its seeds 0-2 ran the RL stage from r2 d00_dm26's saved pretraining): D 000's pretraining with DeepMind mathematics_dataset arithmetic as 26% of the tokens (112 min), then fp32 master weights at lr 3e-6 with zero-advantage rows skipped (234 min)."
+}

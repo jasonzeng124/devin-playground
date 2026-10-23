@@ -660,3 +660,47 @@ r5's in-loop dev by step (greedy dev malformed in brackets, i.e. searches cut at
   ("ibraries") showed the same kind of tokens early, so that is not the budget's doing. r6 seeds 1-2
   now wait behind r7; seed 0's end (~14:35) decides whether they run.
 - dm26 skip seed 2: 0.093 at 48 min (seeds 0-1 had 0.098 / 0.087 at that point).
+
+## 2026-10-23 (14:25): skip + cosine promotes (5-seed form); A 002 record config committed. dm26 seed 2 ends at 0.153
+
+`a01_fp32_lr1e-6_skip_cos` (A 001 + fp32 master weights at lr 1e-6, cosine to 1e-7, zero-advantage
+rows skipped), in-loop final dev:
+
+| seed | A 001 (same seed) | final dev | puzzles | best | mode |
+|---|---|---|---|---|---|
+| 0 | 0.203 | 0.300 | 180 | 0.300 | one-guess (237-token searches at the end) |
+| 1 | 0.237 | 0.270 | 162 | 0.277 | one-guess |
+| 2 | 0.193 | 0.472 | 283 | 0.482 | ok |
+| 3 | 0.268 | 0.315 | 189 | 0.327 | one-guess |
+| 4 | 0.300 | 0.263 at 238 min (ends ~15:20) | | | one-guess |
+
+- Promotion, 5-seed form: A 001's record seeds total 721 of 3,000 (0.2403), so the line is 0.2703,
+  811 puzzles over five seeds. Seeds 0-3 already have 814, so the mean holds whatever seed 4 scores;
+  seeds 0-3 are all above 0.2403 and none is collapsed (one-guess seeds count as collapsed only
+  below the holder's mean). The rule is met.
+- In plain words: across five seeds, skip + cosine beats A 001 on four (seed 4 is behind A 001's
+  seed 4, 0.263 against 0.300, with 50 min left), by +0.11 on average over seeds 0-3 (0.339 against 0.225). It is the first
+  arm of the month to meet the rule.
+- Record: `records/v3/track_a/002_fp32_skip_cosine/config.json` is the screen's config with
+  final weights saved and the scoring sampler at T 0.5, constrained, no think budget. T 0.5 was
+  picked on A 001's dev evals (`calibration/research_r2/samp_a001_t050` against T 0.75 and 1.0); this
+  arm's final evals truncate 0-0.2 % of outputs, so a think budget would not change anything.
+  N = 5 (seeds 0-4), `scripts/run_seed_v3.sh` STAGE=all, all five reported, then
+  `validate_record_v3.py --compare-to records/v3/track_a/001_ladder_constrained`.
+- Where: Engaging's only mit_normal_gpu H100 node (node2906) estimates its next start at 10-26 06:46
+  (`sbatch --test-only`), so AWS via the laptop session is likely sooner. All five seeds must train on
+  one provider, so I have not submitted Engaging record workers; STATUS.md flags the promotion.
+
+r4 `dm26_fp32_lr3e-6_skip` seed 2 ended at 0.153 (92 puzzles; L1-L6 0.55 0.06 0.06 0.02 0.00 0.23).
+Seeds 0-2: 0.152 / 0.143 / 0.153, 269 puzzles, mean 0.1494.
+
+- Promotion: the 3-seed form is out (seed 1). The 5-seed form needs 447 puzzles over five seeds, so
+  seeds 3-4 must total 178 (0.148 each on average, the arm's mean so far): about even odds.
+- Seeds 3-4 run as full pipelines (`calibration/research_r4/dm26_fp32_lr3e-6_skip_pipe`: the same
+  26 % DM-math pretraining for 112 min, then the same RL), since only seeds 0-2 have saved
+  pretraining. They follow r7 in `main` (~16:05 and ~16:30 starts) and finish ~22:00-22:30.
+  Pretraining is time-budgeted, so I'll check their tokens/s against the ~370k of seeds 0-2.
+
+r6 seed 0 (think budget 768 in training) is at 0.338-0.340 from 249 to 281 min, entropy 0.05-0.08,
+22-23 informative groups: no sign of r5's collapse at the same time. It ends ~14:35. r7 seed 0's first
+eval (step 50) is 0.027, as r5's seeds were at step 50 (0.027-0.042).
