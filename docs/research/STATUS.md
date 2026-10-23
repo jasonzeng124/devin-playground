@@ -44,9 +44,9 @@ Updated 2026-10-23 05:45 EDT.
   runs it for 290 min.
 - Track D: `dm26_fp32_lr3e-6_skip` seed 0 at **0.152** (line 0.149; seeds 1-2 decide). fp32 lr 3e-6
   RL on D 000's pretraining: 0.137 ± 0.009 over 5 seeds (D 000: 0.119; no promotion).
-- Holders: track A 001 (test 0.2481, dev 0.240), track D 000 (test 0.1166, dev 0.119). Promotion
-  needs dev mean >= 0.270 (A) / 0.149 (D), with 4 of 5 seeds above the holder's dev mean and at most
-  1 collapsed, or 3 seeds all that high and none collapsed. "Collapsed" = diverged, or one-guess
+- Holders: track A 001 (test 0.2481, dev 0.2403), track D 000 (test 0.1166, dev 0.1190). Promotion
+  needs dev mean >= 0.2703 (A; 163 of 600) / 0.149 (D; 90 of 600), with 4 of 5 seeds above the
+  holder's dev mean and at most 1 collapsed, or 3 seeds all that high and none collapsed. "Collapsed" = diverged, or one-guess
   below the holder's dev mean (clarified 10-22, PLAN.md; QUESTIONS.md asks).
 - Sampler: T 0.5 (T 0.25 and think budget 960 add nothing).
 
