@@ -576,3 +576,37 @@ broke.
   capping every rollout. Weights are saved for sampler evals.
 - Queue: r6 seed 0 at the front of `long` (worker 26644470, ~09:50, ahead of the two c90 collapse
   screens); seeds 1-2 in `main` after skip_cos seeds 3-4 and dm26 seed 2 (~14:00).
+
+## 2026-10-23 (09:55): all three r5 seeds collapsed; dm26 skip seed 1 ends at 0.143 (D 3-seed form missed)
+
+r5 seed 2 broke too (0.407 at 166 min, 0.06-0.08 from ~240 min), so all three seeds collapsed:
+
+| seed | best in-loop dev (min) | final dev | collapse window |
+|---|---|---|---|
+| 0 | 0.392 (139) | 0.113 | 140-160 min |
+| 1 | 0.378 (146) | ~0.06 (ends ~10:05) | 175-185 min |
+| 2 | 0.407 (166) | ~0.07 (ends ~10:30) | ~190-240 min |
+
+- In plain words: without the truncation penalty, the long-search policy peaks near 0.40 and then
+  breaks on every seed. Its final weights are no use for sampler evals, so those are dropped.
+
+r4 `dm26_fp32_lr3e-6_skip` (fp32 lr 3e-6 + skip RL on the 26 % DM-math pretraining), seed 1 done:
+
+| seed | D 000 | final dev | puzzles | steps | L1 L2 L3 L4 L5 L6 |
+|---|---|---|---|---|---|
+| 0 | 0.087 | 0.152 | 91 | 16,317 | 0.59 0.09 0.03 0.04 0.00 0.16 |
+| 1 | 0.152 | 0.143 | 86 | 17,550 | 0.48 0.10 0.04 0.04 0.00 0.20 |
+| mean | 0.119 | 0.148 | | | |
+
+- Promotion, 3-seed form: needs every seed >= 0.149 (90 puzzles); seed 1 has 86, so it is out. The
+  5-seed form needs a mean >= 0.149, so seeds 2-4 must average >= 0.150. Seed 2 runs now (ends
+  ~14:05). Seeds 3-4 have no saved D2 pretraining, so each would be the full 6-h pipeline; I decide
+  on them when seed 2 is in.
+- Queue: the 51 % DM-math seeds (`dm51_fp32_lr3e-6_skip` 0-2) move ahead of `d00_fp32_lr3e-6_skip`
+  0-2. Those three only isolate skip's effect on D 000's pretraining, while dm51 is a D record path.
+
+Correction to the 08:55 entry: r6's think budget removes truncation, but not completions that end
+(EOS) before opening the answer. Those still score -0.1 as in skip + cosine. r6 seed 0's first
+steps: malformed 0.29-0.37, against 0.58-0.72 for skip + cosine's first steps (truncations gone);
+the update takes ~23 s per step, as skip + cosine's first steps did, because the penalty makes most
+groups informative. Both fall once the policy learns to answer.
