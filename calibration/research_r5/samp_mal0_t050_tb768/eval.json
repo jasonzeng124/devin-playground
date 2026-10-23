@@ -1,0 +1,8 @@
+{
+  "description": "Research r5 (dev only): r5 a01_fp32_lr1e-6_skip_cos_mal0 seeds scored on the dev ladder at temperature 0.5, constrained, with a think budget of 768 tokens ('<answer>' is forced at token 768 if not yet opened, so a search that would be truncated at 1,024 tokens still answers).",
+  "model": "~/orcd/pool/rlvr-ckpts/calibration/research_r5/a01_fp32_lr1e-6_skip_cos_mal0/seeds/{seed}/final",
+  "temperature": 0.5,
+  "constrain": true,
+  "think_budget": 768,
+  "limit_per_level": 0
+}

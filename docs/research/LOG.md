@@ -488,3 +488,34 @@ Queues: dm26 seed 1 moved to the front of `long` (worker 26644470 takes it after
 pos01; their seeds 1-3 and mal0's seeds 2-3 are parked in `queue/later.txt`, which no worker reads.
 mal0 is now tested at full length (r5), and the other three test fixes for a collapse that mal0
 avoids.
+
+## 2026-10-23 (05:40): skip + cosine ends at 0.300 / 0.270 / 0.472; the 3-seed form misses by one puzzle
+
+`a01_fp32_lr1e-6_skip_cos` (A 001 + fp32 lr 1e-6 + skip + cosine decay to 1e-7), seeds 0-2, 290 min:
+
+| seed | A 001 | final dev | dev at 30/60/120/180/240 min | steps | L1 L2 L3 L4 L5 L6 (final) | mode at the end |
+|---|---|---|---|---|---|---|
+| 0 | 0.203 | 0.300 | 0.115 0.170 0.242 0.288 0.287 | 4,127 | 0.93 0.21 0.22 0.10 0.04 0.30 | long searches regrown after ~100 min |
+| 1 | 0.237 | 0.270 | 0.133 0.187 0.220 0.245 0.262 | 10,610 | 0.74 0.28 0.15 0.07 0.06 0.32 | one guess throughout |
+| 2 | 0.193 | **0.472** | 0.112 0.192 0.353 0.428 0.455 | 1,984 | 1.00 0.44 0.25 0.39 0.30 0.45 | long searches throughout |
+| mean | 0.211 | **0.347 ± 0.109** | | | | |
+
+- In plain words: the arm splits by whether the policy searches. Seed 2 never fell into the
+  one-guess mode and reached 0.472, the best dev seen in this project, with L4 0.39 and L5 0.30.
+  Seed 0 fell in and climbed back out. Seed 1 stayed in it for 290 min (10,610 short steps), and
+  its guessing alone reached 0.270. All three beat A 001 on the same seed (+0.10, +0.03, +0.28).
+- Promotion, 3-seed form: every seed must be at least the holder's dev mean + 0.03. A 001's exact
+  dev mean is 0.2403 (0.203, 0.237, 0.193, 0.268, 0.300), so the line is 0.2703, i.e. 163 of 600
+  puzzles. Seed 1 has 162. PLAN's rounded 0.240 would pass it, but I read the rule with the exact
+  mean, so the 3-seed form is not met. None of the seeds counts as collapsed: seed 1 is labelled
+  one-guess, but its 0.270 is above the holder's mean.
+- The 5-seed form (mean >= 0.2703, 4 of 5 above 0.2403, at most 1 collapsed) needs seeds 3-4. One of
+  them above 0.2403 and a combined 0.31 for the two would do it.
+- Decision, made at the same time as the r5 malformed-reward-0 screens (the same recipe without
+  the -0.1 penalty, which avoided the one-guess mode on both 90-min seeds): skip_cos seeds 3-4 stay
+  queued, and the call comes when r5's seeds 0-1 end (~09:20-10:05). If r5 meets the promotion rule,
+  r5 becomes the A record candidate. If not, skip_cos seeds 3-4 move to the front for the 5-seed
+  form. All four of our preemptable GPUs (the QOS limit) are busy until ~09:20 either way.
+
+`c90_t12` seed 0 (training temperature 1.2) is at 0.202 after 85 min and one-guess, like the
+penalized runs: the higher temperature does not prevent the mode.

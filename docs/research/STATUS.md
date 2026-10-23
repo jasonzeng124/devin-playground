@@ -6,7 +6,7 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-23 03:50 EDT.
+Updated 2026-10-23 05:45 EDT.
 
 ## Running
 
@@ -15,11 +15,10 @@ Updated 2026-10-23 03:50 EDT.
   mit_preemptable QOS allows 4 GPUs per user (`sacctmgr show qos mit_preemptable`: gres/gpu=4), so
   they only start when a running worker ends. Usable GPUs are 4 there + 2 on mit_normal_gpu, whose
   next H100 start is estimated at 10-25 17:00 (H200 10-25 13:50).
-  - 26644470 (`long:main`, node2701, since 23:59): finished d00_fp32_lr3e-6 seed 1 (0.143), the two
-    T 0.25 evals and c90_mal0 seed 0 (0.322 at 90 min); now c90_mal0 seed 1, done ~04:10.
-  - 26644471 (`main:long`, node2701, since 23:59): a01_fp32_lr1e-6_skip_cos seed 1, done ~05:00.
-  - 26644472 (`main:long`, node2700, since 00:26): r4 dm26_fp32_lr3e-6_skip seed 0, done ~04:30.
-  - 26644473 (`main:long`, node2700, since 00:26): a01_fp32_lr1e-6_skip_cos seed 2, done ~05:30.
+  - 26644470 (`long:main`, node2701): c90_t12 seed 0 (~05:40), then r4 dm26 skip seed 1 (~09:50).
+  - 26644471 (`main:long`, node2701): r5 a01_fp32_lr1e-6_skip_cos_mal0 seed 1, done ~10:05.
+  - 26644472 (`main:long`, node2700): r5 mal0 seed 0, done ~09:20.
+  - 26644473 (`main:long`, node2700): r5 mal0 seed 2, done ~10:30.
 - Both nodes run Ubuntu 24. The workers' gcc check added the multiarch paths there, and all four
   items got past vLLM's startup compile, which is where the 10-21 failures died. The fix works.
 - Successors 26649456-59, each `afterany` on one running worker (26644470-73), same queues, so
@@ -27,23 +26,24 @@ Updated 2026-10-23 03:50 EDT.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
-## Queues (~95 GPU-hours)
+## Queues (~70 GPU-hours)
 
-- `main` (17): r5 a01_fp32_lr1e-6_skip_cos_mal0 seeds 0-2 (290 min, weights kept);
-  r4 dm26_fp32_lr3e-6_skip seeds 1-2; d00_fp32_lr3e-6_skip seeds 0-2;
+- `main` (14): r4 dm26_fp32_lr3e-6_skip seed 2; d00_fp32_lr3e-6_skip seeds 0-2;
   r4 dm51_fp32_lr3e-6_skip seeds 0-2; a01_skip seeds 3-4; then seeds 3-4 of
   a01_fp32_lr1e-6_skip_cos and d00_fp32_lr3e-6_skip.
-- `long` (14): c90 collapse screens (t12, cc1e-3, pos01 seed 0, then seed 1s, then seeds 2-3).
+- `long` (3): r4 dm26 skip seed 1, c90_cc1e-3 seed 0, c90_pos01 seed 0.
+- `later` (11, read by no worker): the other c90 seeds, parked 10-23 04:45.
+- r5 sampler evals (`samp_mal0_t050`, `_tb960`, `_tb768`) get queued once r5's weights exist.
 - r4 arms run the RL stage from the saved D2 pretrained models (`screen_pretrained`).
 
 ## Best so far
 
-- Track A: `a01_fp32_lr1e-6_skip_cos` seed 0 at dev **0.300** (A 001's seed 0: 0.203); at 02:40 seed 2
-  was at 0.383 (131 min) and seed 1 at 0.222 (154 min, still one-guess). The 3-seed form needs
-  seeds 1-2 >= 0.270. `c90_mal0` (the same with malformed reward 0) reached **0.322 in 90 min** on
-  seed 0, with 62 % of eval answers truncated; r5 runs it for 290 min.
-- Track D: fp32 lr 3e-6 RL on D 000's pretraining, 0.137 ± 0.009 over 5 seeds (D 000: 0.119; +0.018,
-  no promotion). D2 dm26 seed 0 with D 000's RL: 0.118 (D 000 seed 0: 0.087).
+- Track A: `a01_fp32_lr1e-6_skip_cos` seeds 0-2 at **0.300 / 0.270 / 0.472** (mean 0.347; A 001 on
+  the same seeds: 0.203 / 0.237 / 0.193). The 3-seed form misses by one puzzle (seed 1: 162 of 600;
+  the line is 0.2403 + 0.03 = 0.2703). `c90_mal0` (malformed reward 0, 90 min): 0.322 and 0.383; r5
+  runs it for 290 min.
+- Track D: `dm26_fp32_lr3e-6_skip` seed 0 at **0.152** (line 0.149; seeds 1-2 decide). fp32 lr 3e-6
+  RL on D 000's pretraining: 0.137 ± 0.009 over 5 seeds (D 000: 0.119; no promotion).
 - Holders: track A 001 (test 0.2481, dev 0.240), track D 000 (test 0.1166, dev 0.119). Promotion
   needs dev mean >= 0.270 (A) / 0.149 (D), with 4 of 5 seeds above the holder's dev mean and at most
   1 collapsed, or 3 seeds all that high and none collapsed. "Collapsed" = diverged, or one-guess
@@ -52,16 +52,13 @@ Updated 2026-10-23 03:50 EDT.
 
 ## Next
 
-- ~05:00-05:30: skip_cos seeds 1-2. If both are >= 0.270 and not collapsed, A promotes: commit
-  `records/v3/track_a/002_<slug>/config.json` (A 001 + fp32 lr 1e-6 + skip + cosine, sampler T 0.5)
-  and flag it above. Otherwise seeds 3-4 move up for the 5-seed form.
-- From ~04:30 into 10-24: dm26 and d00 skip seeds 0-2. A D arm whose 3 seeds are all >= 0.149
-  promotes. The record pipeline would be D 000's (or DM-math) pretraining + fp32 lr 3e-6 + skip.
-- ~04:10: c90_mal0 seed 1 (does 0.322 at 90 min replicate?).
-- ~10:00-10:30: r5 mal0 seeds 0-2 (290 min). Then dev sampler evals on their weights: T 0.5 with and
-  without a think budget.
-- a01_skip AWS seeds 0-2 whenever the laptop commits them (3-seed check; seeds 3-4 leave `main` if
-  they settle it).
+- ~09:20-10:30: r5 mal0 seeds 0-2. If they meet the promotion rule (3 seeds all >= 0.2703 and none
+  collapsed), r5 is the A record candidate: commit `records/v3/track_a/002_<slug>/config.json` with
+  the sampler chosen on r5's weights (T 0.5, think budget or not) and flag it above. If r5 misses,
+  skip_cos seeds 3-4 go to the front for the 5-seed form (draft record config in the scratchpad).
+  A "diverged" label caused only by truncated searches goes to QUESTIONS.md before any decision.
+- ~09:50 and ~13:30: dm26 skip seeds 1-2. Both >= 0.149 promotes track D (3-seed form).
+- a01_skip AWS seeds 0-2 whenever the laptop commits them.
 - Successors for the 2 pending workers once they start.
 
 ## Notes
