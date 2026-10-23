@@ -6,29 +6,30 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-22 23:55 EDT.
+Updated 2026-10-23 00:45 EDT.
 
 ## Running
 
-- Engaging: nothing runs. The queues drained on 10-21/22 (35 items failed on Ubuntu 24 nodes; LOG
-  2026-10-22 night). The last GPU item ended at 10:27 on 10-22.
-- Workers: 6 on mit_preemptable, all pending (26644470 `long:main`, 26644471-75 `main:long`;
-  `RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB HBM3; node1800 and the NVL nodes
-  excluded). Slurm's start estimate is ~00:20 on 10-24 (2,374 jobs pending). None on mit_normal_gpu:
-  its estimate is 10-25 09:00 for H100 and H200 alike.
-- Workers now check gcc before popping. On Ubuntu nodes they add the multiarch paths; if gcc
-  still fails they exit with nothing popped. After two failures in a row under 5 min, a worker
-  puts the item back and exits.
+- Workers: 6 on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
+  HBM3; node1800 and the NVL nodes excluded). 4 run, 2 pend (26644474-75, no estimate):
+  - 26644470 (`long:main`, node2701, since 23:59): d00_fp32_lr3e-6 seed 1, resumed at step 8,567;
+    step 9,807 and dev 0.135 at 00:33, done ~01:10.
+  - 26644471 (`main:long`, node2701, since 23:59): a01_fp32_lr1e-6_skip_cos seed 1, done ~05:00.
+  - 26644472 (`main:long`, node2700, since 00:26): r4 dm26_fp32_lr3e-6_skip seed 0, done ~04:30.
+  - 26644473 (`main:long`, node2700, since 00:26): a01_fp32_lr1e-6_skip_cos seed 2, done ~05:30.
+- Both nodes run Ubuntu 24. The workers' gcc check added the multiarch paths there, and all four
+  items got past vLLM's startup compile, which is where the 10-21 failures died. The fix works.
+- Successors 26649456-59, each `afterany` on one running worker (26644470-73), same queues, so
+  they start as the current workers end (~10-24 evening) and the cap holds.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
-## Queues (~105 GPU-hours)
+## Queues (~90 GPU-hours)
 
-- `main` (17): a01_fp32_lr1e-6_skip_cos seeds 1-2; r4 dm26_fp32_lr3e-6_skip seeds 0-2;
-  d00_fp32_lr3e-6_skip seeds 0-2; r4 dm51_fp32_lr3e-6_skip seeds 0-2; a01_skip seeds 3-4;
-  then seeds 3-4 of a01_fp32_lr1e-6_skip_cos and d00_fp32_lr3e-6_skip.
-- `long` (19): d00_fp32_lr3e-6 seed 1 (resumes at 180 of 234 min), samp_a001_t025 seeds 0 and 2,
-  c90 collapse screens seeds 0-1, then seeds 2-3.
+- `main` (14): r4 dm26_fp32_lr3e-6_skip seeds 1-2; d00_fp32_lr3e-6_skip seeds 0-2;
+  r4 dm51_fp32_lr3e-6_skip seeds 0-2; a01_skip seeds 3-4; then seeds 3-4 of
+  a01_fp32_lr1e-6_skip_cos and d00_fp32_lr3e-6_skip.
+- `long` (18): samp_a001_t025 seeds 0 and 2, c90 collapse screens seeds 0-1, then seeds 2-3.
 - r4 arms run the RL stage from the saved D2 pretrained models (`screen_pretrained`).
 
 ## Best so far
@@ -45,14 +46,15 @@ Updated 2026-10-22 23:55 EDT.
 
 ## Next
 
-- About 6 h after the workers start: skip_cos seeds 1-2. If both are >= 0.270 and not collapsed,
-  A promotes: commit `records/v3/track_a/002_<slug>/config.json` (A 001 + fp32 lr 1e-6 + skip +
-  cosine, sampler T 0.5) and flag it above. Otherwise seeds 3-4 move up for the 5-seed form.
-- About 5-10 h after the start: dm26 and d00 skip seeds 0-2. A D arm whose 3 seeds are all >= 0.149
+- ~01:10: d00_fp32_lr3e-6 seed 1 ends, completing that arm's 5 seeds (final LOG table).
+- ~05:00-05:30: skip_cos seeds 1-2. If both are >= 0.270 and not collapsed, A promotes: commit
+  `records/v3/track_a/002_<slug>/config.json` (A 001 + fp32 lr 1e-6 + skip + cosine, sampler T 0.5)
+  and flag it above. Otherwise seeds 3-4 move up for the 5-seed form.
+- From ~04:30 into 10-24: dm26 and d00 skip seeds 0-2. A D arm whose 3 seeds are all >= 0.149
   promotes. The record pipeline would be D 000's (or DM-math) pretraining + fp32 lr 3e-6 + skip.
 - a01_skip AWS seeds 0-2 whenever the laptop commits them (3-seed check; seeds 3-4 leave `main` if
   they settle it).
-- Successor workers about 2 days after the current ones start.
+- Successors for the 2 pending workers once they start.
 
 ## Notes
 
@@ -63,5 +65,6 @@ Updated 2026-10-22 23:55 EDT.
 - Track D pretraining speed varies by node: 224k tokens/s on node4109 (4 of our jobs at once)
   against 372k on node3009 and 359-373k in D 000's record. Pretraining is time-budgeted, so D2
   results must be read with their tokens/s. The 6 saved D2 models all ran at ~370k.
-- Ubuntu 24 nodes (8 of ~35 H100 nodes on mit_preemptable): `module load` fails there (lmod path),
-  and gcc needs the multiarch paths, which the worker now adds.
+- Ubuntu 24 nodes (8 of ~35 H100 nodes on mit_preemptable): gcc needs the multiarch paths, which
+  the worker now adds. `module load` fails there because lmod isn't installed (probe 26644751 on
+  node2801), so `cuda/13.0.1` isn't loaded; vLLM and training start without it.
