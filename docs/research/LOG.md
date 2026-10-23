@@ -610,3 +610,53 @@ Correction to the 08:55 entry: r6's think budget removes truncation, but not com
 steps: malformed 0.29-0.37, against 0.58-0.72 for skip + cosine's first steps (truncations gone);
 the update takes ~23 s per step, as skip + cosine's first steps did, because the penalty makes most
 groups informative. Both fall once the policy learns to answer.
+
+## 2026-10-23 (11:20): r7 stops r5 at step 300, before its collapse; r6 learns slowly
+
+`scripts/summarize_screens.py` (r5 done; the others running):
+
+```
+  a01_fp32_lr1e-6_skip_cos_mal0      s0 done  290m final 0.113 best 0.392 t.10   50 spm  31.1 ent 0.06 inf  6.1 one-guess | 0.098 0.215 0.380 0.023 0.068
+  a01_fp32_lr1e-6_skip_cos_mal0      s1 done  290m final 0.063 best 0.378 t.10   48 spm  11.5 ent 0.26 inf 12.7 ok        | 0.087 0.168 0.322 0.333 0.047
+  a01_fp32_lr1e-6_skip_cos_mal0      s2 done  290m final 0.083 best 0.407 t.10   34 spm   8.8 ent 0.11 inf 10.2 ok        | 0.067 0.252 0.373 0.407 0.062
+= a01_fp32_lr1e-6_skip_cos_mal0        n=3 final 0.087 ± 0.025  ok/1-guess/div 2/1/0  median t.10 48m
+  a01_fp32_lr1e-6_skip_cos           s3 RUN    85m final 0.208 best 0.228 t.10   21 spm  40.3 ent 0.04 inf  5.9 one-guess
+  a01_fp32_lr1e-6_skip_cos           s4 RUN    27m final 0.118 best 0.118 t.10   25 spm   9.9 ent 0.03 inf  6.2 one-guess
+  a01_fp32_lr1e-6_skip_cos_tb768     s0 RUN    68m final 0.087 best 0.087 t.10    - spm   2.5 ent 0.90 inf 19.3 ok
+  dm26_fp32_lr3e-6_skip              s2 RUN    48m final 0.093 best 0.097 t.10    - spm  68.3 ent 0.05 inf  3.1 one-guess
+```
+
+r5's in-loop dev by step (greedy dev malformed in brackets, i.e. searches cut at 1,024 tokens):
+
+| seed | step 300 | step 350 | step 400 | step 450 | step 500 | first collapsed eval |
+|---|---|---|---|---|---|---|
+| 0 | 0.380 (0.59), 119 min | 0.392 (0.57) | 0.043 | | | step 400 |
+| 1 | 0.355 (0.56), 125 min | 0.378 (0.43) | 0.333 | 0.025 | | step 450 |
+| 2 | 0.373 (0.25), 107 min | 0.392 (0.36) | 0.392 | 0.407 | 0.377 | step 550 |
+
+- In plain words: r5 is fine for its first 350 steps on every seed and breaks between steps 350 and
+  550, so its trouble is all after ~2 h. A run that stops at step 300 would have scored 0.380 /
+  0.355 / 0.373, every seed above the A line (0.2703), with 50 or more steps to spare before the
+  earliest collapse.
+- r7 (`calibration/research_r7/a01_fp32_lr1e-6_skip_cos_mal0_s300`): r5's config with
+  `max_steps: 300`. The lr schedule is time-based over the 17,400-s budget, so the run is r5's first
+  ~2 h and then stops: an eval at step 300, then the final weights. The budget is a cap, so a
+  ~2-h track A run is legal. Weights are saved: 25-59 % of the greedy dev outputs at step 300
+  were cut at 1,024 tokens, so a think budget at eval may add points. Eval arms
+  `samp_s300_t050`, `_tb960` and `_tb768` are ready and queue when the weights exist.
+- Queue: r7 seeds 0-2 at the front of `main` (~2.2 h each); they start at ~14:05, ~14:20 and ~15:20
+  as running items end. Seeds at r5's level would meet the 3-seed form (every seed >= 0.2703,
+  none collapsed; truncation-heavy evals count as collapsed only below the holder's mean, per the
+  10-23 07:00 clarification).
+- skip + cosine seed 3 has been one-guess since ~30 min (entropy 0.05, ~1-s rollouts) and is at
+  0.208-0.228 at 85 min. Seeds 0 and 1 looked the same at that point (0.202 / 0.185 at 90 min) and
+  ended at 0.300 / 0.270. Seed 4 is at 0.118 after 27 min.
+- r6 seed 0 (think budget 768) learns slowly: 0.050 / 0.072 / 0.087 at steps 50 / 100 / 150 (66 min),
+  against 0.14-0.215 for r5 at step 150. Its steps take ~27 s (rollouts run to the budget), entropy
+  is still 1.1 at 60 min and the batch reward is 0.05 (r5: 0.23-0.30). My reading: with the budget,
+  a search that rambles still ends in a forced guess that sometimes scores, so nothing pushes the
+  policy to finish a search; r5's zero reward for truncation did. Its greedy outputs separate steps
+  with stray code tokens ("\npaque Step 2: ..."); skip + cosine seed 2 (".debugLine") and r5 seed 0
+  ("ibraries") showed the same kind of tokens early, so that is not the budget's doing. r6 seeds 1-2
+  now wait behind r7; seed 0's end (~14:35) decides whether they run.
+- dm26 skip seed 2: 0.093 at 48 min (seeds 0-1 had 0.098 / 0.087 at that point).

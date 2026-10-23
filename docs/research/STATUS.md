@@ -6,7 +6,7 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-23 10:00 EDT.
+Updated 2026-10-23 11:25 EDT.
 
 ## Running
 
@@ -17,20 +17,19 @@ Updated 2026-10-23 10:00 EDT.
   estimated at 10-25 17:00 (H200 10-25 13:50).
   - 26644470 (`long:main`, node2701): r6 `a01_fp32_lr1e-6_skip_cos_tb768` seed 0 (09:35 -> ~14:35).
   - 26644472 (`main:long`, node2700): `a01_fp32_lr1e-6_skip_cos` seed 3 (09:18 -> ~14:20).
-  - 26644471 (`main:long`, node2701): r5 seed 1 (collapsed) until ~10:05, then dm26 skip seed 2
-    (-> ~14:05).
-  - 26644473 (`main:long`, node2700): r5 seed 2 (collapsed) until ~10:30, then skip_cos seed 4
-    (-> ~15:30).
+  - 26644471 (`main:long`, node2701): dm26 skip seed 2 (09:55 -> ~14:05).
+  - 26644473 (`main:long`, node2700): `a01_fp32_lr1e-6_skip_cos` seed 4 (10:18 -> ~15:20).
 - Ubuntu 24 nodes (node2700, node2701) work since the gcc fix.
 - Successors 26649456-59, each `afterany` on one running worker (26644470-73), same queues, so
   they start as the current workers end (~10-24 evening) and the cap holds.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
-## Queues (~70 GPU-hours)
+## Queues (~62 GPU-hours)
 
-- `main` (14): dm26 skip seed 2, skip_cos seed 4, r6 seeds 1-2, r4 dm51_fp32_lr3e-6_skip seeds 0-2,
-  d00_fp32_lr3e-6_skip seeds 0-2, a01_skip seeds 3-4, d00_fp32_lr3e-6_skip seeds 3-4.
+- `main` (15): r7 `a01_fp32_lr1e-6_skip_cos_mal0_s300` seeds 0-2 (~2.2 h each), r6 seeds 1-2 (run only
+  if seed 0 ends well), r4 dm51_fp32_lr3e-6_skip seeds 0-2, d00_fp32_lr3e-6_skip seeds 0-2, a01_skip
+  seeds 3-4, d00_fp32_lr3e-6_skip seeds 3-4.
 - `long` (2): c90_cc1e-3 seed 0, c90_pos01 seed 0.
 - `later` (11, read by no worker): the other c90 seeds, parked 10-23 04:45.
 - r4 arms run the RL stage from the saved D2 pretrained models (`screen_pretrained`).
@@ -39,8 +38,14 @@ Updated 2026-10-23 10:00 EDT.
 
 - Track A: `a01_fp32_lr1e-6_skip_cos` seeds 0-2 at **0.300 / 0.270 / 0.472** (mean 0.347; A 001 on
   the same seeds: 0.203 / 0.237 / 0.193). The 3-seed form misses by one puzzle (seed 1: 162 of 600;
-  the line is 0.2403 + 0.03 = 0.2703). Malformed reward 0 (r5) peaks near 0.39-0.41 at 140-170 min,
-  then all 3 seeds collapse (finals 0.06-0.11), so it is out.
+  the line is 0.2403 + 0.03 = 0.2703). Seeds 3-4 run (seed 3 0.208-0.228 at 85 min, one-guess like
+  seeds 0-1 were at that point).
+- Malformed reward 0 (r5): 0.380 / 0.355 / 0.373 at step 300 (107-125 min), peaks 0.39-0.41, then all
+  3 seeds collapse after steps 350-550 (finals 0.113 / 0.063 / 0.083). r7 reruns it with
+  `max_steps: 300` (same time-based lr schedule), i.e. r5's first ~2 h; at r5's level that meets the
+  3-seed form.
+- r6 (think budget 768 in training) seed 0: 0.087 at 66 min, behind r5 at the same step; no pressure
+  to finish a search.
 - Track D: `dm26_fp32_lr3e-6_skip` seeds 0-1 at **0.152 / 0.143** (mean 0.148; the line is 0.149, so
   the 3-seed form is out and seeds 2-4 must average >= 0.150 for the 5-seed form). fp32 lr 3e-6 RL on
   D 000's pretraining: 0.137 ± 0.009 over 5 seeds (no promotion).
@@ -55,11 +60,13 @@ Updated 2026-10-23 10:00 EDT.
 ## Next
 
 - ~14:05: dm26 skip seed 2. Then decide on seeds 3-4 (full 6-h pipelines; worth it if seed 2
-  leaves them needing <= ~0.15 each).
+  leaves them needing <= ~0.15 each). r7 seed 0 starts on that worker.
 - ~14:20 and ~15:30: skip_cos seeds 3-4 (5-seed form; seed 3 >= 0.31 and > 0.2403 settles it alone).
   If met: commit `records/v3/track_a/002_<slug>/config.json` (draft in the scratchpad) and flag it.
-- ~14:35 (seed 0) and ~19:30 (seeds 1-2): r6, think budget 768 in training. Every seed >= 0.2703
-  and none collapsed would make it the A candidate.
+- ~14:35: r6 seed 0 ends; decide whether seeds 1-2 run (they are behind r7 in `main`).
+- ~16:15, ~16:30, ~17:30: r7 seeds 0-2 end. Queue `calibration/research_r7/samp_s300_t050`,
+  `_tb960`, `_tb768` (dev sampler evals) as each seed's weights appear. Every seed >= 0.2703 and none
+  collapsed is the 3-seed form; the record sampler is the best of these evals on dev.
 - a01_skip AWS seeds 0-2 whenever the laptop commits them.
 
 ## Notes
