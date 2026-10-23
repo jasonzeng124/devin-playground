@@ -457,3 +457,34 @@ Decisions:
   seeds 0-2 first in `main`. Final weights are kept (~7 GB per seed) so the sampler, think budget
   included, can be chosen on the dev ladder.
 - `c90_mal0` seed 1 moved to the front of `long` (running since 02:35).
+
+## 2026-10-23 (04:45): malformed reward 0 replicates (0.383); dm26 + fp32 + skip seed 0 at 0.152
+
+`c90_mal0` seed 1 (90 min) ended at **0.383**, after seed 0's 0.322:
+
+| seed | dev at step 100 / 200 / final | eval malformed (final) | L1 L2 L3 L4 L5 L6 (final) |
+|---|---|---|---|
+| 0 | 0.075 / 0.288 / 0.322 (step 254) | 0.62 | 0.97 0.30 0.16 0.16 0.03 0.31 |
+| 1 | 0.122 / 0.322 / 0.383 (step 243) | 0.50 | 0.98 0.34 0.25 0.19 0.07 0.47 |
+
+The skip + cosine seeds, the same recipe with the -0.1 penalty, were at 0.17-0.25 at 90 min. Both
+mal0 seeds write long searches from the start, and half or more of their greedy eval answers still
+hit the 1,024-token limit. The r5 arm (290 min, weights kept) started seed 0 at 04:22.
+
+D RL screens on seed 0 (dev, final):
+
+| RL \ pretraining | D 000's | DM-math 26 % (dm26) |
+|---|---|---|
+| D 000's RL (bf16, lr 3e-5) | 0.087 | 0.118 |
+| fp32 lr 3e-6 | 0.147 | |
+| fp32 lr 3e-6 + skip | (queued) | **0.152** |
+
+- `dm26_fp32_lr3e-6_skip` seed 0 is the first D screen seed at or above the promotion line
+  (0.149). One seed: the 3-seed form needs seeds 1-2 there too. `d00_fp32_lr3e-6_skip` seed 0
+  (queued) separates what the DM-math data adds from what skip adds.
+
+Queues: dm26 seed 1 moved to the front of `long` (worker 26644470 takes it after c90_t12 seed 0,
+~05:40), dm26 seed 2 follows the r5 seeds in `main`. The c90 screens keep seed 0 of t12, Clip-Cov and
+pos01; their seeds 1-3 and mal0's seeds 2-3 are parked in `queue/later.txt`, which no worker reads.
+mal0 is now tested at full length (r5), and the other three test fixes for a collapse that mal0
+avoids.
