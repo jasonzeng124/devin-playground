@@ -766,3 +766,39 @@ Also:
 - r7 seeds 3-4 (2 h each) are queued after the pipelines, so the 5-seed form is ready if the 3-seed
   form misses narrowly. If seeds 0-2 settle it, I take them out.
 - r7 so far: seed 1 0.223 at step 150 (56 min; r5's seed 1 was 0.168 there), seed 2 0.065 at step 50.
+
+## 2026-10-23 (18:10): r7 seeds 0-2 at 0.385 / 0.348 / 0.238 (3-seed form missed); record sampler on seed 1: 0.375
+
+```
+  a01_fp32_lr1e-6_skip_cos_mal0_s300 s0 done  133m final 0.385 best 0.385 t.10   31 spm   2.1 ent 0.08 inf 22.9 ok        | 0.027 0.183 0.340 0.385 0.385
+  a01_fp32_lr1e-6_skip_cos_mal0_s300 s1 done  143m final 0.348 best 0.348 t.10   28 spm   1.9 ent 0.11 inf 27.8 ok        | 0.118 0.223 0.308 0.348 0.348
+  a01_fp32_lr1e-6_skip_cos_mal0_s300 s2 done  130m final 0.238 best 0.372 t.10   34 spm   2.3 ent 0.04 inf 15.9 ok        | 0.065 0.105 0.372 0.238 0.238
+= a01_fp32_lr1e-6_skip_cos_mal0_s300   n=3 final 0.324 ± 0.076  ok/1-guess/div 3/0/0  median t.10 31m
+  samp_s300_t050                     s1 dev16 0.3748 pass@16 0.598 tokens  746 trunc 0.565 | 0.969 0.415 0.262 0.172 0.044 0.388
+```
+
+- Seeds 0-1 repeat r5's step-300 values (r5: 0.380 / 0.355; r7: 0.385 / 0.348). Seed 2 reached
+  0.372 at step 250 (r5's seed 2 had 0.373 at step 300) and fell to 0.238 by step 300. This was not
+  r5's slide into truncation: 0.21-0.33 of its training samples truncated over steps 240-300. Its
+  entropy fell from 0.09 to 0.034 and the batch solve rate from ~0.4 to 0.22. At the end L1 was 0.83
+  (seed 0: 1.00) and L3-L5 were 0.01-0.06. Runs of the same seed differ (vLLM sampling isn't
+  bitwise reproducible), so stopping at step 300 makes a collapse less likely but doesn't rule it out.
+- Promotion against A 001 (line 0.2703):
+  - The 3-seed form needs every seed at least 0.2703. Seed 2 misses it.
+  - The 5-seed form needs 811 puzzles; seeds 0-2 have 583 (231 + 209 + 143). Seeds 3-4 must total
+    228 or more and both finish above 0.2403, because seed 2 is already below the holder's mean.
+  - Seeds 3-4 (about 2.2 h each) moved to the front of `main`.
+- Record sampler, seed 1: T 0.5, constrained, no think budget scores dev16 0.375 (pass@16 0.598),
+  above its greedy 0.348, even though 56.5 % of samples hit the 1,024-token limit (mean 746
+  tokens). Those count as failures, so forcing an answer may score higher still.
+  - Seed 1's tb960 and tb768 evals are next.
+  - Seeds 0 and 2 get T 0.5 with and without tb960 after r7's seeds 3-4.
+  - Each eval takes ~30 min here (long outputs), against 2-6 min for A 001's.
+- Greedy in-loop dev truncates 24-34 % of this arm's outputs at steps 250-300 and counts them as
+  wrong. The promotion rule stays on in-loop dev, as for every arm; the record-sampler evals pick the
+  sampler.
+- Preemption again: 26644474 started on node3009 at 17:35 and was preempted at 17:37, holding
+  seed 1's tb960 eval. I moved the eval to the front of `main`; 26644474's in-hand file is kept as
+  `queue/running.26644474.moved_to_main_1802`.
+- r6: its T 0.5 eval (seed 0, no budget) is running. The tb768 eval went to `later`: r6 is parked,
+  and r7's evals answer the think-budget question for the arm that matters.

@@ -14,35 +14,39 @@ skip_cos's final evals have 0-0.2 % truncation, so a budget changes nothing. N =
 mit_normal_gpu H100 node (node2906) estimates its next start at 10-26 06:46, so AWS via the laptop
 is likely sooner. All 5 seeds on one provider. I have not submitted Engaging record workers.
 
-Updated 2026-10-23 15:40 EDT.
+Updated 2026-10-23 18:15 EDT.
 
 ## Running
 
 - Workers: 6 on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
-  HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user. 2 run:
-  - 26644472 (`main:long`, node2700): r7 `a01_fp32_lr1e-6_skip_cos_mal0_s300` seed 1 (14:15 -> ~16:30).
-  - 26644473 (`main:long`, node2700): r7 seed 2 (15:15 -> ~17:20).
-- Pending: 26644474-75 (`main:long`, never started) and 26644470-71 (preempted on node2701 at
-  14:59, requeued). 26644470 redoes c90_cc1e-3 seed 0. r7 seed 0 (preempted at ~68 min, state saved
-  14:54) sits at the front of `main`, so the next worker to start resumes it.
+  HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; the partition is
+  busy, so 2 run:
+  - 26644472 (`main:long`, node2700): r7 sampler eval `samp_s300_t050_tb768` seed 1 (17:57, ~30 min).
+  - 26644473 (`main:long`, node2700): r6 sampler eval `samp_t050` seed 0 (17:59, ~30 min).
+- Pending (Priority): 26644470-71 (preempted on node2701 at 14:59), 26644474 (preempted on node3009
+  at 17:37, 90 s after starting), 26644475. 26644470 redoes c90_cc1e-3 seed 0 when it starts; the
+  others pop fresh items.
 - Successors 26649456-59, each `afterany` on one of 26644470-73, same queues.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
-## Queues (~85 GPU-hours)
+## Queues (~80 GPU-hours)
 
-- `main` (20): r7 seed 0 (resume, ~1 h left); r6 sampler evals `samp_t050`, `samp_t050_tb768`
-  (seed 0, ~5 min each); `dm26_fp32_lr3e-6_skip_pipe` seeds 3-4 (6-h pipelines); r7 seeds 3-4;
-  r8 `a01_fp32_lr1e-6_skip_cos_mal0_until300` seeds 0-2; r4 dm51_fp32_lr3e-6_skip seeds 0-2;
+- `main` (22): r7 seed 1's tb960 eval; r7 seeds 3-4 (~2.2 h each); r7 sampler evals for seeds 0
+  and 2 (T 0.5, with and without tb960; ~30 min each); `dm26_fp32_lr3e-6_skip_pipe` seeds 3-4
+  (6-h pipelines); r8 `a01_fp32_lr1e-6_skip_cos_mal0_until300` seeds 0-2; r4 dm51_fp32_lr3e-6_skip seeds 0-2;
   d00_fp32_lr3e-6_skip seeds 0-2; a01_skip seeds 3-4; d00_fp32_lr3e-6_skip seeds 3-4.
 - `long` (1): c90_pos01 seed 0 (c90_cc1e-3 seed 0 is in 26644470's hands).
-- `later` (13, read by no worker): 11 c90 seeds; r6 seeds 1-2 (parked 10-23 15:35).
+- `later` (14, read by no worker): 11 c90 seeds; r6 seeds 1-2 and its tb768 eval (parked 10-23).
 
 ## Best so far
 
 - Track A: skip + cosine (above), promoted. r7 = r5 (malformed reward 0) stopped at step 300; r5's
-  seeds were 0.380 / 0.355 / 0.373 there, before collapsing after steps 350-550. r7 seed 1 is at
-  0.223 at step 150 (r5's seed 1: 0.168). r6 (think budget 768 in training) seed 0 ended at 0.318,
+  seeds were 0.380 / 0.355 / 0.373 there, before collapsing after steps 350-550. r7 seeds 0-2:
+  **0.385 / 0.348 / 0.238** (seed 2 fell from 0.372 at step 250: entropy collapse, not truncation).
+  The 3-seed form is missed. The 5-seed form needs seeds 3-4 to total >= 228 puzzles and both to
+  finish above 0.2403. Record sampler on seed 1 (T 0.5, no budget): dev16 0.375, with 56 % of
+  samples truncated, so think-budget evals follow. r6 (think budget 768 in training) seed 0 ended at 0.318,
   healthy but slow (0.255 at step 300); parked. r8 = r5 with the -0.1 truncation penalty back from
   step 300 on (new option `malformed_reward_until`), full budget, queued.
 - Track D: `dm26_fp32_lr3e-6_skip` seeds 0-2 at **0.152 / 0.143 / 0.153** (269 puzzles, mean 0.1494).
@@ -58,14 +62,12 @@ Updated 2026-10-23 15:40 EDT.
 
 ## Next
 
-- ~16:30, ~17:20, ~17:30 (seed 0, after its resume): r7 seeds end. Queue
-  `calibration/research_r7/samp_s300_t050`, `_tb960`, `_tb768` (dev sampler evals) as each seed's
-  weights appear. Every seed >= 0.2703 and none collapsed is the 3-seed form against A 001. If that
-  holds, r7 seeds 3-4 leave `main` and r7 is flagged here with its best dev sampler. If A 002 has
-  landed by then, r7 is measured against A 002.
-- r6 sampler evals: minutes after a worker starts.
-- dm26 pipeline seeds 3-4: check pretraining tokens/s against ~370k once they start; they end ~6 h
-  after they start (D 5-seed form).
+- ~18:30-19:00: r7 seed 1's tb768 and tb960 evals end (think budget against none at T 0.5).
+- ~20:40-21:00: r7 seeds 3-4 end (5-seed form: both above 0.2403 and >= 228 puzzles together). If
+  met, r7 is flagged here with its best dev sampler (from the seed 0-2 evals that follow). If A 002
+  has landed by then, r7 is measured against A 002.
+- dm26 pipeline seeds 3-4 start after those (~21:00-22:00); check pretraining tokens/s against ~370k.
+  They end ~6 h after they start (D 5-seed form).
 - a01_skip AWS seeds 0-2 whenever the laptop commits them.
 
 ## Notes
