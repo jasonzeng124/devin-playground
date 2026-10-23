@@ -426,3 +426,34 @@ A 001's weights at T 0.25 against T 0.5 (whole dev ladder, 16 samples):
 
 Workers: four run and two pend (26644474-75). Successors 26649456-59 each wait on one running worker
 (`afterany`), so the 6-GPU cap holds.
+
+## 2026-10-23 (02:45): malformed reward 0 reaches 0.322 in 90 min; r5 queued first
+
+The first collapse screen finished. `c90_mal0` is A 001 + fp32 lr 1e-6 + skip at constant lr, with
+training reward 0 instead of -0.1 for malformed or truncated outputs, stopped at 90 min. On seed 0:
+
+| | dev at step 100 | step 200 | final (step 254, 90 min) |
+|---|---|---|---|
+| pass | 0.075 | 0.288 | **0.322** |
+| eval malformed | 0.398 | 0.683 | 0.622 |
+
+By level at the end: L1 0.97, L2 0.30, L3 0.16, L4 0.16, L5 0.03, L6 0.31. For comparison, the
+skip + cosine seeds (the same recipe for the first hour, with the -0.1 penalty) were at
+0.170-0.192 after 60 min, and seed 0 ended at 0.300 after 290 min.
+
+- In plain words: without the penalty, the policy never retreats to one short guess. It writes
+  long searches, and 62 % of its greedy eval answers run past 1,024 tokens and score 0, yet it is
+  already ahead of every penalized run at the same point. The steps are slow (254 in 90 min,
+  t_sample ~15 s), because outputs are long.
+- `summarize_screens.py` labels the seed "diverged" (malformed > 0.5). Here malformed means
+  truncated searches, not garbage. If a mal0 arm reaches the promotion numbers with that label,
+  QUESTIONS.md gets the question before anything is decided.
+- The 62 % truncation is an opening for the sampler: a think budget forces `<answer>` before token
+  1,024 (allowed by RULES_v3), so a truncated search would still answer. On A 001 it changed
+  nothing, because A 001 rarely truncates.
+
+Decisions:
+- r5 `a01_fp32_lr1e-6_skip_cos_mal0`: the skip + cosine candidate with malformed reward 0, 290 min,
+  seeds 0-2 first in `main`. Final weights are kept (~7 GB per seed) so the sampler, think budget
+  included, can be chosen on the dev ladder.
+- `c90_mal0` seed 1 moved to the front of `long` (running since 02:35).
