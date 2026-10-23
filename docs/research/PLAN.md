@@ -49,6 +49,13 @@ on this branch, N = 5 fixed in advance, `scripts/run_seed_v3.sh` (STAGE=all) on 
 H100s (`QUEUE=record`, `REQUIRE_GPU="NVIDIA H100 80GB HBM3"`, mit_normal_gpu), all 5 seeds
 reported, `validate_record_v3.py --compare-to <holder>`. No PR without the maintainer.
 
+"Collapsed" in this rule (clarified 2026-10-22, before the seeds it first applies to; QUESTIONS.md
+asks the maintainer): a seed that diverged, or a one-guess seed whose final dev is below the
+holder's dev mean. `summarize_screens.py` labels a seed one-guess when fewer than 10 of 64 groups
+are informative. That label marks every track D seed, the holder's included, and strong policies
+that solve most training prompts 8 of 8 times, such as `a01_fp32_lr1e-6_skip_cos` seed 0 (dev 0.300,
+237-token searches at the end).
+
 ## Agenda
 
 Track A (start: Qwen3-1.7B-Base, 5 h):

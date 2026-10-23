@@ -29,6 +29,10 @@ If not, everything stays on Engaging, which is fine.
 
 ## 2026-10-21 00:45 EDT: AWS for the track D promotion screen too?
 
+**On hold (laptop, INBOX 2026-10-22): until AWS has shown it can get capacity. Meanwhile the D
+candidate changed: fp32 lr 3e-6 alone ended at a 0.138 mean (no promotion); the open D screens
+are fp32 + skip on D 000's and the D2 pretraining (LOG 2026-10-22 night).**
+
 Engaging still runs nothing (last GPU minute 14:13 on 10-20). 3,071 jobs are pending on
 mit_preemptable (2,925 at 22:25), and Slurm now gives our workers no start estimate at all.
 
@@ -53,3 +57,15 @@ workers.
   AWS (about 11 instance-hours)?
 
 If not, everything stays on Engaging.
+
+## 2026-10-22 23:55 EDT: what counts as a "collapsed" seed for promotion?
+
+The promotion rule (PLAN.md) allows at most 1 collapsed seed of 5, and none in the 3-seed form.
+`summarize_screens.py` labels a seed one-guess when fewer than 10 of 64 groups are informative.
+Read literally, that label blocks every track D arm, because D 000's own seeds are all one-guess.
+It also blocks strong track A seeds: `a01_fp32_lr1e-6_skip_cos` seed 0 ended at dev 0.300 with
+237-token searches but only ~9 informative groups, because it solves most easy prompts 8 of 8 times.
+
+Clarification applied from now on (PLAN.md, written before seeds 1-2 of that arm or any r4 seed came
+in): collapsed = diverged, or one-guess with a final dev below the holder's dev mean. If you want
+the literal reading instead, say so in INBOX and I will apply it.

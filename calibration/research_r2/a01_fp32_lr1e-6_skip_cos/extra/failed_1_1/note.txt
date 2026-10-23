@@ -1,0 +1,2 @@
+Failed at start on node2801 (2026-10-22T07:30:42Z, worker 26424660): triton could not build its C launcher with the cluster gcc on an Ubuntu 24 node (multiarch headers missing; see LOG 2026-10-23). Rerun under the same seed.
+stdout.interrupted.1792654096.log is the attempt before it (node2905, from 2026-10-21 22:11 UTC), preempted before its first hourly resume save.

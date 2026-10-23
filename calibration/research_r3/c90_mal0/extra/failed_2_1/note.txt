@@ -1,0 +1,1 @@
+Failed at start on node1800 (2026-10-21T19:01:19Z, worker 26424658): triton could not build its C launcher with the cluster gcc on an Ubuntu 24 node (multiarch headers missing; see LOG 2026-10-23). Rerun under the same seed.

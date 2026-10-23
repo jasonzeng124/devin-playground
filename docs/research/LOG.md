@@ -285,3 +285,107 @@ preemptable estimate meanwhile slipped to ~05:20 on 10-21 (2,925 jobs pending), 
 seeds should finish (~05:00-06:00) before Engaging reaches `main`. Then: 3 healthy seeds all
 >= 0.270 promote a01_skip (record config = A 001 + skip_zero_advantage, sampler T 0.5) and seeds
 3-4 leave the queue. Anything less moves seeds 3-4 to the front for the 5-seed form.
+
+## 2026-10-22 (night): Ubuntu nodes failed 35 items; D fp32 lr 3e-6 misses promotion; skip + cosine seed 0 at 0.300
+
+The agent loop stalled on a permission prompt after its 10-21 00:45 update and was restarted at
+23:14 on 10-22 (eb3becd). Meanwhile the workers ran, and 35 items failed for a host reason until all
+three queues were empty. The last GPU item ended at 10:27 on 10-22.
+
+**What failed and why.** Worker 26424658 failed 32 items on node1800 (10-21 11:11-18:48), and three
+more failed on node2700, node2801 and node2701 (10-22). All four nodes run Ubuntu 24.04; the
+other H100 nodes run Rocky 8 (8 of the ~35 H100 nodes on mit_preemptable are Ubuntu). The cluster's
+gcc 12.2.0 (Spack, built for Rocky) does not search Ubuntu's multiarch directories, so
+`#include <stdlib.h>` fails (`bits/libc-header-start.h: No such file or directory`). Triton then
+cannot build its C launcher when vLLM compiles the model, and the run dies at startup. Items whose
+compiled kernels were already in vLLM's compile cache (keyed by model and config) ran fine on those
+nodes, so the failures looked random. New models or configs failed, and the D2 items died at the
+RL start after their 112-min pretraining. A CPU probe job on node1800 reproduced the failure and
+confirmed the fix: with `C_INCLUDE_PATH`/`CPLUS_INCLUDE_PATH=/usr/include/x86_64-linux-gnu` and
+`LIBRARY_PATH=/usr/lib/x86_64-linux-gnu`, gcc, g++ and triton's launcher build all succeed. (`module
+load` also fails on Ubuntu nodes, because the lmod path differs; gcc comes from the inherited PATH.)
+
+Fixes (`queue_worker.sbatch`, tested with stubbed Slurm commands):
+- Before popping anything, the worker checks that gcc can build a small C extension. On Ubuntu
+  nodes it adds the multiarch paths; if gcc still fails, it exits with nothing popped.
+- After two failures in a row that each took under 5 minutes, it puts the second item back at the
+  front of the queue it came from and exits (the laptop's request). One bad node can no longer
+  drain the queues.
+- New workers exclude node1800 (INBOX).
+
+**Results that landed before the queues emptied.**
+
+D 000's RL with fp32 master weights at lr 3e-6 (r1, paired on D 000's pretrained seeds; seed 1 reached
+193 of 234 min before preemption and resumes from its saved state at 180 min, where dev was 0.132):
+
+| seed | D 000 | fp32 lr 3e-6 | dev at 30/60/120/180 min (fp32) |
+|---|---|---|---|
+| 0 | 0.087 | 0.147 | 0.088 0.127 0.138 0.148 |
+| 1 | 0.152 | 0.145 (193 min) | 0.077 0.088 0.108 0.132 |
+| 2 | 0.115 | 0.132 | 0.072 0.083 0.098 0.112 |
+| 3 | 0.127 | 0.125 | 0.087 0.083 0.102 0.100 |
+| 4 | 0.115 | 0.140 | 0.072 0.088 0.103 0.132 |
+| mean | 0.119 ± 0.023 | 0.138 ± 0.009 | |
+
+- In plain words: fp32 RL lifts the weak seeds and narrows the spread (0.125-0.147 against
+  0.087-0.152), so the mean gains +0.019. Promotion needs +0.03 (mean >= 0.149), so this arm does
+  not promote, whatever seed 1 ends at. All five seeds sit above the holder's 0.119.
+- Seeds 1-4 were still rising at the end (seed 2: 0.112 at 180 min -> 0.132 at 234). Seed 0's
+  early plateau was the exception, so the split screen that moves RL time to pretraining is not
+  queued. More RL steps in the same time (`skip_zero_advantage`) is the more promising change.
+
+A 001 + fp32 lr 1e-6 + skip + cosine decay (`a01_fp32_lr1e-6_skip_cos`), seed 0: **0.300**
+(A 001's seed 0: 0.203). Dev at 30/60/120/180/240 min: 0.115 0.170 0.242 0.288 0.287, and
+0.28-0.30 over the last 500 steps as the lr decayed. It ran 4,127 steps in 290 min; A 001's healthy
+seeds ran ~1,000. Mean completion length by step:
+
+| step | 100 | 300 | 1000 | 2000 | 2500 | 3000 | 3500 | 4120 |
+|---|---|---|---|---|---|---|---|---|
+| minutes | 18 | 26 | 52 | 86 | 101 | 141 | 197 | 289 |
+| tokens | 19 | 25 | 26 | 28 | 41 | 86 | 179 | 237 |
+
+- This is the first run that recovered from the early one-guess dip, which the 10-20 analysis
+  had found permanent. For ~100 min it answered with one short guess, then it grew back into a
+  long search (237 tokens per sample at the end), with dev rising throughout. The 4x more steps
+  (skip, plus fast steps while outputs were short) probably made the difference. `summarize_screens.py` still labels it
+  one-guess, because fewer than 10 of 64 groups are informative when the policy solves most easy
+  prompts 8 of 8 times. The label is a training-signal heuristic and misreads strong policies.
+- It is one seed. Seeds 1-2 decide the 3-seed promotion form (both >= 0.270).
+
+D2 (D 000's pretraining with DeepMind mathematics arithmetic): dm26 seed 0 with D 000's RL ended
+at 0.118 (D 000's seed 0: 0.087; best 0.130). The five failed D2 seeds (dm26 seeds 1-2, dm51
+seeds 0-2) all finished pretraining (2.46-2.50 B tokens at ~370 k tokens/s, like D 000's record)
+before the RL start died. Their pretrained models are saved.
+
+Sampler on the holders' weights (whole dev ladder, 16 samples):
+
+| | T 0.5 (10-19) | T 0.5 + think budget 960 | T 0.25 |
+|---|---|---|---|
+| A 001 (5 seeds; T 0.25: seeds 1, 3, 4) | 0.2549 | 0.2551 | 0.2881 (vs 0.2873 at T 0.5 on those seeds) |
+| D 000 (5 seeds) | 0.1150 | | 0.1154 |
+| D fp32 lr 3e-6 seed 0 | 0.1502 | | 0.1500 (T 1.0: 0.1493) |
+
+The think budget removes A 001's truncation (7.9 % -> 0 on seed 1) but gains only +0.0002, and
+T 0.25 changes -0.0002 to +0.0008. T 0.5 stays the record sampler.
+
+**Decisions.**
+- Promotion: none. The D candidate is now fp32 + skip, on D 000's pretraining and on the D2
+  pretraining. The A candidates are `a01_fp32_lr1e-6_skip_cos` and `a01_skip` (AWS seeds 0-2 not in
+  yet).
+- Promotion rule, clarified before the seeds it applies to (PLAN.md): a "collapsed" seed is a
+  diverged one, or a one-guess one whose final dev is below the holder's dev mean. Read
+  literally, the label would block every track D arm, since the holder's own seeds are all
+  one-guess, and it would block seed 0 above at 0.300. QUESTIONS.md asks the maintainer.
+- Requeued: 29 failed screen items, their failed attempts moved to `extra/failed_<seed>_1/` with
+  a note. d00_fp32_lr3e-6 seed 1 resumes from its 180-min state (step 8,567).
+- D2: rather than rerun 6-h pipelines, r4 runs the RL stage from the saved D2 pretrained models,
+  with the fp32 + skip RL (`calibration/research_r4/{dm26,dm51}_fp32_lr3e-6_skip`, seeds 0-2,
+  `screen_pretrained`). The baseline is `d00_fp32_lr3e-6_skip` on D 000's pretraining, and
+  r1's no-skip arm isolates skip. D 000's own RL on the D2 models (the old D2 design for the
+  remaining seeds) is dropped, because the D candidate RL is now fp32.
+- Queues: `main` = skip_cos seeds 1-2, dm26 0-2, d00 skip 0-2, dm51 0-2, a01_skip 3-4, then
+  seeds 3-4 of skip_cos and d00 skip. `long` = d00_fp32 seed 1 (resume), the two A 001 T 0.25
+  evals, then the c90 collapse screens (seeds 0-1, then 2-3). About 105 GPU-hours.
+- Workers: 6 on mit_preemptable (26644470 `long:main`, 26644471-75 `main:long`). Slurm's estimate
+  is ~00:20 on 10-24 (2,374 jobs pending). mit_normal_gpu's estimate is 10-25 09:00 for H100 and
+  H200 alike, so no workers wait there.
