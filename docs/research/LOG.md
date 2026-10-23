@@ -389,3 +389,40 @@ T 0.25 changes -0.0002 to +0.0008. T 0.5 stays the record sampler.
 - Workers: 6 on mit_preemptable (26644470 `long:main`, 26644471-75 `main:long`). Slurm's estimate
   is ~00:20 on 10-24 (2,374 jobs pending). mit_normal_gpu's estimate is 10-25 09:00 for H100 and
   H200 alike, so no workers wait there.
+
+## 2026-10-23 (early): workers run on Ubuntu nodes; D fp32 lr 3e-6 ends at 0.137; T 0.25 adds nothing
+
+The first four workers started at 23:59 and 00:26, all on Ubuntu 24 nodes (node2700, node2701).
+Their gcc check added the multiarch paths, and every item so far got through vLLM's startup
+compile: two A screens, the r4 dm26 screen, the resumed D seed and two sampler evals. A probe on
+node2801 showed that lmod isn't installed on Ubuntu nodes at all (no `/usr/share/lmod`, `MODULEPATH`
+unset), so the worker's `module load cuda/13.0.1` fails there; training and evals don't need it.
+This corrects the 10-22 entry, which put it down to a different lmod path.
+
+D 000's RL with fp32 master weights at lr 3e-6, all five seeds (seed 1 resumed from its 180-min
+state):
+
+| seed | D 000 | fp32 lr 3e-6 |
+|---|---|---|
+| 0 | 0.087 | 0.147 |
+| 1 | 0.152 | 0.143 |
+| 2 | 0.115 | 0.132 |
+| 3 | 0.127 | 0.125 |
+| 4 | 0.115 | 0.140 |
+| mean | 0.119 ± 0.023 | 0.137 ± 0.009 |
+
+All five seeds end above the holder's 0.119, but the mean gains only +0.018, short of the 0.149 that
+promotion needs. Seed 1 is the one seed where fp32 ends below D 000 (0.143 against 0.152). The arm
+stays the no-skip baseline for the fp32 + skip D screens (`d00_fp32_lr3e-6_skip`, r4).
+
+A 001's weights at T 0.25 against T 0.5 (whole dev ladder, 16 samples):
+
+| seed | 0 | 1 | 2 | 3 | 4 | mean |
+|---|---|---|---|---|---|---|
+| T 0.5 | 0.2235 | 0.2676 | 0.1892 | 0.2855 | 0.3087 | 0.2549 |
+| T 0.25 | 0.2237 | 0.2663 | 0.1901 | 0.2886 | 0.3094 | 0.2556 |
+
++0.0007 on the mean, while pass@16 drops (seed 1: 0.530 -> 0.478). T 0.5 stays the record sampler.
+
+Workers: four run and two pend (26644474-75). Successors 26649456-59 each wait on one running worker
+(`afterany`), so the 6-GPU cap holds.

@@ -6,14 +6,14 @@
 config path and its dev numbers, and the record folder's config.json is committed; the record
 then runs on AWS via the laptop session or on Engaging, whichever starts sooner.)
 
-Updated 2026-10-23 00:45 EDT.
+Updated 2026-10-23 01:20 EDT.
 
 ## Running
 
 - Workers: 6 on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
   HBM3; node1800 and the NVL nodes excluded). 4 run, 2 pend (26644474-75, no estimate):
-  - 26644470 (`long:main`, node2701, since 23:59): d00_fp32_lr3e-6 seed 1, resumed at step 8,567;
-    step 9,807 and dev 0.135 at 00:33, done ~01:10.
+  - 26644470 (`long:main`, node2701, since 23:59): finished d00_fp32_lr3e-6 seed 1 (0.143) and the
+    two T 0.25 evals; now c90_mal0 seed 0 (90 min), then the other c90 screens.
   - 26644471 (`main:long`, node2701, since 23:59): a01_fp32_lr1e-6_skip_cos seed 1, done ~05:00.
   - 26644472 (`main:long`, node2700, since 00:26): r4 dm26_fp32_lr3e-6_skip seed 0, done ~04:30.
   - 26644473 (`main:long`, node2700, since 00:26): a01_fp32_lr1e-6_skip_cos seed 2, done ~05:30.
@@ -24,20 +24,20 @@ Updated 2026-10-23 00:45 EDT.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
-## Queues (~90 GPU-hours)
+## Queues (~85 GPU-hours)
 
 - `main` (14): r4 dm26_fp32_lr3e-6_skip seeds 1-2; d00_fp32_lr3e-6_skip seeds 0-2;
   r4 dm51_fp32_lr3e-6_skip seeds 0-2; a01_skip seeds 3-4; then seeds 3-4 of
   a01_fp32_lr1e-6_skip_cos and d00_fp32_lr3e-6_skip.
-- `long` (18): samp_a001_t025 seeds 0 and 2, c90 collapse screens seeds 0-1, then seeds 2-3.
+- `long` (15): c90 collapse screens, the rest of seeds 0-1, then seeds 2-3.
 - r4 arms run the RL stage from the saved D2 pretrained models (`screen_pretrained`).
 
 ## Best so far
 
 - Track A: `a01_fp32_lr1e-6_skip_cos` seed 0 at dev **0.300** (A 001's seed 0: 0.203). After ~100 min
   of one-guess answers it regrew long searches. The 3-seed form needs seeds 1-2 >= 0.270.
-- Track D: fp32 lr 3e-6 RL on D 000's pretraining, 0.138 mean over 5 seeds (D 000: 0.119; +0.019, no
-  promotion; seed 1 still resumes). D2 dm26 seed 0 with D 000's RL: 0.118 (D 000 seed 0: 0.087).
+- Track D: fp32 lr 3e-6 RL on D 000's pretraining, 0.137 ± 0.009 over 5 seeds (D 000: 0.119; +0.018,
+  no promotion). D2 dm26 seed 0 with D 000's RL: 0.118 (D 000 seed 0: 0.087).
 - Holders: track A 001 (test 0.2481, dev 0.240), track D 000 (test 0.1166, dev 0.119). Promotion
   needs dev mean >= 0.270 (A) / 0.149 (D), with 4 of 5 seeds above the holder's dev mean and at most
   1 collapsed, or 3 seeds all that high and none collapsed. "Collapsed" = diverged, or one-guess
@@ -46,7 +46,6 @@ Updated 2026-10-23 00:45 EDT.
 
 ## Next
 
-- ~01:10: d00_fp32_lr3e-6 seed 1 ends, completing that arm's 5 seeds (final LOG table).
 - ~05:00-05:30: skip_cos seeds 1-2. If both are >= 0.270 and not collapsed, A promotes: commit
   `records/v3/track_a/002_<slug>/config.json` (A 001 + fp32 lr 1e-6 + skip + cosine, sampler T 0.5)
   and flag it above. Otherwise seeds 3-4 move up for the 5-seed form.
