@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Runner for research queue workers (queue_worker.sbatch with RUNNER=scripts/research/run_item.sh).
 # An item "<dir> <seed>" is
+#   - a record seed if <dir> is under records/v3/: STAGE=all scripts/run_seed_v3.sh, as a record
+#     worker runs it (timed training, then the test ladder), with the token file copied to node-local
+#     disk for track D;
 #   - a dev-ladder sampler eval if <dir>/eval.json exists (below);
 #   - a track D screen with its own pretraining if <dir>/config.json has a v3 "pretrain" block and no
 #     "screen_pretrained": STAGE=train scripts/run_seed_v3.sh (pretraining + GRPO with in-loop dev
@@ -15,6 +18,7 @@ set -euo pipefail
 dir=${1:?usage: run_item.sh <dir> <seed>}
 seed=${2:?usage: run_item.sh <dir> <seed>}
 PYTHON=${PYTHON:-python}
+[[ $dir == records/v3/* ]] && STAGE=all LOCAL_DATA_DIR=${LOCAL_DATA_DIR:-/tmp} exec bash scripts/run_seed_v3.sh "$dir" "$seed"
 if [[ ! -f "$dir/eval.json" ]]; then
   pretrain=$($PYTHON -c "import json,sys; c=json.load(open(sys.argv[1])); print(int('pretrain' in c.get('v3', {}) and not c.get('screen_pretrained')))" "$dir/config.json")
   [[ $pretrain == 1 ]] && STAGE=train LOCAL_DATA_DIR=${LOCAL_DATA_DIR:-/tmp} exec bash scripts/run_seed_v3.sh "$dir" "$seed"
