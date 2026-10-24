@@ -9,8 +9,8 @@ final dev, seeds 0-4: 0.152 / 0.143 / 0.153 / 0.158 / 0.157 = 458 of 3,000 (0.15
 as published) as ~26 % of the tokens, then fp32 master weights at lr 3e-6 with skipping. Sampler
 T 1.0, constrained, no budget. N = 5 on the mit_preemptable screen workers (H100 80GB HBM3) through
 `main` (`run_item.sh` runs `records/v3/` items with STAGE=all `run_seed_v3.sh`). **Test ladder so
-far: seed 0 0.1496, seed 2 0.1361, seed 3 0.1857 (mean 0.157)**, each using 348 of 360 min. D 000's
-seeds score 0.098-0.139, mean 0.1166. Seed 4 (started 13:04) ends ~18:50. Seed 1: attempt 1 was
+far: seed 0 0.1496, seed 2 0.1361, seed 3 0.1857, seed 4 0.1469 (mean 0.155)**, each using 348
+of 360 min. D 000's seeds score 0.098-0.139, mean 0.1166. Seed 1: attempt 1 was
 preempted 2 min before the end of its pretraining (`extra/interrupted_1_1`), and attempt 2 crashed
 at startup on node2801 (`extra/failed_1_1`). Attempt 3 started at 16:39 on 26644470 (node2700)
 and ends ~22:35. Don't start it on AWS.
@@ -46,13 +46,12 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 18:00 EDT.
+Updated 2026-10-24 19:05 EDT.
 
 ## Running
 
 - Workers on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
   HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 3 run:
-  - 26644473 (`main:long`, node2700): D 002 record seed 4 (13:04 -> ~18:50).
   - 26644472 (`main:long`, node2700): r10 seed 0 (15:17 -> ~20:20).
   - 26644470 (`long:main`, node2700, restarted 15:07, limit 02:23): D 002 record seed 1, attempt 3
     (16:39 -> ~22:35; pretraining at 364k tokens/s).
@@ -72,7 +71,8 @@ Updated 2026-10-24 18:00 EDT.
   and I requeue it by hand.
 - Successors 26649456, 26649458 and 26649459, each `afterany` on one of 26644470, 26644472 and
   26644473, same queues. They don't exclude node2801; QUESTIONS.md (16:35) asks whether I may add
-  it. 26644472-73 reach their 2-day limit at 10-25 00:26 and pop nothing after ~18:56 on 10-24.
+  it. 26644473 exited at 19:00 after seed 4 (325 min left), so 26649459 can start now. 26644472
+  exits the same way after r10 seed 0 (~20:20).
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
@@ -99,8 +99,8 @@ Updated 2026-10-24 18:00 EDT.
   to r7's gains without the collapse? No: seed 0 collapsed before the switch (0.205), and seed 2
   peaked at 0.415 at step 500, then fell to 0.315 by the end as truncation crept back. Seed 1
   finishes when its worker restarts; seeds 3-4 parked.
-- Track D: D 002 (dm26), promoted (top): 458 of 3,000 over five seeds (0.153). Record seeds 0, 2 and 3
-  scored 0.1496, 0.1361 and 0.1857 on the test ladder.
+- Track D: D 002 (dm26), promoted (top): 458 of 3,000 over five seeds (0.153). Record seeds 0, 2, 3
+  and 4 scored 0.1496, 0.1361, 0.1857 and 0.1469 on the test ladder (mean 0.155).
 - Holders: track A 001 (test 0.2481, dev 0.2403), track D 000 (test 0.1166, dev 0.1190). Promotion
   needs dev mean >= 0.2703 (A; 163 of 600) / 0.149 (D; 90 of 600), with 4 of 5 seeds above the
   holder's dev mean and at most 1 collapsed, or 3 seeds all that high and none collapsed. Once A 002
@@ -112,8 +112,8 @@ Updated 2026-10-24 18:00 EDT.
 
 ## Next
 
-- ~18:50: D 002 seed 4 ends. ~22:35: seed 1 (attempt 3, started 16:39) ends. Then the README and
-  `validate_record_v3.py`.
+- ~22:35: D 002 seed 1 (attempt 3, started 16:39, in RL) ends, the last of the five. Then the
+  README and `validate_record_v3.py`.
 - r10 (A 002 + `adv_norm: none`): do the seeds keep searching past step 300 without collapsing
   (LOG 10-24 07:35)? Seed 0 started at 15:17.
 - c90_cc1e-3 seed 0 ended at 0.162 in one-guess mode, with entropy rising to 2.25 (LOG 16:57).

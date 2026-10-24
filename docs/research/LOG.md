@@ -1235,3 +1235,26 @@ pretraining at 364k tokens/s. RL starts at ~18:32 and the seed ends at ~22:35.
   any other failure gets a note in worker.log, and the item runs as before.
 - Tested in the sandbox: a CUDA error, a timeout, an import error, a pass, outside Slurm, and a
   record on a `long:main` worker.
+
+## 2026-10-24 (19:00): D 002 seed 4 scores 0.147 on the test ladder; four seeds average 0.155
+
+Seed 4 finished at 19:00:
+- Pretraining: 112.0 min and 2.49 B tokens (370k tokens/s), ending at val loss 2.851.
+- RL: 14,106 steps. The in-loop dev score was 0.155 at the end and 0.162 at best.
+- Total time: 348 of 360 min.
+- Test ladder: 0.1469 (pass@16 0.180, 24.7 mean tokens, nothing truncated). By level: L1 0.492,
+  L2 0.084, L3 0.070, L4 0.029, L5 0.008, L6 0.198.
+
+| D 002 seed | test ladder | pass@16 | in-loop final dev |
+|---|---|---|---|
+| 0 | 0.1496 | 0.183 | 0.167 |
+| 2 | 0.1361 | 0.171 | 0.150 |
+| 3 | 0.1857 | 0.234 | 0.193 |
+| 4 | 0.1469 | 0.180 | 0.155 |
+| mean of four | 0.1546 | | |
+
+D 000's five seeds score 0.098-0.139 (mean 0.1166), so every D 002 seed so far beats D 000's best
+seed. Seed 1's third attempt is in RL and ends at ~22:35.
+
+Worker 26644473 had 325 min left when seed 4 finished, so it exited instead of starting a 5-h
+item. Its successor 26649459 takes over the slot.
