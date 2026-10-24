@@ -42,18 +42,20 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 02:40 EDT.
+Updated 2026-10-24 03:55 EDT.
 
 ## Running
 
 - Workers: 6 on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
   HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 3 run:
-  - 26644472 (`main:long`, node2700): r8 `a01_fp32_lr1e-6_skip_cos_mal0_until300` seed 0 (22:37 ->
-    ~03:30). It collapsed at steps 264-284, before its step-300 switch, and sits at dev ~0.05.
-  - 26644475 (`main:long`, node2642): r8 seed 1 (01:47 -> ~06:50).
-  - 26644473 (`main:long`, node2700): r8 seed 2 (02:17 -> ~07:20).
-- Pending (Resources, since ~02:00): 26644470-71, 26644474. 26644470 redoes c90_cc1e-3 seed 0
-  when it starts; the others pop fresh items.
+  - 26644472 (`main:long`, node2700): D 002 record seed 0 (03:33 -> ~09:40). Pretraining runs at
+    367k tokens/s, inside D 000's 359-373k.
+  - 26644475 (`main:long`, node2642): r8 `a01_fp32_lr1e-6_skip_cos_mal0_until300` seed 1 (01:47 ->
+    ~06:50); dev 0.390 at 120 min.
+  - 26644473 (`main:long`, node2700): r8 seed 2 (02:17 -> ~07:20); dev 0.292 at 91 min.
+- Pending (Priority): 26644470-71, 26644474. 26644470 started at 02:43 on node3009 and was
+  preempted two minutes later; it redoes c90_cc1e-3 seed 0 when it restarts. The others pop fresh
+  items.
 - Successors 26649456-59, each `afterany` on one of 26644470-73, same queues. 26644472-73 reach
   their 2-day limit at 10-25 00:26 and pop nothing after ~18:56 on 10-24.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
@@ -75,8 +77,9 @@ Updated 2026-10-24 02:40 EDT.
   step 300 and collapsed after steps 350-550 as truncated searches took over. r7's seed 2 fell from
   0.372 at step 250 to 0.238 (entropy collapse, not truncation). r6 (think budget 768 in training)
   seed 0 ended at 0.318, healthy but slow; parked. r8 = r5 with the -0.1 truncation penalty back
-  from step 300 on (new option `malformed_reward_until`), full budget, next in `main`: can the
-  remaining 2.8 h add to r7's gains without the collapse?
+  from step 300 on (new option `malformed_reward_until`), full budget: can the remaining 2.8 h add
+  to r7's gains without the collapse? Seed 0 collapsed before the switch and ended at 0.205
+  (one-guess, so collapsed); seeds 1-2 end ~06:50-07:20.
 - Track D: D 002 (dm26), promoted (top): 458 of 3,000 over five seeds (0.153).
 - Holders: track A 001 (test 0.2481, dev 0.2403), track D 000 (test 0.1166, dev 0.1190). Promotion
   needs dev mean >= 0.2703 (A; 163 of 600) / 0.149 (D; 90 of 600), with 4 of 5 seeds above the
@@ -89,11 +92,10 @@ Updated 2026-10-24 02:40 EDT.
 
 ## Next
 
-- ~03:30: D 002 seed 0 starts (r8 seed 0's worker). Check its pretraining tokens/s (D 000's record:
-  359-373k).
 - ~06:50-07:20: r8 seeds 1-2 end. Do they get past step 300 without collapsing, and does the -0.1
-  penalty from step 300 on hold off r5's late collapse?
-- r9 seed 0 starts after D 002 seed 1 (~07:00).
+  penalty from step 300 on hold off r5's late collapse? D 002 seed 1 and r9 seed 0 then start on
+  their workers. D 002 seeds 2-4 follow at ~09:40, ~12:20 and ~15:50 if no pending worker starts
+  sooner.
 - ~18:00: no D 002 seed should be left for 26644472-73 to pop (time limit at 10-25 00:26).
 - a01_skip AWS seeds 0-2 whenever the laptop commits them.
 
