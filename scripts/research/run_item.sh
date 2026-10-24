@@ -19,6 +19,23 @@ dir=${1:?usage: run_item.sh <dir> <seed>}
 seed=${2:?usage: run_item.sh <dir> <seed>}
 PYTHON=${PYTHON:-python}
 if [[ $dir == records/v3/* ]]; then
+  # Slurm may start a preemptable worker in a backfill gap as short as its --time-min, and the
+  # worker redoes the item in hand after a preemption without checking the time left. A record seed
+  # that can't finish (its budgets + 30 min for loading, the data copy and the test ladder) isn't
+  # started: the item fails with a note in worker.log, to be requeued by hand.
+  need=$($PYTHON -c "import json,sys; c=json.load(open(sys.argv[1])); print(int(c['v3'].get('pretrain', {}).get('minutes', 0) + c.get('time_budget_s', 0) / 60 + 30))" "$dir/config.json")
+  l=$([[ -n ${SLURM_JOB_ID:-} ]] && squeue -h -j "$SLURM_JOB_ID" -o %L 2>/dev/null || true)
+  if [[ -n $l && $l != UNLIMITED ]]; then  # %L is [D-]HH:MM:SS or MM:SS
+    d=0 h=0 m=0
+    [[ $l == *-* ]] && { d=${l%%-*}; l=${l#*-}; }
+    IFS=: read -ra p <<<"$l"
+    case ${#p[@]} in 3) h=${p[0]} m=${p[1]} ;; 2) m=${p[0]} ;; esac
+    left=$(( 10#$d * 1440 + 10#$h * 60 + 10#$m ))
+    if (( left < need )); then
+      echo "$(date -u +%FT%TZ) worker $SLURM_JOB_ID: $left min left but $dir $seed needs $need; not started, requeue it" | tee -a queue/worker.log >&2
+      exit 1
+    fi
+  fi
   # A record seed stopped during the data copy or pretraining leaves only stdout.log in its seed dir,
   # which the worker's restart check doesn't look for: keep that run under extra/ as the worker does
   # for later stops, instead of letting the rerun overwrite its log.
