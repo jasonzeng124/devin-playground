@@ -896,3 +896,50 @@ Also:
   qualifies: mean 0.337, all five seeds above 0.255. That entry has the five-seed numbers now.
 - r8 seed 0 (malformed reward 0 until step 300, then -0.1) started at 22:37 on node2700. Seeds 1-2
   start when the dm26 pipelines end (~02:00, ~02:30).
+
+## 2026-10-24 (00:55): r8 seed 0 collapsed before its reward switch, so A 003's recipe failed on a sixth run
+
+r8 is r5's config with the -0.1 truncation penalty back from step 300 on. Up to step 299 it is the
+same training as r7 (A 003) and r5. Its seed 0 collapsed at steps 264-284, before the switch:
+
+```
+step  min   solve  trunc  inf  entropy   (training batch)      dev: 250 0.363, 300 0.053
+ 260  99.4  0.402  0.248   31  0.038
+ 264 101.5  0.357  0.277   29  0.040
+ 268 103.5  0.131  0.430   12  0.067
+ 276 107.2  0.049  0.449   11  0.141
+ 284 110.0  0.018  0.459    7  0.256
+ 296 113.2  0.027  0.215    8  0.284
+```
+
+- The batch solve rate fell from 0.36 to 0.13 in four steps and to 0.02 by step 284. Entropy rose
+  from its low of 0.038 to 0.26-0.36. Truncation stayed at 0.2-0.48 throughout. This is not r5's
+  late slide into truncation. It looks like r7 seed 2's fall (0.372 at step 250 to 0.238 at 300,
+  entropy down to 0.034), gone further.
+- Since step 300 the -0.1 penalty has cut truncation to ~0 at a dev of 0.04-0.05 (step 472: solve
+  0.09, 17 informative groups). The run tells nothing about r8's question, which is whether the
+  penalty after step 300 holds off r5's late collapse. Seeds 1-2 start at ~02:00 and still ask it.
+- Every run of this recipe through step 300, in dev puzzles of 600:
+
+  | run | step 200 | step 250 | step 300 |
+  |---|---|---|---|
+  | r5 s0 / s1 / s2 | 165 / 163 / 151 | 200 / 193 / 176 | 228 / 213 / 224 |
+  | r7 s0 / s1 / s2 / s3 / s4 | 181 / 158 / 193 / 122 / 164 | 204 / 185 / 223 / 166 / 189 | 231 / 209 / 143 / 209 / 181 |
+  | r8 s0 | 188 | 218 | 32 |
+
+  Over the nine runs, step 300 averages 0.309 (1,670 of 5,400). Two runs fell between steps 250
+  and 300, and they had the two highest step-250 scores (223 and 218). The collapse seems to come
+  once a run is far enough along. Faster seeds reach that point before step 300, and r5's other
+  seeds reached it after step 350.
+- What this means for the records:
+  - A 003's promotion stands under the rule, which is met on r7's own five seeds. The nine runs
+    would still meet it (mean 0.309 against the 0.2703 line, 7 of 9 above 0.2403, one collapsed).
+  - In expectation, though, A 003 is below A 002: about 0.309 against 0.324. About one record seed
+    in five may collapse.
+  - A 002's five seeds all ran the full 290 min without collapsing.
+  - STATUS.md's top note now recommends A 002 if only one runs. That reverses the 21:15 note,
+    which had preferred A 003 for its cost and median.
+- The non-collapsed runs reach 0.35-0.385 by step 300, above A 002's typical seed. A stable version
+  of this regime is the most direct way past the next line, which will be A 002's or A 003's dev
+  mean + 0.03 = 0.354. Collapse fixes already in the code: Clip-Cov (`cov_clip_frac`, needs
+  skipping off), a KL penalty (`kl_coef`, same), a lower lr, and r8's switch.

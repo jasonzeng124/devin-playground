@@ -21,14 +21,19 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   0-4: 0.300 / 0.270 / 0.472 / 0.315 / 0.263 = 972 of 3,000 (0.324, median 0.300). All five are
   above 0.2403 and none collapsed. Sampler: T 0.5, constrained, no think budget (0-0.2 %
   truncation, so a budget changes nothing). Trains the full 290 min.
-- If only one runs, I'd pick A 003: half the cost and a higher median seed (0.348 against 0.300).
-  The record sampler adds about as much to r7 as to A 001, so it doesn't separate the two (A 002's
-  own gain can't be measured; its screens didn't save weights).
+- **If only one runs, run A 002 (changed 10-24 00:55).** r8 seed 0 ran A 003's exact training
+  through step 299 (r8 changes the reward only from step 300 on) and collapsed at steps 264-284
+  (dev 0.363 at step 250, 0.053 at step 300). Over the nine runs of A 003's recipe through step 300
+  (r5's three, r7's five, r8 seed 0), step 300 averages 0.309, below A 002's 0.324. Two of the
+  nine fell between steps 250 and 300, so about one record seed in five may collapse. A 002's five
+  seeds all ran the full 290 min without collapsing. A 003 still meets the rule, and it costs half
+  as much. The record sampler adds about as much to r7 as to A 001 (+0.013), so it doesn't separate
+  the two.
 - Engaging: node2906, the only mit_normal_gpu H100 80GB HBM3 node, estimates 10-26 15:07 for a
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-23 22:50 EDT.
+Updated 2026-10-24 00:55 EDT.
 
 ## Running
 
@@ -36,7 +41,8 @@ Updated 2026-10-23 22:50 EDT.
   HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; the partition is
   busy, so 3 run:
   - 26644472 (`main:long`, node2700): r8 `a01_fp32_lr1e-6_skip_cos_mal0_until300` seed 0 (22:37 ->
-    ~03:40; the reward switch at step 300 comes ~00:50).
+    ~03:30). It collapsed at steps 264-284, before its step-300 switch, and sits at dev ~0.05; no
+    abort mechanism exists short of cancelling the worker, which would cost a running slot.
   - 26644473 (`main:long`, node2700): `dm26_fp32_lr3e-6_skip_pipe` seed 4 (20:28 -> ~02:30;
     pretraining at 368k tokens/s).
   - 26644475 (`main:long`, node2642): `dm26_fp32_lr3e-6_skip_pipe` seed 3 (19:56 -> ~02:00;
@@ -79,9 +85,10 @@ Updated 2026-10-23 22:50 EDT.
 
 ## Next
 
-- r8 seed 0: dev around step 300 (~00:50) against r7's, then whether the -0.1 penalty from step
-  300 on holds off r5's collapse (final ~03:40). Seeds 1-2 start ~02:00-02:30.
-- ~02:00 and ~02:30: dm26 pipeline seeds 3-4 end (D 5-seed form: >= 178 puzzles together).
+- ~02:00 and ~02:30: dm26 pipeline seeds 3-4 end (D 5-seed form: >= 178 puzzles together); r8
+  seeds 1-2 take those workers.
+- A stabilized long-search arm (Clip-Cov, KL or a lower lr on r7's recipe), queued before the D
+  screens so it starts at ~03:30.
 - a01_skip AWS seeds 0-2 whenever the laptop commits them.
 
 ## Notes
