@@ -1094,3 +1094,31 @@ What it means:
   - Seed 3 started at 09:25 on the same worker and ends ~15:15.
   - Seed 4 starts when seed 2 ends.
   - Seed 1 reruns when 26644471 restarts.
+
+## 2026-10-24 (09:40): in the step logs, the mal0 collapses start with a truncation spike, not low entropy
+
+The training steps (reward / entropy / truncated fraction), for the four runs that trained with
+reward 0 for truncated outputs and collapsed:
+
+| run | before | collapse | after |
+|---|---|---|---|
+| r5 seed 0 | step 300: 0.50 / 0.086 / 0.44 | step 375-400: 0.19-0.04 / 0.04-0.16 / 0.70-0.73 | step 450: 0.02 / 0.40 / 0.24 |
+| r5 seed 1 | step 400: 0.40 / 0.031 / 0.20 | step 425: 0.11 / 0.08 / 0.59 | step 450: 0.03 / 0.22 / 0.23 |
+| r5 seed 2 | step 500: 0.35 / 0.048 / 0.28 | step 525: 0.13 / 0.05 / 0.47 | step 550: 0.04 / 0.13 / 0.29 |
+| r8 seed 0 | step 264: 0.36 / 0.040 / 0.28 | step 266-276: 0.19-0.05 / 0.05-0.14 / 0.43-0.45 | step 286: 0.02 / 0.30 / 0.41 |
+
+What it means:
+- Each collapse has the same order:
+  1. Entropy has decayed to 0.03-0.09.
+  2. Within ~25 steps the truncated share jumps to 0.45-0.73, and the reward falls.
+  3. Entropy then rises to 0.2-0.4.
+  4. The reward stays at 0.02-0.12 for the rest of the run; none of the four recovered.
+- Low entropy alone doesn't do this. A 002 seed 2 (reward -0.1 for truncated outputs, 0.472 at the
+  end) reached entropy 0.017 by step ~1,070 with 0.00-0.01 truncated throughout, and kept improving
+  to step 1,984.
+- So the trigger is the truncation that the reward-0 runs leave unchecked, which r8's late penalty
+  slowed but didn't stop. It is less likely to be kernel-level sampler/trainer mismatch, which
+  would also strike the low-entropy -0.1 runs. I'm not starting the mismatch-logging and
+  importance-correction project for now.
+- r10 (the -0.1 penalty with mean-centred advantages) tests the remaining middle ground: a push
+  against truncation from the start that is too weak to drive the early one-guess collapse.
