@@ -101,6 +101,7 @@ over greedy on arms with long searches:
 |---|---|---|---|
 | A 001 record seeds (mean of 5) | 0.240 | 0.255 | +0.015 |
 | r7 `a01_fp32_lr1e-6_skip_cos_mal0_s300` seed 1 | 0.348 | 0.375 | +0.027 |
+| r7, all five seeds (added 22:50) | 0.324 | 0.337 | +0.013 |
 | r6 `a01_fp32_lr1e-6_skip_cos_tb768` seed 0 | 0.318 (with r6's think budget 768) | 0.361 | +0.043 |
 
 So the rule may hold back arms that would do well as records, and it can't rank them against arms
@@ -108,3 +109,8 @@ that didn't save weights (skip + cosine didn't). Applied: nothing. The rule stay
 in-loop dev, as for every arm so far. If you prefer dev under the record sampler, say so in INBOX.
 Arms would then save weights and get a dev eval at T 0.5. The holder line would be A 001's 0.255 +
 0.03 = 0.285, and A 002's line would come from its record seeds' evals.
+
+Update 22:50: over all five r7 seeds the gain is +0.013, about A 001's, so seed 1 was the high end.
+r6's +0.043 is mostly its in-loop eval forcing answers at 768 tokens. The question matters less than
+it first looked. r7 qualifies under either rule (record-sampler mean 0.337, all five seeds above
+0.255).

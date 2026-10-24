@@ -13,29 +13,30 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   0-4: 0.385 / 0.348 / 0.238 / 0.348 / 0.302 = 973 of 3,000 (0.324, median 0.348). Four seeds are
   above 0.2403 and none collapsed (seed 3's "diverged" label is 60.5 % truncated greedy outputs at
   0.348). Training reward 0 for truncated outputs; training stops at step 300 (115-143 min), so a
-  seed costs under half of A 002's GPU time. Sampler: T 0.5, constrained, no think budget (seed 1:
-  dev16 0.375 against greedy 0.348; a think budget of 960 adds 0.001, 768 costs 0.010). Sampler
-  evals for seeds 0, 2, 3 and 4 are running first in `main` (results by ~23:00).
+  seed costs under half of A 002's GPU time. Sampler: T 0.5, constrained, no think budget: dev16
+  0.399 / 0.375 / 0.262 / 0.357 / 0.292 = 0.337, +0.013 over greedy (A 001: +0.015). On seed 1 a
+  think budget of 960 adds 0.001 and 768 costs 0.010.
 - **A 002 (promoted 2026-10-23 14:25): `calibration/research_r2/a01_fp32_lr1e-6_skip_cos` ->
   `records/v3/track_a/002_fp32_skip_cosine` (config.json committed).** In-loop final dev, seeds
   0-4: 0.300 / 0.270 / 0.472 / 0.315 / 0.263 = 972 of 3,000 (0.324, median 0.300). All five are
   above 0.2403 and none collapsed. Sampler: T 0.5, constrained, no think budget (0-0.2 %
   truncation, so a budget changes nothing). Trains the full 290 min.
-- If only one runs, I'd pick A 003: half the cost, a higher median seed, and +0.027 from the
-  record sampler on the seed measured (A 002's gain can't be measured; its screens didn't save
-  weights).
+- If only one runs, I'd pick A 003: half the cost and a higher median seed (0.348 against 0.300).
+  The record sampler adds about as much to r7 as to A 001, so it doesn't separate the two (A 002's
+  own gain can't be measured; its screens didn't save weights).
 - Engaging: node2906, the only mit_normal_gpu H100 80GB HBM3 node, estimates 10-26 15:07 for a
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-23 21:15 EDT.
+Updated 2026-10-23 22:50 EDT.
 
 ## Running
 
 - Workers: 6 on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
   HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; the partition is
   busy, so 3 run:
-  - 26644472 (`main:long`, node2700): r7 sampler eval, seed 0 (20:53 -> ~21:25).
+  - 26644472 (`main:long`, node2700): r8 `a01_fp32_lr1e-6_skip_cos_mal0_until300` seed 0 (22:37 ->
+    ~03:40; the reward switch at step 300 comes ~00:50).
   - 26644473 (`main:long`, node2700): `dm26_fp32_lr3e-6_skip_pipe` seed 4 (20:28 -> ~02:30;
     pretraining at 368k tokens/s).
   - 26644475 (`main:long`, node2642): `dm26_fp32_lr3e-6_skip_pipe` seed 3 (19:56 -> ~02:00;
@@ -47,10 +48,9 @@ Updated 2026-10-23 21:15 EDT.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
-## Queues (~85 GPU-hours)
+## Queues (~80 GPU-hours)
 
-- `main` (18): r7 sampler evals for seeds 2, 3 and 4 (T 0.5, no budget; ~30 min each); r8
-  `a01_fp32_lr1e-6_skip_cos_mal0_until300` seeds 0-2; r4 dm51_fp32_lr3e-6_skip seeds 0-2;
+- `main` (14): r8 seeds 1-2; r4 dm51_fp32_lr3e-6_skip seeds 0-2;
   d00_fp32_lr3e-6_skip seeds 0-2; a01_skip seeds 3-4; d00_fp32_lr3e-6_skip seeds 3-4; r8 seeds 3-4
   (dropped if r8's seeds 0-2 fail).
 - `long` (1): c90_pos01 seed 0 (c90_cc1e-3 seed 0 is in 26644470's hands).
@@ -79,8 +79,8 @@ Updated 2026-10-23 21:15 EDT.
 
 ## Next
 
-- ~21:25-23:00: r7 sampler evals for seeds 0, 2, 3 and 4 (dev16 for A 003's five seeds).
-- r8 seeds 0-2 start after them (~23:00), about 5 h each.
+- r8 seed 0: dev around step 300 (~00:50) against r7's, then whether the -0.1 penalty from step
+  300 on holds off r5's collapse (final ~03:40). Seeds 1-2 start ~02:00-02:30.
 - ~02:00 and ~02:30: dm26 pipeline seeds 3-4 end (D 5-seed form: >= 178 puzzles together).
 - a01_skip AWS seeds 0-2 whenever the laptop commits them.
 

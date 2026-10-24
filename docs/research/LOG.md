@@ -868,3 +868,31 @@ Also:
   359-373k of D 000's record. They end around 02:00 and 02:30.
 - Queue: r7's seed 3-4 sampler evals follow seed 2's. r8 seeds 3-4 are at the end of `main`, about
   a day out. They get dropped if r8's first three seeds fail.
+
+## 2026-10-23 (22:50): A 003 under its record sampler: 0.337 over five seeds, 0.013 above greedy
+
+```
+  samp_s300_t050                     s0 dev16 0.3988 pass@16 0.597 tokens  715 trunc 0.553 | 0.992 0.436 0.290 0.210 0.068 0.397
+  samp_s300_t050                     s1 dev16 0.3748 pass@16 0.598 tokens  746 trunc 0.565 | 0.969 0.415 0.262 0.172 0.044 0.388
+  samp_s300_t050                     s2 dev16 0.2621 pass@16 0.391 tokens  781 trunc 0.665 | 0.810 0.256 0.126 0.057 0.008 0.316
+  samp_s300_t050                     s3 dev16 0.3566 pass@16 0.596 tokens  758 trunc 0.592 | 0.960 0.379 0.280 0.132 0.025 0.365
+  samp_s300_t050                     s4 dev16 0.2924 pass@16 0.503 tokens  756 trunc 0.485 | 0.930 0.274 0.237 0.034 0.009 0.270
+= samp_s300_t050                       n=5 dev16 0.3369 ± 0.0575
+```
+
+- r7's seeds score 0.337 on average with A 003's sampler (T 0.5, constrained, no think budget),
+  against 0.324 greedy. The gain is +0.013, about A 001's +0.015.
+  - By seed: +0.014, +0.027, +0.024, +0.008 and -0.009. Seed 1's gain, measured first, was the
+    high end.
+  - 49-67 % of the samples hit the 1,024-token limit. Seed 2, which collapsed late, has the most
+    (66.5 %) and the lowest pass@16 (0.391).
+- So the sampler doesn't separate A 003 from A 002. A 002's gain can't be measured on dev; it
+  should be near A 001's, since its outputs rarely truncate.
+  - A 003's case is cost (training stops at step 300, ~2.2 h) and a higher median seed (0.348
+    against 0.300).
+  - A 002's case is its strongest seed (0.472).
+  - STATUS.md's top note now says this.
+- Under the record-sampler rule that QUESTIONS.md asks about (line 0.255 + 0.03 = 0.285), r7 still
+  qualifies: mean 0.337, all five seeds above 0.255. That entry has the five-seed numbers now.
+- r8 seed 0 (malformed reward 0 until step 300, then -0.1) started at 22:37 on node2700. Seeds 1-2
+  start when the dm26 pipelines end (~02:00, ~02:30).
