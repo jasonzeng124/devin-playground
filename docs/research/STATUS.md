@@ -46,41 +46,42 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 15:30 EDT.
+Updated 2026-10-24 16:35 EDT.
 
 ## Running
 
-- Workers: 6 on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
-  HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 4 run:
+- Workers on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
+  HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 3 run:
   - 26644473 (`main:long`, node2700): D 002 record seed 4 (13:04 -> ~18:50).
   - 26644472 (`main:long`, node2700): r10 seed 0 (15:17 -> ~20:20).
   - 26644470 (`long:main`, node2700, restarted 15:07, limit 02:23): c90_cc1e-3 seed 0 (a 90-min
     screen, ends ~16:45), then D 002 seed 1 from the head of `long`.
-  - 26644471 (`main:long`, node2801, restarted 15:05, limit 02:14): r9 seed 1 (15:20 -> ~20:20).
-    Its D 002 seed 1 rerun crashed at the first CUDA call ("busy or unavailable"); the attempt is
-    `extra/failed_1_1`.
-- Pending (QOSMaxGRESPerUser), each redoing its item in hand when it starts:
-  - 26644475: r8 seed 1, preempted at 03:55 (dev 0.390 at 124 min); resumes from its hourly
-    checkpoint.
-  - 26644474: r9 seed 0, preempted at 05:45, 28 s after it started.
+- One of node2801's GPUs fails every CUDA call ("busy or unavailable"). Between 15:05 and 16:31 it
+  stopped four workers: 26644471, 26644474, 26644475 and 26649457 (LOG 16:35). Their failed items
+  are requeued.
+  - Replacements 26786843, 26786844 and 26786872 (`main:long`, node2801 excluded) are pending.
+  - Since 16:32, `run_item.sh` tries CUDA before each item and puts the item back if CUDA fails. A
+    worker that lands on that GPU then exits without using anything up.
 - `run_item.sh` (10-24 04:55 and 07:00), for `records/v3/` items: a seed stopped during its data copy
   or pretraining has its partial run kept under `<record>/extra/interrupted_<seed>_<n>` before the
   rerun (the worker already did this for later stops). And a record seed isn't started with less
   job time left than its budgets + 30 min (376 min for D 002). Restarted workers get backfill limits
   as short as 5:30. A refused item shows FAILED in worker.log with a "not started, requeue it" note,
   and I requeue it by hand.
-- Successors 26649456-59, each `afterany` on one of 26644470-73, same queues. 26644472-73 reach
-  their 2-day limit at 10-25 00:26 and pop nothing after ~18:56 on 10-24.
+- Successors 26649456, 26649458 and 26649459, each `afterany` on one of 26644470, 26644472 and
+  26644473, same queues. They don't exclude node2801; QUESTIONS.md (16:35) asks whether I may add
+  it. 26644472-73 reach their 2-day limit at 10-25 00:26 and pop nothing after ~18:56 on 10-24.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
 ## Queues (~110 GPU-hours)
 
-- `main` (13): r10 `a01_fp32_lr1e-6_skip_cos_advnone` seeds 1-2 (A 002 with
-  mean-centred advantages, queued 07:35; seed 0 runs), r9 `a01_fp32_lr1e-6_cos_mal0_cc1e-3` seed 2 (r5 +
-  Clip-Cov 0.1 %, skipping off; seeds 0-1 are in workers' hands) and r4 dm51_fp32_lr3e-6_skip seeds 0-2,
-  interleaved; then d00_fp32_lr3e-6_skip seeds 0-2, a01_skip seeds 3-4, d00_fp32_lr3e-6_skip
-  seeds 3-4.
+- `main` (16):
+  - Interleaved first: r4 dm51_fp32_lr3e-6_skip seeds 0-2, r9 `a01_fp32_lr1e-6_cos_mal0_cc1e-3`
+    seeds 0-2 (r5 + Clip-Cov 0.1 %, skipping off), and r10 `a01_fp32_lr1e-6_skip_cos_advnone`
+    seeds 1-2 (A 002 with mean-centred advantages; seed 0 runs).
+  - Then r8 seed 1, which resumes from its 03:50 state.
+  - Then d00_fp32_lr3e-6_skip seeds 0-2, a01_skip seeds 3-4 and d00_fp32_lr3e-6_skip seeds 3-4.
 - `long` (2): D 002 seed 1 (requeued 15:25), then c90_pos01 seed 0.
 - `later` (16, read by no worker): 11 c90 seeds; r6 seeds 1-2 and its tb768 eval (parked 10-23);
   r8 seeds 3-4 (parked 10-24 07:30).

@@ -114,3 +114,34 @@ Update 22:50: over all five r7 seeds the gain is +0.013, about A 001's, so seed 
 r6's +0.043 is mostly its in-loop eval forcing answers at 768 tokens. The question matters less than
 it first looked. r7 qualifies under either rule (record-sampler mean 0.337, all five seeds above
 0.255).
+
+## 2026-10-24 16:35 EDT: may I add node2801 to my pending workers' exclude list?
+
+One of node2801's GPUs is listed by nvidia-smi, but CUDA can't open it ("CUDA-capable device(s)
+is/are busy or unavailable", cudaErrorDevicesUnavailable). When it fails a job, Slurm gives the
+freed GPU to the next job. Between 15:05 and 16:31, four of my workers landed on it. Each failed
+everything it touched within seconds and exited:
+
+- 26644471: D 002 seed 1's second attempt, then r9 seed 1, r10 seed 1 and dm51 seed 0.
+- 26644474: r9 seed 0.
+- 26644475: r8 seed 1.
+- 26649457: dm51 seed 0 again.
+
+Other users' jobs run on the node's other GPUs. What I've done:
+
+- Requeued the failed items.
+- Submitted three replacement workers (26786843, 26786844, 26786872) with
+  `--exclude=node1708,node1709,node4508,node1800,node2801`.
+- Since 16:32, `scripts/research/run_item.sh` tries CUDA before each item. If CUDA fails, it puts
+  the item back at the front of the queue. A worker that lands on the GPU then exits without using
+  anything up.
+
+**Question.** The successor workers 26649456, 26649458 and 26649459 are pending (each `afterany` on
+one of my running workers) and were submitted without node2801 in their exclude list. INBOX
+(10-22) says to ask before any `scontrol update` of a pending job. What I would run, for each of
+the three:
+
+    scontrol update JobId=<id> ExcNodeList=node1708,node1709,node1800,node2801,node4508
+
+Applied: nothing. If one of them lands on node2801, it exits within a minute without using up an
+item, and that GPU slot sits idle until I submit another worker. Answer in INBOX.

@@ -1161,3 +1161,38 @@ Seed 1, attempt 2 (attempt 1 is `extra/interrupted_1_1`):
 - At 15:23, nvidia-smi inside the job showed the GPU idle (0 MiB, Default compute mode, no
   processes), so the fault may have been transient. r9 seed 1 is starting on the same GPU. If it
   fails the same way, I'll requeue it and exclude node2801 from later submissions.
+
+## 2026-10-24 (16:35): a node2801 GPU that CUDA can't open stopped four workers; run_item.sh now tries CUDA first
+
+What failed:
+- r9 seed 1 failed on that GPU at 15:27 with the same "CUDA-capable device(s) is/are busy or
+  unavailable" error as D 002 seed 1's second attempt.
+- Worker 26644471 then failed r10 seed 1 and dm51 seed 0 within 10 s each, and exited. The
+  two-quick-failures rule put dm51 back.
+- The freed GPU went to my two pending workers in turn, and both exited the same way:
+  - 26644474 at 15:30: r9 seed 0 failed, dm51 seed 0 put back.
+  - 26644475 at 15:32: r8 seed 1 failed, dm51 seed 0 put back.
+- 26649457, 26644471's successor, took dm51 seed 0 at 15:53. It was preempted three times in 30 min
+  (node2904, node3009, node3209), then reached node2801 at 16:29. It failed dm51 seed 0, put r9
+  seed 0 back, and exited.
+
+Every failure is the same error at the first CUDA call. Other users' jobs hold five of the node's
+eight GPUs. This is node1800's black-hole pattern (10-21) with a different fault.
+
+What I changed:
+- Requeued the host failures, once each: dm51 seed 0, r9 seeds 0-1, r10 seed 1 and r8 seed 1.
+  r8 seed 1's resume state from 03:50 (20.6 GB) is intact.
+- `main` (16) is now: dm51 s0, r9 s0, r10 s1, dm51 s1, r9 s1, r10 s2, r9 s2, dm51 s2, r8 s1, then
+  d00 / a01_skip as before.
+- `scripts/research/run_item.sh` (16:32) runs `torch.zeros(1, device="cuda")` before each item,
+  with a 150-s timeout.
+  - If that fails, it puts the item back at the front of the worker's first queue and empties the
+    worker's in-hand file. The worker's exit after two quick failures then uses nothing up.
+  - I tested it in a sandbox with a fake python: a failure on a `main:long` worker, a failure on a
+    `long:main` worker, a pass for a screen, a pass for a record, and outside Slurm.
+- Three replacement workers (26786843, 26786844, 26786872; `main:long`) exclude node2801.
+- The three pending successors were submitted before this and don't exclude it. QUESTIONS.md asks
+  whether I may update them.
+- Workers that could run together: 3 running chains plus the 3 new ones, which makes 6.
+
+D 002 seed 1's third attempt is still at the head of `long` for 26644470 (node2700, ~16:45).

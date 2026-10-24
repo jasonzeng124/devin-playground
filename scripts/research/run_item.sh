@@ -18,6 +18,19 @@ set -euo pipefail
 dir=${1:?usage: run_item.sh <dir> <seed>}
 seed=${2:?usage: run_item.sh <dir> <seed>}
 PYTHON=${PYTHON:-python}
+# A GPU that nvidia-smi lists but CUDA can't open ("busy or unavailable": one of node2801's on
+# 2026-10-24) fails every item at its first CUDA call, and Slurm hands the freed GPU to the next job.
+# Try CUDA first. If it fails, put the item back at the front of the worker's first queue and empty
+# the worker's in-hand file, so the worker's exit after two quick failures consumes nothing (its
+# FAILED line in done.txt is then only a note). The timeout keeps both tries under its 5-min mark.
+if [[ -n ${SLURM_JOB_ID:-} ]] && ! err=$(timeout 150 $PYTHON -c 'import torch; torch.zeros(1, device="cuda"); torch.cuda.synchronize()' 2>&1); then
+  q=${QUEUE:-pending}; q=queue/${q%%:*}.txt
+  flock queue/lock bash -c 'touch "$0"; { echo "$1"; cat "$0"; } >"$0.new" && mv "$0.new" "$0"' "$q" "$dir $seed"
+  : >"queue/running/$SLURM_JOB_ID"
+  msg=$(grep -m1 'Error' <<<"$err" || tail -n 1 <<<"$err")
+  echo "$(date -u +%FT%TZ) worker $SLURM_JOB_ID: CUDA can't use the GPU on $(hostname) (${msg:0:160}); put $dir $seed back at the front of $q" | tee -a queue/worker.log >&2
+  exit 1
+fi
 if [[ $dir == records/v3/* ]]; then
   # Slurm may start a preemptable worker in a backfill gap as short as its --time-min, and the
   # worker redoes the item in hand after a preemption without checking the time left. A record seed
