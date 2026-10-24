@@ -18,7 +18,17 @@ set -euo pipefail
 dir=${1:?usage: run_item.sh <dir> <seed>}
 seed=${2:?usage: run_item.sh <dir> <seed>}
 PYTHON=${PYTHON:-python}
-[[ $dir == records/v3/* ]] && STAGE=all LOCAL_DATA_DIR=${LOCAL_DATA_DIR:-/tmp} exec bash scripts/run_seed_v3.sh "$dir" "$seed"
+if [[ $dir == records/v3/* ]]; then
+  # A record seed stopped during the data copy or pretraining leaves only stdout.log in its seed dir,
+  # which the worker's restart check doesn't look for: keep that run under extra/ as the worker does
+  # for later stops, instead of letting the rerun overwrite its log.
+  if [[ -e "$dir/seeds/$seed/stdout.log" ]]; then
+    n=1; while [[ -e "$dir/extra/interrupted_${seed}_$n" ]]; do n=$((n + 1)); done
+    mkdir -p "$dir/extra" && mv "$dir/seeds/$seed" "$dir/extra/interrupted_${seed}_$n"
+    echo "run_item.sh: $dir seed $seed stopped before its pretraining log; kept under extra/interrupted_${seed}_$n" >&2
+  fi
+  STAGE=all LOCAL_DATA_DIR=${LOCAL_DATA_DIR:-/tmp} exec bash scripts/run_seed_v3.sh "$dir" "$seed"
+fi
 if [[ ! -f "$dir/eval.json" ]]; then
   pretrain=$($PYTHON -c "import json,sys; c=json.load(open(sys.argv[1])); print(int('pretrain' in c.get('v3', {}) and not c.get('screen_pretrained')))" "$dir/config.json")
   [[ $pretrain == 1 ]] && STAGE=train LOCAL_DATA_DIR=${LOCAL_DATA_DIR:-/tmp} exec bash scripts/run_seed_v3.sh "$dir" "$seed"
