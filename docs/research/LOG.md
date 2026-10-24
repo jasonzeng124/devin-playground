@@ -823,3 +823,48 @@ Also:
   768. The record sampler gains more over greedy on long-search arms than on A 001 (+0.015 on
   average): r7 seed 1 +0.027, r6 seed 0 +0.043. QUESTIONS.md now asks whether promotion should use
   dev under the record sampler; until then the rule stays on greedy in-loop dev. r6 stays parked.
+
+## 2026-10-23 (21:10): r7's five seeds average 0.324, so r7 is promoted as A 003 (tied with A 002 on dev)
+
+```
+  a01_fp32_lr1e-6_skip_cos_mal0_s300 s0 done  133m final 0.385 best 0.385 t.10   31 spm   2.1 ent 0.08 inf 22.9 ok        | 0.027 0.183 0.340 0.385 0.385
+  a01_fp32_lr1e-6_skip_cos_mal0_s300 s1 done  143m final 0.348 best 0.348 t.10   28 spm   1.9 ent 0.11 inf 27.8 ok        | 0.118 0.223 0.308 0.348 0.348
+  a01_fp32_lr1e-6_skip_cos_mal0_s300 s2 done  130m final 0.238 best 0.372 t.10   34 spm   2.3 ent 0.04 inf 15.9 ok        | 0.065 0.105 0.372 0.238 0.238
+  a01_fp32_lr1e-6_skip_cos_mal0_s300 s3 done  115m final 0.348 best 0.348 t.10   42 spm   2.2 ent 0.13 inf 26.1 diverged  | 0.077 0.105 0.348 0.348 0.348
+  a01_fp32_lr1e-6_skip_cos_mal0_s300 s4 done  118m final 0.302 best 0.315 t.10   49 spm   2.2 ent 0.04 inf 23.4 ok        | 0.098 0.178 0.302 0.302 0.302
+= a01_fp32_lr1e-6_skip_cos_mal0_s300   n=5 final 0.324 ± 0.056  ok/1-guess/div 4/0/1  median t.10 34m
+```
+
+- Seed 3 ended at 0.348 (209 puzzles) and was still climbing (0.277 at step 250). Seed 4 ended at
+  0.302 (181), just under its 0.315 at step 250.
+- Promotion against A 001, 5-seed form: 973 of 3,000 puzzles (0.3243) against the 811 needed.
+  - Seeds 0, 1, 3 and 4 are above A 001's 0.2403. Seed 2 (0.238) is the one allowed below it.
+  - No seed collapsed. Seed 2 is not one-guess (15.9 informative groups) and not truncated past
+    half its outputs.
+  - Seed 3's "diverged" label means 60.5 % of its greedy outputs hit the 1,024-token limit. Its
+    0.348 is above the holder's mean, so it doesn't count as collapsed (PLAN.md, clarified 10-23
+    07:00).
+- So r7 is a record attempt, `records/v3/track_a/003_fp32_mal0_s300`.
+  - Its `config.json` is r7's config with a new description: max_steps 300, malformed reward 0,
+    sampler T 0.5, constrained, no think budget.
+  - N = 5 (seeds 0-4), `scripts/run_seed_v3.sh` STAGE=all, then
+    `validate_record_v3.py --compare-to records/v3/track_a/001_ladder_constrained`.
+- A 002 and A 003 tie on greedy dev (972 and 973 of 3,000). They differ elsewhere:
+  - Spread: A 002's seeds are 0.263-0.315 plus one 0.472 (median 0.300). r7's are 0.302-0.385
+    plus one 0.238 (median 0.348).
+  - Cost: r7 trains for 115-143 min instead of 290, so a record seed costs under half the GPU time.
+  - Record sampler: on seed 1 it adds 0.027 over greedy. A 002's gain can't be measured on dev,
+    because its screens didn't save weights.
+  - r7's sampler evals for seeds 0, 2, 3 and 4 (~30 min each) run first in `main`. Seed 0's
+    started at 20:53.
+- Neither record has landed, so both are measured against A 001. Whichever lands first becomes the
+  holder. Then the other needs that holder's dev mean + 0.03 (0.354) and no longer qualifies. So
+  either both start before one lands, or one is chosen. STATUS.md says this at the top for the
+  laptop session.
+- Engaging's node2906 (the only H100 80GB HBM3 node on mit_normal_gpu) now estimates 10-26 15:07
+  for a 6-h job, and my six preemptable workers fill the 6-GPU cap. I have not submitted record
+  workers; AWS via the laptop is sooner.
+- The dm26 pipeline seeds 3 and 4 pretrain at 367k tokens/s (node2642, node2700), within the
+  359-373k of D 000's record. They end around 02:00 and 02:30.
+- Queue: r7's seed 3-4 sampler evals follow seed 2's. r8 seeds 3-4 are at the end of `main`, about
+  a day out. They get dropped if r8's first three seeds fail.
