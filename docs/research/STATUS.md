@@ -45,7 +45,7 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 07:45 EDT.
+Updated 2026-10-24 08:20 EDT.
 
 ## Running
 
@@ -74,10 +74,11 @@ Updated 2026-10-24 07:45 EDT.
 
 ## Queues (~110 GPU-hours)
 
-- `main` (14): D 002 seeds 3-4, r9 `a01_fp32_lr1e-6_cos_mal0_cc1e-3` seed 1 (r5 + Clip-Cov 0.1 %,
-  skipping off; seed 0 is in 26644474's hands), r4 dm51_fp32_lr3e-6_skip seeds 0-1,
-  r9 seed 2, dm51 seed 2, d00_fp32_lr3e-6_skip seeds 0-2, a01_skip seeds 3-4,
-  d00_fp32_lr3e-6_skip seeds 3-4.
+- `main` (17): D 002 seeds 3-4; then r10 `a01_fp32_lr1e-6_skip_cos_advnone` seeds 0-2 (A 002 with
+  mean-centred advantages, queued 08:15), r9 `a01_fp32_lr1e-6_cos_mal0_cc1e-3` seeds 1-2 (r5 + Clip-Cov
+  0.1 %, skipping off; seed 0 is in 26644474's hands) and r4 dm51_fp32_lr3e-6_skip seeds 0-2,
+  interleaved; then d00_fp32_lr3e-6_skip seeds 0-2, a01_skip seeds 3-4, d00_fp32_lr3e-6_skip
+  seeds 3-4.
 - `long` (1): c90_pos01 seed 0 (c90_cc1e-3 seed 0 is in 26644470's hands).
 - `later` (16, read by no worker): 11 c90 seeds; r6 seeds 1-2 and its tb768 eval (parked 10-23);
   r8 seeds 3-4 (parked 10-24 07:40).
@@ -107,8 +108,8 @@ Updated 2026-10-24 07:45 EDT.
 
 - ~09:40: D 002 seed 0 ends (first test-ladder result). D 002 seeds 3-4 start at ~09:40 and ~13:20
   on the two long-lived workers if no pending worker starts sooner.
-- Track A: new screens for the late decline and the early collapse, to queue before the queue
-  runs short (~1 day left).
+- r10 (A 002 + `adv_norm: none`): do the seeds keep searching past step 300 without collapsing
+  (LOG 10-24 08:15)? Seed 0 starts after D 002 seed 4.
 - ~18:00: no D 002 seed should be left for 26644472-73 to pop (time limit at 10-25 00:26).
 - a01_skip AWS seeds 0-2 whenever the laptop commits them.
 
