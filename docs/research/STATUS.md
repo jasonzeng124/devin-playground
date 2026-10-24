@@ -8,11 +8,11 @@ final dev, seeds 0-4: 0.152 / 0.143 / 0.153 / 0.158 / 0.157 = 458 of 3,000 (0.15
 0.149 = 447). D 000's pretraining with DeepMind mathematics_dataset arithmetic (published v1.0,
 as published) as ~26 % of the tokens, then fp32 master weights at lr 3e-6 with skipping. Sampler
 T 1.0, constrained, no budget. N = 5 on the mit_preemptable screen workers (H100 80GB HBM3) through
-`main` (`run_item.sh` runs `records/v3/` items with STAGE=all `run_seed_v3.sh`). Seed 0 started at
-03:33 (pretraining at 370k tokens/s) and ends ~09:40. Seed 1 was preempted 2 min before the end of
-its pretraining; it reruns when its worker restarts. Seed 2 started at 07:12; seeds 3-4 start at
-~09:40 and ~13:20 on the two long-lived workers, so they end by ~19:30; seed 1 reruns whenever
-its worker restarts. Don't start it on AWS.
+`main` (`run_item.sh` runs `records/v3/` items with STAGE=all `run_seed_v3.sh`). **Seed 0 finished
+at 09:25 with a test ladder score of 0.1496** (D 000's seeds score 0.098-0.139, mean 0.1166). Its
+in-loop dev was 0.167, and it used 348 of 360 min. Seed 2 (started 07:12) ends ~13:00 and seed 3
+(started 09:25) ~15:15; seed 4 starts when seed 2 ends, so it ends ~18:50. Seed 1 was preempted
+2 min before the end of its pretraining; it reruns when its worker restarts. Don't start it on AWS.
 
 **Two track A record attempts are waiting, both measured against A 001 (dev 0.2403, line 0.2703 =
 811 of 3,000 puzzles) because neither has landed. Whichever lands first becomes the holder, and the
@@ -45,15 +45,15 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 07:35 EDT.
+Updated 2026-10-24 09:35 EDT.
 
 ## Running
 
 - Workers: 6 on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
   HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 3 run:
-  - 26644472 (`main:long`, node2700): D 002 record seed 0 (03:33 -> ~09:40). Pretraining runs at
-    367k tokens/s, inside D 000's 359-373k.
-  - 26644473 (`main:long`, node2700): D 002 record seed 2 (07:12 -> ~13:20; 367k tokens/s).
+  - 26644472 (`main:long`, node2700): D 002 record seed 3 (09:25 -> ~15:15).
+  - 26644473 (`main:long`, node2700): D 002 record seed 2 (07:12 -> ~13:00; 369k tokens/s, inside
+    D 000's 359-373k).
 - Pending (Priority), each redoing its item in hand when it restarts:
   - 26644471: D 002 seed 1, preempted at 06:42 at 110 of 112 pretraining minutes. The rerun starts
     from scratch; the interrupted run goes to `extra/interrupted_1_1` and is reported.
@@ -74,7 +74,7 @@ Updated 2026-10-24 07:35 EDT.
 
 ## Queues (~110 GPU-hours)
 
-- `main` (17): D 002 seeds 3-4; then r10 `a01_fp32_lr1e-6_skip_cos_advnone` seeds 0-2 (A 002 with
+- `main` (16): D 002 seed 4; then r10 `a01_fp32_lr1e-6_skip_cos_advnone` seeds 0-2 (A 002 with
   mean-centred advantages, queued 07:35), r9 `a01_fp32_lr1e-6_cos_mal0_cc1e-3` seeds 1-2 (r5 + Clip-Cov
   0.1 %, skipping off; seed 0 is in 26644474's hands) and r4 dm51_fp32_lr3e-6_skip seeds 0-2,
   interleaved; then d00_fp32_lr3e-6_skip seeds 0-2, a01_skip seeds 3-4, d00_fp32_lr3e-6_skip
@@ -94,7 +94,8 @@ Updated 2026-10-24 07:35 EDT.
   to r7's gains without the collapse? No: seed 0 collapsed before the switch (0.205), and seed 2
   peaked at 0.415 at step 500, then fell to 0.315 by the end as truncation crept back. Seed 1
   finishes when its worker restarts; seeds 3-4 parked.
-- Track D: D 002 (dm26), promoted (top): 458 of 3,000 over five seeds (0.153).
+- Track D: D 002 (dm26), promoted (top): 458 of 3,000 over five seeds (0.153). Record seed 0 scored
+  0.1496 on the test ladder.
 - Holders: track A 001 (test 0.2481, dev 0.2403), track D 000 (test 0.1166, dev 0.1190). Promotion
   needs dev mean >= 0.2703 (A; 163 of 600) / 0.149 (D; 90 of 600), with 4 of 5 seeds above the
   holder's dev mean and at most 1 collapsed, or 3 seeds all that high and none collapsed. Once A 002
@@ -106,8 +107,8 @@ Updated 2026-10-24 07:35 EDT.
 
 ## Next
 
-- ~09:40: D 002 seed 0 ends (first test-ladder result). D 002 seeds 3-4 start at ~09:40 and ~13:20
-  on the two long-lived workers if no pending worker starts sooner.
+- ~13:00: D 002 seed 2 ends, and seed 4 starts on 26644473 unless a pending worker takes it first.
+  Seed 3 ends ~15:15, and 26644472 then starts r10 seed 0.
 - r10 (A 002 + `adv_norm: none`): do the seeds keep searching past step 300 without collapsing
   (LOG 10-24 07:35)? Seed 0 starts after D 002 seed 4.
 - ~18:00: no D 002 seed should be left for 26644472-73 to pop (time limit at 10-25 00:26).

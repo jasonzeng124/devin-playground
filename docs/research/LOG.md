@@ -1068,3 +1068,29 @@ were, and end above A 002's 0.324 with no collapses; the 3-seed form needs every
 Seeds 0-2 are in `main` after D 002's seeds 3-4, interleaved with r9 and dm51. Oversampling was the
 other candidate, but the search runs already have 47-51 informative groups per step, so it would
 help only the one-guess runs, whose ceiling is low.
+
+## 2026-10-24 (09:35): D 002 seed 0 scores 0.150 on the test ladder
+
+The first D 002 record seed finished at 09:25.
+- Pretraining: 112.0 min and 2.49 B tokens (370k tokens/s), ending at val loss 2.887.
+- RL: 15,693 steps. The in-loop dev score (greedy) was 0.167 at the end and 0.170 at best.
+- Total time: 348 of 360 min, within budget (`clock.json`).
+
+Test ladder (2,400 puzzles × 16 samples, T 1.0, constrained):
+
+| | ladder score | pass@16 | mean tokens |
+|---|---|---|---|
+| D 002 seed 0 | 0.1496 | 0.183 | 25 |
+| D 000 seeds 0-4 | 0.098 / 0.139 / 0.112 / 0.127 / 0.108 (mean 0.1166) | 0.134-0.202 | 20-29 |
+
+By level: L1 0.471, L2 0.121, L3 0.083, L4 0.024, L5 0, L6 0.199.
+
+What it means:
+- This seed scores above all five D 000 seeds, 0.010 above the best of them.
+- The record is judged on the five-seed mean (`validate_record_v3.py`), so this is one result of
+  five; every seed counts, and nothing about the run changes.
+- Remaining seeds:
+  - Seed 2 ends ~13:00.
+  - Seed 3 started at 09:25 on the same worker and ends ~15:15.
+  - Seed 4 starts when seed 2 ends.
+  - Seed 1 reruns when 26644471 restarts.
