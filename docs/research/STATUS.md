@@ -2,6 +2,15 @@
 
 (maintained by the research agent; see AGENT.md)
 
+**Track D record D 002 is queued on Engaging (promoted 2026-10-24 02:35): `dm26_fp32_lr3e-6_skip`
+(+ `_pipe` seeds 3-4) -> `records/v3/track_d/002_dm_math_fp32` (config.json committed).** In-loop
+final dev, seeds 0-4: 0.152 / 0.143 / 0.153 / 0.158 / 0.157 = 458 of 3,000 (0.153; D 000's line
+0.149 = 447). D 000's pretraining with DeepMind mathematics_dataset arithmetic (published v1.0,
+as published) as ~26 % of the tokens, then fp32 master weights at lr 3e-6 with skipping. Sampler
+T 1.0, constrained, no budget. N = 5 on the mit_preemptable screen workers (H100 80GB HBM3) through
+`main` (`run_item.sh` runs `records/v3/` items with STAGE=all `run_seed_v3.sh`); seed 0 starts
+~03:30, the last ends ~18:00-22:00. Don't start it on AWS.
+
 **Two track A record attempts are waiting, both measured against A 001 (dev 0.2403, line 0.2703 =
 811 of 3,000 puzzles) because neither has landed. Whichever lands first becomes the holder, and the
 other would then need 0.354, which neither reaches on dev. So start both before either lands, or
@@ -33,33 +42,29 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 00:55 EDT.
+Updated 2026-10-24 02:40 EDT.
 
 ## Running
 
 - Workers: 6 on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
-  HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; the partition is
-  busy, so 3 run:
+  HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 3 run:
   - 26644472 (`main:long`, node2700): r8 `a01_fp32_lr1e-6_skip_cos_mal0_until300` seed 0 (22:37 ->
-    ~03:30). It collapsed at steps 264-284, before its step-300 switch, and sits at dev ~0.05; no
-    abort mechanism exists short of cancelling the worker, which would cost a running slot.
-  - 26644473 (`main:long`, node2700): `dm26_fp32_lr3e-6_skip_pipe` seed 4 (20:28 -> ~02:30;
-    pretraining at 368k tokens/s).
-  - 26644475 (`main:long`, node2642): `dm26_fp32_lr3e-6_skip_pipe` seed 3 (19:56 -> ~02:00;
-    367k tokens/s).
-- Pending (Priority): 26644470-71 (preempted on node2701 at 14:59), 26644474 (preempted on node3009
-  at 17:37). 26644470 redoes c90_cc1e-3 seed 0 when it starts; the others pop fresh items.
+    ~03:30). It collapsed at steps 264-284, before its step-300 switch, and sits at dev ~0.05.
+  - 26644475 (`main:long`, node2642): r8 seed 1 (01:47 -> ~06:50).
+  - 26644473 (`main:long`, node2700): r8 seed 2 (02:17 -> ~07:20).
+- Pending (Resources, since ~02:00): 26644470-71, 26644474. 26644470 redoes c90_cc1e-3 seed 0
+  when it starts; the others pop fresh items.
 - Successors 26649456-59, each `afterany` on one of 26644470-73, same queues. 26644472-73 reach
-  their 2-day limit at 10-24 23:59 and start no item after ~18:30 that day.
+  their 2-day limit at 10-25 00:26 and pop nothing after ~18:56 on 10-24.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
-## Queues (~95 GPU-hours)
+## Queues (~110 GPU-hours)
 
-- `main` (17): r8 seeds 1-2; r9 `a01_fp32_lr1e-6_cos_mal0_cc1e-3` seeds 0-2 (r5 + Clip-Cov 0.1 %,
-  skipping off) interleaved with r4 dm51_fp32_lr3e-6_skip seeds 0-2;
-  d00_fp32_lr3e-6_skip seeds 0-2; a01_skip seeds 3-4; d00_fp32_lr3e-6_skip seeds 3-4; r8 seeds 3-4
-  (dropped if r8's seeds 0-2 fail).
+- `main` (20): D 002 record seeds 0-1, r9 `a01_fp32_lr1e-6_cos_mal0_cc1e-3` seed 0 (r5 + Clip-Cov
+  0.1 %, skipping off), D 002 seeds 2-3, r9 seed 1, D 002 seed 4, r4 dm51_fp32_lr3e-6_skip seeds
+  0-1, r9 seed 2, dm51 seed 2, d00_fp32_lr3e-6_skip seeds 0-2, a01_skip seeds 3-4,
+  d00_fp32_lr3e-6_skip seeds 3-4, r8 seeds 3-4 (dropped if r8's seeds 1-2 fail).
 - `long` (1): c90_pos01 seed 0 (c90_cc1e-3 seed 0 is in 26644470's hands).
 - `later` (14, read by no worker): 11 c90 seeds; r6 seeds 1-2 and its tb768 eval (parked 10-23).
 
@@ -72,9 +77,7 @@ Updated 2026-10-24 00:55 EDT.
   seed 0 ended at 0.318, healthy but slow; parked. r8 = r5 with the -0.1 truncation penalty back
   from step 300 on (new option `malformed_reward_until`), full budget, next in `main`: can the
   remaining 2.8 h add to r7's gains without the collapse?
-- Track D: `dm26_fp32_lr3e-6_skip` seeds 0-2 at **0.152 / 0.143 / 0.153** (269 puzzles, mean 0.1494).
-  The 3-seed form is out (seed 1); the 5-seed form needs 447 puzzles over 5 seeds, so seeds 3-4 must
-  total >= 178 (0.148 each on average). They run as full pipelines (pretraining included).
+- Track D: D 002 (dm26), promoted (top): 458 of 3,000 over five seeds (0.153).
 - Holders: track A 001 (test 0.2481, dev 0.2403), track D 000 (test 0.1166, dev 0.1190). Promotion
   needs dev mean >= 0.2703 (A; 163 of 600) / 0.149 (D; 90 of 600), with 4 of 5 seeds above the
   holder's dev mean and at most 1 collapsed, or 3 seeds all that high and none collapsed. Once A 002
@@ -86,10 +89,12 @@ Updated 2026-10-24 00:55 EDT.
 
 ## Next
 
-- ~02:00 and ~02:30: dm26 pipeline seeds 3-4 end (D 5-seed form: >= 178 puzzles together); r8
-  seeds 1-2 take those workers.
-- ~03:30: r9 seed 0 (r5's malformed reward 0 for the full budget + Clip-Cov on 0.1 % of tokens)
-  takes r8 seed 0's worker. Does it get past steps 250-550 without the collapse?
+- ~03:30: D 002 seed 0 starts (r8 seed 0's worker). Check its pretraining tokens/s (D 000's record:
+  359-373k).
+- ~06:50-07:20: r8 seeds 1-2 end. Do they get past step 300 without collapsing, and does the -0.1
+  penalty from step 300 on hold off r5's late collapse?
+- r9 seed 0 starts after D 002 seed 1 (~07:00).
+- ~18:00: no D 002 seed should be left for 26644472-73 to pop (time limit at 10-25 00:26).
 - a01_skip AWS seeds 0-2 whenever the laptop commits them.
 
 ## Notes

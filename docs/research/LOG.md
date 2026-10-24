@@ -943,3 +943,45 @@ step  min   solve  trunc  inf  entropy   (training batch)      dev: 250 0.363, 3
   of this regime is the most direct way past the next line, which will be A 002's or A 003's dev
   mean + 0.03 = 0.354. Collapse fixes already in the code: Clip-Cov (`cov_clip_frac`, needs
   skipping off), a KL penalty (`kl_coef`, same), a lower lr, and r8's switch.
+
+## 2026-10-24 (02:35): dm26's five seeds average 0.153, so dm26 is promoted as D 002 and its record seeds are queued here
+
+```
+  dm26_fp32_lr3e-6_skip              s0 done  234m final 0.152 best 0.162 t.10   34 spm  73.2 ent 0.06 inf  5.8 one-guess | 0.098 0.118 0.128 0.145 0.152
+  dm26_fp32_lr3e-6_skip              s1 done  234m final 0.143 best 0.147 t.10   80 spm  79.9 ent 0.04 inf  3.1 one-guess | 0.087 0.085 0.137 0.138 0.143
+  dm26_fp32_lr3e-6_skip              s2 done  234m final 0.153 best 0.153 t.10   54 spm  44.7 ent 0.06 inf  4.8 one-guess | 0.082 0.103 0.120 0.137 0.153
+  dm26_fp32_lr3e-6_skip_pipe         s3 done  234m final 0.158 best 0.160 t.10   41 spm  77.0 ent 0.05 inf  4.6 one-guess | 0.070 0.112 0.143 0.147 0.158
+  dm26_fp32_lr3e-6_skip_pipe         s4 done  234m final 0.157 best 0.173 t.10   62 spm  71.9 ent 0.05 inf  3.6 one-guess | 0.065 0.095 0.142 0.165 0.157
+```
+
+- Pipeline seeds 3-4 included their own pretraining (112 min at 367-369k tokens/s on node2642 and
+  node2700). They ended at 0.158 and 0.157 (95 and 94 puzzles), slightly above seeds 0-2, which ran
+  RL from r2's saved pretraining.
+- Both show FAILED in `worker.log`. That comes from the last line of `run_seed_v3.sh`
+  STAGE=train, which moves the final weights, and these `no_save` screens have none. Training, the
+  evals and `clock.json` all finished (20,995 s of the 21,600 s budget). Nothing to requeue.
+- Promotion against D 000 (dev 0.1190; line 0.149 = 447 of 3,000):
+  - The five seeds total 458 (0.1527) and all are above 0.119.
+  - All five are one-guess, as every track D seed is (D 000's too). None is below the holder's
+    mean, so none collapsed.
+  - The 5-seed form is met.
+- So dm26 becomes the record attempt D 002, `records/v3/track_d/002_dm_math_fp32`.
+  - Its `config.json` is the pipeline config without `no_save`, because the test-ladder stage
+    needs the weights.
+  - Sampler: T 1.0, constrained, no budget, as D 000's. These one-guess policies score the same at
+    T 0.25, 0.5 and 1.0 (0.150, 0.150, 0.149 on an fp32 D model, r3 `samp_d00fp32_*`).
+  - The DeepMind arithmetic is the published v1.0 release with its lines as published
+    (`scripts/research/prepare_dm_math.py`, md5-checked).
+- The record runs on Engaging, which AGENT.md allows on preemptable for track D. N = 5 (seeds
+  0-4).
+  - The screen workers on mit_preemptable H100 80GB HBM3 run it, because new jobs have waited ~10 h
+    to start. `run_item.sh` now runs items under `records/v3/` as record seeds (STAGE=all
+    `run_seed_v3.sh`, token file copied to node-local disk; 4093bab).
+  - A preempted seed's partial run goes to the record's `extra/` (the worker's restart rule) and
+    the seed reruns. Every run is reported.
+- Queue: D 002 seeds 0-1 lead `main`, then r9 seed 0, D 002 seeds 2-3, r9 seed 1, D 002 seed 4,
+  then the rest. Seed 0 starts when r8 seed 0 ends (~03:30); the last should end ~18:00-22:00.
+  - 26644472-73 hit their time limit at 10-25 00:26. A D seed (~6.1 h) popped by them after ~18:20
+    would be cut, so I check the queue head around then.
+- After the five seeds: README, `validate_record_v3.py --compare-to records/v3/track_d/000_baseline`,
+  and the leaderboard if it beats D 000.
