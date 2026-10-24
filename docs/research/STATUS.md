@@ -54,9 +54,10 @@ Updated 2026-10-24 00:55 EDT.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
-## Queues (~80 GPU-hours)
+## Queues (~95 GPU-hours)
 
-- `main` (14): r8 seeds 1-2; r4 dm51_fp32_lr3e-6_skip seeds 0-2;
+- `main` (17): r8 seeds 1-2; r9 `a01_fp32_lr1e-6_cos_mal0_cc1e-3` seeds 0-2 (r5 + Clip-Cov 0.1 %,
+  skipping off) interleaved with r4 dm51_fp32_lr3e-6_skip seeds 0-2;
   d00_fp32_lr3e-6_skip seeds 0-2; a01_skip seeds 3-4; d00_fp32_lr3e-6_skip seeds 3-4; r8 seeds 3-4
   (dropped if r8's seeds 0-2 fail).
 - `long` (1): c90_pos01 seed 0 (c90_cc1e-3 seed 0 is in 26644470's hands).
@@ -87,8 +88,8 @@ Updated 2026-10-24 00:55 EDT.
 
 - ~02:00 and ~02:30: dm26 pipeline seeds 3-4 end (D 5-seed form: >= 178 puzzles together); r8
   seeds 1-2 take those workers.
-- A stabilized long-search arm (Clip-Cov, KL or a lower lr on r7's recipe), queued before the D
-  screens so it starts at ~03:30.
+- ~03:30: r9 seed 0 (r5's malformed reward 0 for the full budget + Clip-Cov on 0.1 % of tokens)
+  takes r8 seed 0's worker. Does it get past steps 250-550 without the collapse?
 - a01_skip AWS seeds 0-2 whenever the laptop commits them.
 
 ## Notes
