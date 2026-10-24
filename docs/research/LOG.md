@@ -1196,3 +1196,30 @@ What I changed:
 - Workers that could run together: 3 running chains plus the 3 new ones, which makes 6.
 
 D 002 seed 1's third attempt is still at the head of `long` for 26644470 (node2700, ~16:45).
+
+## 2026-10-24 (16:57): Clip-Cov alone (c90_cc1e-3) stays in one-guess mode at 0.162 after 90 min; D 002 seed 1's third attempt is pretraining
+
+The 90-min collapse screens (fp32, lr 1e-6, constant lr), in-loop greedy dev at the end:
+
+| arm | seeds | final dev | mode | entropy at the end |
+|---|---|---|---|---|
+| `c90_mal0` (truncated = 0, skipping) | 0, 1 | 0.322, 0.383 | searching | 0.11 |
+| `c90_t12` (training temperature 1.2, skipping) | 0 | 0.212 | one-guess | 0.05 |
+| `c90_cc1e-3` (Clip-Cov on 0.1 % of tokens, no skipping) | 0 | 0.162 (best 0.182) | one-guess | 2.25 |
+
+In `c90_cc1e-3` seed 0:
+- Entropy fell from 1.92 to 0.40 by step 100, then rose steadily to 2.25 at step 549.
+- The training solve rate rose from 0.06 to 0.22.
+- Informative groups stayed at 8-17 of 64.
+- No output was truncated.
+
+In plain words: Clip-Cov at 0.1 % does stop entropy from collapsing, but on its own it doesn't get
+the model to search. It answers in one guess, and greedy dev trails the training reward.
+
+r9 (r5's malformed-reward-0 recipe plus the same Clip-Cov) still tests the case that matters: does
+keeping entropy up prevent the truncation collapse that follows entropy decay in r5 and r8 (LOG
+09:40)? Its 3 seeds stay queued. The other `c90_cc1e-3` and `c90_t12` seeds stay parked in `later`.
+`c90_pos01` seed 0 is next in `long`.
+
+D 002 seed 1's third attempt started at 16:39 on node2700 and passed the new CUDA check. It is
+pretraining at 364k tokens/s. RL starts at ~18:32 and the seed ends at ~22:35.

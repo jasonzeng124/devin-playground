@@ -12,8 +12,8 @@ T 1.0, constrained, no budget. N = 5 on the mit_preemptable screen workers (H100
 far: seed 0 0.1496, seed 2 0.1361, seed 3 0.1857 (mean 0.157)**, each using 348 of 360 min. D 000's
 seeds score 0.098-0.139, mean 0.1166. Seed 4 (started 13:04) ends ~18:50. Seed 1: attempt 1 was
 preempted 2 min before the end of its pretraining (`extra/interrupted_1_1`), and attempt 2 crashed
-at startup on node2801 (`extra/failed_1_1`). Attempt 3 is at the head of `long` for 26644470
-(~16:45 -> ~22:35). Don't start it on AWS.
+at startup on node2801 (`extra/failed_1_1`). Attempt 3 started at 16:39 on 26644470 (node2700)
+and ends ~22:35. Don't start it on AWS.
 
 **Two track A record attempts are waiting, both measured against A 001 (dev 0.2403, line 0.2703 =
 811 of 3,000 puzzles) because neither has landed. Whichever lands first becomes the holder, and the
@@ -46,7 +46,7 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 16:35 EDT.
+Updated 2026-10-24 17:00 EDT.
 
 ## Running
 
@@ -54,8 +54,8 @@ Updated 2026-10-24 16:35 EDT.
   HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 3 run:
   - 26644473 (`main:long`, node2700): D 002 record seed 4 (13:04 -> ~18:50).
   - 26644472 (`main:long`, node2700): r10 seed 0 (15:17 -> ~20:20).
-  - 26644470 (`long:main`, node2700, restarted 15:07, limit 02:23): c90_cc1e-3 seed 0 (a 90-min
-    screen, ends ~16:45), then D 002 seed 1 from the head of `long`.
+  - 26644470 (`long:main`, node2700, restarted 15:07, limit 02:23): D 002 record seed 1, attempt 3
+    (16:39 -> ~22:35; pretraining at 364k tokens/s).
 - One of node2801's GPUs fails every CUDA call ("busy or unavailable"). Between 15:05 and 16:31 it
   stopped four workers: 26644471, 26644474, 26644475 and 26649457 (LOG 16:35). Their failed items
   are requeued.
@@ -110,12 +110,12 @@ Updated 2026-10-24 16:35 EDT.
 
 ## Next
 
-- ~16:45: 26644470 starts D 002 seed 1 (attempt 3; ends ~22:35). ~18:50: seed 4 ends. Then the
-  README and `validate_record_v3.py`.
+- ~18:50: D 002 seed 4 ends. ~22:35: seed 1 (attempt 3, started 16:39) ends. Then the README and
+  `validate_record_v3.py`.
 - r10 (A 002 + `adv_norm: none`): do the seeds keep searching past step 300 without collapsing
   (LOG 10-24 07:35)? Seed 0 started at 15:17.
-- D 002 seed 1 is in `long`, which only 26644470 (and its successor) reads first; the time guard
-  refuses it to a worker with less than 376 min left.
+- c90_cc1e-3 seed 0 ended at 0.162 in one-guess mode, with entropy rising to 2.25 (LOG 16:57).
+  Clip-Cov alone doesn't produce search; r9 tests it together with r5's recipe.
 - a01_skip AWS seeds 0-2 whenever the laptop commits them.
 
 ## Notes
