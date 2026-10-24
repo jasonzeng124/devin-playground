@@ -8,8 +8,10 @@ final dev, seeds 0-4: 0.152 / 0.143 / 0.153 / 0.158 / 0.157 = 458 of 3,000 (0.15
 0.149 = 447). D 000's pretraining with DeepMind mathematics_dataset arithmetic (published v1.0,
 as published) as ~26 % of the tokens, then fp32 master weights at lr 3e-6 with skipping. Sampler
 T 1.0, constrained, no budget. N = 5 on the mit_preemptable screen workers (H100 80GB HBM3) through
-`main` (`run_item.sh` runs `records/v3/` items with STAGE=all `run_seed_v3.sh`); seed 0 starts
-~03:30, the last ends ~18:00-22:00. Don't start it on AWS.
+`main` (`run_item.sh` runs `records/v3/` items with STAGE=all `run_seed_v3.sh`). Seed 0 started at
+03:33 (pretraining at 370k tokens/s) and ends ~09:40. Seed 1 was preempted 2 min before the end of
+its pretraining; it reruns when its worker restarts. Seeds 2-4 start at ~07:15, ~09:40 and ~15:50
+on the two long-lived workers, so the last ends ~22:00 or later. Don't start it on AWS.
 
 **Two track A record attempts are waiting, both measured against A 001 (dev 0.2403, line 0.2703 =
 811 of 3,000 puzzles) because neither has landed. Whichever lands first becomes the holder, and the
@@ -42,7 +44,7 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 05:05 EDT.
+Updated 2026-10-24 07:05 EDT.
 
 ## Running
 
@@ -50,15 +52,21 @@ Updated 2026-10-24 05:05 EDT.
   HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 3 run:
   - 26644472 (`main:long`, node2700): D 002 record seed 0 (03:33 -> ~09:40). Pretraining runs at
     367k tokens/s, inside D 000's 359-373k.
-  - 26644471 (`main:long`, node2641): D 002 record seed 1 (04:50 -> ~10:55).
   - 26644473 (`main:long`, node2700): r8 `a01_fp32_lr1e-6_skip_cos_mal0_until300` seed 2 (02:17 ->
-    ~07:20); dev 0.367 at 150 min.
-- Pending (Priority): 26644470, 26644474-75. 26644475 was preempted at 03:55 in r8 seed 1 (dev
-  0.390 at 124 min); it resumes that seed from its hourly checkpoint when it restarts. 26644470 was
-  preempted at 02:45 and redoes c90_cc1e-3 seed 0. 26644474 pops a fresh item.
-- A record seed preempted during its data copy or pretraining now has its partial run kept under
-  `<record>/extra/interrupted_<seed>_<n>` before the rerun (`run_item.sh`, 10-24 05:05); the worker
-  already did this for stops after pretraining.
+    ~07:15); dev 0.415 at 273 min.
+- Pending (Priority), each redoing its item in hand when it restarts:
+  - 26644471: D 002 seed 1, preempted at 06:42 at 110 of 112 pretraining minutes. The rerun starts
+    from scratch; the interrupted run goes to `extra/interrupted_1_1` and is reported.
+  - 26644475: r8 seed 1, preempted at 03:55 (dev 0.390 at 124 min); resumes from its hourly
+    checkpoint.
+  - 26644474: r9 seed 0, preempted at 05:45, 28 s after it started.
+  - 26644470: c90_cc1e-3 seed 0, preempted at 02:45.
+- `run_item.sh` (10-24 04:55 and 07:00), for `records/v3/` items: a seed stopped during its data copy
+  or pretraining has its partial run kept under `<record>/extra/interrupted_<seed>_<n>` before the
+  rerun (the worker already did this for later stops). And a record seed isn't started with less
+  job time left than its budgets + 30 min (376 min for D 002). Restarted workers get backfill limits
+  as short as 5:30. A refused item shows FAILED in worker.log with a "not started, requeue it" note,
+  and I requeue it by hand.
 - Successors 26649456-59, each `afterany` on one of 26644470-73, same queues. 26644472-73 reach
   their 2-day limit at 10-25 00:26 and pop nothing after ~18:56 on 10-24.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
