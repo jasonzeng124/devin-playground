@@ -986,7 +986,7 @@ step  min   solve  trunc  inf  entropy   (training batch)      dev: 250 0.363, 3
 - After the five seeds: README, `validate_record_v3.py --compare-to records/v3/track_d/000_baseline`,
   and the leaderboard if it beats D 000.
 
-## 2026-10-24 (07:40): r8 seed 2 peaked at 0.415 and ended at 0.315, so the late penalty doesn't hold the peak; r8 seeds 3-4 parked
+## 2026-10-24 (07:30): r8 seed 2 peaked at 0.415 and ended at 0.315, so the late penalty doesn't hold the peak; r8 seeds 3-4 parked
 
 r8 is r5 (malformed reward 0, full 290-min budget) with the -0.1 truncation penalty back from step
 300 on (`malformed_reward_until`). Two of its three seeds are done; seed 1's worker was preempted
@@ -1038,7 +1038,7 @@ Also this morning (details in STATUS.md):
 - node2906 (mit_normal_gpu, the only HBM3 node there) estimates 10-26 10:45 for a 6-h job, so
   Engaging still can't run the track A records sooner than AWS.
 
-## 2026-10-24 (08:15): r10 queued: A 002 with mean-centred advantages (Dr. GRPO)
+## 2026-10-24 (07:35): r10 queued: A 002 with mean-centred advantages (Dr. GRPO)
 
 The step logs show why the two track A recipes end where they do:
 
