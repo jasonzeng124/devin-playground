@@ -1122,3 +1122,16 @@ What it means:
   importance-correction project for now.
 - r10 (the -0.1 penalty with mean-centred advantages) tests the remaining middle ground: a push
   against truncation from the start that is too weak to drive the early one-guess collapse.
+
+## 2026-10-24 (13:15): D 002 seed 2 scores 0.136 on the test ladder; seed 4 started
+
+Seed 2 finished at 13:04:
+- Pretraining: 112.0 min and 2.48 B tokens (370k tokens/s), ending at val loss 2.870.
+- RL: 14,846 steps. The in-loop dev score was 0.150 at the end and 0.152 at best.
+- Total time: 348 of 360 min.
+- Test ladder: 0.1361 (pass@16 0.171, 28 mean tokens, nothing truncated). By level: L1 0.473,
+  L2 0.076, L3 0.062, L4 0.024, L5 0.005, L6 0.176.
+
+So far D 002 has 0.1496 and 0.1361 on test. D 000's five seeds scored 0.098-0.139 (mean 0.1166), so
+seed 2 is 0.003 below D 000's best seed. Seed 4 started at 13:04 on the same worker and ends
+~18:50. Seed 3 ends ~15:15. Seed 1 still waits for its worker (pending on Resources).
