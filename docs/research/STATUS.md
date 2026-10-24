@@ -46,7 +46,7 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 17:00 EDT.
+Updated 2026-10-24 18:00 EDT.
 
 ## Running
 
@@ -60,8 +60,10 @@ Updated 2026-10-24 17:00 EDT.
   stopped four workers: 26644471, 26644474, 26644475 and 26649457 (LOG 16:35). Their failed items
   are requeued.
   - Replacements 26786843, 26786844 and 26786872 (`main:long`, node2801 excluded) are pending.
-  - Since 16:32, `run_item.sh` tries CUDA before each item and puts the item back if CUDA fails. A
-    worker that lands on that GPU then exits without using anything up.
+    26786843 ran 17:06-17:09 on node4109 and was preempted. It holds dm51 seed 0.
+  - Since 16:32, `run_item.sh` tries CUDA before each item and puts the item back if that fails
+    with a CUDA error. A worker that lands on that GPU then exits without using anything up. Since
+    18:00, a timeout or other failure only gets a note in worker.log (LOG 18:00).
 - `run_item.sh` (10-24 04:55 and 07:00), for `records/v3/` items: a seed stopped during its data copy
   or pretraining has its partial run kept under `<record>/extra/interrupted_<seed>_<n>` before the
   rerun (the worker already did this for later stops). And a record seed isn't started with less

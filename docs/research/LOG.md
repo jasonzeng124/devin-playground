@@ -1223,3 +1223,15 @@ keeping entropy up prevent the truncation collapse that follows entropy decay in
 
 D 002 seed 1's third attempt started at 16:39 on node2700 and passed the new CUDA check. It is
 pretraining at 364k tokens/s. RL starts at ~18:32 and the seed ends at ~22:35.
+
+## 2026-10-24 (18:00): the CUDA check now puts an item back only on a CUDA error
+
+- Worker 26786843 started at 17:06 on node4109. Its first CUDA check timed out after 150 s with no
+  output, so it put dm51 seed 0 back and took it again. It was preempted at 17:09, during the
+  second check. dm51 seed 0 is still in its hand, so nothing was lost.
+- I don't know whether that was a slow first import of torch from the pool venv or CUDA hanging at
+  start-up. node4109 is the slow node from D's pretraining notes (224k tokens/s).
+- `run_item.sh` now puts the item back only when the check fails with a CUDA error. A timeout or
+  any other failure gets a note in worker.log, and the item runs as before.
+- Tested in the sandbox: a CUDA error, a timeout, an import error, a pass, outside Slurm, and a
+  record on a `long:main` worker.
