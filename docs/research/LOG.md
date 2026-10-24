@@ -1037,3 +1037,34 @@ Also this morning (details in STATUS.md):
   pending with items in hand.
 - node2906 (mit_normal_gpu, the only HBM3 node there) estimates 10-26 10:45 for a 6-h job, so
   Engaging still can't run the track A records sooner than AWS.
+
+## 2026-10-24 (08:15): r10 queued: A 002 with mean-centred advantages (Dr. GRPO)
+
+The step logs show why the two track A recipes end where they do:
+
+| run | steps in 290 min | informative groups (of 64) | sampling / update s per step | end |
+|---|---|---|---|---|
+| A 002 seed 1 (-0.1 penalty, z-score) | 10,610 | 1-8 | 1.0 / 0.5 | one-guess from ~20 min, 0.270 |
+| A 002 seed 2 (same recipe) | 1,984 | ~15 | 7.0 / 5.4 | searching, 0.472 |
+| r8 seed 2 (reward 0 for truncation to step 300) | 570 | 47-51 | 15.8 / 31.1 | searching, peak 0.415, 0.315 |
+
+Four of A 002's five seeds were one-guess by ~20 minutes, and dev then grew slowly over thousands of
+cheap steps. Only the seed that kept searching got far. With reward 0 for truncated outputs every
+seed keeps searching (r5, r7, r8), with plenty of signal per step, but the searches then truncate
+or the policy drifts.
+
+The 10-23 entry explains the early push to one-guess: under the per-group z-score, a group with no
+correct answer turns the 0 vs -0.1 gap between wrong and truncated outputs into full-scale
+advantages toward shorter outputs. r8 tried changing the penalty over time. r10
+(`calibration/research_r10/a01_fp32_lr1e-6_skip_cos_advnone`) instead keeps A 002's -0.1 penalty
+and switches the advantage to mean-centring only (`adv_norm: none`, Dr. GRPO, as track D already
+uses). Then a group with no correct answer gets advantages of at most 0.1 in size, while a solve in
+a 1-of-8 group still gets +0.875. That's a weak push against truncation throughout, instead of none
+(mal0) or a full-scale one (z-score). It is A 002's screen config with one key added (no code
+change).
+
+If it works, the seeds keep searching past step 300 as r7's did, with truncation held down as A 002's
+were, and end above A 002's 0.324 with no collapses; the 3-seed form needs every seed >= 0.2703.
+Seeds 0-2 are in `main` after D 002's seeds 3-4, interleaved with r9 and dm51. Oversampling was the
+other candidate, but the search runs already have 47-51 informative groups per step, so it would
+help only the one-guess runs, whose ceiling is low.
