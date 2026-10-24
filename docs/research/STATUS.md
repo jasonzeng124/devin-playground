@@ -42,7 +42,7 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 03:55 EDT.
+Updated 2026-10-24 05:05 EDT.
 
 ## Running
 
@@ -50,12 +50,15 @@ Updated 2026-10-24 03:55 EDT.
   HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 3 run:
   - 26644472 (`main:long`, node2700): D 002 record seed 0 (03:33 -> ~09:40). Pretraining runs at
     367k tokens/s, inside D 000's 359-373k.
-  - 26644475 (`main:long`, node2642): r8 `a01_fp32_lr1e-6_skip_cos_mal0_until300` seed 1 (01:47 ->
-    ~06:50); dev 0.390 at 120 min.
-  - 26644473 (`main:long`, node2700): r8 seed 2 (02:17 -> ~07:20); dev 0.292 at 91 min.
-- Pending (Priority): 26644470-71, 26644474. 26644470 started at 02:43 on node3009 and was
-  preempted two minutes later; it redoes c90_cc1e-3 seed 0 when it restarts. The others pop fresh
-  items.
+  - 26644471 (`main:long`, node2641): D 002 record seed 1 (04:50 -> ~10:55).
+  - 26644473 (`main:long`, node2700): r8 `a01_fp32_lr1e-6_skip_cos_mal0_until300` seed 2 (02:17 ->
+    ~07:20); dev 0.367 at 150 min.
+- Pending (Priority): 26644470, 26644474-75. 26644475 was preempted at 03:55 in r8 seed 1 (dev
+  0.390 at 124 min); it resumes that seed from its hourly checkpoint when it restarts. 26644470 was
+  preempted at 02:45 and redoes c90_cc1e-3 seed 0. 26644474 pops a fresh item.
+- A record seed preempted during its data copy or pretraining now has its partial run kept under
+  `<record>/extra/interrupted_<seed>_<n>` before the rerun (`run_item.sh`, 10-24 05:05); the worker
+  already did this for stops after pretraining.
 - Successors 26649456-59, each `afterany` on one of 26644470-73, same queues. 26644472-73 reach
   their 2-day limit at 10-25 00:26 and pop nothing after ~18:56 on 10-24.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
@@ -92,9 +95,9 @@ Updated 2026-10-24 03:55 EDT.
 
 ## Next
 
-- ~06:50-07:20: r8 seeds 1-2 end. Do they get past step 300 without collapsing, and does the -0.1
-  penalty from step 300 on hold off r5's late collapse? D 002 seed 1 and r9 seed 0 then start on
-  their workers. D 002 seeds 2-4 follow at ~09:40, ~12:20 and ~15:50 if no pending worker starts
+- ~07:20: r8 seed 2 ends (seed 1 waits on its worker's restart). Do they get past step 300 without
+  collapsing, and does the -0.1 penalty from step 300 on hold off r5's late collapse? r9 seed 0
+  then starts. D 002 seeds 2-4 follow at ~09:40, ~10:55 and ~15:50 if no pending worker starts
   sooner.
 - ~18:00: no D 002 seed should be left for 26644472-73 to pop (time limit at 10-25 00:26).
 - a01_skip AWS seeds 0-2 whenever the laptop commits them.
