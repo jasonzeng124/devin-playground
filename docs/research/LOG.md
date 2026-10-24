@@ -1135,3 +1135,29 @@ Seed 2 finished at 13:04:
 So far D 002 has 0.1496 and 0.1361 on test. D 000's five seeds scored 0.098-0.139 (mean 0.1166), so
 seed 2 is 0.003 below D 000's best seed. Seed 4 started at 13:04 on the same worker and ends
 ~18:50. Seed 3 ends ~15:15. Seed 1 still waits for its worker (pending on Resources).
+
+## 2026-10-24 (15:25): D 002 seed 3 scores 0.186 on the test ladder; seed 1's rerun crashed on node2801 and is requeued
+
+Seed 3 finished at 15:14:
+- Pretraining: 112.0 min and 2.48 B tokens (370k tokens/s), ending at val loss 2.867.
+- RL: 15,394 steps. The in-loop dev score was 0.193 at the end and 0.195 at best.
+- Total time: 348 of 360 min.
+- Test ladder: 0.1857 (pass@16 0.234, 21 mean tokens, nothing truncated). By level: L1 0.563,
+  L2 0.154, L3 0.080, L4 0.074, L5 0.016, L6 0.227.
+
+D 002's test scores so far are 0.1496 / 0.1361 / 0.1857 (seeds 0, 2, 3; mean 0.157). D 000's mean
+is 0.1166.
+
+Seed 1, attempt 2 (attempt 1 is `extra/interrupted_1_1`):
+- Worker 26644471 restarted at 15:05 on node2801 and reran seed 1. `run_item.sh` moved attempt 1
+  to `extra/interrupted_1_1` first, as intended.
+- After the 4.6 GB data copy (~13 min on that node), pretraining crashed at its first CUDA call
+  (`model.cuda()`): "CUDA error: CUDA-capable device(s) is/are busy or unavailable".
+- That is an infrastructure failure. RULES_v3 ("Seeds and statistics") allows such a seed to be
+  rerun if the failed attempt goes in `extra/` with a note. It is now in `extra/failed_1_1`.
+- Seed 1 is requeued at the head of `long`. Worker 26644470 reads `long` first and runs on
+  node2700, where seeds 0, 2 and 3 ran. It will have ~9.6 h left when its 90-min c90 screen ends at
+  ~16:45, and the time guard requires 376 min. Attempt 3 should then end at ~22:35.
+- At 15:23, nvidia-smi inside the job showed the GPU idle (0 MiB, Default compute mode, no
+  processes), so the fault may have been transient. r9 seed 1 is starting on the same GPU. If it
+  fails the same way, I'll requeue it and exclude node2801 from later submissions.

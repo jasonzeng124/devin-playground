@@ -9,10 +9,11 @@ final dev, seeds 0-4: 0.152 / 0.143 / 0.153 / 0.158 / 0.157 = 458 of 3,000 (0.15
 as published) as ~26 % of the tokens, then fp32 master weights at lr 3e-6 with skipping. Sampler
 T 1.0, constrained, no budget. N = 5 on the mit_preemptable screen workers (H100 80GB HBM3) through
 `main` (`run_item.sh` runs `records/v3/` items with STAGE=all `run_seed_v3.sh`). **Test ladder so
-far: seed 0 0.1496 (finished 09:25), seed 2 0.1361 (13:04)**, each using 348 of 360 min. D 000's
-seeds score 0.098-0.139, mean 0.1166. Seed 3 (started 09:25) ends ~15:15 and seed 4 (started 13:04)
-~18:50. Seed 1 was preempted 2 min before the end of its pretraining; it reruns when its worker
-restarts. Don't start it on AWS.
+far: seed 0 0.1496, seed 2 0.1361, seed 3 0.1857 (mean 0.157)**, each using 348 of 360 min. D 000's
+seeds score 0.098-0.139, mean 0.1166. Seed 4 (started 13:04) ends ~18:50. Seed 1: attempt 1 was
+preempted 2 min before the end of its pretraining (`extra/interrupted_1_1`), and attempt 2 crashed
+at startup on node2801 (`extra/failed_1_1`). Attempt 3 is at the head of `long` for 26644470
+(~16:45 -> ~22:35). Don't start it on AWS.
 
 **Two track A record attempts are waiting, both measured against A 001 (dev 0.2403, line 0.2703 =
 811 of 3,000 puzzles) because neither has landed. Whichever lands first becomes the holder, and the
@@ -45,21 +46,23 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 13:15 EDT.
+Updated 2026-10-24 15:30 EDT.
 
 ## Running
 
 - Workers: 6 on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
-  HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 3 run:
-  - 26644472 (`main:long`, node2700): D 002 record seed 3 (09:25 -> ~15:15).
+  HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 4 run:
   - 26644473 (`main:long`, node2700): D 002 record seed 4 (13:04 -> ~18:50).
-- Pending (Resources), each redoing its item in hand when it restarts:
-  - 26644471: D 002 seed 1, preempted at 06:42 at 110 of 112 pretraining minutes. The rerun starts
-    from scratch; the interrupted run goes to `extra/interrupted_1_1` and is reported.
+  - 26644472 (`main:long`, node2700): r10 seed 0 (15:17 -> ~20:20).
+  - 26644470 (`long:main`, node2700, restarted 15:07, limit 02:23): c90_cc1e-3 seed 0 (a 90-min
+    screen, ends ~16:45), then D 002 seed 1 from the head of `long`.
+  - 26644471 (`main:long`, node2801, restarted 15:05, limit 02:14): r9 seed 1 (15:20 -> ~20:20).
+    Its D 002 seed 1 rerun crashed at the first CUDA call ("busy or unavailable"); the attempt is
+    `extra/failed_1_1`.
+- Pending (QOSMaxGRESPerUser), each redoing its item in hand when it starts:
   - 26644475: r8 seed 1, preempted at 03:55 (dev 0.390 at 124 min); resumes from its hourly
     checkpoint.
   - 26644474: r9 seed 0, preempted at 05:45, 28 s after it started.
-  - 26644470: c90_cc1e-3 seed 0, preempted at 02:45.
 - `run_item.sh` (10-24 04:55 and 07:00), for `records/v3/` items: a seed stopped during its data copy
   or pretraining has its partial run kept under `<record>/extra/interrupted_<seed>_<n>` before the
   rerun (the worker already did this for later stops). And a record seed isn't started with less
@@ -73,12 +76,12 @@ Updated 2026-10-24 13:15 EDT.
 
 ## Queues (~110 GPU-hours)
 
-- `main` (15): r10 `a01_fp32_lr1e-6_skip_cos_advnone` seeds 0-2 (A 002 with
-  mean-centred advantages, queued 07:35), r9 `a01_fp32_lr1e-6_cos_mal0_cc1e-3` seeds 1-2 (r5 + Clip-Cov
-  0.1 %, skipping off; seed 0 is in 26644474's hands) and r4 dm51_fp32_lr3e-6_skip seeds 0-2,
+- `main` (13): r10 `a01_fp32_lr1e-6_skip_cos_advnone` seeds 1-2 (A 002 with
+  mean-centred advantages, queued 07:35; seed 0 runs), r9 `a01_fp32_lr1e-6_cos_mal0_cc1e-3` seed 2 (r5 +
+  Clip-Cov 0.1 %, skipping off; seeds 0-1 are in workers' hands) and r4 dm51_fp32_lr3e-6_skip seeds 0-2,
   interleaved; then d00_fp32_lr3e-6_skip seeds 0-2, a01_skip seeds 3-4, d00_fp32_lr3e-6_skip
   seeds 3-4.
-- `long` (1): c90_pos01 seed 0 (c90_cc1e-3 seed 0 is in 26644470's hands).
+- `long` (2): D 002 seed 1 (requeued 15:25), then c90_pos01 seed 0.
 - `later` (16, read by no worker): 11 c90 seeds; r6 seeds 1-2 and its tb768 eval (parked 10-23);
   r8 seeds 3-4 (parked 10-24 07:30).
 
@@ -93,8 +96,8 @@ Updated 2026-10-24 13:15 EDT.
   to r7's gains without the collapse? No: seed 0 collapsed before the switch (0.205), and seed 2
   peaked at 0.415 at step 500, then fell to 0.315 by the end as truncation crept back. Seed 1
   finishes when its worker restarts; seeds 3-4 parked.
-- Track D: D 002 (dm26), promoted (top): 458 of 3,000 over five seeds (0.153). Record seeds 0 and 2
-  scored 0.1496 and 0.1361 on the test ladder.
+- Track D: D 002 (dm26), promoted (top): 458 of 3,000 over five seeds (0.153). Record seeds 0, 2 and 3
+  scored 0.1496, 0.1361 and 0.1857 on the test ladder.
 - Holders: track A 001 (test 0.2481, dev 0.2403), track D 000 (test 0.1166, dev 0.1190). Promotion
   needs dev mean >= 0.2703 (A; 163 of 600) / 0.149 (D; 90 of 600), with 4 of 5 seeds above the
   holder's dev mean and at most 1 collapsed, or 3 seeds all that high and none collapsed. Once A 002
@@ -106,12 +109,12 @@ Updated 2026-10-24 13:15 EDT.
 
 ## Next
 
-- ~15:15: D 002 seed 3 ends, and 26644472 then starts r10 seed 0. ~18:50: seed 4 ends. Seed 1
-  reruns when 26644471 restarts; after it, the README and `validate_record_v3.py`.
+- ~16:45: 26644470 starts D 002 seed 1 (attempt 3; ends ~22:35). ~18:50: seed 4 ends. Then the
+  README and `validate_record_v3.py`.
 - r10 (A 002 + `adv_norm: none`): do the seeds keep searching past step 300 without collapsing
-  (LOG 10-24 07:35)? Seed 0 starts after D 002 seed 4.
-- No D 002 seed is left in `main` (seed 1 is in 26644471's hands), so the 10-25 00:26 time limit of
-  26644472-73 no longer touches the record.
+  (LOG 10-24 07:35)? Seed 0 started at 15:17.
+- D 002 seed 1 is in `long`, which only 26644470 (and its successor) reads first; the time guard
+  refuses it to a worker with less than 376 min left.
 - a01_skip AWS seeds 0-2 whenever the laptop commits them.
 
 ## Notes
