@@ -985,3 +985,55 @@ step  min   solve  trunc  inf  entropy   (training batch)      dev: 250 0.363, 3
     would be cut, so I check the queue head around then.
 - After the five seeds: README, `validate_record_v3.py --compare-to records/v3/track_d/000_baseline`,
   and the leaderboard if it beats D 000.
+
+## 2026-10-24 (07:40): r8 seed 2 peaked at 0.415 and ended at 0.315, so the late penalty doesn't hold the peak; r8 seeds 3-4 parked
+
+r8 is r5 (malformed reward 0, full 290-min budget) with the -0.1 truncation penalty back from step
+300 on (`malformed_reward_until`). Two of its three seeds are done; seed 1's worker was preempted
+at 03:55 (dev 0.390 at 124 min) and the seed resumes from its hourly checkpoint when the worker
+restarts.
+
+```
+  a01_fp32_lr1e-6_skip_cos_mal0_unti s0 done  290m final 0.205 best 0.363 t.10   48 spm  35.7 ent 0.04 inf  5.1 one-guess | 0.093 0.242 0.037 0.173 0.193
+  a01_fp32_lr1e-6_skip_cos_mal0_unti s1 RUN   124m final 0.390 best 0.390 t.10   47 spm   2.1 ent 0.10 inf 34.2 ok        | 0.097 0.203 0.390 0.390 0.390
+  a01_fp32_lr1e-6_skip_cos_mal0_unti s2 done  290m final 0.315 best 0.415 t.10   32 spm   1.4 ent 0.03 inf 48.5 ok        | 0.067 0.212 0.373 0.397 0.373
+```
+
+Seed 2's dev after the switch (greedy, 600 puzzles; malformed = truncated at 1,024 tokens):
+
+| step | 250 | 300 | 350 | 400 | 450 | 500 | 550 | 570 (final) |
+|---|---|---|---|---|---|---|---|---|
+| minute | 79 | 103 | 139 | 175 | 209 | 244 | 280 | 295 |
+| dev | 0.292 | 0.373 | 0.367 | 0.397 | 0.373 | 0.415 | 0.348 | 0.315 |
+| truncated | 0.550 | 0.448 | 0.215 | 0.155 | 0.188 | 0.167 | 0.237 | 0.243 |
+
+What it means:
+- The penalty did what it was meant to at first: truncation fell from 45 % to 16 % within 100 steps,
+  and dev rose a little, to 0.415 at step 500.
+- Then dev fell 0.10 in the last 70 steps (35 min). The training solve rate fell from ~0.43 to
+  0.23-0.26 over steps 541-559, truncation crept back to 24 %, and entropy kept falling (0.038 to
+  0.029). That's the same late decline as r5's, only later and smaller. The lr was already near
+  its cosine floor (1e-7 at 290 min), so a lower lr alone may not stop it.
+- Seed 0 collapsed before the switch (logged 10-24 00:55) and ended at 0.205 (one-guess, so
+  collapsed). With one seed collapsed and the other ending at 0.315, r8 can't beat A 002 (0.324,
+  no collapses), so seeds 3-4 move from `main` to `later`. Seed 1 still finishes when its worker
+  restarts.
+- For the A 002 / A 003 choice nothing changes. A 003's training (r7) stops at step 300, before
+  this decline; its risk is the earlier collapse (2 of 9 runs before step 300).
+
+Also this morning (details in STATUS.md):
+- D 002 seed 0 started at 03:33 on node2700 (pretraining at 367-370k tokens/s, inside D 000's
+  359-373k) and is in RL. Seed 2 started at 07:12 (367k tokens/s).
+- D 002 seed 1 was preempted at 06:42, at 110 of its 112 pretraining minutes. Its seed dir held only
+  stdout.log, which the worker's restart check doesn't look for, so the rerun would have overwritten
+  it. `run_item.sh` now moves such a dir to `extra/interrupted_<seed>_<n>` before the rerun (commit
+  66c1f30), and the README will report the interrupted run.
+- Preempted workers restart in backfill gaps (their time limits fell to 8-11 h, and can go to the
+  5:30 `--time-min`), and the worker redoes its item in hand without checking the time left. A D
+  record seed needs ~6.1 h, so `run_item.sh` now refuses a record seed with less time left than its
+  budgets + 30 min (376 min for D 002; commit 5ea30f0). A refused seed shows as FAILED in
+  worker.log with a "not started, requeue it" note, and I requeue it by hand.
+- Four preemptions between 02:45 and 06:42 (26644470, -75, -74, -71). Two workers run; four are
+  pending with items in hand.
+- node2906 (mit_normal_gpu, the only HBM3 node there) estimates 10-26 10:45 for a 6-h job, so
+  Engaging still can't run the track A records sooner than AWS.
