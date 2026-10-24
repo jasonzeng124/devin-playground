@@ -1,0 +1,6 @@
+Seed 1, attempt 2: started 2026-10-24T19:05:32Z on node2801 (worker 26644471, after the job's
+preemption). After the token-file copy, pretraining crashed at its first CUDA call
+(`LlamaForCausalLM(config).cuda()`): "CUDA error: CUDA-capable device(s) is/are busy or
+unavailable" (cudaErrorDevicesUnavailable). No training ran. The same GPU failed every job sent to
+it that afternoon (eight items from four workers within 90 min). An infrastructure failure, so seed
+1 was rerun under the same seed (RULES_v3, "Seeds and statistics").

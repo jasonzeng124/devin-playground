@@ -1,0 +1,32 @@
+=== v3 track D seed 1 on node2801 NVIDIA H100 80GB HBM3 2026-10-24T19:05:35Z
+=== copy /home/zjason/orcd/pool/data/dm_math/mix_0.2.bin to /tmp (untimed)
+=== pretrain (timed)
+Traceback (most recent call last):
+  File "/orcd/home/002/zjason/rlvr-screens/scripts/pretrain_scratch.py", line 183, in <module>
+    main()
+  File "/orcd/home/002/zjason/rlvr-screens/scripts/pretrain_scratch.py", line 179, in main
+    tokenize(args) if args.cmd == "tokenize" else train(args)
+                                                  ^^^^^^^^^^^
+  File "/orcd/home/002/zjason/rlvr-screens/scripts/pretrain_scratch.py", line 72, in train
+    model = LlamaForCausalLM(config).cuda()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zjason/orcd/pool/vllm-venv/lib/python3.11/site-packages/transformers/modeling_utils.py", line 3645, in cuda
+    return super().cuda(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zjason/orcd/pool/vllm-venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1096, in cuda
+    return self._apply(lambda t: t.cuda(device))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zjason/orcd/pool/vllm-venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 933, in _apply
+    module._apply(fn)
+  File "/home/zjason/orcd/pool/vllm-venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 933, in _apply
+    module._apply(fn)
+  File "/home/zjason/orcd/pool/vllm-venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 964, in _apply
+    param_applied = fn(param)
+                    ^^^^^^^^^
+  File "/home/zjason/orcd/pool/vllm-venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1096, in <lambda>
+    return self._apply(lambda t: t.cuda(device))
+                                 ^^^^^^^^^^^^^^
+torch.AcceleratorError: CUDA error: CUDA-capable device(s) is/are busy or unavailable
+Search for `cudaErrorDevicesUnavailable' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+For more detailed error information, run with CUDA_LOG_FILE=stderr
+

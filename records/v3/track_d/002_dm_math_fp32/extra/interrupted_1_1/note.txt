@@ -1,0 +1,4 @@
+Seed 1, attempt 1: started 2026-10-24T08:50:53Z on node2641 (worker 26644471, mit_preemptable).
+Preempted at 10:42Z, 110.2 of its 112 pretraining minutes in (step 4600, 2.41 B tokens at 365k
+tokens/s). RL never started. An infrastructure interruption (preemption), so seed 1 was rerun
+under the same seed (RULES_v3, "Seeds and statistics").
