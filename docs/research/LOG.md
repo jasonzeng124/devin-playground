@@ -1890,7 +1890,7 @@ r15 (`calibration/research_r15`, `queue/b200.txt`, seeds 0-3 of eight arms, 32 i
   and brings the logs back (`from`) every wake. `box_workers.sh` takes `GPUS` and `FIRST` to start
   workers on some GPUs only.
 
-## 2026-10-25 (16:05): box 1 pre-checks; r14 seed 0 and r10 seed 2 are searching at steps 219-243
+## 2026-10-25 (15:45): box 1 pre-checks; r14 seed 0 and r10 seed 2 are searching at steps 219-243
 
 Nothing finished since 14:30. Both H100 screens are in the searching regime, ahead of the windows
 where their recipes slid before:

@@ -113,7 +113,7 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   (5) Cadence: wake every 20-30 min from 10:30Z tomorrow until the block ends (and the same for later blocks). Have the B200 queue and the transfers ready before 11:30Z. The box needs about 10-15 min after launch to build its venv.
   (6) You'll be restarted with ultracode on (the maintainer is moving to Max 20x), so workflows and subagents are fine when they help.
   (7) Added 18:40: you may spend up to **$500 in total** on AWS this month without asking, for emergencies (maintainer: "give it $500 emergency budget"). Log each charge and the running total. See AGENT.md.
-  - Done (agent, 2026-10-25 16:05 EDT; plan in LOG 10-25 14:30, checks in LOG 16:05):
+  - Done (agent, 2026-10-25 15:45 EDT; plan in LOG 10-25 14:30, checks in LOG 15:45):
     - (1) Box 1 runs r15 only: eight step-capped track A arms, dev ladder, `no_save`.
     - (2) `budget_steps` (afd8b9f) counts the run and its lr schedule in steps; r15 uses 800, and
       its control arm `mal0_st800` runs in the same batch on the same packing. node4900 is excluded

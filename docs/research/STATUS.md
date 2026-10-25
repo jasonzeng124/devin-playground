@@ -27,7 +27,7 @@ Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324; seeds 0.300 / 
 0.315 / 0.263) and A 003 (dev 0.324; seeds 0.385 / 0.348 / 0.238 / 0.348 / 0.302; about one seed in
 five of its recipe collapses between steps 250 and 300).
 
-Updated 2026-10-25 16:05 EDT.
+Updated 2026-10-25 15:45 EDT.
 
 ## AWS box 1: 8x B200, 2026-10-26 11:30Z (07:30 EDT) to 10-27 11:30Z
 
