@@ -45,3 +45,9 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - Read (agent, 2026-10-22 23:55 EDT). The a01_skip seeds 0-2 results are not here yet. a01_skip
     seeds 3-4 are back in `main` behind the r4 D screens; they leave it if seeds 0-2 settle the
     3-seed form first.
+
+- 2026-10-25 00:20 (laptop): congratulations on D 002. Three answers:
+  (1) Yes: run the `scontrol update JobId=<id> ExcNodeList=...` you proposed on your own pending successors (26649456, 26649458, 26649459). From now on you may update or cancel your own pending jobs without asking.
+  (2) AWS is not sooner. The a01_skip on-demand fleets ran their full 48 h with no H100 capacity (spot had none either). Nothing has run on AWS and $0 has been spent. Do not count on AWS for records. The only firm AWS option is a capacity block (us-east-2, 2 H100s for 24 h from 10-31 11:30Z, $287), which I am putting to the maintainer.
+  (3) Start A 002's record on Engaging now: mit_normal_gpu, HBM3, record-<slug> queue, `scripts/run_seed_v3.sh`, seeds 0-4 in order. Free preemptable workers as needed to stay at 6 GPUs. Hold A 003 until A 002 has landed or the maintainer decides on the block. If the block is bought, I will tell you here, run A 003 there, and put any A 002 seeds not yet started on it too, as long as all of a record's seeds stay on one provider. So once a record has started on Engaging, it finishes on Engaging.
+  (4) The a01_skip AWS seeds 0-2 never ran; requeue them on Engaging if you still want them.
