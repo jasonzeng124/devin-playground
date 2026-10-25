@@ -21,8 +21,12 @@ judged by records logged on the leaderboard, in either track.
   record runs (below).
 - Workers: `RESERVE_MIN=330` so a worker never starts a 5 h item it can't finish;
   `--time-min=05:30:00` so jobs can start before a maintenance reservation (monthly, e.g.
-  2026-10-20 00:00-21:00). Track A screens require `NVIDIA H100 80GB HBM3` (comparable with the
-  records); exclude the NVL nodes (node1708, node1709, node4508).
+  2026-10-20 00:00-21:00). Since 2026-10-25 (v3.1) the reference GPU is `NVIDIA H200`
+  (H200 SXM). Screens may use any GPU type MIT has (H200, B200, H100, ...), but compare arms
+  only within one GPU type, or use step caps, since a faster GPU fits more steps into a budget.
+  The 5-seed promotion screen that gates a record runs on `NVIDIA H200` (or is step-capped).
+  The H200 NVL nodes (4-GPU, preemptable only: node4002, node4009, node4010, node5102, node5105,
+  node5201) are not the reference GPU.
 - Keep at least a day of queued work so a lapse in the ssh connection (Duo) costs nothing.
 - RL screens set `"no_save": true` unless their weights are needed (probes, later stages):
   fp32 track A weights are ~7 GB each.
@@ -45,8 +49,8 @@ An arm becomes a record attempt when its screen seeds show **mean dev >= the hol
 holder's dev mean and none collapsed also qualifies (don't wait for seeds 4-5). A record run
 counts as a screen too: its seeds' dev logs feed the next decision. After a new record lands, it
 becomes the holder for later attempts. Then: a record folder `records/v3/track_{a,d}/<NNN>_<slug>`
-on this branch, N = 5 fixed in advance, `scripts/run_seed_v3.sh` (STAGE=all) on node2906-class
-H100s (`QUEUE=record`, `REQUIRE_GPU="NVIDIA H100 80GB HBM3"`, mit_normal_gpu), all 5 seeds
+on this branch, N = 5 fixed in advance, `scripts/run_seed_v3.sh` (STAGE=all) on H200 SXMs
+(`QUEUE=record-<slug>`, `--gres=gpu:h200:1`, `REQUIRE_GPU="NVIDIA H200"`, mit_normal_gpu), all 5 seeds
 reported, `validate_record_v3.py --compare-to <holder>`. No PR without the maintainer.
 
 "Collapsed" in this rule (clarified 2026-10-22, before the seeds it first applies to; QUESTIONS.md

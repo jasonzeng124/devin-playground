@@ -68,16 +68,20 @@ Read `docs/research/LOG.md` for what has been tried. Records are the measure of 
 - **Screen workers** (dev ladder only; `scripts/slurm/screen_seed.sh`). Submit from
   `~/rlvr-screens/slurm_logs`:
 
-      sbatch -p mit_preemptable --time=2-00:00:00 --time-min=05:30:00 --gres=gpu:h100:1 \
-        --exclude=node1708,node1709,node4508 \
-        --export=ALL,RLVR_DIR=$HOME/rlvr-screens,RUNNER=scripts/slurm/screen_seed.sh,QUEUE=<name>,RESERVE_MIN=330,REQUIRE_GPU="NVIDIA H100 80GB HBM3",VENV=$HOME/orcd/pool/vllm-venv,HF_HUB_OFFLINE=1 \
+      sbatch -p mit_preemptable --time=2-00:00:00 --time-min=05:30:00 --gres=gpu:h200:1 \
+        --exclude=node1800,node2801,node4002,node4009,node4010,node5102,node5105,node5201 \
+        --export=ALL,RLVR_DIR=$HOME/rlvr-screens,RUNNER=scripts/slurm/screen_seed.sh,QUEUE=<name>,RESERVE_MIN=330,REQUIRE_GPU="NVIDIA H200",VENV=$HOME/orcd/pool/vllm-venv,HF_HUB_OFFLINE=1 \
         ../scripts/slurm/queue_worker.sbatch
 
-  On `mit_normal_gpu`, use `--time=06:00:00`. Track A screens must use H100 80GB HBM3, so they
-  stay comparable with the records.
+  On `mit_normal_gpu`, use `--time=06:00:00`. Since 2026-10-25 (v3.1) the reference GPU is the
+  H200 SXM (`NVIDIA H200`). Screens may run on any GPU type MIT has (`gpu:h200`, `gpu:b200`,
+  `gpu:h100`, ...; set REQUIRE_GPU to that type's exact name, or drop it), but compare arms only
+  within one GPU type or use step caps. Smoke-test a new GPU type (e.g. B200) with one short item
+  before queueing a batch on it. The promotion screen that gates a record runs on `NVIDIA H200`.
 - **Record workers:** the same command with `QUEUE=record-<slug>` and
   `RUNNER=scripts/run_seed_v3.sh`.
-  - Use `mit_normal_gpu` and the HBM3 requirement; preemptable is fine for track D.
+  - Use `mit_normal_gpu`, `--gres=gpu:h200:1` and `REQUIRE_GPU="NVIDIA H200"`; preemptable is
+    fine for track D.
   - Before queueing, create `records/v3/track_{a,d}/<NNN>_<slug>/config.json` and commit it.
   - After all 5 seeds: write the README (follow the existing records and CONTRIBUTING.md), run
     `uv run python scripts/validate_record_v3.py <dir> --compare-to <holder>`, add the record to

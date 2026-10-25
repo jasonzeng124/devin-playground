@@ -6,14 +6,15 @@
 #
 #   sbatch -p mit_preemptable --time=2-00:00:00 scripts/slurm/queue_worker.sbatch
 #   sbatch -p mit_normal_gpu --time=06:00:00 scripts/slurm/queue_worker.sbatch
-#   sbatch -p mit_normal_gpu --time=06:00:00 --gres=gpu:h100:1 --exclude=node1708,node1709,node4508 \
-#     --export=ALL,QUEUE=record,REQUIRE_GPU="NVIDIA H100 80GB HBM3" scripts/slurm/queue_worker.sbatch
+#   sbatch -p mit_normal_gpu --time=06:00:00 --gres=gpu:h200:1 \
+#     --export=ALL,QUEUE=record,REQUIRE_GPU="NVIDIA H200" scripts/slurm/queue_worker.sbatch
 #
 # QUEUE (default "pending") picks the queue file; keep ranked-record seeds, which must run on the
-# reference H100, in their own queue served only by --gres=gpu:h100:1 workers. gpu:h100 also
-# matches Engaging's "NVIDIA H100 NVL" cards (the 2-GPU nodes node1708, node1709, node4508), so
-# record workers also need --exclude=node1708,node1709,node4508 and REQUIRE_GPU="NVIDIA H100 80GB HBM3"
-# (a worker on any other GPU exits before popping anything).
+# reference GPU (v3.1: H200 SXM, "NVIDIA H200"), in their own queue served only by
+# --gres=gpu:h200:1 workers with REQUIRE_GPU="NVIDIA H200". gpu:h200 also matches the "NVIDIA H200
+# NVL" cards (preemptable 4-GPU nodes node4002, node4009, node4010, node5102, node5105, node5201),
+# so preemptable record workers also exclude those (a worker on any other GPU exits before popping
+# anything). v3.0 records used --gres=gpu:h100:1, REQUIRE_GPU="NVIDIA H100 80GB HBM3".
 #
 # A preempted (requeued) worker first redoes the item it was running; the partial seed is
 # filed under <record>/extra/ as with calibrate_seed.sbatch. Outside the record queue, training

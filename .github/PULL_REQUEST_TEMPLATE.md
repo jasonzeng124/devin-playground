@@ -10,7 +10,7 @@ Record: `records/v3/track_<a|d>/<NNN>_<slug>/`: one sentence on what changed vs.
 | vs. holder | `Welch t = ..., one-sided p = ...` |
 | sampler | `temperature ..., constrain ..., think_budget ...`, or a custom sampler described in the README |
 | clock per seed | `... min` (track D: pretraining + RL) |
-| GPU / provider | `NVIDIA H100 80GB HBM3` / `...` (all seeds) |
+| GPU / provider | `NVIDIA H200` / `...` (all seeds) |
 
 <details><summary><code>validate_record_v3.py --compare-to</code> output</summary>
 

@@ -7,13 +7,14 @@ Checks: the record path and `v3` config block, consecutive seeds 0..N-1 with N >
 - `config.json` matches the record's config, in-training evals never use the test ladder, no
   resuming (its checkpoint saves are taken off the clock), and for track D GRPO starts from the
   seed's own pretrained model;
-- `clock.json`: ranked GPU, the track's budget and within it, and total_s = pretrain_s +
+- `clock.json`: the ranked GPU (`NVIDIA H200` since v3.1; the H100-era records in `H100_RECORDS`
+  keep `NVIDIA H100 80GB HBM3`), the track's budget and within it, and total_s = pretrain_s +
   grpo_wall_s - grpo_eval_s, with grpo_eval_s matching the in-loop evals in `eval_log.jsonl`;
 - `result.json`: one GPU, the same GPU as the clock, and the pinned revision for track A;
 - `confirm_v3.json`: a full test-ladder run of the seed's own final weights, scored with the
   record's sampler, whose score is the mean of its six levels;
 - track D: a `pretrain_log.jsonl` per seed, no two alike.
-`--compare-to` runs the one-sided Welch test on seed scores. Records with `"unranked": true`
+`--compare-to` runs the one-sided Welch test on seed scores, only between records on the same GPU. Records with `"unranked": true`
 (smoke tests) skip the seed-count and hardware checks.
 """
 
@@ -27,13 +28,21 @@ import statistics
 from pathlib import Path
 
 from rlvr_speedrun import benchmark
-from scripts.validate_record import ALPHA, RANKED_GPU, welch_one_sided
+from scripts.validate_record import ALPHA, welch_one_sided
 
 LADDER_SIZE = 2400  # 6 levels x 400 (data/ladder_v3_test.jsonl)
 LEVELS = ("L1", "L2", "L3", "L4", "L5", "L6")
 TRACKS = {"track_a": "A", "track_d": "D"}
 RECORD_ONLY_KEYS = {"description", "v3", "unranked"}  # record metadata, not trainer flags
 CLOCK_TOLERANCE_S = 5.0
+RANKED_GPU = "NVIDIA H200"  # v3.1 (2026-10-25): one H200 SXM 141GB; the H200 NVL is unranked
+H100_GPU = "NVIDIA H100 80GB HBM3"  # v3.0
+H100_RECORDS = {"track_a/000_baseline", "track_a/001_ladder_constrained", "track_d/000_baseline",
+                "track_d/001_muon_pretrain", "track_d/002_dm_math_fp32"}  # v3.0 records, ranked on the H100
+
+
+def ranked_gpu(record: Path) -> str:
+    return H100_GPU if f"{record.parent.name}/{record.name}" in H100_RECORDS else RANKED_GPU
 
 
 def _read_json(path: Path, errors: list[str]) -> dict | None:
@@ -172,6 +181,7 @@ def load_scores(record: Path) -> tuple[list[float], list[str], list[str]]:
     scores: list[float] = []
     pretrain_logs: dict[str, str] = {}  # sha256 -> seed
     budget = benchmark.V3_TIME_BUDGET_S[track]
+    gpu = ranked_gpu(record)
     for name in names:
         seed = seeds_dir / name
         n_err = len(errors)
@@ -193,8 +203,8 @@ def load_scores(record: Path) -> tuple[list[float], list[str], list[str]]:
                 errors.append(f"seed {name}: clock budget_s {clock.get('budget_s')} != {budget}")
             if not isinstance(clock.get("total_s"), (int, float)) or clock["total_s"] > budget:
                 errors.append(f"seed {name}: over budget (total_s {clock.get('total_s')})")
-            if clock.get("gpu") != RANKED_GPU and not unranked:
-                errors.append(f"seed {name}: GPU {clock.get('gpu')!r} is not the ranked {RANKED_GPU!r}")
+            if clock.get("gpu") != gpu and not unranked:
+                errors.append(f"seed {name}: GPU {clock.get('gpu')!r} is not the ranked {gpu!r}")
             _check_clock(seed, name, clock, budget, errors)
         result = _read_json(seed / "result.json", errors)
         if result is not None:
@@ -241,6 +251,8 @@ def compare(new: Path, old: Path) -> tuple[bool, str]:
         return False, "\n".join(f"FAIL: {e}" for e in new_errors + old_errors)
     if new.parent.name != old.parent.name:
         return False, "FAIL: records are on different tracks"
+    if ranked_gpu(new) != ranked_gpu(old):
+        return False, f"FAIL: records are ranked on different GPUs ({ranked_gpu(new)} vs {ranked_gpu(old)})"
     t, df, p = welch_one_sided(old_scores, new_scores)  # H1: mean(old) < mean(new)
     ok = p < ALPHA
     return ok, (f"new {statistics.fmean(new_scores):.4f} vs holder {statistics.fmean(old_scores):.4f}: "

@@ -3,6 +3,8 @@
 Status: final for launch; the maintainer approved it on 2026-10-07 (`docs/REVIEW_v3.md` lists every
 decision, and the corrections made after launch). **Frozen on 2026-10-19** with one amendment,
 external data (see "Both tracks: external data"); the rules don't change while they are frozen.
+**v3.1 (2026-10-25):** the maintainer moved the reference GPU from the H100 80GB SXM to the
+**H200 SXM** (see "Clock and hardware"); nothing else changed.
 Edge cases the text doesn't settle are arbitrated by the maintainer, and rulings are added
 here. v3 replaces v2's "time to a threshold" with a **fixed compute budget, scored on a
 difficulty ladder**, and has two tracks. Evidence for each choice is in `docs/v3_design.md`.
@@ -53,7 +55,7 @@ it is left for the next benchmark version.
 ### Track A — pinned base model
 
 - Start from `Qwen/Qwen3-1.7B-Base` at revision `ea980cb0a6c2ae4b936e82123acc929f1cec04c1`.
-- Budget: **5 h** of GPU wall clock on one H100 80GB SXM (see "Clock and hardware").
+- Budget: **5 h** of GPU wall clock on one H200 SXM (see "Clock and hardware").
 - Data: puzzles from the generator (`countdown.generate_puzzle`, `ladder.ladder_stream`, or any
   other program that produces (numbers, target, operators) without solving them), the
   verifier's verdicts, and public datasets that aren't Countdown-specific (see "Both tracks:
@@ -72,7 +74,7 @@ existing records stay on the old leaderboard. Since 2026-10-19 public datasets o
 FineWeb-Edu are allowed (see "Both tracks: external data"), and no pilot has used them yet.
 
 - Start from randomly initialised weights; any architecture and size.
-- Budget: **6 h** on one H100 80GB SXM, **pretraining included**. How to split it between
+- Budget: **6 h** on one H200 SXM, **pretraining included**. How to split it between
   pretraining and RL is the entrant's choice.
 - Pretraining data: any allowed dataset (see "Both tracks: external data"). The baseline uses
   `HuggingFaceFW/fineweb-edu` at revision `87f09149ef4734204d70ed1d046ddc9ca3f2b8f9`. Filtering
@@ -163,7 +165,8 @@ constraint by itself solves nothing (base models: 0.003-0.011). On trained Qwen 
 
 ## Clock and hardware
 
-- The budget is GPU wall clock on one H100 80GB SXM (`NVIDIA H100 80GB HBM3`), from the first
+- The budget is GPU wall clock on one H200 SXM 141GB (`NVIDIA H200`; the `NVIDIA H200 NVL` is
+  unranked), from the first
   GPU operation of the run to the final checkpoint being written. In-loop dev evals may be
   excluded from the clock if logged separately; everything else on the GPU counts (pretraining,
   rollouts, updates, compilation, warmup).
@@ -172,6 +175,12 @@ constraint by itself solves nothing (base models: 0.003-0.011). On trained Qwen 
 - Scoring on the test ladder happens after the clock stops and is not timed. It may run as a
   separate job, on any GPU, but always with `ladder_confirm` under the reference software below.
 - Training runs on other GPUs are unranked.
+- v3.0 (2026-10-07 to 2026-10-24) used one H100 80GB SXM (`NVIDIA H100 80GB HBM3`). Its records
+  (track A 000-001, track D 000-002) keep their scores on a separate H100 leaderboard and are
+  never compared with H200 records. The H200 leaderboard starts from reruns of the H100 holders'
+  configs (A 001, D 002) on the H200, as ordinary 5-seed records. Why: Engaging's
+  non-preemptable queue has one H100 node and thirteen H200 SXM nodes, so H100 records queued
+  behind a single node.
 - All seeds of a record train on one provider (one cloud, or one cluster), so differences between
   hosts don't mix into the seed spread. Runs elsewhere go in `extra/` with a note (for example
   track A 000's Modal run, `extra/modal_0`).

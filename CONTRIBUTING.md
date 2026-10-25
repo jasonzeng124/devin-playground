@@ -17,7 +17,7 @@ that add a folder under `records/v3/track_{a,d}/`. CI validates every record on 
      the software used, and every external dataset with its revision;
    - any code that differs from this repository: a custom sampler, reward code, a pretraining
      script. Custom samplers and reward code are reviewed carefully (RULES_v3).
-3. **Run >= 5 seeds** (`0..N-1`) on one H100 80GB SXM (`NVIDIA H100 80GB HBM3`), all on one
+3. **Run >= 5 seeds** (`0..N-1`) on one H200 SXM (`NVIDIA H200`; v3.0 records used an H100 80GB SXM), all on one
    provider:
 
    ```bash
@@ -42,8 +42,9 @@ that add a folder under `records/v3/track_{a,d}/`. CI validates every record on 
    A new record must beat the holder's mean test score with a one-sided Welch t-test at
    p < 0.05. Add the record to the leaderboard table in [README.md](README.md).
 
-Running 5 seeds costs ~25-30 H100-hours: roughly $100-200 at cloud on-demand prices.
-`scripts/modal_v3.py` runs a seed on a Modal H100 and has produced a complete track A seed.
+Running 5 seeds costs ~25-30 H200-hours: roughly $100-250 at cloud on-demand prices.
+`scripts/modal_v3.py` runs a seed on a Modal H100 and has produced a complete track A seed (an
+H100 run is unranked since v3.1; switch its `gpu` to `H200` for a ranked one).
 `scripts/aws/spot_launch.sh` (`V3=1`) is meant to run one seed per self-terminating AWS instance
 and push the results to S3, but it has only been smoke-tested on an A10G, and its defaults
 (security group, key, AMI, record) are the maintainer's: override them.

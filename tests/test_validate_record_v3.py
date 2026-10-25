@@ -2,13 +2,12 @@ import json
 from pathlib import Path
 
 from rlvr_speedrun import benchmark
-from scripts.validate_record import RANKED_GPU
-from scripts.validate_record_v3 import LADDER_SIZE, LEVELS, compare, validate
+from scripts.validate_record_v3 import H100_GPU, LADDER_SIZE, LEVELS, RANKED_GPU, compare, validate
 
 SAMPLER = {"temperature": 1.0, "constrain": True, "think_budget": 0}
 
 
-def make_record(root: Path, track: str = "d", scores=(0.15, 0.16, 0.17, 0.15, 0.16), name: str = "000_baseline", **overrides) -> Path:
+def make_record(root: Path, track: str = "d", scores=(0.15, 0.16, 0.17, 0.15, 0.16), name: str = "010_baseline", **overrides) -> Path:
     """A record that follows the rules; `config`, `clock` and `confirm` overrides break them on purpose."""
     record = root / "records" / "v3" / f"track_{track}" / name
     record.mkdir(parents=True)
@@ -36,7 +35,7 @@ def make_record(root: Path, track: str = "d", scores=(0.15, 0.16, 0.17, 0.15, 0.
         clock = {"gpu": RANKED_GPU, "pretrain_s": pre, "grpo_wall_s": budget - 60 - pre + 10, "grpo_eval_s": 10.0,
                  "total_s": budget - 60, "budget_s": budget, "within_budget": True, **overrides.get("clock", {})}
         (seed / "clock.json").write_text(json.dumps(clock))
-        env = {"model_revision": benchmark.V3_TRACK_A_REVISION if track == "a" else None, "gpu": RANKED_GPU, "gpu_count": 1, "world_size": 1}
+        env = {"model_revision": benchmark.V3_TRACK_A_REVISION if track == "a" else None, "gpu": clock["gpu"], "gpu_count": 1, "world_size": 1}
         (seed / "result.json").write_text(json.dumps({"environment": env}))
         confirm = {"benchmark_version": 3, "n_puzzles": LADDER_SIZE, "samples_per_puzzle": benchmark.V3_SAMPLES_PER_PUZZLE,
                    "sampler": {**SAMPLER, "max_new_tokens": benchmark.V3_MAX_NEW_TOKENS}, "ladder_score": score,
@@ -68,7 +67,7 @@ def test_unranked_smoke_allows_few_seeds_and_other_gpus(tmp_path):
 
 
 def test_over_budget_and_wrong_gpu(tmp_path):
-    ok, message = validate(make_record(tmp_path, clock={"total_s": 6 * 3600 + 1, "gpu": "NVIDIA H200"}))
+    ok, message = validate(make_record(tmp_path, clock={"total_s": 6 * 3600 + 1, "gpu": "NVIDIA H200 NVL"}))
     assert not ok and "over budget" in message and "not the ranked" in message
 
 
@@ -126,3 +125,20 @@ def test_compare(tmp_path):
     same = make_record(tmp_path, scores=(0.16, 0.15, 0.17, 0.16, 0.15), name="002_same")
     assert compare(better, old)[0]
     assert not compare(same, old)[0]
+
+
+def test_h100_era_records_keep_their_gpu(tmp_path):
+    old = make_record(tmp_path, name="000_baseline", clock={"gpu": H100_GPU})
+    assert validate(old)[0]
+    edit_json(old / "seeds" / "0" / "clock.json", gpu=RANKED_GPU)
+    ok, message = validate(old)
+    assert not ok and f"not the ranked {H100_GPU!r}" in message
+    ok, message = validate(make_record(tmp_path, name="011_h100", clock={"gpu": H100_GPU}))
+    assert not ok and f"not the ranked {RANKED_GPU!r}" in message
+
+
+def test_compare_refuses_mixed_gpus(tmp_path):
+    old = make_record(tmp_path, name="000_baseline", clock={"gpu": H100_GPU})
+    new = make_record(tmp_path, scores=(0.3, 0.31, 0.32, 0.3, 0.31), name="012_h200")
+    ok, message = compare(new, old)
+    assert not ok and "different GPUs" in message

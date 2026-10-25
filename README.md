@@ -14,7 +14,7 @@ the evidence behind each choice is in [docs/v3_design.md](docs/v3_design.md).
 
 ## Tracks
 
-| track | start from | budget (1x H100 80GB SXM) | data |
+| track | start from | budget (1x H200 SXM, since 2026-10-25) | data |
 |---|---|---|---|
 | **A** | `Qwen/Qwen3-1.7B-Base` (pinned revision) | 5 h of GPU wall clock | generated puzzles + verifier verdicts + public non-Countdown datasets |
 | **D** (experimental) | random init, any architecture | 6 h **including pretraining** | any public non-Countdown dataset (baseline: FineWeb-Edu, pinned); RL as track A |
@@ -28,7 +28,22 @@ the open challenge. Public datasets that aren't Countdown-specific (math text, w
 became allowed on 2026-10-19. Record 002 adds published arithmetic to pretraining and scores
 0.151, but its models still write no intermediate arithmetic.
 
-## Leaderboard (v3)
+## Leaderboard (v3.1, H200)
+
+Since 2026-10-25 the reference GPU is one **H200 SXM** (`NVIDIA H200`; RULES_v3, "Clock and
+hardware"). The first H200 records are reruns of the H100 holders' configs; they are in progress.
+
+### Track A (H200)
+
+No records yet.
+
+### Track D (H200)
+
+No records yet.
+
+## Leaderboard (v3.0, H100, closed 2026-10-24)
+
+H100 80GB SXM records. They keep their scores and are not compared with H200 records.
 
 ### Track A
 
