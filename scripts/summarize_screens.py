@@ -9,6 +9,7 @@ from the last training rows:
   one-guess  fewer than 10 of 64 groups informative (answers at once with one guess, little signal
              left; healthy runs keep 20-45)
   ok         anything else
+Step-capped runs (grpo `budget_steps`) are timed by their budget clock (`clock_s`), not the wall clock.
 An arm with an eval.json (scripts/research/run_item.sh) is a dev-ladder sampler eval: one line per
 seed's dev_confirm.json (16 samples per puzzle, the reference scorer) and their mean.
 """
@@ -31,6 +32,11 @@ def _rows(path: Path) -> list[dict]:
         return []
 
 
+def _clock(row: dict) -> float:
+    """Training seconds by the run's budget clock: the wall clock, or a step-capped run's clock_s (grpo budget_steps)."""
+    return row.get("clock_s", row["train_s"])
+
+
 def seed_summary(arm: Path, seed: str) -> dict | None:
     local = arm / "seeds" / seed  # screens copy their logs here when done; run_seed_v3.sh (track D pretraining) writes here as it runs
     done = (local / "train_log.jsonl").exists() and ((local / "clock.json").exists() or not (local / "pretrain_log.jsonl").exists())
@@ -39,19 +45,19 @@ def seed_summary(arm: Path, seed: str) -> dict | None:
     if not train or not evals:
         return None
     last = train[-1]
-    minutes = last["train_s"] / 60
-    recent = [r for r in train if r["train_s"] >= last["train_s"] - 1800]
-    spm = (recent[-1]["step"] - recent[0]["step"]) / max(1e-9, (recent[-1]["train_s"] - recent[0]["train_s"]) / 60)
+    minutes = _clock(last) / 60
+    recent = [r for r in train if _clock(r) >= _clock(last) - 1800]
+    spm = (recent[-1]["step"] - recent[0]["step"]) / max(1e-9, (_clock(recent[-1]) - _clock(recent[0])) / 60)
     tail = train[-20:]
     ent = statistics.mean(r.get("entropy", 0) for r in tail)
     inf = statistics.mean(r.get("informative_groups", 0) for r in tail)
     mal = statistics.mean(r.get("malformed_rate", 0) for r in tail)
     mode = "diverged" if max(mal, evals[-1].get("malformed_rate", 0)) > 0.5 else "one-guess" if inf < 10 else "ok"
     score = [e.get("pass_rate", e.get("ladder_score", 0)) for e in evals]
-    t10 = next((e["train_s"] / 60 for e, x in zip(evals, score) if x >= 0.10), None)
+    t10 = next((_clock(e) / 60 for e, x in zip(evals, score) if x >= 0.10), None)
 
     def at(m):
-        c = [x for e, x in zip(evals, score) if e["train_s"] <= m * 60]
+        c = [x for e, x in zip(evals, score) if _clock(e) <= m * 60]
         return c[-1] if c else float("nan")
 
     return {"seed": seed, "done": done, "min": minutes, "final": score[-1], "best": max(score), "t10": t10, "spm": spm,

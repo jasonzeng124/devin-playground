@@ -82,6 +82,11 @@ class GRPOConfig:
     eval_prompt_style: str = ""  # prompt for the in-loop eval; "" = same as prompt_style
     max_steps: int = 100
     time_budget_s: float = 0.0  # if > 0, stop once training time (wall clock minus evals) reaches this, then eval once
+    # if > 0, count the budget in steps instead of training time: stop after budget_steps steps (then eval once),
+    # and read step s as (s - 1) / budget_steps of time_budget_s for the lr schedule, so a run takes the same
+    # schedule and stops on the same step on any GPU or GPU share (step-capped screens); train_s still logs the
+    # wall clock, and clock_s the budget's
+    budget_steps: int = 0
     eval_every: int = 10
     eval_start_step: int = 0
     eval_limit: int = 200
@@ -857,6 +862,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError("log_mismatch and tis_cap need rollout_backend='vllm' (the sampler's log-probs come from vLLM)")
     if config.malformed_reward_until > 0 and config.malformed_reward is None:
         raise ValueError("malformed_reward_until needs malformed_reward (it switches from it to the verifier's -0.1)")
+    if config.budget_steps < 0:
+        raise ValueError(f"budget_steps must be >= 0, got {config.budget_steps}")
     late_config = replace(config, malformed_reward=None) if config.malformed_reward_until > 0 else config
     scheduled = config.lr_schedule != "constant" or config.lr_warmup_s > 0
     lr_at(config, config.lr_warmup_s)  # fail on a bad schedule before loading anything
@@ -937,8 +944,9 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
                 source = stream if u >= easy_frac else easy_streams[int(u >= easy_frac / 2)]
                 puzzles.append(next(source))
             if scheduled:
+                spent = (step - 1) / config.budget_steps * config.time_budget_s if config.budget_steps else time.perf_counter() - start - eval_s
                 for group in optimizer.param_groups:
-                    group["lr"] = lr_at(config, time.perf_counter() - start - eval_s)
+                    group["lr"] = lr_at(config, spent)
             step_start = time.perf_counter()
             step_config = late_config if 0 < config.malformed_reward_until <= step else config
             info = grpo_step(model, ref_model, tokenizer, dist.shard(puzzles), step_config, optimizer, device, caches, dist)
@@ -957,8 +965,12 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
             info.update({"step": step, "wall_s": elapsed, "train_s": elapsed - eval_s, "tokens/s": tokens / max(step_elapsed, 1e-9)})
             if scheduled:
                 info["lr"] = optimizer.param_groups[0]["lr"]
+            if config.budget_steps:
+                info["clock_s"] = step / config.budget_steps * config.time_budget_s
             out_of_time = False
-            if config.time_budget_s > 0:  # rank 0 decides so all ranks stop on the same step
+            if config.budget_steps:
+                out_of_time = step >= config.budget_steps
+            elif config.time_budget_s > 0:  # rank 0 decides so all ranks stop on the same step
                 flag = torch.tensor(float(dist.is_main and elapsed - eval_s >= config.time_budget_s), device=device)
                 out_of_time = dist.all_reduce_sum_(flag).item() > 0
             if device.type == "cuda":
@@ -976,6 +988,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
                 result = _evaluate(model, tokenizer, eval_puzzles, config, device, caches, dist)
                 eval_s += time.perf_counter() - eval_start
                 result.update({"step": step, "wall_s": time.perf_counter() - start, "train_s": time.perf_counter() - start - eval_s})
+                if config.budget_steps:
+                    result["clock_s"] = info["clock_s"]
                 final_pass_rate = result["pass_rate"]
                 if eval_log is not None:
                     eval_log.write(json.dumps(result) + "\n")

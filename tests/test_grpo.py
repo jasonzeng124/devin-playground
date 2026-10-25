@@ -521,6 +521,26 @@ def test_run_with_lr_schedule_sets_and_logs_the_learning_rate(monkeypatch, tmp_p
     assert all("lr" not in row for row in rows)
 
 
+def test_budget_steps_counts_the_budget_and_the_lr_schedule_in_steps(monkeypatch, tmp_path):
+    _patch_tiny_training(monkeypatch, tmp_path)
+    common = dict(model="tiny", group_size=2, prompts_per_step=1, max_new_tokens=4, max_steps=10, eval_every=100,
+                  eval_limit=1, kl_coef=0.0, no_save=True, lr_schedule="linear", lr_final_frac=0.1)
+    # a 300-s budget counted as 3 steps: the run stops after step 3 however long the steps take
+    result = run(GRPOConfig(**common, time_budget_s=300.0, budget_steps=3, out_dir=str(tmp_path / "steps")))
+    rows = [json.loads(line) for line in (tmp_path / "steps" / "train_log.jsonl").read_text().splitlines()]
+    evals = [json.loads(line) for line in (tmp_path / "steps" / "eval_log.jsonl").read_text().splitlines()]
+    assert result["total_steps"] == 3 and [row["step"] for row in rows] == [1, 2, 3]
+    assert [row["lr"] for row in rows] == pytest.approx([1e-6, 0.7e-6, 0.4e-6])  # lr at 0, 100 and 200 s of 300
+    assert [row["clock_s"] for row in rows] == pytest.approx([100.0, 200.0, 300.0])
+    assert [(e["step"], e["clock_s"]) for e in evals] == [(3, pytest.approx(300.0))]
+    # max_steps still stops a run first, on the same schedule
+    run(GRPOConfig(**{**common, "max_steps": 2}, time_budget_s=300.0, budget_steps=3, out_dir=str(tmp_path / "early")))
+    rows = [json.loads(line) for line in (tmp_path / "early" / "train_log.jsonl").read_text().splitlines()]
+    assert [row["lr"] for row in rows] == pytest.approx([1e-6, 0.7e-6])
+    with pytest.raises(ValueError, match="budget_steps"):
+        run(GRPOConfig(**common, time_budget_s=300.0, budget_steps=-1, out_dir=str(tmp_path / "bad")))
+
+
 def _ragged_batch(seed: int, lengths: list[int], prompt_width: int = 4):
     torch.manual_seed(seed)
     generated = torch.randint(2, 40, (len(lengths), prompt_width + max(lengths)))
