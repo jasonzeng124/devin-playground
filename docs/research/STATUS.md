@@ -7,9 +7,9 @@ separate board. The H200 board starts with three record runs, all queued (LOG 01
 
 | record | config | runs on | first start (estimate) |
 |---|---|---|---|
-| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | mit_normal_gpu chain 1 (26824033-37) | 10-27 20:30 (Slurm's plan at 04:29) |
-| `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | mit_normal_gpu chain 2 (26824038-42) | 10-27 21:00 |
-| `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | mit_preemptable H200 (26824147-50) | seed 0 started 08:09 on node4900 (26824148) |
+| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | mit_normal_gpu chain 1 (26824033-37) | 10-27 16:00 (Slurm's plan at 09:15) |
+| `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | mit_normal_gpu chain 2 (26824038-42) | 10-27 16:00 |
+| `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | mit_preemptable H200 (26824147-50) | seeds 0-1 running since 08:09 / 08:43 |
 
 - A 004 and A 002 run side by side, one seed per 6-h job. Chain 1 serves A 004 first and chain 2
   serves A 002 first; each helps the other when its own queue is empty. A 002 is compared with
@@ -33,20 +33,24 @@ Promoted on H100 dev numbers, not yet recorded:
   0.348 / 0.302. It stops at step 300; about one seed in five of its recipe fell between steps
   250 and 300 (LOG 10-24 00:55).
 
-Updated 2026-10-25 08:40 EDT.
+Updated 2026-10-25 09:22 EDT.
 
 ## Running
 
 - mit_preemptable H100 workers (`main:long`):
   - 26786843 (node2700): r13 seed 1 (r10 + KL 0.05) since 08:06, ends ~13:15. Before it: r11
     lr 1e-5 seed 0 (0.142) and c90_pos01 seed 0 (one-guess).
-  - 26803673 (node2905): r11 lr 3e-5 seed 0 since 05:00, ends ~09:05; then dm51 seed 2 from
-    `main`.
+  - 26803673 (node2905): dm51 seed 2 since 09:06, ends ~13:20. Before it: r11 lr 3e-5 seed 0
+    (0.068).
+  - The first of the two to finish takes r10 seed 2 from `main`; the other exits, and its H200
+    successor waits (Slurm's estimate for a new H200 job: 10-26 00:51).
   - 26786872 exited at 05:00 after r10 seed 1, and 26786844 (r9) was cancelled at 02:27.
 - H200 successors on mit_preemptable (`record-003_dm_math_fp32_h200:h200`, `--time-min=06:30:00`,
   RESERVE_MIN 380, NVL nodes excluded):
-  - 26824148 runs D 003 seed 0 on node4900 since 08:09 (pretraining at ~385k tokens/s).
-  - 26824150 is pending (since 05:00).
+  - 26824148 runs D 003 seed 0 on node4900 since 08:09 (pretraining at ~385k tokens/s), and
+    26824150 runs seed 1 on node5001 since 08:43.
+  - They take seeds 2-3 at ~14:30-15:05 and seed 4 at ~20:50. At ~21:25 the second turns to
+    `h200`.
   - 26824147 and 26824149 follow the two running H100 workers (`afterany`).
 - mit_normal_gpu: the two record chains above, pending.
 - Cap: 2 normal + 4 preemptable = 6.
@@ -60,13 +64,12 @@ Updated 2026-10-25 08:40 EDT.
 - `record-004_ladder_constrained_h200`, `record-002_fp32_skip_cosine`, `record-003_dm_math_fp32_h200`:
   seeds 0-4 each (A: ~27 GPU-hours each; D: ~31).
 - `h200` (3): r12 `a01_fp32_lr1e-6_skip_cos_advnone_h200` seeds 0-2 (r10's config on the H200).
-  This is only a fallback now that r10 seed 1 slid back (LOG 05:18). Replace it with a better H200
-  screen before the D 003 seeds are all taken (not before 10-26 ~04:00).
-- `main` (1): dm51 seed 2 (H100). `long`: empty.
-- `h100` (8, read by no worker): r11 seeds 1-2 of both rates, r8 seed 1, d00_fp32_lr3e-6_skip
-  seeds 0-2.
-- `later` (23, read by no worker): parked H100 items (c90 seeds, r6, r8 seeds 3-4,
-  d00_fp32_lr3e-6_skip seeds 3-4, a01_skip seeds 3-4, r9 seeds 1-2, r10 seed 2).
+  It is read first at ~21:25 tonight. It stays if r10 seed 2 (H100, from ~13:20) searches and holds
+  past step 300; otherwise it comes out before then (LOG 09:19).
+- `main` (1): r10 seed 2 (H100). `long`: empty.
+- `h100` (4, read by no worker): r8 seed 1, d00_fp32_lr3e-6_skip seeds 0-2.
+- `later` (26, read by no worker): parked H100 items (c90 seeds, r6, r8 seeds 3-4,
+  d00_fp32_lr3e-6_skip seeds 3-4, a01_skip seeds 3-4, r9 seeds 1-2, r11 seeds 1-2).
 
 ## Best so far
 
@@ -84,13 +87,15 @@ Updated 2026-10-25 08:40 EDT.
 
 ## Next
 
-- Records: watch the chains start (Slurm's plan: 10-27 20:30 and 21:00) and the D 003 workers
-  start (estimate 21:20-22:00 tonight).
+- Records: D 003 seeds 0-1 end ~14:30-15:05 (test-ladder scores in their result.json). The A
+  chains are planned for 10-27 16:00.
 - H200 screens: r12 seeds 0-2 after D 003's seeds. Track D H200 screens can start from D 003's
   saved pretrained models once seeds finish: r11's LR sweep (1e-5, 3e-5) as RL-only screens
   paired with D 003's seeds.
-- H100 results still to come: r11 seed 0 at 1e-5 (~06:40) and 3e-5 (~09:05), c90_pos01 seed 0
-  (~08:20), dm51 seed 2 (~12:30).
+- H100 results still to come: dm51 seed 2 (~13:20), r13 seed 1 (~13:40), r10 seed 2 (~18:30).
+- Closed today: r10 at two seeds (unless seed 2 changes the picture), r11 (higher D learning
+  rates), W-REINFORCE (c90_pos01), KL 0.05 with mean-centred advantages (r13 holds the policy at
+  the base; LOG 09:19).
 - B200: try one short item first if H200 capacity runs short (INBOX 10-25).
 
 ## Notes

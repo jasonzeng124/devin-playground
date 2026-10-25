@@ -1598,3 +1598,73 @@ Workers and queues:
 - mit_normal_gpu: Slurm plans the A record chain heads for 10-27 20:30 and 21:00 (at 04:29).
 - GPU cap: 2 normal (pending), 2 H100 running and 2 H200 pending make 6. 26824147 and 26824149
   wait on the H100 workers.
+
+## 2026-10-25 (09:19): r11's higher learning rates and W-REINFORCE both lose; r13's KL holds the policy at the base; D 003 seeds 0-1 run on the H200
+
+```
+  dm26_fp32_lr1e-5_skip              s0 done  234m final 0.142 best 0.152 t.10   95 spm  51.3 ent 0.06 inf  3.0 one-guess | 0.040 0.082 0.100 0.132 0.142
+  dm26_fp32_lr3e-5_skip              s0 done  234m final 0.068 best 0.098 t.10    - spm  51.9 ent 0.05 inf  3.8 one-guess | 0.082 0.080 0.070 0.048 0.068
+  dm26_fp32_lr3e-6_skip              s0 done  234m final 0.152 best 0.162 t.10   34 spm  73.2 ent 0.06 inf  5.8 one-guess | 0.098 0.118 0.128 0.145 0.152
+  c90_pos01                          s0 done   90m final 0.153 best 0.162 t.10   35 spm  41.1 ent 0.03 inf  2.4 one-guess | 0.055 0.142 0.153 0.153 0.153
+  c90_t12                            s0 done   90m final 0.212 best 0.218 t.10   19 spm  46.1 ent 0.05 inf  4.0 one-guess | 0.170 0.203 0.212 0.212 0.212
+  c90_cc1e-3                         s0 done   90m final 0.162 best 0.182 t.10   44 spm   7.6 ent 2.25 inf  7.9 one-guess |   -   0.110 0.162 0.162 0.162
+= c90_mal0                             n=2 final 0.353 ± 0.044  ok/1-guess/div 0/0/2  median t.10 44m
+```
+
+r11 (D 002's RL at higher learning rates, from r2's dm26 pretrained seed 0):
+- lr 1e-5 ended at 0.142 and lr 3e-5 at 0.068, against 0.152 at D 002's lr 3e-6 on the same
+  pretrained model.
+- Both took off later: 95 min to reach 0.10 at 1e-5, never at 3e-5, against 34 min at 3e-6.
+- r11 is closed. Its seeds 1-2 go to `later`; track D keeps lr 3e-6.
+
+c90_pos01 (A 001 + fp32 at lr 1e-6, positive advantages x 0.1, the W-REINFORCE screen):
+- One-guess by 60 min, with 2.4 informative groups at the end.
+- At 0.153 after 90 min it is the lowest of the r3 screens, beside Clip-Cov's 0.162 and
+  temperature 1.2's 0.212.
+- Damping the push toward sampled solutions didn't keep the policy searching here. W-REINFORCE is
+  closed for track A, and c90_pos01's other seeds stay in `later`.
+
+r13 seed 1 (r10 + KL to the base model at 0.05, skipping off; started 08:06 on node2700) has barely
+moved from the base model in 80 steps:
+
+| step | r10 seed 1: reward / truncated / entropy | r13 seed 1: reward / truncated / entropy / KL |
+|---|---|---|
+| 1 | -0.060 / 0.71 / 1.96 | -0.062 / 0.72 / 1.95 / 0.0012 |
+| 20 | -0.016 / 0.42 / 1.59 | -0.032 / 0.55 / 1.70 / 0.0017 |
+| 40 | +0.033 / 0.10 / 1.08 | -0.031 / 0.53 / 1.84 / 0.0018 |
+| 80 | +0.067 / 0.02 / 0.70 | -0.007 / 0.48 / 1.72 / 0.0020 |
+
+Its dev at step 50 was 0.010, with 92 % of outputs truncated (r10 seed 1: 0.047 with 29 %).
+- Why: under mean-centred advantages, a group with no solve (most groups early on) gives
+  advantages of about +-0.05, from the -0.1 for truncation. The KL pull per token is 0.05 times
+  the log-prob change. So once a token's probability has moved by about one nat, the pull matches
+  the early learning signal, and the policy stays near the base model.
+- The KL of 0.0012 at step 1, before any update, is the gap between the fp32 policy (bf16
+  autocast) and the pure-bf16 reference, not training.
+- So a constant KL weight doesn't suit mean-centred advantages: 0.05 freezes the start, while a
+  weight small enough for the start (~0.005) would be far too weak against the late slide.
+- r13 runs ~48 s per step, against r10's ~17 s average over its run. Most of that is outputs
+  staying long (half of them truncated); KL and the 4,096-token micro-batches add the rest.
+- It will get ~350 steps in 290 min, so it can't reach the steps where r10 seed 1 slid (300-500),
+  and it can't answer the question it was queued for. I let it finish anyway: stopping it would
+  give the H100 back to the cluster, and Slurm estimates a new H100 or H200 job at 00:51
+  tomorrow.
+
+Records on the H200:
+- D 003 seed 0 started at 08:09 (node4900) and seed 1 at 08:43 (node5001). These are the first
+  H200 record seeds.
+- Pretraining runs at ~385k tokens/s, about D 000's 359-373k on the H100. This 110M model's
+  pretraining is not limited by memory bandwidth, so the H200 adds little there.
+- Seeds 2-3 follow on the same two workers at ~14:30-15:05. Seed 4 starts ~20:50.
+- The second worker then turns to `queue/h200.txt` at ~21:25. Its first item, r12, has to be
+  decided by then, not by 10-26 04:00 as I wrote at 05:18.
+- Slurm now plans the mit_normal_gpu chain heads (A 004, A 002) for 10-27 16:00.
+
+H100 plan:
+- r10 seed 2 moved from `later` to `main`. One H100 worker takes it after dm51 seed 2 (~13:20) or
+  r13 (~13:40).
+- By ~16:00 it shows whether r10's mean-centred recipe searches again and holds past step 300.
+- If it slides like seed 1, r12 comes out of `h200` before 21:25. The fallback is then the next
+  record seed or an empty queue.
+- GPU cap: 4 preemptable running (2 H200, 2 H100) and 2 mit_normal_gpu pending make 6.
+  26824147 and 26824149 (H200) wait on the H100 workers.
