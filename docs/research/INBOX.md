@@ -51,3 +51,22 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   (2) AWS is not sooner. The a01_skip on-demand fleets ran their full 48 h with no H100 capacity (spot had none either). Nothing has run on AWS and $0 has been spent. Do not count on AWS for records. The only firm AWS option is a capacity block (us-east-2, 2 H100s for 24 h from 10-31 11:30Z, $287), which I am putting to the maintainer.
   (3) Start A 002's record on Engaging now: mit_normal_gpu, HBM3, record-<slug> queue, `scripts/run_seed_v3.sh`, seeds 0-4 in order. Free preemptable workers as needed to stay at 6 GPUs. Hold A 003 until A 002 has landed or the maintainer decides on the block. If the block is bought, I will tell you here, run A 003 there, and put any A 002 seeds not yet started on it too, as long as all of a record's seeds stay on one provider. So once a record has started on Engaging, it finishes on Engaging.
   (4) The a01_skip AWS seeds 0-2 never ran; requeue them on Engaging if you still want them.
+  - Done (agent, 2026-10-25 00:47 EDT): thanks. (1) 26649458 and 26649459 had already exited
+    (node2801's CUDA check put their items back), so I cancelled 26649456 (pending, no item in
+    hand) instead of updating it, to make room for the record workers. (2) Noted; QUESTIONS.md's
+    AWS questions are closed. (3) Submitted, then cancelled on the HOLD note below: A 002 seeds 0-4
+    in `queue/record-002_fp32_skip_cosine.txt` for five chained mit_normal_gpu workers, 6 h and one
+    seed each (26821229 and 26821230, then 26821231, 26821232 and 26821234 `afterany` on them),
+    running `scripts/research/run_item.sh` (a CUDA check and a time-left check, then
+    `STAGE=all scripts/run_seed_v3.sh`, as D 002's seeds ran). `sbatch --test-only` put the first
+    start on node2906 at 10-27 09:04 (34 H100 jobs pending there). A 003 stays held. (4) I won't
+    requeue a01_skip: A 002 includes skipping, so a01_skip is now only an ablation of it. Its seeds
+    3-4 moved from `main` to `later`.
+
+- 2026-10-25 00:50 (laptop), HOLD: do not submit record workers yet. The maintainer is changing the reference GPU to H200, and details follow within the hour. If a record-* worker is already submitted, cancel it.
+  - Done (agent, 2026-10-25 00:47 EDT): cancelled all five record workers (26821229-26821232 and
+    26821234) at 00:46:34. I had submitted them at 00:45:43, 14 s after this note was committed and
+    before I saw it. None started, so nothing ran. The queue file is set aside as
+    `queue/record-002_fp32_skip_cosine.held`, which no worker reads. 4 preemptable workers remain
+    (1 running, 3 pending; dev-ladder screens only), and they continue. Waiting for the H200
+    details.

@@ -29,9 +29,11 @@ If not, everything stays on Engaging, which is fine.
 
 ## 2026-10-21 00:45 EDT: AWS for the track D promotion screen too?
 
-**On hold (laptop, INBOX 2026-10-22): until AWS has shown it can get capacity. Meanwhile the D
-candidate changed: fp32 lr 3e-6 alone ended at a 0.138 mean (no promotion); the open D screens
-are fp32 + skip on D 000's and the D2 pretraining (LOG 2026-10-22 night).**
+**Closed (laptop, INBOX 2026-10-25): AWS found no H100 capacity in 48 h (on-demand or spot) and
+nothing ran there; records don't count on AWS. Earlier: on hold (laptop, INBOX 2026-10-22) until
+AWS had shown it can get capacity. Meanwhile the D candidate changed: fp32 lr 3e-6 alone ended at a
+0.138 mean (no promotion); the open D screens are fp32 + skip on D 000's and the D2 pretraining
+(LOG 2026-10-22 night).**
 
 Engaging still runs nothing (last GPU minute 14:13 on 10-20). 3,071 jobs are pending on
 mit_preemptable (2,925 at 22:25), and Slurm now gives our workers no start estimate at all.
@@ -116,6 +118,10 @@ it first looked. r7 qualifies under either rule (record-sampler mean 0.337, all 
 0.255).
 
 ## 2026-10-24 16:35 EDT: may I add node2801 to my pending workers' exclude list?
+
+**Answered 2026-10-25 (laptop, INBOX): yes, and I may update or cancel my own pending jobs without
+asking from now on. By then 26649458 and 26649459 had exited (node2801, nothing used up), and I
+cancelled 26649456 (pending, no item in hand) to make room for A 002's record workers.**
 
 One of node2801's GPUs is listed by nvidia-smi, but CUDA can't open it ("CUDA-capable device(s)
 is/are busy or unavailable", cudaErrorDevicesUnavailable). When it fails a job, Slurm gives the
