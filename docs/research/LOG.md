@@ -1507,3 +1507,94 @@ To keep GPUs busy without holding up D 003, the four H100 workers split:
 - The other two H200 successors follow when their H100 workers run out of items.
 - `h100.txt` keeps 13 items, including r10 seed 2 and dm51 seed 2. If H200 stays this far off, I
   give more of them to the H100 workers.
+
+## 2026-10-25 (05:18): r10 seed 1 searched, peaked at 0.315 and slid back to 0.180, so r10 stops at two seeds; dm51 seed 1 ends at 0.178
+
+Both finished at 05:00 on the H100 (node2905):
+
+```
+  a01_fp32_lr1e-6_skip_cos_advnone   s0 done  290m final 0.340 best 0.378 t.10   53 spm   2.1 ent 0.03 inf 26.7 ok        | 0.062 0.200 0.275 0.352 0.317
+  a01_fp32_lr1e-6_skip_cos_advnone   s1 done  290m final 0.180 best 0.315 t.10   44 spm   9.2 ent 0.04 inf 14.6 ok        |   -   0.115 0.237 0.285 0.130
+= a01_fp32_lr1e-6_skip_cos_advnone     n=2 final 0.260 ± 0.113  ok/1-guess/div 2/0/0  median t.10 49m
+  a01_fp32_lr1e-6_skip_cos           s0 done  290m final 0.300 best 0.300 t.10   21 spm   6.4 ent 0.08 inf  9.1 one-guess | 0.115 0.170 0.242 0.288 0.287
+  a01_fp32_lr1e-6_skip_cos           s1 done  290m final 0.270 best 0.277 t.10   21 spm  39.3 ent 0.05 inf  4.6 one-guess | 0.133 0.187 0.220 0.245 0.262
+= a01_fp32_lr1e-6_skip_cos             n=5 final 0.324 ± 0.085  ok/1-guess/div 1/4/0  median t.10 21m
+  dm51_fp32_lr3e-6_skip              s0 done  234m final 0.155 best 0.167 t.10   45 spm  42.0 ent 0.07 inf  5.2 one-guess | 0.057 0.110 0.128 0.147 0.155
+  dm51_fp32_lr3e-6_skip              s1 done  234m final 0.178 best 0.190 t.10   35 spm  73.4 ent 0.04 inf  3.4 one-guess | 0.098 0.098 0.125 0.137 0.178
+= dm51_fp32_lr3e-6_skip                n=2 final 0.167 ± 0.016  ok/1-guess/div 0/2/0  median t.10 40m
+  dm26_fp32_lr3e-6_skip              s0 done  234m final 0.152 best 0.162 t.10   34 spm  73.2 ent 0.06 inf  5.8 one-guess | 0.098 0.118 0.128 0.145 0.152
+  dm26_fp32_lr3e-6_skip              s1 done  234m final 0.143 best 0.147 t.10   80 spm  79.9 ent 0.04 inf  3.1 one-guess | 0.087 0.085 0.137 0.138 0.143
+  dm26_fp32_lr3e-6_skip              s2 done  234m final 0.153 best 0.153 t.10   54 spm  44.7 ent 0.06 inf  4.8 one-guess | 0.082 0.103 0.120 0.137 0.153
+= dm26_fp32_lr3e-6_skip                n=3 final 0.149 ± 0.005  ok/1-guess/div 0/3/0  median t.10 54m
+```
+
+(A 002's seeds 2-4 are left out of the table; they are unchanged from LOG 10-23.)
+
+r10 seed 1 (`a01_fp32_lr1e-6_skip_cos_advnone`: A 002 with mean-centred advantages), by 50-step
+window:
+
+| steps | min | training reward | truncated | informative groups | entropy | sampling s/step | dev at window end |
+|---|---|---|---|---|---|---|---|
+| 1-50 | 32 | -0.007 | 0.340 | 54 | 1.38 | 11.1 | 0.047 |
+| 101-150 | 61 | 0.115 | 0.027 | 30 | 0.41 | 8.1 | 0.168 |
+| 151-200 | 105 | 0.220 | 0.152 | 54 | 0.16 | 16.5 | 0.237 |
+| 251-300 | 157 | 0.329 | 0.049 | 37 | 0.09 | 10.4 | 0.315 |
+| 351-400 | 194 | 0.272 | 0.035 | 25 | 0.03 | 9.7 | 0.240 |
+| 451-500 | 229 | 0.142 | 0.016 | 21 | 0.05 | 5.8 | 0.130 |
+| 651-700 | 255 | 0.151 | 0.003 | 15 | 0.05 | 3.6 | 0.143 |
+| 951-1000 | 288 | 0.174 | 0.002 | 14 | 0.04 | 3.7 | 0.178 |
+
+The final eval (step 1017, 290 min) is 0.180.
+
+What it means:
+- Seed 1 switched to searching at steps 150-200, as seed 0 did (54 informative groups, 16.5 s of
+  sampling per step), and reached 0.315 at step 300 (157 min). That is above A 002 seed 1's final
+  0.270.
+- Then it slid back. Over steps 300-500 (157-229 min, lr 4.9e-7 down to 1.9e-7), the training
+  reward fell from 0.33 to 0.14 and sampling fell from 10 s to 4-6 s per step. The searches got
+  shorter and stopped finding solutions, on the policy's own training prompts. It stayed in that
+  short-output mode for the last hour (0.13-0.18).
+- This is not the reward-0 runs' collapse (LOG 10-24 09:40): truncation stayed under 0.14
+  throughout, and entropy was already low (0.03-0.09) before the slide.
+- `summarize_screens.py` labels the seed "ok" (14.6 informative groups), so it is not "collapsed"
+  under PLAN's definition. But it ends below A 001's dev mean (0.240).
+- Against A 002 on the same seeds: +0.040 (seed 0) and -0.090 (seed 1), mean -0.025. The 3-seed
+  form is out (seed 1 is below 0.2703). The 5-seed form would need seeds 2-4 to average 0.277 with
+  all three above 0.240. Even then, r10 would be one more recipe tied with A 002, which is already
+  promoted. So r10 stops at two seeds; seed 2 goes to `later`.
+- r12 (r10's config on the H200) stays first in `queue/h200.txt` only as a fallback, so the D 003
+  workers find work there if I'm not around. I'll replace it with a better H200 screen before the
+  D 003 seeds are all taken (not before 10-26 ~04:00, even if all four H200 workers start
+  tonight).
+
+dm51 seed 1 (D 002's RL from r2's `d00_dm51` pretrained seed 1, with the DeepMind arithmetic at 51 %
+of the pretraining tokens):
+- It ended at 0.178 (best 0.190 at step 15,500), against dm26 seed 1's 0.143.
+- Paired with dm26: +0.003 (seed 0) and +0.035 (seed 1), mean +0.019. Two seeds can't separate that
+  from noise.
+- dm51 can't promote on its own. Its seed 0 (0.155) is below D 002's dev mean (0.160), which rules
+  out the 3-seed form. The 5-seed form would need seeds 2-4 to average 0.206 (H100 D line: 0.190).
+- The data share still matters for later track D records on the H200, which reads more tokens in
+  the same 112 min. Seed 2 (RL only, ~4.2 h) is second in `main`.
+
+r11 seed 0 at lr 1e-5 (D 002's RL, paired with dm26 seed 0) is at 0.105 after 156 min. dm26 seed 0
+was at 0.128 at 120 min and 0.145 at 180. It ends ~06:40.
+
+Workers and queues:
+- 26786872 found `main` empty at 05:00 and exited. Its H200 successor 26824150 now waits for a GPU
+  beside 26824148.
+- 26803673 took r11's lr 3e-5 seed 0 at 05:00 (ends ~09:05).
+- At 05:15 Slurm estimated a new mit_preemptable job at 21:20-22:00 tonight: H200, H100 and B200
+  alike. So the remaining H100 workers keep running H100 screens instead of exiting.
+- `main` now holds:
+  - `calibration/research_r3/c90_pos01` seed 0. This is the W-REINFORCE collapse screen (positive
+    advantages x 0.1, 90 min); its 10-21 attempts failed on node1800 and it never ran. It is
+    comparable with the other r3 screens: c90_mal0 0.322 / 0.383 searching, c90_t12 0.212 and
+    c90_cc1e-3 0.162, both one-guess.
+  - dm51 seed 2.
+- 26786843 takes c90_pos01 at ~06:40 and dm51 seed 2 after it. I'll decide what 26803673 gets
+  before ~09:05.
+- `h100.txt` keeps 8 items, which no worker reads.
+- mit_normal_gpu: Slurm plans the A record chain heads for 10-27 20:30 and 21:00 (at 04:29).
+- GPU cap: 2 normal (pending), 2 H100 running and 2 H200 pending make 6. 26824147 and 26824149
+  wait on the H100 workers.
