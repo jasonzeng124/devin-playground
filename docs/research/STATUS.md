@@ -46,20 +46,20 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
   record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 19:05 EDT.
+Updated 2026-10-24 20:30 EDT.
 
 ## Running
 
 - Workers on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
-  HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 3 run:
-  - 26644472 (`main:long`, node2700): r10 seed 0 (15:17 -> ~20:20).
+  HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 1 runs:
   - 26644470 (`long:main`, node2700, restarted 15:07, limit 02:23): D 002 record seed 1, attempt 3
     (16:39 -> ~22:35; pretraining at 364k tokens/s).
 - One of node2801's GPUs fails every CUDA call ("busy or unavailable"). Between 15:05 and 16:31 it
   stopped four workers: 26644471, 26644474, 26644475 and 26649457 (LOG 16:35). Their failed items
-  are requeued.
-  - Replacements 26786843, 26786844 and 26786872 (`main:long`, node2801 excluded) are pending.
-    26786843 ran 17:06-17:09 on node4109 and was preempted. It holds dm51 seed 0.
+  are requeued. At 20:23 it stopped 26649458, but the CUDA check put its item back (LOG 20:30).
+  - Replacements 26786843, 26786844, 26786872 and (20:30) 26803673 (`main:long`, node2801
+    excluded) are pending. Between 17:06 and 20:24 the first three started five times between them
+    and were preempted within 1-4 min each. They hold dm51 seed 0, r9 seed 0 and r10 seed 1.
   - Since 16:32, `run_item.sh` tries CUDA before each item and puts the item back if that fails
     with a CUDA error. A worker that lands on that GPU then exits without using anything up. Since
     18:00, a timeout or other failure only gets a note in worker.log (LOG 18:00).
@@ -69,22 +69,26 @@ Updated 2026-10-24 19:05 EDT.
   job time left than its budgets + 30 min (376 min for D 002). Restarted workers get backfill limits
   as short as 5:30. A refused item shows FAILED in worker.log with a "not started, requeue it" note,
   and I requeue it by hand.
-- Successors 26649456, 26649458 and 26649459, each `afterany` on one of 26644470, 26644472 and
-  26644473, same queues. They don't exclude node2801; QUESTIONS.md (16:35) asks whether I may add
-  it. 26644473 exited at 19:00 after seed 4 (325 min left), so 26649459 can start now. 26644472
-  exits the same way after r10 seed 0 (~20:20).
+- Successors (`afterany`, same queues, node2801 not excluded; QUESTIONS.md 16:35 asks whether I
+  may add it):
+  - 26649456 waits on 26644470.
+  - 26649459 (after 26644473) started at 20:21 on node4109 and was preempted within 2 min. It holds
+    dm51 seed 1.
+  - 26649458 (after 26644472) started at 20:23 on node2801, where the CUDA check put r9 seed 1 back
+    twice, and exited. 26803673 replaces it.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
-## Queues (~110 GPU-hours)
+## Queues (~75 GPU-hours, counting the items in pending workers' hands)
 
-- `main` (16):
-  - Interleaved first: r4 dm51_fp32_lr3e-6_skip seeds 0-2, r9 `a01_fp32_lr1e-6_cos_mal0_cc1e-3`
-    seeds 0-2 (r5 + Clip-Cov 0.1 %, skipping off), and r10 `a01_fp32_lr1e-6_skip_cos_advnone`
-    seeds 1-2 (A 002 with mean-centred advantages; seed 0 runs).
+- In pending workers' hands: r4 dm51_fp32_lr3e-6_skip seeds 0-1, r9
+  `a01_fp32_lr1e-6_cos_mal0_cc1e-3` seed 0 (r5 + Clip-Cov 0.1 %, skipping off) and r10
+  `a01_fp32_lr1e-6_skip_cos_advnone` seed 1 (A 002 with mean-centred advantages).
+- `main` (12):
+  - First: r9 seeds 1-2, r10 seed 2 and dm51 seed 2, interleaved.
   - Then r8 seed 1, which resumes from its 03:50 state.
   - Then d00_fp32_lr3e-6_skip seeds 0-2, a01_skip seeds 3-4 and d00_fp32_lr3e-6_skip seeds 3-4.
-- `long` (2): D 002 seed 1 (requeued 15:25), then c90_pos01 seed 0.
+- `long` (1): c90_pos01 seed 0.
 - `later` (16, read by no worker): 11 c90 seeds; r6 seeds 1-2 and its tb768 eval (parked 10-23);
   r8 seeds 3-4 (parked 10-24 07:30).
 
@@ -98,7 +102,10 @@ Updated 2026-10-24 19:05 EDT.
   from step 300 on (new option `malformed_reward_until`), full budget: can the remaining 2.8 h add
   to r7's gains without the collapse? No: seed 0 collapsed before the switch (0.205), and seed 2
   peaked at 0.415 at step 500, then fell to 0.315 by the end as truncation crept back. Seed 1
-  finishes when its worker restarts; seeds 3-4 parked.
+  finishes when its worker restarts; seeds 3-4 parked. r10 (A 002 with mean-centred advantages)
+  seed 0 switched to searching around step 150, kept truncation at 0.02-0.11, and ended the full
+  290 min at 0.340 (best 0.378), not collapsed (LOG 20:30). A 002's seed 0 ended at 0.300,
+  one-guess.
 - Track D: D 002 (dm26), promoted (top): 458 of 3,000 over five seeds (0.153). Record seeds 0, 2, 3
   and 4 scored 0.1496, 0.1361, 0.1857 and 0.1469 on the test ladder (mean 0.155).
 - Holders: track A 001 (test 0.2481, dev 0.2403), track D 000 (test 0.1166, dev 0.1190). Promotion
@@ -114,8 +121,8 @@ Updated 2026-10-24 19:05 EDT.
 
 - ~22:35: D 002 seed 1 (attempt 3, started 16:39, in RL) ends, the last of the five. Then the
   README and `validate_record_v3.py`.
-- r10 (A 002 + `adv_norm: none`): do the seeds keep searching past step 300 without collapsing
-  (LOG 10-24 07:35)? Seed 0 started at 15:17.
+- r10 (A 002 + `adv_norm: none`): seed 0 searched for the full run and ended at 0.340 (LOG 20:30).
+  Do seeds 1 and 2 search too? The 3-seed form needs both at >= 0.2703, none collapsed.
 - c90_cc1e-3 seed 0 ended at 0.162 in one-guess mode, with entropy rising to 2.25 (LOG 16:57).
   Clip-Cov alone doesn't produce search; r9 tests it together with r5's recipe.
 - a01_skip AWS seeds 0-2 whenever the laptop commits them.

@@ -1258,3 +1258,44 @@ seed. Seed 1's third attempt is in RL and ends at ~22:35.
 
 Worker 26644473 had 325 min left when seed 4 finished, so it exited instead of starting a 5-h
 item. Its successor 26649459 takes over the slot.
+
+## 2026-10-24 (20:30): r10 seed 0 (A 002 with mean-centred advantages) switched to searching and ends at 0.340 without collapsing
+
+r10 seed 0 (`calibration/research_r10/a01_fp32_lr1e-6_skip_cos_advnone`) finished at 20:15 after
+the full 290 min. Same seed and recipe as A 002 except for the advantage (LOG 07:35):
+
+| run | advantage | steps in 290 min | informative groups (mean, of 64) | mode | final dev (best) |
+|---|---|---|---|---|---|
+| r10 seed 0 | mean-centred | 599 | 26.7 | searching | 0.340 (0.378 at step 500) |
+| A 002 seed 0 | z-score | 4,127 | 9.1 | one-guess | 0.300 (0.300) |
+| A 002 seeds 0-4 | z-score | 1,984-11,147 | 2.7-12.0 | 1 searching, 4 one-guess | 0.263-0.472, mean 0.324 |
+
+The training steps:
+- Steps 1-100 looked like A 002's one-guess seeds. The truncated share fell from 0.69 to 0.004,
+  informative groups from 58 to 23 and entropy from 1.9 to 0.69; dev was 0.058 at step 100.
+- Around steps 120-150 it switched to searching. At step 150, 31 % of samples were truncated, 63
+  groups were informative, and sampling took 14.5 s per step; dev was 0.200.
+- From step 200 to the end, the truncated share stayed at 0.02-0.11 in training (0-0.115 of the
+  greedy dev outputs) while entropy fell to 0.03. Dev reached 0.378 at step 500 and ended at 0.340.
+
+What it means:
+- This seed did what r10 was queued to test: it searched for the whole run with truncation held
+  down and didn't collapse in 290 min. The reward-0 runs that trained past step 300 (r5, r8)
+  collapsed at steps 264-550 when the truncated share jumped to 0.45-0.73 (LOG 09:40); here it
+  never rose above 0.12 after step 200.
+- 0.340 is above A 002's seed 0 (0.300) and the 0.324 mean of A 002 and of r7, but inside A 002's
+  spread, and it is one seed. A 002's seed 2 also searched and reached 0.472. The question is
+  whether every r10 seed searches. The 3-seed form of the promotion rule needs seeds 1 and 2 at
+  >= 0.2703 too, with none collapsed. Seed 1 is in 26786872's hand, seed 2 second in `main`.
+
+Workers:
+- 26644472 exited after r10 seed 0 (less than 330 min left). Its successor 26649458 started at
+  20:23 on node2801. The CUDA check failed there twice ("busy or unavailable"), put r9 seed 1 back
+  both times, and the worker exited after its two quick failures. Nothing was used up; r9 seed 1
+  is at the front of `main` again.
+- That ended the chain, so I submitted 26803673 (`main:long`, node2801 excluded). 26644470 runs
+  and five workers are pending (26649459, 26786843, 26786844, 26786872, 26803673), 6 in all;
+  26649456 waits on 26644470.
+- Between 19:48 and 20:24, 26649459, 26786843, 26786844 and 26786872 each started and were
+  preempted within 1-4 min. They hold dm51 seed 1, dm51 seed 0, r9 seed 0 and r10 seed 1 and
+  redo them when they restart.
