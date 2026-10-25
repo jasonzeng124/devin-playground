@@ -1764,3 +1764,41 @@ plus 4 preemptable.
 D 003 at 11:45:
 - Seed 0 (node4900): 90 of its 234 RL minutes, dev 0.120 at step 3000.
 - Seed 1 (node5001): 64 RL minutes, dev 0.130 at step 4000.
+
+## 2026-10-25 (12:50): preemptions: D 003 seed 1 stopped 88 RL minutes in and reruns; r13 seed 1 stopped (closed arm); r14 seed 0 moved to the front of `main`
+
+Between 11:48 and 12:43, mit_preemptable preempted three of my four running workers, two of them
+more than once:
+- 26824150 (D 003 seed 1, node5001) at 12:10, 88.5 of its 234 RL minutes in (in-loop dev 0.137 at
+  step 6000).
+  - The attempt is in `records/v3/track_d/003_dm_math_fp32_h200/extra/interrupted_1_1`, with a note
+    (moved there by hand, as the worker would on restart).
+  - When 26824150 restarts, seed 1 reruns from the start (~6.2 h), as RULES_v3 allows for an
+    infrastructure interruption. Its pretraining rewrites the pretrained model at the same pool
+    path (`pretrain_scratch.py` creates the directory if needed and overwrites the files).
+- 26786843 (r13 seed 1): at 11:48 on node2700, then again after restarts on node4109 and node1703
+  (12:43). On both nodes the restart spent its first 150 s on a CUDA check that timed out, as on
+  node3209 below.
+- 26803673 (dm51 seed 2): on node2905, then node3209. It resumed on node2700 at 12:24 from its hourly
+  save and was at step 14083 (199 RL minutes) at 12:47.
+- 26824148 (D 003 seed 0, node4900) wasn't preempted.
+
+r13 seed 1 stopped by hand:
+- Its arm is closed: KL 0.05 holds the policy at the base (dev 0.010, 0.002, 0.005, 0.003, 0.002 at
+  steps 50-250; LOG 09:19).
+- It would have resumed from the 11:11 save and needed about 2 more H100-hours.
+- I emptied its worker's in-hand file, so 26786843 takes the next `main` item when it restarts. Its
+  logs through step 265 (217 min) are in the seed dir. I removed its 20 GB resume state.
+
+`main` is now r14 seed 0, r10 seed 2, r14 seed 1:
+- r14 seed 0 goes first because it is the first GPU run of the mismatch code, and it asks the main
+  open track A question.
+- r10 seed 2 decides r12, which can't run before the A record seeds anyway.
+
+GPU count:
+- running: 26824148 (H200), 26803673 (H100);
+- requeued and pending: 26824150 (H200), 26786843 (H100);
+- pending: the 2 mit_normal_gpu chain heads.
+
+That makes 6. The H200 successors wait on the H100 workers. Until 26824150 restarts, 26824148
+alone takes D 003's seeds 2-4 and then the A seeds at the front of `h200`.

@@ -9,7 +9,7 @@ separate board. The H200 board starts with three record runs, all queued (LOG 01
 |---|---|---|---|
 | `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | preemptable H200 workers and mit_normal_gpu chain 1 (26824033-37) | seed 0 ~21:25 tonight (26824150) |
 | `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | preemptable H200 workers and mit_normal_gpu chain 2 (26824038-42) | seed 0 ~02:45 on 10-26 |
-| `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | mit_preemptable H200 (26824148, 26824150) | seeds 0-1 running since 08:09 / 08:43 |
+| `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | mit_preemptable H200 (26824148, 26824150) | seed 0 running since 08:09; seed 1 preempted at 12:10, reruns |
 
 - Since 11:46, track A's H200 record seeds also run on mit_preemptable H200 workers (INBOX 11:15,
   LOG 11:46). A preempted seed is an infrastructure stop: its partial attempt goes to `extra/` and
@@ -32,25 +32,24 @@ Promoted on H100 dev numbers, not yet recorded:
   0.348 / 0.302. It stops at step 300; about one seed in five of its recipe fell between steps
   250 and 300 (LOG 10-24 00:55).
 
-Updated 2026-10-25 11:50 EDT.
+Updated 2026-10-25 12:55 EDT.
 
 ## Running
 
+Between 11:48 and 12:43, preemptions hit three of the four running workers (LOG 12:50).
+
 - mit_preemptable H100 workers (`main:long`):
-  - 26786843 (node2700): r13 seed 1 (r10 + KL 0.05) since 08:06, ends ~13:15. Before it: r11
-    lr 1e-5 seed 0 (0.142) and c90_pos01 seed 0 (one-guess).
-  - 26803673 (node2905): dm51 seed 2 since 09:06, ends ~13:20. Before it: r11 lr 3e-5 seed 0
-    (0.068).
-  - At ~13:20 they take r10 seed 2 and r14 seed 0 (r5 + truncated importance sampling) from `main`
-    instead of exiting; r14 seed 1 follows at ~18:30. Their H200 successors would wait anyway
-    (Slurm's estimate for a new H200 job at 09:15: 10-26 00:51).
-  - 26786872 exited at 05:00 after r10 seed 1, and 26786844 (r9) was cancelled at 02:27.
+  - 26803673: dm51 seed 2, resumed on node2700 at 12:24 from its hourly save; ends ~13:30.
+  - 26786843: requeued, pending. r13 seed 1 (closed arm) was stopped at 217 min, so when the worker
+    restarts it takes the next `main` item.
+  - Then `main`: r14 seed 0 (r5 + truncated importance sampling), r10 seed 2, r14 seed 1. Their
+    H200 successors would wait anyway (a new H200 job was estimated at 10-26 05:46).
 - H200 workers on mit_preemptable (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes excluded):
-  - 26824148 runs D 003 seed 0 on node4900 since 08:09 (at 11:45: 90 RL min, dev 0.120), and
-    26824150 runs seed 1 on node5001 since 08:43 (64 RL min, dev 0.130). Both read
-    `record-003_dm_math_fp32_h200:h200`.
-  - They take seeds 2-3 at ~14:30-15:05 and seed 4 at ~20:50. Then they turn to `h200`, whose
-    front holds A 004's and A 002's seeds 0-1: at ~21:25, ~02:45, ~03:10 and ~08:05.
+  - 26824148 runs D 003 seed 0 on node4900 since 08:09 (at 11:45: 90 RL min, dev 0.120).
+  - 26824150: preempted at 12:10 during D 003 seed 1 (88.5 RL min in), requeued and pending. The
+    attempt is in `extra/interrupted_1_1` with a note; the worker reruns seed 1 when it restarts.
+  - Both read `record-003_dm_math_fp32_h200:h200`: D 003's seeds 2-4, then `h200`, whose front
+    holds A 004's and A 002's seeds 0-1.
   - 26854533 and 26854534 (replacing 26824147 and 26824149 at 11:46) follow the two running H100
     workers (`afterany`). They read `record-003`, both A record queues (26854533 A 004 first,
     26854534 A 002 first), then `h200`. A new H200 job was estimated at 10-26 05:46.
@@ -69,7 +68,8 @@ Updated 2026-10-25 11:50 EDT.
   `a01_fp32_lr1e-6_skip_cos_advnone_h200` seeds 0-2 (r10's config on the H200). While the A record
   queues hold seeds, each wake keeps at least two A seeds ahead of r12. r12 stays if r10 seed 2
   (H100, from ~13:20) searches and holds past step 300; otherwise it comes out (LOG 09:19).
-- `main` (3): r10 seed 2, r14 `a01_fp32_lr1e-6_skip_cos_mal0_tis2` seeds 0-1 (H100). `long`: empty.
+- `main` (3): r14 `a01_fp32_lr1e-6_skip_cos_mal0_tis2` seed 0, r10 seed 2, r14 seed 1 (H100).
+  `long`: empty.
 - `h100` (4, read by no worker): r8 seed 1, d00_fp32_lr3e-6_skip seeds 0-2.
 - `later` (26, read by no worker): parked H100 items (c90 seeds, r6, r8 seeds 3-4,
   d00_fp32_lr3e-6_skip seeds 3-4, a01_skip seeds 3-4, r9 seeds 1-2, r11 seeds 1-2).
@@ -96,9 +96,10 @@ Updated 2026-10-25 11:50 EDT.
 - H200 screens: r12 seeds 0-2 after the A record seeds. Track D H200 screens can start from D 003's
   saved pretrained models once seeds finish: r11's LR sweep (1e-5, 3e-5) as RL-only screens
   paired with D 003's seeds.
-- H100 results still to come: dm51 seed 2 (~13:20), r13 seed 1 (~13:40), r10 seed 2 and r14 seed 0
-  (~18:30). r14 tests whether r5's late collapse comes from the sampler/trainer mismatch: r5's seeds
-  0-1 collapsed at steps 375-425 (~150-170 min), so r14 seed 0 shows it by ~16:30 (LOG 10:39).
+- H100 results still to come: dm51 seed 2 (~13:30), then r14 seed 0 (from ~13:30 on 26803673).
+  r14 tests whether r5's late collapse comes from the sampler/trainer mismatch: r5's seeds 0-1
+  collapsed at steps 375-425 (~150-170 min), so r14 seed 0 shows it by ~16:30-17:00 (LOG 10:39).
+  r10 seed 2 starts when 26786843 restarts.
 - New options (commit 92238ab, off by default): `log_mismatch` logs the vLLM/trainer log-prob
   mismatch per step; `tis_cap` adds truncated importance weights.
 - Closed today: r10 at two seeds (unless seed 2 changes the picture), r11 (higher D learning
