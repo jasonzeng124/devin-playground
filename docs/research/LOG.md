@@ -1668,3 +1668,62 @@ H100 plan:
   record seed or an empty queue.
 - GPU cap: 4 preemptable running (2 H200, 2 H100) and 2 mit_normal_gpu pending make 6.
   26824147 and 26824149 (H200) wait on the H100 workers.
+
+## 2026-10-25 (10:39): A 002's seeds split at steps 100-200; sampler/trainer mismatch logging and truncated importance sampling added; r14 (r5 + TIS) queued on the H100
+
+Why A 002's seeds end so far apart (0.263-0.315, and 0.472 for seed 2), by 100-step window of the
+screen seeds' train logs (sampling s/step tracks the output length):
+
+| seed | steps | min | reward | truncated | informative groups | entropy | sampling s/step | dev at window end |
+|---|---|---|---|---|---|---|---|---|
+| 2 | 1-100 | 20 | 0.032 | 0.115 | 28.7 | 0.89 | 4.7 | 0.072 |
+| 2 | 101-200 | 30 | 0.093 | 0.001 | 17.9 | 0.33 | 2.8 | 0.112 |
+| 2 | 501-600 | 82 | 0.281 | 0.001 | 14.6 | 0.033 | 4.6 | 0.250 |
+| 2 | 1001-1100 | 137 | 0.402 | 0.000 | 10.7 | 0.019 | 5.1 | 0.427 |
+| 2 | 1901-1984 | 290 | 0.480 | 0.001 | 10.8 | 0.056 | 7.2 | 0.472 |
+| 1 | 1-100 | 21 | 0.033 | 0.120 | 28.6 | 0.73 | 4.9 | 0.103 |
+| 1 | 101-200 | 25 | 0.125 | 0.000 | 10.9 | 0.080 | 1.1 | 0.128 |
+| 1 | 2201-2300 | 80 | 0.225 | 0.000 | 2.2 | 0.032 | 0.9 | 0.202 |
+
+- Every seed starts the same way: long rambling outputs, 12 % truncated, and ~29 informative groups.
+  Most of those are unsolved groups where the only contrast is truncated (-0.1) against not (0),
+  which the per-group z-score scales up to full size.
+- By step 200 every seed has stopped truncating. Seeds 0, 1, 3 and 4 overshoot to immediate answers
+  (sampling ~1 s/step, entropy 0.05) and then creep up slowly. Seed 2 kept short searches (3-7 s/step)
+  and climbed steadily for 2,000 steps.
+- So the early one-guess collapse is the z-score's push against truncation. Arms that weaken it
+  keep searching: mal0 (r5, r7, r8: every seed searched) and mean-centred advantages (r10: both
+  seeds). But each long-search run declined later, after entropy fell to ~0.03: r5 (3 of 3
+  collapsed at steps 375-525), r8 seed 2 (0.415 to 0.315) and r10 seed 1 (0.315 to 0.180). Seed 2's
+  shorter searches didn't, at the same entropy.
+
+A cause I set aside on 10-24 (09:40) fits this pattern: the mismatch between vLLM's sampling
+probabilities and the training model's. RL reports (Yao et al. 2025; Liu et al. 2025) find it grows
+as entropy falls and with output length, and that collapses follow it. My argument then was that
+A 002 seed 2 reached entropy 0.017 without collapsing; but its outputs were short. Nothing measured
+the mismatch so far, so I added the measurement and the standard correction (commit 92238ab, off by
+default):
+- `log_mismatch`: vLLM also returns each sampled token's log-prob after temperature and the answer
+  constraint (`logprobs_mode="processed_logprobs"`). The train log gets, over the updated rows:
+  `mismatch_k1` and `mismatch_k3` (two estimates of KL(sampler || trainer) per token),
+  `mismatch_far` (share of tokens whose ratio pi_train / pi_sampler is outside [1/2, 2]),
+  `mismatch_seq` (mean |sequence log-ratio|) and `mismatch_max`.
+- `tis_cap`: truncated importance sampling. Each token's policy-gradient term is weighted by
+  min(pi_train / pi_sampler, cap), with the ratio detached. It also turns on the logging.
+- Unchanged by default: default runs build the same engine and sampling parameters and take the same
+  path through the update. Tests check the weighting (a capped constant ratio scales the gradient
+  exactly), the alignment of the sampler's log-probs with the kept groups' tokens, and the
+  extraction from vLLM's flat log-prob lists. 130 tests pass. The GPU path is untested, so r14 is
+  also its smoke test.
+
+r14 (`calibration/research_r14/a01_fp32_lr1e-6_skip_cos_mal0_tis2`): r5's config plus
+`tis_cap: 2.0` and `no_save`. Seeds 0-1 are in `main` after r10 seed 2, on the H100, so they compare
+with r5's three H100 seeds:
+- r5 seed 0 collapsed at steps 375-400 (~150 min) and seed 1 at step 425.
+- If r14 holds past step 550 with dev near r5's 0.38-0.41 peak, the next step is an H200 screen of
+  it, with the A 002 / A 003 record seeds as the H200 reference.
+- If r14 collapses like r5 while `mismatch_k3` stays tiny, the mismatch idea is out.
+
+The H100 workers now take r10 seed 2 and r14 seed 0 at ~13:20 instead of exiting. Slurm's estimate
+for a new mit_preemptable job (H200 or H100) was 10-26 00:51 at 09:15, so their H200 successors
+would wait about that long anyway. The cap is unchanged: 2 normal (pending) + 4 preemptable.

@@ -33,7 +33,7 @@ Promoted on H100 dev numbers, not yet recorded:
   0.348 / 0.302. It stops at step 300; about one seed in five of its recipe fell between steps
   250 and 300 (LOG 10-24 00:55).
 
-Updated 2026-10-25 09:22 EDT.
+Updated 2026-10-25 10:42 EDT.
 
 ## Running
 
@@ -42,8 +42,9 @@ Updated 2026-10-25 09:22 EDT.
     lr 1e-5 seed 0 (0.142) and c90_pos01 seed 0 (one-guess).
   - 26803673 (node2905): dm51 seed 2 since 09:06, ends ~13:20. Before it: r11 lr 3e-5 seed 0
     (0.068).
-  - The first of the two to finish takes r10 seed 2 from `main`; the other exits, and its H200
-    successor waits (Slurm's estimate for a new H200 job: 10-26 00:51).
+  - At ~13:20 they take r10 seed 2 and r14 seed 0 (r5 + truncated importance sampling) from `main`
+    instead of exiting; r14 seed 1 follows at ~18:30. Their H200 successors would wait anyway
+    (Slurm's estimate for a new H200 job at 09:15: 10-26 00:51).
   - 26786872 exited at 05:00 after r10 seed 1, and 26786844 (r9) was cancelled at 02:27.
 - H200 successors on mit_preemptable (`record-003_dm_math_fp32_h200:h200`, `--time-min=06:30:00`,
   RESERVE_MIN 380, NVL nodes excluded):
@@ -66,7 +67,7 @@ Updated 2026-10-25 09:22 EDT.
 - `h200` (3): r12 `a01_fp32_lr1e-6_skip_cos_advnone_h200` seeds 0-2 (r10's config on the H200).
   It is read first at ~21:25 tonight. It stays if r10 seed 2 (H100, from ~13:20) searches and holds
   past step 300; otherwise it comes out before then (LOG 09:19).
-- `main` (1): r10 seed 2 (H100). `long`: empty.
+- `main` (3): r10 seed 2, r14 `a01_fp32_lr1e-6_skip_cos_mal0_tis2` seeds 0-1 (H100). `long`: empty.
 - `h100` (4, read by no worker): r8 seed 1, d00_fp32_lr3e-6_skip seeds 0-2.
 - `later` (26, read by no worker): parked H100 items (c90 seeds, r6, r8 seeds 3-4,
   d00_fp32_lr3e-6_skip seeds 3-4, a01_skip seeds 3-4, r9 seeds 1-2, r11 seeds 1-2).
@@ -92,7 +93,11 @@ Updated 2026-10-25 09:22 EDT.
 - H200 screens: r12 seeds 0-2 after D 003's seeds. Track D H200 screens can start from D 003's
   saved pretrained models once seeds finish: r11's LR sweep (1e-5, 3e-5) as RL-only screens
   paired with D 003's seeds.
-- H100 results still to come: dm51 seed 2 (~13:20), r13 seed 1 (~13:40), r10 seed 2 (~18:30).
+- H100 results still to come: dm51 seed 2 (~13:20), r13 seed 1 (~13:40), r10 seed 2 and r14 seed 0
+  (~18:30). r14 tests whether r5's late collapse comes from the sampler/trainer mismatch: r5's seeds
+  0-1 collapsed at steps 375-425 (~150-170 min), so r14 seed 0 shows it by ~16:30 (LOG 10:39).
+- New options (commit 92238ab, off by default): `log_mismatch` logs the vLLM/trainer log-prob
+  mismatch per step; `tis_cap` adds truncated importance weights.
 - Closed today: r10 at two seeds (unless seed 2 changes the picture), r11 (higher D learning
   rates), W-REINFORCE (c90_pos01), KL 0.05 with mean-centred advantages (r13 holds the policy at
   the base; LOG 09:19).
