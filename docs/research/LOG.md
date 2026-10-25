@@ -1802,3 +1802,90 @@ GPU count:
 
 That makes 6. The H200 successors wait on the H100 workers. Until 26824150 restarts, 26824148
 alone takes D 003's seeds 2-4 and then the A seeds at the front of `h200`.
+
+## 2026-10-25 (14:30): dm51 closed at +0.010 over dm26; node4900 halves track D's RL speed (excluded); box 1 (8x B200 tomorrow) gets r15, eight step-capped track A arms
+
+r4 dm51 seed 2 ended at 0.145:
+
+```
+  dm51_fp32_lr3e-6_skip              s0 done  234m final 0.155 best 0.167 t.10   45 spm  42.0 ent 0.07 inf  5.2 one-guess | 0.057 0.110 0.128 0.147 0.155
+  dm51_fp32_lr3e-6_skip              s1 done  234m final 0.178 best 0.190 t.10   35 spm  73.4 ent 0.04 inf  3.4 one-guess | 0.098 0.098 0.125 0.137 0.178
+  dm51_fp32_lr3e-6_skip              s2 done  234m final 0.145 best 0.145 t.10  129 spm  67.7 ent 0.06 inf  2.7 one-guess | 0.073 0.082 0.080 0.142 0.145
+= dm51_fp32_lr3e-6_skip                n=3 final 0.159 ± 0.017  ok/1-guess/div 0/3/0  median t.10 45m
+= dm26_fp32_lr3e-6_skip                n=3 final 0.149 ± 0.005  ok/1-guess/div 0/3/0  median t.10 54m
+```
+
+- Paired with dm26 on the same seeds: +0.003, +0.035, -0.008, so +0.010 on the mean. That is within the
+  seed noise, and 0.159 is far from the D line (0.190). Doubling the DeepMind share from 26 % to 51 %
+  doesn't change the regime. dm51 is closed.
+
+node4900 (D 003 seed 0's node) is CPU-bound, not GPU-bound:
+- Its pretraining read 2.69 B tokens in 112 min, the same as node5001 (2.67 B). Its RL ran 1.68 s per
+  step (sampling 1.38 s) against node5001's 0.83 s (0.65 s): half speed, all of it in vLLM's sampling
+  of this small model, which is bound by the CPU.
+- `scontrol show node`: all 120 CPUs allocated to other jobs, load 74 (node5001: 46 allocated, load 13).
+- A track A seed would lose there too: its steps spend hundreds of decoding iterations per step on
+  the same CPU-side scheduling.
+- D 003 seed 0 counts as it ran (in-loop dev 0.165 at step 8,000, 224 min). The node is now excluded
+  from all 13 pending workers (`scontrol update ... ExcNodeList`).
+- Worker 26824148 runs on node4900 and would have taken D 003 seed 2 next. I set its two queue files
+  aside (`record-003_dm_math_fp32_h200`, `h200`) so it exits when seed 0 ends, then put them back. No
+  other running worker reads them; 26824150 reruns seed 1 first when it restarts.
+  - It finished seed 0 at 14:20 and exited on the empty queues; the files went back at 14:22.
+  - Replacement: 26862717 (mit_preemptable H200, node4900 and the NVL nodes excluded,
+    `--time-min=06:30:00`, RESERVE_MIN 380). It reads `record-003`, A 004's queue, A 002's, then
+    `h200`. Slurm estimates its start at 10-26 07:45, about when the other H200 workers' estimates
+    fall. The cap stays at 6: 2 H100 running, 2 H200 and 2 mit_normal_gpu pending.
+- D 003 seed 0 scores **0.1590 on the test ladder** (pass@16 0.203; L1-L6 0.566 0.109 0.064 0.035
+  0.005 0.176), against D 002's seed 0 at 0.1496. In-loop final dev 0.168 after 8,365 RL steps: half
+  of a normal node's ~17,000, yet as high as D 002's seeds. Track D's RL had flattened by then
+  (dev 0.148-0.165 from step 5,500 on).
+
+Box 1 (8x B200, 2026-10-26 11:30Z to 10-27 11:30Z). The maintainer wants experiments, not records,
+two or three runs per GPU, and step caps (INBOX 18:00):
+- **`budget_steps`** (commit afd8b9f, off by default): the run stops after that many steps and reads
+  step s as (s - 1) / budget_steps of `time_budget_s` for the lr schedule, so it follows the same
+  schedule and stops on the same step on any GPU or GPU share. `clock_s` in the logs is that clock, and
+  `summarize_screens.py` uses it for these runs. With 800 steps over the 17,400-s budget, the lr at
+  step 300 is 7.24e-7, against 6.5-7.3e-7 at r5's step 300 (107-125 of 290 min): the schedule of r5's
+  first hours.
+- **One fixed step cap per track doesn't work for track A.** A 002's H100 seeds did 1,984 to 10,610
+  steps in the same 290 min, depending on whether they searched (~30 s per step) or guessed (~1-3 s).
+  So the cap is set per experiment. r15 is about long searches: the H100 runs that searched to the end
+  did 570 (r8 seed 2) and 669 (r6 seed 0) steps in 290 min, and an H200 is faster, so 800 steps, past
+  the 250-550 window where r5, r7 and r8 seeds collapsed.
+- **Packing**: two runs per B200. An fp32 track A trainer needs ~51 GB on the H100 (79 GB in use from
+  step 5 on, with vLLM's 28 GB), so three can't fit in a B200's
+  ~180 GB with any useful vLLM cache. Two fit with `vllm_gpu_memory` 0.2 (36 GB each) and
+  `micro_batch_tokens` 4096 (smaller logit buffers; the update is the same). An Engaging B200 can't
+  start before the block (`sbatch --test-only`: 10-26 06:37 preemptable, 15:36 mit_normal_gpu), so
+  `scripts/research/pack_probe.sh` runs on one box GPU at the start (1 vs 2 track A runs from r7's
+  searching weights, 1 vs 4 track D runs), while 14 workers start on the other seven.
+- **`malformed_reward_solved`** (commit b66cf05, off by default): the training reward for a malformed
+  (truncated) output in a group with a correct sample. With reward 0 elsewhere, a truncated search
+  then scores below a finished wrong one only where the policy can solve the puzzle. In a group with 3
+  correct, 4 truncated and 1 wrong, the z-scored advantages of the truncated and the wrong samples
+  are -0.90 and -0.18 at -0.5 (-0.84 and -0.49 at -0.2), against -0.77 for both under r5. Unsolved
+  groups stay all-zero, so nothing pushes them toward one quick guess, which the -0.1 penalty does
+  (LOG 10-25 10:39).
+
+r15 (`calibration/research_r15`, `queue/b200.txt`, seeds 0-3 of eight arms, 32 items): r5's recipe
+(A 001 + fp32 lr 1e-6 + skip + malformed reward 0) with the 800-step cap, and fixes for its collapses:
+
+| arm | change | hypothesis it tests |
+|---|---|---|
+| `mal0_st800` | none (control) | r5's three H100 seeds collapsed at steps 350-550 |
+| `mal0_st800_trs05` | truncation -0.5 in solved groups | the slide into truncation (r5 seed 0) |
+| `mal0_st800_trs02` | truncation -0.2 in solved groups | the same, milder |
+| `mal0_st800_tis2` | truncated importance sampling, cap 2 | sampler/trainer mismatch (r14 tests it on the H100) |
+| `mal0_st800_lr5e-7` | lr 5e-7 | step size once the policy is sharp |
+| `advnone_st800` | Dr. GRPO with the -0.1 penalty | r10's recipe under the same cap |
+| `mal0_st800_t11` | training temperature 1.1 | the entropy fall (0.03-0.04) before each collapse |
+| `mal0_st800_kl05` | KL 0.05 to the base (skipping off) | drift once the policy is sharp |
+
+- Seed 0 and 1 of every arm come first (16 runs, one per worker), then seeds 2-3. The comparison is
+  within the batch (same GPU type and packing). A winner gets an H200 screen before any record.
+- Weights are not saved (`no_save`); the box disk goes with the block.
+- `scripts/aws/box_sync.sh` copies the code, data, configs, queue and base model to the box (`to`)
+  and brings the logs back (`from`) every wake. `box_workers.sh` takes `GPUS` and `FIRST` to start
+  workers on some GPUs only.
