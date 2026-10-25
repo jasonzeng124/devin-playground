@@ -1341,3 +1341,34 @@ What it means:
   `config.json` until their seeds run.
 
 Workers: 26644470 exited after seed 1 (less than 330 min left). Its successor 26649456 is pending.
+
+## 2026-10-24 (22:43): r11 queued: D 002's RL at lr 1e-5 and 3e-5
+
+To beat D 002, a track D screen now needs 0.190 on dev. The fp32 RL learning rates tried so far
+(final dev, in-loop):
+
+| RL | pretraining | seeds | final dev | dev at 30 / 60 / 120 / 180 min |
+|---|---|---|---|---|
+| bf16 weights, lr 3e-5 (D 000) | D 000's | 5 | 0.119 | |
+| fp32, lr 1e-6 | D 000's | 1 | 0.098 | |
+| fp32, lr 3e-6 | D 000's | 5 | 0.137 ± 0.009 | |
+| fp32, lr 3e-6, skipping (D 002's RL) | DeepMind mix (dm26) | 5 | 0.153 | seed 0: 0.098 / 0.118 / 0.128 / 0.145 |
+
+- The best rate is the highest one tried (1e-6 -> 3e-6 added 0.039), and dev was still rising at
+  the end of the 234 min (dm26 seed 0: 0.145 at 180 min, 0.152 at the end). So the RL looks
+  under-stepped, not stuck.
+- r11 runs D 002's RL with only the lr changed, at 1e-5 and at 3e-5
+  (`calibration/research_r11/dm26_fp32_lr1e-5_skip`, `dm26_fp32_lr3e-5_skip`). It starts from the
+  saved dm26 pretrained models of r4's seeds 0-2, so each seed is paired with r4's 0.152 / 0.143 /
+  0.153.
+- With fp32 master weights an update of lr 3e-5 is applied in full, unlike D 000's bf16 weights,
+  so 3e-5 may be too high. The two rates bracket the next step.
+- Promotion against D 002 (dev 0.160): the 3-seed form needs each seed at >= 0.190 (115 of 600),
+  none collapsed.
+
+Queue (`main`, 16):
+- Seed 0 of each rate goes second and fourth, between r9 seed 1 and r10 seed 2.
+- Seeds 1-2 of each go after d00_fp32_lr3e-6_skip seeds 0-2. I'll move them up if a seed 0 is
+  clearly above its r4 pair.
+- d00_fp32_lr3e-6_skip seeds 3-4 moved to `later`. Three seeds paired with d00_fp32_lr3e-6's are
+  enough to measure skipping on its own, because D seeds spread by only 0.005-0.009.

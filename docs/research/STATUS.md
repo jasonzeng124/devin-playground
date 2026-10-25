@@ -39,7 +39,7 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   6-h job (checked 10-24 22:40), and my preemptable workers fill the 6-GPU cap, so I have not
   submitted Engaging record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 22:40 EDT.
+Updated 2026-10-24 22:43 EDT.
 
 ## Running
 
@@ -72,18 +72,19 @@ Updated 2026-10-24 22:40 EDT.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
-## Queues (~75 GPU-hours, counting the items in pending workers' hands)
+## Queues (~90 GPU-hours, counting the items in running workers' hands)
 
 - In running workers' hands: r4 dm51_fp32_lr3e-6_skip seeds 0-1, r9
   `a01_fp32_lr1e-6_cos_mal0_cc1e-3` seed 0 (r5 + Clip-Cov 0.1 %, skipping off) and r10
   `a01_fp32_lr1e-6_skip_cos_advnone` seed 1 (A 002 with mean-centred advantages).
-- `main` (12):
-  - First: r9 seeds 1-2, r10 seed 2 and dm51 seed 2, interleaved.
+- `main` (16):
+  - First, interleaved: r9 seed 1, r11 dm26_fp32_lr1e-5_skip seed 0, r10 seed 2, r11
+    dm26_fp32_lr3e-5_skip seed 0, r9 seed 2, dm51 seed 2.
   - Then r8 seed 1, which resumes from its 03:50 state.
-  - Then d00_fp32_lr3e-6_skip seeds 0-2, a01_skip seeds 3-4 and d00_fp32_lr3e-6_skip seeds 3-4.
+  - Then d00_fp32_lr3e-6_skip seeds 0-2, r11 seeds 1-2 of both rates, and a01_skip seeds 3-4.
 - `long` (1): c90_pos01 seed 0.
-- `later` (16, read by no worker): 11 c90 seeds; r6 seeds 1-2 and its tb768 eval (parked 10-23);
-  r8 seeds 3-4 (parked 10-24 07:30).
+- `later` (18, read by no worker): 11 c90 seeds; r6 seeds 1-2 and its tb768 eval (parked 10-23);
+  r8 seeds 3-4 (parked 10-24 07:30); d00_fp32_lr3e-6_skip seeds 3-4 (parked 10-24 22:43).
 
 ## Best so far
 
@@ -113,9 +114,9 @@ Updated 2026-10-24 22:40 EDT.
 
 ## Next
 
-- Track D: plan screens that could reach 0.190 against D 002. The queued D screens are dm51 (51 %
-  DeepMind share, fp32 RL) seeds 0-2, two of them running, and d00_fp32_lr3e-6_skip seeds 0-4,
-  which measures skipping on its own.
+- Track D, against D 002's line of 0.190: r11 (D 002's RL at lr 1e-5 and 3e-5, paired with r4's
+  seeds 0-2; LOG 22:43) and dm51 (51 % DeepMind share). Move r11's seeds 1-2 up if a seed 0 is
+  clearly above its r4 pair (0.152).
 - r10 (A 002 + `adv_norm: none`): seed 0 searched for the full run and ended at 0.340 (LOG 20:30).
   Do seeds 1 and 2 search too? The 3-seed form needs both at >= 0.2703, none collapsed.
 - c90_cc1e-3 seed 0 ended at 0.162 in one-guess mode, with entropy rising to 2.25 (LOG 16:57).
