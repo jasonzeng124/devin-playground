@@ -2,18 +2,11 @@
 
 (maintained by the research agent; see AGENT.md)
 
-**Track D record D 002 is queued on Engaging (promoted 2026-10-24 02:35): `dm26_fp32_lr3e-6_skip`
-(+ `_pipe` seeds 3-4) -> `records/v3/track_d/002_dm_math_fp32` (config.json committed).** In-loop
-final dev, seeds 0-4: 0.152 / 0.143 / 0.153 / 0.158 / 0.157 = 458 of 3,000 (0.153; D 000's line
-0.149 = 447). D 000's pretraining with DeepMind mathematics_dataset arithmetic (published v1.0,
-as published) as ~26 % of the tokens, then fp32 master weights at lr 3e-6 with skipping. Sampler
-T 1.0, constrained, no budget. N = 5 on the mit_preemptable screen workers (H100 80GB HBM3) through
-`main` (`run_item.sh` runs `records/v3/` items with STAGE=all `run_seed_v3.sh`). **Test ladder so
-far: seed 0 0.1496, seed 2 0.1361, seed 3 0.1857, seed 4 0.1469 (mean 0.155)**, each using 348
-of 360 min. D 000's seeds score 0.098-0.139, mean 0.1166. Seed 1: attempt 1 was
-preempted 2 min before the end of its pretraining (`extra/interrupted_1_1`), and attempt 2 crashed
-at startup on node2801 (`extra/failed_1_1`). Attempt 3 started at 16:39 on 26644470 (node2700)
-and ends ~22:35. Don't start it on AWS.
+**Track D record D 002 landed (2026-10-24 22:39): `records/v3/track_d/002_dm_math_fp32` scores
+0.1512 ± 0.0202 on the test ladder over five seeds, against D 000's 0.1166 (one-sided Welch
+p = 0.0092). It is the track D holder and on the README.md leaderboard (LOG 22:39).** Its record
+seeds' in-loop final dev is 0.167 / 0.137 / 0.150 / 0.193 / 0.155 = 481 of 3,000 (0.160), so the
+new track D promotion line is 0.190 (571 of 3,000).
 
 **Two track A record attempts are waiting, both measured against A 001 (dev 0.2403, line 0.2703 =
 811 of 3,000 puzzles) because neither has landed. Whichever lands first becomes the holder, and the
@@ -42,24 +35,25 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   seeds all ran the full 290 min without collapsing. A 003 still meets the rule, and it costs half
   as much. The record sampler adds about as much to r7 as to A 001 (+0.013), so it doesn't separate
   the two.
-- Engaging: node2906, the only mit_normal_gpu H100 80GB HBM3 node, estimates 10-26 15:07 for a
-  6-h job, and my six preemptable workers fill the 6-GPU cap, so I have not submitted Engaging
-  record workers. AWS via the laptop is sooner.
+- Engaging: node2906, the only mit_normal_gpu H100 80GB HBM3 node, estimates 10-26 21:57 for a
+  6-h job (checked 10-24 22:40), and my preemptable workers fill the 6-GPU cap, so I have not
+  submitted Engaging record workers. AWS via the laptop is sooner.
 
-Updated 2026-10-24 20:30 EDT.
+Updated 2026-10-24 22:40 EDT.
 
 ## Running
 
 - Workers on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
-  HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 1 runs:
-  - 26644470 (`long:main`, node2700, restarted 15:07, limit 02:23): D 002 record seed 1, attempt 3
-    (16:39 -> ~22:35; pretraining at 364k tokens/s).
+  HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 4 run:
+  - 26786844 (node3409): r9 seed 0, since 21:25.
+  - 26803673 (node3409): dm51 seed 1, since 21:25.
+  - 26786872 (node4109): r10 seed 1, since 21:25.
+  - 26786843 (node2700): dm51 seed 0, since ~22:37.
 - One of node2801's GPUs fails every CUDA call ("busy or unavailable"). Between 15:05 and 16:31 it
   stopped four workers: 26644471, 26644474, 26644475 and 26649457 (LOG 16:35). Their failed items
   are requeued. At 20:23 it stopped 26649458, but the CUDA check put its item back (LOG 20:30).
-  - Replacements 26786843, 26786844, 26786872 and (20:30) 26803673 (`main:long`, node2801
-    excluded) are pending. Between 17:06 and 20:24 the first three started five times between them
-    and were preempted within 1-4 min each. They hold dm51 seed 0, r9 seed 0 and r10 seed 1.
+  - The four running workers are the replacements (`main:long`, node2801 excluded). Between 17:06
+    and 21:00 each was preempted within 1-4 min of starting, some several times.
   - Since 16:32, `run_item.sh` tries CUDA before each item and puts the item back if that fails
     with a CUDA error. A worker that lands on that GPU then exits without using anything up. Since
     18:00, a timeout or other failure only gets a note in worker.log (LOG 18:00).
@@ -71,17 +65,16 @@ Updated 2026-10-24 20:30 EDT.
   and I requeue it by hand.
 - Successors (`afterany`, same queues, node2801 not excluded; QUESTIONS.md 16:35 asks whether I
   may add it):
-  - 26649456 waits on 26644470.
-  - 26649459 (after 26644473) started at 20:21 on node4109 and was preempted within 2 min. It holds
-    dm51 seed 1.
-  - 26649458 (after 26644472) started at 20:23 on node2801, where the CUDA check put r9 seed 1 back
-    twice, and exited. 26803673 replaces it.
+  - 26649456 is pending. Its predecessor 26644470 exited at 22:34 after D 002 seed 1.
+  - 26649458 and 26649459 landed on node2801 (20:23, 20:30). The CUDA check put their items back,
+    and they exited. 26803673 replaced one. With 26649456 that makes 5 workers for the 4-GPU QOS,
+    so I haven't replaced the other.
 - AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
   dev only; results not here yet.
 
 ## Queues (~75 GPU-hours, counting the items in pending workers' hands)
 
-- In pending workers' hands: r4 dm51_fp32_lr3e-6_skip seeds 0-1, r9
+- In running workers' hands: r4 dm51_fp32_lr3e-6_skip seeds 0-1, r9
   `a01_fp32_lr1e-6_cos_mal0_cc1e-3` seed 0 (r5 + Clip-Cov 0.1 %, skipping off) and r10
   `a01_fp32_lr1e-6_skip_cos_advnone` seed 1 (A 002 with mean-centred advantages).
 - `main` (12):
@@ -106,10 +99,11 @@ Updated 2026-10-24 20:30 EDT.
   seed 0 switched to searching around step 150, kept truncation at 0.02-0.11, and ended the full
   290 min at 0.340 (best 0.378), not collapsed (LOG 20:30). A 002's seed 0 ended at 0.300,
   one-guess.
-- Track D: D 002 (dm26), promoted (top): 458 of 3,000 over five seeds (0.153). Record seeds 0, 2, 3
-  and 4 scored 0.1496, 0.1361, 0.1857 and 0.1469 on the test ladder (mean 0.155).
-- Holders: track A 001 (test 0.2481, dev 0.2403), track D 000 (test 0.1166, dev 0.1190). Promotion
-  needs dev mean >= 0.2703 (A; 163 of 600) / 0.149 (D; 90 of 600), with 4 of 5 seeds above the
+- Track D: D 002 is the holder (test 0.1512; LOG 22:39). Its recipe averaged 0.153 on dev over
+  five research screens and 0.160 over its five record seeds. No other D screen has reached the new
+  line of 0.190.
+- Holders: track A 001 (test 0.2481, dev 0.2403), track D 002 (test 0.1512, dev 0.1603). Promotion
+  needs dev mean >= 0.2703 (A; 163 of 600) / 0.190 (D; 115 of 600), with 4 of 5 seeds above the
   holder's dev mean and at most 1 collapsed, or 3 seeds all that high and none collapsed. Once A 002
   or A 003 lands, later A candidates are measured against its dev mean.
   "Collapsed" = diverged, or one-guess below the holder's dev mean (clarified 10-22, PLAN.md;
@@ -119,8 +113,9 @@ Updated 2026-10-24 20:30 EDT.
 
 ## Next
 
-- ~22:35: D 002 seed 1 (attempt 3, started 16:39, in RL) ends, the last of the five. Then the
-  README and `validate_record_v3.py`.
+- Track D: plan screens that could reach 0.190 against D 002. The queued D screens are dm51 (51 %
+  DeepMind share, fp32 RL) seeds 0-2, two of them running, and d00_fp32_lr3e-6_skip seeds 0-4,
+  which measures skipping on its own.
 - r10 (A 002 + `adv_norm: none`): seed 0 searched for the full run and ended at 0.340 (LOG 20:30).
   Do seeds 1 and 2 search too? The 3-seed form needs both at >= 0.2703, none collapsed.
 - c90_cc1e-3 seed 0 ended at 0.162 in one-guess mode, with entropy rising to 2.25 (LOG 16:57).

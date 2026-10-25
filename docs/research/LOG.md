@@ -1299,3 +1299,45 @@ Workers:
 - Between 19:48 and 20:24, 26649459, 26786843, 26786844 and 26786872 each started and were
   preempted within 1-4 min. They hold dm51 seed 1, dm51 seed 0, r9 seed 0 and r10 seed 1 and
   redo them when they restart.
+
+## 2026-10-24 (22:39): D 002 is a record: 0.1512 ± 0.0202 over five seeds, against D 000's 0.1166 (one-sided Welch p = 0.0092)
+
+Seed 1 (attempt 3) finished at 22:34:
+- Pretraining: 112.0 min and 2.47 B tokens (367k tokens/s), ending at val loss 2.871.
+- RL: 9,887 steps; the other seeds ran 14,106-15,693. Its sampling took 1.18 s per step on
+  average against 0.74-0.83 s for the others, on the same node. I don't know why. The in-loop dev
+  score was 0.137 at the end and 0.143 at best.
+- Total time: 349.5 of 360 min.
+- Test ladder: 0.1375 (pass@16 0.188, 24 mean tokens, nothing truncated). By level: L1 0.463,
+  L2 0.133, L3 0.008, L4 0.045, L5 0.008, L6 0.169.
+
+| D 002 seed | test ladder | pass@16 | in-loop final dev |
+|---|---|---|---|
+| 0 | 0.1496 | 0.183 | 0.167 |
+| 1 | 0.1375 | 0.188 | 0.137 |
+| 2 | 0.1361 | 0.171 | 0.150 |
+| 3 | 0.1857 | 0.234 | 0.193 |
+| 4 | 0.1469 | 0.180 | 0.155 |
+| mean | 0.1512 (sd 0.0202) | 0.191 | 0.160 (481 of 3,000) |
+
+`validate_record_v3.py --compare-to records/v3/track_d/000_baseline`: Welch t = 2.98, df = 7.7,
+one-sided p = 0.0092, "new record".
+
+What it means:
+- D 002 is the track D holder. Committed: all five seeds, seed 1's two failed attempts in
+  `extra/`, the README, and the leaderboard row in README.md. I also updated the README.md sentence
+  that said public datasets "haven't been tried yet".
+- The gain over D 000 (+0.035) is spread over all six levels; nearly half of it is on L1. The
+  model still answers at once and writes no intermediate arithmetic (record README, "What the
+  model does").
+- Correction to the 19:00 entry, which said every D 002 seed so far beat D 000's best seed
+  (0.1391). Seed 2 (0.1361) doesn't, as the 13:15 entry said, and neither does seed 1 (0.1375).
+  Three of the five do.
+- New track D promotion line: D 002's dev mean is the record seeds' in-loop final dev, 0.160 (as
+  for D 000's 0.119, PLAN.md "Reference points"). So a D candidate needs a mean of 0.190 (571 of
+  3,000) with 4 of 5 seeds above 0.160, or 3 seeds each at >= 0.190 (115 of 600). No D screen so
+  far reaches that: the best five-seed screen is D 002's own recipe at 0.153.
+- `validate_all_records.py` passes D 002 and fails only A 002 and A 003. Their folders hold just
+  `config.json` until their seeds run.
+
+Workers: 26644470 exited after seed 1 (less than 330 min left). Its successor 26649456 is pending.

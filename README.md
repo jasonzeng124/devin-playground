@@ -21,11 +21,12 @@ the evidence behind each choice is in [docs/v3_design.md](docs/v3_design.md).
 
 Track D is labelled experimental. In the H200 pilots, the best recipes reached about 0.15-0.17 on
 the dev ladder, and nothing tried went past that: longer pretraining, Muon, a 335M model, more
-exploration, a think budget. The H100 records score lower, about 0.12 on the test ladder, and
-GPU speed doesn't explain the gap ([docs/RULES_v3.md](docs/RULES_v3.md), "Baselines"). The models
-learn a few fixed answer templates and write no intermediate arithmetic. Breaking 0.20 is the
-open challenge. Public datasets that aren't Countdown-specific (math text, worked solutions)
-became allowed on 2026-10-19 and haven't been tried yet.
+exploration, a think budget. The first H100 records scored lower, about 0.12 on the test ladder,
+and GPU speed doesn't explain the gap ([docs/RULES_v3.md](docs/RULES_v3.md), "Baselines"). The
+models learn a few fixed answer templates and write no intermediate arithmetic. Breaking 0.20 is
+the open challenge. Public datasets that aren't Countdown-specific (math text, worked solutions)
+became allowed on 2026-10-19. Record 002 adds published arithmetic to pretraining and scores
+0.151, but its models still write no intermediate arithmetic.
 
 ## Leaderboard (v3)
 
@@ -44,6 +45,11 @@ guesses and still scored 0.186, so its seed spread is ~5x the baseline's (see it
 | # | record | test ladder score (mean ± sd) | N | sampler | clock (measured) | author |
 |---|---|---:|--:|---|---|---|
 | 000 | [000_baseline](records/v3/track_d/000_baseline) | 0.1166 ± 0.0163 | 5 | constrained | 112 min pretraining + 236 min GRPO | @jasonzeng124 |
+| 002 | **[002_dm_math_fp32](records/v3/track_d/002_dm_math_fp32)** (holder) | **0.1512 ± 0.0202** | 5 | constrained | 112 min pretraining + 236-237 min GRPO | Claude / @jasonzeng124 |
+
+002 beats 000 with one-sided Welch p = 0.0092. It adds DeepMind mathematics_dataset arithmetic
+(published question-answer pairs) to the pretraining tokens, and runs RL with fp32 master weights
+(see its README).
 
 Not records: [track D 001_muon_pretrain](records/v3/track_d/001_muon_pretrain) (0.1162 ± 0.0156,
 p = 0.52 against 000; a negative result).
