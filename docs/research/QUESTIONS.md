@@ -151,3 +151,23 @@ the three:
 
 Applied: nothing. If one of them lands on node2801, it exits within a minute without using up an
 item, and that GPU slot sits idle until I submit another worker. Answer in INBOX.
+
+## 2026-10-25 02:28 EDT: may track A's H200 record seeds run on mit_preemptable?
+
+AGENT.md and INBOX (10-25) put track A records on mit_normal_gpu. That's where they are queued:
+two chains of five 6-h jobs, `--gres=gpu:h200:1`, REQUIRE_GPU="NVIDIA H200" (LOG 01:24).
+
+Estimates at 02:24:
+- My two chain heads (26824033, 26824038): Slurm plans 10-28 07:00 and 07:30 (reason Priority).
+- A new 6-h mit_normal_gpu H200 job (`sbatch --test-only`): 10-27 02:10.
+- A new mit_preemptable H200 job with `--time-min=06:30:00`: 10-25 21:48.
+
+Each later round of seeds on mit_normal_gpu waits its turn again. At about one round a day,
+A 004 and A 002 would finish around 11-01. On mit_preemptable, a preempted seed is an
+infrastructure stop. RULES_v3 lets it rerun under the same seed with the stopped attempt in
+`extra/`, as D 002's seed 1 did. That costs up to 5 h of GPU time per preemption. Three of my
+four preemptable workers were preempted between 23:40 and 23:51 last night.
+
+**Question.** May track A's H200 record seeds also run on mit_preemptable H200 workers (NVL nodes
+excluded, REQUIRE_GPU="NVIDIA H200")? All of a record's seeds would still be on Engaging, the one
+provider. Unless you say so, I keep them on mit_normal_gpu as queued. Answer in INBOX.

@@ -1462,3 +1462,48 @@ r12 (`calibration/research_r12/a01_fp32_lr1e-6_skip_cos_advnone_h200`, `queue/h2
 
 GPU cap: mit_normal_gpu runs 2 (the chain heads), and mit_preemptable 4 (the H100 workers now, their
 H200 successors after them). That is 6.
+
+## 2026-10-25 (02:28): r9 seed 0 diverged and is stopped; H200 waits; two H100 workers get r11's seed 0s
+
+r9 seed 0 (`a01_fp32_lr1e-6_cos_mal0_cc1e-3`: r5's recipe, malformed reward 0, with Clip-Cov 0.1 %
+and skipping off) diverged:
+
+| step | 50 | 100 | 150 | 200 | 250 | 300 | 350 |
+|---|---|---|---|---|---|---|---|
+| dev | 0.040 | 0.072 | 0.058 | 0.088 | 0.095 | 0.002 | 0.002 |
+| malformed | 0.455 | 0.308 | 0.328 | 0.150 | 0.068 | 0.960 | 0.983 |
+
+- Training entropy went 1.9 (step 1) -> 3.6 (step 161) -> 2.2 (step 281) -> 5.7-6.1 (steps
+  321-361).
+- So Clip-Cov at this rate first raised entropy without producing search, then the policy blew up.
+  Its dev never got past r5's or A 001's early values.
+- I cancelled its worker (26786844) at 02:27, 129 min in. Nothing could recover from 98 % malformed
+  output at entropy 6. Its logs are in the seed dir; I removed its 20 GB resume state.
+- r9 seeds 1-2 moved to `later` (dropped). Together with c90_cc1e-3 (one-guess at 0.162 with
+  entropy rising to 2.25; LOG 10-24 16:57), Clip-Cov is closed for track A.
+
+Still running on the H100:
+
+| seed | at | dev now | same seed, other arm |
+|---|---|---|---|
+| dm51 seed 0 (51 % DeepMind share) | 224 of 234 min | 0.167 | dm26 seed 0 ended at 0.152 |
+| r10 seed 1 (A 002 + mean-centred advantages) | 140 min | 0.285 | A 002 seed 1 ended at 0.270; r10 seed 0 ended at 0.340 |
+
+H200 capacity (02:24):
+- mit_normal_gpu: Slurm plans my two A record chain heads for 10-28 07:00 and 07:30. A new 6-h
+  job is estimated for 10-27 02:10.
+- mit_preemptable: a new H200 job is estimated for 10-25 21:48.
+- B200 on mit_normal_gpu would start at once by preempting preemptable jobs, but B200 runs are
+  unranked.
+- QUESTIONS.md asks whether track A's H200 record seeds may also run on mit_preemptable.
+
+To keep GPUs busy without holding up D 003, the four H100 workers split:
+- `main` gets r11's two seed 0s (D 002's RL at lr 1e-5 and 3e-5, paired with r4's dm26 seed 0 at
+  0.152). The next two H100 workers to finish an item take them: 26786843 at ~02:45 and 26803673
+  at ~04:00.
+- The other two exit: 26786844 now (r9), and 26786872 at ~04:40 after r10 seed 1. Their H200
+  successors (26824148, then 26824150) then wait for H200 capacity, and can start D 003 at once
+  when it frees.
+- The other two H200 successors follow when their H100 workers run out of items.
+- `h100.txt` keeps 13 items, including r10 seed 2 and dm51 seed 2. If H200 stays this far off, I
+  give more of them to the H100 workers.
