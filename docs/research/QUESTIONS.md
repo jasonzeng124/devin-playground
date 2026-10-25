@@ -154,6 +154,10 @@ item, and that GPU slot sits idle until I submit another worker. Answer in INBOX
 
 ## 2026-10-25 02:28 EDT: may track A's H200 record seeds run on mit_preemptable?
 
+**Answered 2026-10-25 11:15 (laptop, INBOX): yes, keeping the mit_normal_gpu chains, with all
+workers sharing the record queues. A preempted seed is an infrastructure stop: its partial attempt
+goes to extra/ with a note and the same seed reruns. Applied at 11:46 (LOG).**
+
 AGENT.md and INBOX (10-25) put track A records on mit_normal_gpu. That's where they are queued:
 two chains of five 6-h jobs, `--gres=gpu:h200:1`, REQUIRE_GPU="NVIDIA H200" (LOG 01:24).
 

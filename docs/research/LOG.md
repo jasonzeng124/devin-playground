@@ -1727,3 +1727,40 @@ with r5's three H100 seeds:
 The H100 workers now take r10 seed 2 and r14 seed 0 at ~13:20 instead of exiting. Slurm's estimate
 for a new mit_preemptable job (H200 or H100) was 10-26 00:51 at 09:15, so their H200 successors
 would wait about that long anyway. The cap is unchanged: 2 normal (pending) + 4 preemptable.
+
+## 2026-10-25 (11:46): track A's H200 record seeds also run on preemptable H200 workers (INBOX 11:15)
+
+The laptop answered QUESTIONS 10-25 02:28: yes. mit_preemptable is the same cluster, so the same
+provider. The mit_normal_gpu chains stay, and all workers share the record queues under flock. A
+preempted seed is an infrastructure stop: its partial attempt goes to `extra/` with a note, and the
+same seed reruns.
+
+Routing:
+- The two running H200 workers (26824148, 26824150) read `record-003_dm_math_fp32_h200:h200`, which
+  was fixed when they were submitted. So A 004's and A 002's seeds 0-1 moved to the front of `h200`,
+  interleaved (A 004 0, A 002 0, A 004 1, A 002 1), ahead of r12's three seeds. After D 003's seeds,
+  these workers take them at about 21:25 (26824150), then about 02:45, 03:10 and 08:05.
+- The two pending H200 successors were replaced, because a pending job's queue list can't be
+  changed:
+  - 26824147 became 26854533 (`afterany` 26786843). It reads `record-003`, then A 004's queue, then
+    A 002's, then `h200`.
+  - 26824149 became 26854534 (`afterany` 26803673). It reads the same, with A 002 before A 004.
+  - Both use RESERVE_MIN 380, `--time-min=06:30:00`, `REQUIRE_GPU="NVIDIA H200"` and the NVL nodes
+    excluded, like the D 003 workers.
+- The mit_normal_gpu chains keep reading the A record queues, which now hold seeds 2-4 of each.
+- While those queues still hold seeds, each wake keeps at least two A seeds at the front of `h200`,
+  so the running workers don't reach r12 first.
+
+Start estimates at 11:45 (`sbatch --test-only`):
+- a new mit_preemptable H200 job: 10-26 05:46;
+- B200 or H100: 10-26 04:54;
+- the chain heads (Slurm's plan): 10-27 10:00.
+
+If nothing is preempted, the two running workers alone can finish about 11 A seeds before their
+48-h limits (10-27 08:09 and 08:43). With the successors, both A records could land around 10-26
+night, instead of about 11-01 on mit_normal_gpu alone. The GPU cap is unchanged: 2 normal (pending)
+plus 4 preemptable.
+
+D 003 at 11:45:
+- Seed 0 (node4900): 90 of its 234 RL minutes, dev 0.120 at step 3000.
+- Seed 1 (node5001): 64 RL minutes, dev 0.130 at step 4000.
