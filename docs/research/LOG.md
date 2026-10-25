@@ -1927,3 +1927,72 @@ Box 1 (8x B200, 10-26 11:30Z), checks at 15:40-15:55:
 - The start is staged so a broken setup costs two items, not fourteen. First the probe on GPU 7
   and two workers on GPU 0. Once those runs log their first steps, two workers each on GPUs 1-6.
   GPU 7 gets its two workers when the probe ends.
+
+## 2026-10-25 (18:46): r14 seed 0 doesn't collapse (dev 0.398), but its importance sampling did nothing and its slow sampling had annealed the lr; r10 closes at 0.261; r16/st500 tests the lr path by step
+
+```
+  a01_fp32_lr1e-6_skip_cos_mal0_tis2 s0 done  290m final 0.398 best 0.410 t.10   53 spm   1.3 ent 0.11 inf 26.4 ok        | 0.068 0.150 0.253 0.343 0.358
+  a01_fp32_lr1e-6_skip_cos_advnone   s0 done  290m final 0.340 best 0.378 t.10   53 spm   2.1 ent 0.03 inf 26.7 ok        | 0.062 0.200 0.275 0.352 0.317
+  a01_fp32_lr1e-6_skip_cos_advnone   s1 done  290m final 0.180 best 0.315 t.10   44 spm   9.2 ent 0.04 inf 14.6 ok        |   -   0.115 0.237 0.285 0.130
+  a01_fp32_lr1e-6_skip_cos_advnone   s2 done  291m final 0.263 best 0.328 t.10   66 spm   1.7 ent 0.04 inf 46.5 ok        | 0.060 0.093 0.263 0.328 0.295
+= a01_fp32_lr1e-6_skip_cos_advnone     n=3 final 0.261 ± 0.080  ok/1-guess/div 3/0/0  median t.10 53m
+= a01_fp32_lr1e-6_skip_cos_mal0 (r5)   n=3 final 0.087 ± 0.025  ok/1-guess/div 2/1/0  (bests 0.392, 0.378, 0.407)
+```
+
+r14 seed 0 (r5 + truncated importance sampling, cap 2) ended at **0.398 (best 0.410 at step 450)**, the
+best final dev of any track A screen, and it still searched at the end (training reward 0.40,
+entropy 0.11, 26 informative groups, a third of its outputs truncated). r5's three seeds, on the
+same H100 node (node2700) for two of them, collapsed from ~0.39-0.41:
+
+| 50-step window | r5 s0 | r5 s1 | r5 s2 | r14 s0 |
+|---|---|---|---|---|
+| steps 251-300: minutes, lr at step 300, dev | 117 min, 6.9e-7, 0.380 | 123, 6.6e-7, 0.355 | 105, 7.4e-7, 0.373 | 172, 4.3e-7, 0.343 |
+| 351-400 | dev 0.043 (collapsed) | 0.333 | 0.392 | 243 min, lr 1.6e-7, 0.393 |
+| 401-450 | 0.013 | 0.025 (collapsed) | 0.407 | 280 min, lr 1.0e-7, 0.410 |
+| 501-550 | 0.025 | 0.050 | 0.033 (collapsed) | (ended at step 463) |
+
+Why it held is not the importance sampling:
+- The correction had nothing to correct. Per token, `mismatch_k3` stayed at 0.0005-0.0006 from step
+  200 to the end (a typical |log ratio| of ~0.035), and the cap clipped ~1e-5 of tokens. The weights
+  were 1 ± a few percent, so the gradient was r5's.
+- The mismatch didn't grow as entropy fell (0.0011 at steps 1-100, 0.00058 at 401-463).
+- **Sampling ran 2.2x slower** with the sampler's log-probs requested (34.7 s per step at steps
+  151-200 against r5's 15.8-18.1 s at the same truncation rate, 0.57; tokens/s 8.4k against
+  13.9k; the update time is unchanged, 14 s). r14 seed 1, which started at 18:22, shows the same
+  (23.7 s against 9.4-12.3 s at steps 1-50). Requesting log-probs from vLLM costs that much here.
+- So r14 took ~40 % fewer steps per minute, and its time-based cosine had annealed by the steps
+  where r5's seeds broke: lr 2.8e-7 at step 350 and 1.6e-7 at step 400. r5's 10-step training
+  reward fell below 0.25 at step 375 (150 min, lr 5.3e-7), step 422 (175 min, 4.1e-7) and step 523
+  (195 min, 3.2e-7).
+
+The working hypothesis is now the lr at each step once the policy is sharp: r14 seed 0 crossed steps
+375-463 at 1.0-2.3e-7, below the 3.2-5.3e-7 at which r5's seeds collapsed. Seed 2 collapsed at the
+lowest lr and the latest step, so the threshold isn't a fixed number. A 003 (stop at step 300)
+avoids the window but leaves ~150 of its 290 minutes unused. With one seed this is a lead, not a
+result. The tests:
+- **r16 `calibration/research_r16/mal0_st500`** (H100): r5's config with the cosine counted over 500
+  steps (`budget_steps` 500, no TIS). By step it follows r14 seed 0's lr: 4.1e-7 at step 300, 2.9e-7
+  at 350 and 1.9e-7 at 400, against r14's 4.25e-7, 2.82e-7 and 1.60e-7. Seed 0 is in `main`.
+  26803673 takes it after r14 seed 1 (~23:20) and should finish ~03:30. This is also the first GPU run
+  of `budget_steps`, ahead of box 1.
+- **Box 1, `calibration/research_r15/mal0_st500`**: the same cap of 500 steps on r15's settings,
+  seeds 0-3. It replaces `advnone_st800` in `queue/b200.txt`, in the same positions, because r10's
+  recipe is closed (below).
+- r15's `mal0_st800_tis2` stays: its four seeds log the mismatch through the 800-step schedule,
+  where the control is expected to collapse. If the mismatch stays flat through a collapse, the
+  mismatch idea is out. Its items will take ~1.5-2x the control's time (sampling).
+- r15's `mal0_st800_lr5e-7` tests the same idea with a lower peak. `mal0_st500` keeps the peak of
+  1e-6 for the search phase and anneals early.
+- r14 seed 1 keeps running: a second seed of the same slow-clock condition, with the mismatch logged.
+
+r10 (A 002 + mean-centred advantages) closes at **0.261 ± 0.080** on three seeds, below A 002's 0.324
+and below the A line (0.2703). Seed 2 peaked at 0.328 at step 300 and slid to 0.263, as seed 1 did
+(0.315 to 0.180), with entropy at 0.04. Its H200 follow-up r12 left `h200`. Its configs stay
+unqueued.
+
+Queues: `h200` is A 004 seeds 0-1 and A 002 seeds 0-1 (interleaved). `main` is r16 seed 0.
+`b200` has 32 items, with `mal0_st500` where `advnone_st800` was.
+
+GPUs: 26803673 runs r14 seed 1 (H100). Pending: 26854533 (eligible since 26786843 exited at 18:42,
+less than 330 min left), 26824150, 26862717 (all H200) and the two mit_normal_gpu chain heads
+(estimated 10-27 10:00). 26854534 waits on 26803673. That makes 6.

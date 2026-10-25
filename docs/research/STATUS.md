@@ -27,12 +27,13 @@ Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324; seeds 0.300 / 
 0.315 / 0.263) and A 003 (dev 0.324; seeds 0.385 / 0.348 / 0.238 / 0.348 / 0.302; about one seed in
 five of its recipe collapses between steps 250 and 300).
 
-Updated 2026-10-25 15:45 EDT.
+Updated 2026-10-25 19:10 EDT.
 
 ## AWS box 1: 8x B200, 2026-10-26 11:30Z (07:30 EDT) to 10-27 11:30Z
 
 Dev-ladder screens only (no records, no test-ladder scoring), two runs per GPU, step-capped (LOG 14:30).
-- Queue `queue/b200.txt`: r15, seeds 0-3 of eight arms (32 items, ~5-7 h each at two per GPU).
+- Queue `queue/b200.txt`: r15, seeds 0-3 of eight arms (32 items, ~5-7 h each at two per GPU; `mal0_st500`
+  replaced `advnone_st800` at 18:46, ~3.5-4 h; `mal0_st800_tis2` samples ~2x slower, LOG 18:46).
 - Start (the box launches itself at +1/+10/+25 min; launch it by hand if nothing runs at +30 min:
   `aws ec2 run-instances --region us-east-1 --launch-template LaunchTemplateName=rlvr-box-cr-03fec7969fbda8633`).
   `B="env BOX=zjason@100.29.118.132 bash scripts/aws/box_ssh.sh"` (BatchMode; host key in `agent/known_hosts_<ip>`).
@@ -56,10 +57,9 @@ Dev-ladder screens only (no records, no test-ladder scoring), two runs per GPU, 
 
 ## Running
 
-- mit_preemptable H100 workers (`main:long`): 26803673 runs r14 seed 0 (r5 + truncated importance
-  sampling) on node2700 since 13:23 (step 254 at 15:45, dev 0.253, truncating half its outputs);
-  26786843 runs r10 seed 2 on node2436 since 13:29 (step 233, dev 0.263, searching). Both end
-  ~18:30. Then `main`: r14 seed 1. Their H200 successors 26854533-34 (`afterany`) read
+- mit_preemptable H100 worker (`main:long`) 26803673 runs r14 seed 1 on node2700 since 18:22 (ends
+  ~23:20), then r16 seed 0 (`main`, ~23:20 to ~03:30). 26786843 finished r10 seed 2 and exited
+  (18:42). Their H200 successors 26854533 (pending, eligible) and 26854534 (`afterany` 26803673) read
   `record-003`, both A record queues, then `h200`.
 - H200 workers on mit_preemptable (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900
   excluded): 26824150 (requeued at 12:10, pending; reruns D 003 seed 1 first), 26862717 (submitted 14:22 to replace node4900's 26824148; reads `record-003`, A 004's and A 002's
@@ -71,24 +71,25 @@ Dev-ladder screens only (no records, no test-ladder scoring), two runs per GPU, 
 
 - `record-003_dm_math_fp32_h200`: seeds 2-4. `record-004_ladder_constrained_h200`,
   `record-002_fp32_skip_cosine`: seeds 2-4 each.
-- `h200` (7): A 004 seed 0, A 002 seed 0, A 004 seed 1, A 002 seed 1, then r12 seeds 0-2 (r10's
-  config on the H200), which stay only if r10 seed 2 searches and holds past step 300.
-- `main` (1): r14 seed 1. `b200` (32): box 1. `h100`, `later`: parked, read by no worker.
+- `h200` (4): A 004 seed 0, A 002 seed 0, A 004 seed 1, A 002 seed 1 (r12 left at 18:46: r10 closed).
+- `main` (1): r16 `mal0_st500` seed 0. `b200` (32): box 1. `h100`, `later`: parked, read by no worker.
 
 ## Best so far
 
-- Track A, H100 dev: A 002 and A 003 (0.324). r10 (A 002 + mean-centred advantages) 0.340 and
-  0.180 on two seeds; seed 2 runs. Closed: r9 (Clip-Cov), r13 (KL 0.05 with mean-centred advantages),
-  W-REINFORCE, training temperature 1.2 in the -0.1 regime.
+- Track A, H100 dev: A 002 and A 003 (0.324). Best single screen seed: r14 seed 0 (r5 + TIS) 0.398
+  (best 0.410), held by its slow sampling's annealed lr, not by TIS (LOG 18:46); r16 / r15
+  `mal0_st500` test that. Closed: r10 (mean-centred advantages, 0.261 on three seeds), r9 (Clip-Cov),
+  r13 (KL 0.05 with mean-centred advantages), W-REINFORCE, training temperature 1.2 in the -0.1 regime.
 - Track D, H100 dev: D 002's recipe 0.153 (screens) / 0.160 (record seeds). Closed: dm51 (+0.010 over
   dm26 on three seeds), r11 (lr 1e-5, 3e-5).
 
 ## Next
 
-- ~18:30: r14 seed 0 and r10 seed 2 end. r14 has then passed r5's collapse window (steps
-  375-525), and r10 seed 2 shows whether it holds past step 300, which decides r12. Also decide
-  what the two H100 workers run overnight: H200 starts are estimated at 10-26 ~07:45, so two more
-  5-h H100 items each wouldn't delay their H200 successors.
+- ~23:20: r14 seed 1 ends (second seed of the slow-clock condition, mismatch logged); r16 seed 0
+  starts, the first GPU run of `budget_steps` (check its first steps and `clock_s` before box 1).
+- ~03:30: r16 seed 0 ends. If it holds near 0.40 past step 375, `mal0_st500` goes to the front of
+  box 1's queue and gets an H200 screen after the A record seeds (a record config would also need a
+  hard time stop next to `budget_steps`, a new option).
 - 06:30 tomorrow: box 1 prep, then wakes every 20-30 min until the block ends.
 - By ~18:00Z tomorrow (first r15 items done): the box's work after r15 (more seeds of the best
   arms, or token-capped track D screens: `pretrain_scratch.py` decays on `--max-tokens` when it
