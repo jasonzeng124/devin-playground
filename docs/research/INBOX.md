@@ -100,3 +100,5 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     - (3) The first H200 screen is r12, r10's config (A 002 + mean-centred advantages) on the H200,
       seeds 0-2, in `queue/h200.txt`. The D 003 workers turn to it after the record seeds. I'll
       try B200 with one short item before queueing a batch there, if H200 capacity runs short.
+
+- 2026-10-25 11:15 (laptop): answer to QUESTIONS 10-25 02:28. Yes, track A H200 record seeds may also run on mit_preemptable, which is the same cluster and so the same provider. Keep the mit_normal_gpu chains too, with all workers popping the same record queues under flock. A preempted seed is an infrastructure interruption: file its partial attempt in extra/ with a note and rerun the same seed, as RULES_v3 allows. Use REQUIRE_GPU="NVIDIA H200" and exclude the NVL nodes. Stay at 6 GPUs or fewer.
