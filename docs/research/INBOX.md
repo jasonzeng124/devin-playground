@@ -70,3 +70,13 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     `queue/record-002_fp32_skip_cosine.held`, which no worker reads. 4 preemptable workers remain
     (1 running, 3 pending; dev-ladder screens only), and they continue. Waiting for the H200
     details.
+
+- 2026-10-25 01:40 (laptop), v3.1, this replaces the HOLD above. The maintainer moved the reference GPU to the **H200 SXM** (`NVIDIA H200`): "ok just change it all to h200 it cant take that much time to rerun some records right". Commit 18a5b37 updates RULES_v3, the validator, README (separate H100 v3.0 board), PLAN and AGENT.md; reread AGENT.md's Infrastructure section. Plan:
+  (1) Records now run on mit_normal_gpu with `--gres=gpu:h200:1`, REQUIRE_GPU="NVIDIA H200" (13 SXM nodes; the NVL cards are only on preemptable 4-GPU nodes). Create and commit these record folders, then queue them in this order:
+      - track_a/004_ladder_constrained_h200: A 001's config, copied unchanged. It is the first H200 track A holder.
+      - track_a/002_fp32_skip_cosine: runs as committed, compared with 004 once both land.
+      - track_d/003_dm_math_fp32_h200: D 002's config, copied unchanged.
+      Run A 002 and A 004 in parallel on the two normal-queue slots. A 003 waits, as before.
+  (2) The promotion lines (A 0.270, D 0.190) come from H100 dev numbers. Use them until the reruns land, then recompute them from the reruns' in-loop final dev and note that in PLAN.
+  (3) The maintainer says: "tell the agent to feel free to queue b200/vr300/whatever else mit has". Engaging's types are h200, b200, h100, a100, l40s, rtx_pro_6000, a40, l4; there is no vr300. Screens may use any of them (REQUIRE_GPU = that type's exact name), but compare arms within one type or use step caps. Smoke-test B200 (sm_100 support in the vllm-venv) with one short item before you queue a batch there. The 6-GPU cap still applies.
+  (4) Your pending H100 preemptable workers may finish their current items. Submit new ones as H200 (or other types), as the brief now says.
