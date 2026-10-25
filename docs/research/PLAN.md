@@ -12,7 +12,7 @@ judged by records logged on the leaderboard, in either track.
 ## Operating rules
 
 - Compute: MIT Engaging only, at most **6 GPUs at once** (mit_normal_gpu allows 2 per user;
-  the rest on mit_preemptable). No AWS. Heavy work goes through Slurm, never the login node.
+  the rest on mit_preemptable). AWS only for the capacity-block boxes in AGENT.md (screens only). Heavy work goes through Slurm, never the login node.
 - Code: research runs from the checkout `~/rlvr-screens` (this branch). `~/rlvr` stays as it
   was when the records ran (its code matches f8d9ade); don't touch it.
 - Screens are dev-ladder only (`scripts/slurm/screen_seed.sh`, queue files in

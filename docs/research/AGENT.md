@@ -25,9 +25,12 @@ Read `docs/research/LOG.md` for what has been tried. Records are the measure of 
     loading, no tokenizing big datasets, and nothing longer than a few minutes of CPU.
   - Everything heavy goes through Slurm. Data preparation runs as CPU jobs on `mit_normal`.
   - `uv run pytest -q` and `ruff` on the login node are fine (about 30 s).
-- **At most 6 GPUs at once**, counting running and pending GPU jobs that could run together.
+- **At most 6 GPUs at once on Engaging**, counting running and pending GPU jobs that could run together.
   `mit_normal_gpu` allows 2 per user (6 h max); the rest go on `mit_preemptable`.
-- **No AWS, no Modal,** and no other paid service.
+- **No Modal** and no other paid service. AWS: only the capacity-block boxes below (see
+  "AWS boxes"). Your AWS key (`~/.local/bin/aws`, IAM user rlvr-agent) has full access so you can
+  deal with anything unexpected. Any new spending (another capacity block, on-demand or spot
+  instances, anything that bills) needs the maintainer's OK first: ask in QUESTIONS.md.
 - **Never touch `~/rlvr`.** Records 000/001 ran from it.
 - **No other users' jobs or files:**
   - `scancel` only job IDs you have listed and that belong to you; never `scancel -u`.
@@ -56,7 +59,8 @@ Read `docs/research/LOG.md` for what has been tried. Records are the measure of 
   before. Run `uv run ruff check . && uv run pytest -q` before committing code. Running jobs use
   this checkout, so don't edit a file a running job is about to read in a way that changes its
   meaning. Add new configs instead of changing queued ones.
-- **Spending:** don't spawn subagents, and keep quiet wakes short (a status check, then sleep).
+- **Spending:** keep quiet wakes short (a status check, then sleep). Since 2026-10-25 you run with
+  ultracode on (Max 20x plan), so workflows and subagents are fine when they help.
 
 ## Infrastructure
 
@@ -92,6 +96,42 @@ Read `docs/research/LOG.md` for what has been tried. Records are the measure of 
 - **Models:** pre-downloaded in `~/.cache/huggingface`, and compute nodes run with
   `HF_HUB_OFFLINE=1`. Download new public datasets with a CPU job (`HF_HUB_OFFLINE=0`) into
   `~/orcd/pool/data/`.
+
+- **AWS boxes** (capacity blocks the maintainer bought, 24 h and 8 GPUs each, 11:30Z to 11:30Z;
+  AWS may terminate the box up to 30 min before the end, and its disk goes with it):
+
+  | Start (UTC) | GPUs | Region | ssh | Launch template |
+  |---|---|---|---|---|
+  | 2026-10-26 11:30 | 8x B200 | us-east-1d | zjason@100.29.118.132 | rlvr-box-cr-03fec7969fbda8633 |
+  | 2026-11-05 11:30 | 8x H100 | us-east-2b | zjason@16.58.142.215 | rlvr-box-cr-070d093aa92f43751 |
+  | 2026-11-18 11:30 | 8x H100 | us-east-1f | zjason@174.129.98.131 | rlvr-box-cr-0261a6f8bb30fc123 |
+  | 2026-11-28 11:30 | 8x H200 | us-east-1d | zjason@100.29.118.132 | rlvr-box-cr-08927241900b5884c |
+
+  - Maintainer, 2026-10-25: "lowk dont run records on those just run all experiments, try to make
+    experiments relatively compute efficient as you can", and "make sure the agent tries like
+    running 2/3 models per gpu if it can". So boxes run dev-ladder screens only, never records or
+    the test ladder.
+  - Launch is automatic: EventBridge Scheduler calls RunInstances with the template at start +1,
+    +10 and +25 min. If no box is running by start +30 min, launch it yourself:
+    `aws ec2 run-instances --region <region> --launch-template LaunchTemplateName=<template>`.
+  - First boot (scripts/aws/box_userdata.sh) builds `~/orcd/pool/vllm-venv` from the Engaging venv's
+    pins (`agent/vllm-venv-freeze.txt`). `/var/lib/rlvr-box.ready` appears when it works; the log is
+    `/var/log/rlvr-box.log`. Connect with `ssh -i ~/.ssh/rlvr_aws zjason@<ip>` (sudo works there).
+    The box mirrors the Engaging home layout, so configs' /home/zjason/... paths work.
+  - Copy over the checkout (code, configs, queue files), the data your configs read
+    (`~/orcd/pool/data/...`), `~/.cache/huggingface`, and any `screen_pretrained` checkpoints.
+    Use a `mit_normal` CPU job for big transfers. The security groups allow ssh from Engaging
+    (18.13.54.0/24).
+  - Start workers on the box: `cd ~/rlvr-screens && QUEUE=<q> PER_GPU=<k> bash scripts/aws/box_workers.sh`.
+    These are queue_worker.sbatch outside Slurm. They stop taking items RESERVE_MIN (60) minutes
+    before the block end minus 35 min.
+  - Rsync results (seeds dirs, worker logs) back to Engaging every wake, and a last time before
+    the block end minus 35 min. Commit them on Engaging as usual.
+  - Wake every 20-30 min from 1 h before a block starts until it ends. Have the queue ready
+    before the start.
+  - Screens on a box use step caps, so a run follows the same trajectory on any GPU and any
+    packing. See INBOX 2026-10-25 18:00 for the cap and packing notes. Each batch carries its own
+    control arm on the same GPU type and packing.
 
 ## Each wake
 

@@ -18,7 +18,10 @@
 #
 # A preempted (requeued) worker first redoes the item it was running; the partial seed is
 # filed under <record>/extra/ as with calibrate_seed.sbatch. Outside the record queue, training
-# continues from saved state (run_seed.sh: CKPT_DIR, RESUME_EVERY_S). Fill the queue with
+# continues from saved state (run_seed.sh: CKPT_DIR, RESUME_EVERY_S).
+#
+# Outside Slurm (an AWS box, scripts/aws/box_workers.sh) set SLURM_JOB_ID to a worker name and
+# DEADLINE to the epoch second the machine goes away; nothing else changes. Fill the queue with
 # scripts/slurm/make_sweep.py. Finished items are appended to queue/done.txt. RUNNER picks the per-seed
 # script (default scripts/run_seed.sh; benchmark v3 records use scripts/run_seed_v3.sh).
 #
@@ -38,7 +41,7 @@ set -uo pipefail
 cd "${RLVR_DIR:-$HOME/rlvr}"  # RLVR_DIR: another checkout (e.g. for screens on a branch)
 source "${VENV:-$HOME/rlvr-venv}/bin/activate"  # VENV=~/orcd/pool/vllm-venv for rollout_backend=vllm runs
 if [[ -n "${VENV:-}" ]]; then  # vLLM (cu130 wheels) JIT-compiles kernels, so it needs nvcc
-  module load cuda/13.0.1
+  command -v module >/dev/null && module load cuda/13.0.1  # no modules on an AWS box (scripts/aws/box_workers.sh)
   export VLLM_USE_FLASHINFER_SAMPLER=0
 fi
 export PYTHON=python DEVICE=cuda PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True HF_HOME=$HOME/.cache/huggingface
@@ -82,6 +85,7 @@ if ! cc_ok; then
 fi
 
 minutes_left() {  # squeue %L is [D-]HH:MM:SS, MM:SS or UNLIMITED
+  [[ -n "${DEADLINE:-}" ]] && { echo $(( (DEADLINE - $(date +%s)) / 60 )); return; }  # outside Slurm: epoch seconds
   local l d=0 h=0 m=0; l=$(squeue -h -j "$SLURM_JOB_ID" -o %L)
   [[ "$l" == UNLIMITED ]] && { echo 99999; return; }
   [[ "$l" == *-* ]] && { d=${l%%-*}; l=${l#*-}; }
