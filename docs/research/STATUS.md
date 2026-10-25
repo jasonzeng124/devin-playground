@@ -7,8 +7,8 @@ separate board. The H200 board starts with three record runs, all queued (LOG 01
 
 | record | config | runs on | first start (estimate) |
 |---|---|---|---|
-| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | mit_normal_gpu chain 1 (26824033-37) | 10-28 07:00 (Slurm's plan at 02:24) |
-| `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | mit_normal_gpu chain 2 (26824038-42) | 10-28 07:30 |
+| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | mit_normal_gpu chain 1 (26824033-37) | 10-28 00:30 (Slurm's plan at 03:29) |
+| `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | mit_normal_gpu chain 2 (26824038-42) | 10-28 01:00 |
 | `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | mit_preemptable H200 (26824147-50) | a new H200 job: 10-25 21:48 (estimate) |
 
 - A 004 and A 002 run side by side, one seed per 6-h job. Chain 1 serves A 004 first and chain 2
@@ -33,22 +33,21 @@ Promoted on H100 dev numbers, not yet recorded:
   0.348 / 0.302. It stops at step 300; about one seed in five of its recipe fell between steps
   250 and 300 (LOG 10-24 00:55).
 
-Updated 2026-10-25 02:30 EDT.
+Updated 2026-10-25 03:31 EDT.
 
 ## Running
 
 - mit_preemptable H100 workers (`main:long`):
-  - 26786843 (node2700): dm51 seed 0, since 22:36, ends ~02:45. Then it takes r11 lr 1e-5 seed 0
-    from `main`.
-  - 26803673 (node2905): dm51 seed 1, resumed 01:48, ends ~04:00. Then it takes r11 lr 3e-5 seed 0.
-  - 26786872 (node2905): r10 seed 1, resumed 01:43, ends ~04:40. Then it finds `main` empty and
-    exits.
+  - 26786843 (node2700): r11 lr 1e-5 seed 0, since 02:36 (after dm51 seed 0, done 02:36).
+  - 26803673 (node2905): dm51 seed 1, resumed 01:48, ends ~05:00.
+  - 26786872 (node2905): r10 seed 1, resumed 01:43, ends ~04:40.
+  - Whichever of the last two finishes first takes r11 lr 3e-5 seed 0 from `main`; the other
+    exits, and its H200 successor waits for a GPU.
   - 26786844 (r9 seed 0, diverged) was cancelled at 02:27.
 - H200 successors on mit_preemptable (`record-003_dm_math_fp32_h200:h200`, `--time-min=06:30:00`,
   RESERVE_MIN 380, NVL nodes excluded), one `afterany` on each H100 worker:
-  - 26824148 is pending and eligible now.
-  - 26824150 follows 26786872 (~04:40).
-  - 26824147 and 26824149 follow the two H100 workers that keep going.
+  - 26824148 is pending (Resources) since 02:27.
+  - 26824147, 26824149 and 26824150 follow their H100 workers.
 - mit_normal_gpu: the two record chains above, pending.
 - Cap: 2 normal + 4 preemptable = 6.
 - I may update or cancel my own pending jobs without asking (INBOX 10-25).
@@ -84,8 +83,8 @@ Updated 2026-10-25 02:30 EDT.
   - r9 (r5 + Clip-Cov 0.1 %, skipping off): seed 0 diverged at step ~300 (entropy 6, 98 %
     malformed); stopped. Clip-Cov is closed for track A (LOG 02:28).
 - Track D, H100 dev: D 002's recipe averaged 0.153 over five research screens and 0.160 over its
-  record seeds. dm51 (51 % DeepMind share) seed 0 is at 0.167 with 10 min left, against dm26 seed 0's final
-  0.152.
+  record seeds. dm51 (51 % DeepMind share) seed 0 ended at 0.155 (best 0.167), against dm26 seed 0's 0.152;
+  seed 1 is at 0.127 at 145 min.
 
 ## Next
 
