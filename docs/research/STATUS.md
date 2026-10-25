@@ -9,7 +9,7 @@ separate board. The H200 board starts with three record runs, all queued (LOG 01
 |---|---|---|---|
 | `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | mit_normal_gpu chain 1 (26824033-37) | 10-27 20:30 (Slurm's plan at 04:29) |
 | `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | mit_normal_gpu chain 2 (26824038-42) | 10-27 21:00 |
-| `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | mit_preemptable H200 (26824147-50) | a new H200 job: 21:20-22:00 tonight (estimate at 05:15) |
+| `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | mit_preemptable H200 (26824147-50) | seed 0 started 08:09 on node4900 (26824148) |
 
 - A 004 and A 002 run side by side, one seed per 6-h job. Chain 1 serves A 004 first and chain 2
   serves A 002 first; each helps the other when its own queue is empty. A 002 is compared with
@@ -33,20 +33,20 @@ Promoted on H100 dev numbers, not yet recorded:
   0.348 / 0.302. It stops at step 300; about one seed in five of its recipe fell between steps
   250 and 300 (LOG 10-24 00:55).
 
-Updated 2026-10-25 05:20 EDT.
+Updated 2026-10-25 08:40 EDT.
 
 ## Running
 
 - mit_preemptable H100 workers (`main:long`):
-  - 26786843 (node2700): r11 lr 1e-5 seed 0 since 02:36, ends ~06:40. Then it takes c90_pos01
-    seed 0 and dm51 seed 2 from `main`.
-  - 26803673 (node2905): r11 lr 3e-5 seed 0 since 05:00, ends ~09:05. What it gets next is
-    decided before then.
+  - 26786843 (node2700): r13 seed 1 (r10 + KL 0.05) since 08:06, ends ~13:15. Before it: r11
+    lr 1e-5 seed 0 (0.142) and c90_pos01 seed 0 (one-guess).
+  - 26803673 (node2905): r11 lr 3e-5 seed 0 since 05:00, ends ~09:05; then dm51 seed 2 from
+    `main`.
   - 26786872 exited at 05:00 after r10 seed 1, and 26786844 (r9) was cancelled at 02:27.
 - H200 successors on mit_preemptable (`record-003_dm_math_fp32_h200:h200`, `--time-min=06:30:00`,
   RESERVE_MIN 380, NVL nodes excluded):
-  - 26824148 (since 02:27) and 26824150 (since 05:00) are pending. Slurm's estimate for a new
-    preemptable job at 05:15: 21:20-22:00 tonight, for H200, H100 and B200 alike.
+  - 26824148 runs D 003 seed 0 on node4900 since 08:09 (pretraining at ~385k tokens/s).
+  - 26824150 is pending (since 05:00).
   - 26824147 and 26824149 follow the two running H100 workers (`afterany`).
 - mit_normal_gpu: the two record chains above, pending.
 - Cap: 2 normal + 4 preemptable = 6.
@@ -62,7 +62,7 @@ Updated 2026-10-25 05:20 EDT.
 - `h200` (3): r12 `a01_fp32_lr1e-6_skip_cos_advnone_h200` seeds 0-2 (r10's config on the H200).
   This is only a fallback now that r10 seed 1 slid back (LOG 05:18). Replace it with a better H200
   screen before the D 003 seeds are all taken (not before 10-26 ~04:00).
-- `main` (2): c90_pos01 seed 0 (W-REINFORCE, 90 min), dm51 seed 2 (H100). `long`: empty.
+- `main` (1): dm51 seed 2 (H100). `long`: empty.
 - `h100` (8, read by no worker): r11 seeds 1-2 of both rates, r8 seed 1, d00_fp32_lr3e-6_skip
   seeds 0-2.
 - `later` (23, read by no worker): parked H100 items (c90 seeds, r6, r8 seeds 3-4,
