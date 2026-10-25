@@ -242,6 +242,20 @@ def test_cross_chunk_padding_is_excluded_even_when_pad_equals_eos(monkeypatch):
     assert attention[:, prompt_width:].tolist() == [[1, 1, 1, 1], [1, 1, 0, 0]]
 
 
+def test_malformed_reward_solved_applies_only_in_groups_with_a_correct_sample(monkeypatch):
+    tokenizer = TinyTokenizer()
+    puzzles = [Puzzle((1, 2), 3), Puzzle((3, 4), 7)]
+    config = GRPOConfig(group_size=3, prompts_per_step=2, max_new_tokens=4, malformed_reward=0.0, malformed_reward_solved=-0.5)
+    encoded, _ = grpo._encode_prompts(tokenizer, puzzles, config, torch.device("cpu"))
+    generated = torch.cat([encoded["input_ids"].repeat_interleave(3, dim=0), torch.full((6, 4), 5)], dim=1)
+    monkeypatch.setattr(grpo, "_generate_chunked", lambda *args, **kwargs: (generated, torch.full((6,), 4)))
+    # group 0: correct, wrong, malformed; group 1: wrong, malformed, malformed (no correct sample)
+    verdicts = iter([(1.0, True, False), (0.0, False, False), (-0.1, False, True), (0.0, False, False), (-0.1, False, True), (-0.1, False, True)])
+    monkeypatch.setattr(grpo, "verify", lambda text, puzzle: types.SimpleNamespace(**dict(zip(("reward", "correct", "malformed"), next(verdicts)))))
+    rewards = grpo._sample_batch(None, tokenizer, puzzles, config, torch.device("cpu"))[4]
+    assert rewards.tolist() == [1.0, 0.0, -0.5, 0.0, 0.0, 0.0]
+
+
 def test_group_advantages_std_and_none():
     groups = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
     centred = grpo.group_advantages(groups, "none")

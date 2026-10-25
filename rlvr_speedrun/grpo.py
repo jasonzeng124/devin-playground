@@ -75,6 +75,10 @@ class GRPOConfig:
     tis_cap: float = 0.0
     malformed_reward: float | None = None  # training reward for unparseable (e.g. truncated) outputs; None = the verifier's -0.1
     malformed_reward_until: int = 0  # if > 0, malformed_reward applies before this step only, then the verifier's -0.1
+    # training reward for malformed (e.g. truncated) outputs in groups where some sample is correct, overriding the
+    # above there: with malformed_reward 0, e.g. -0.5 pushes finished searches over truncated ones only where the
+    # policy can solve the puzzle, and never toward one quick guess in unsolved groups; None = off
+    malformed_reward_solved: float | None = None
     temperature: float = 1.0
     max_new_tokens: int = 48
     few_shot: int = 3
@@ -389,6 +393,10 @@ def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.d
         values = [r.reward for r in results]
     else:
         values = [config.malformed_reward if r.malformed else r.reward for r in results]
+    if config.malformed_reward_solved is not None:
+        g = config.group_size
+        solved = [any(r.correct for r in results[i - i % g : i - i % g + g]) for i in range(len(results))]
+        values = [config.malformed_reward_solved if r.malformed and s else v for v, r, s in zip(values, results, solved)]
     if config.shaping:
         values = [v + config.shaping * partial_credit(r, p) for v, r, p in zip(values, results, expanded)]
     rewards = torch.tensor(values, dtype=torch.float32, device=device)
