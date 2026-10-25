@@ -45,13 +45,19 @@ judged by records logged on the leaderboard, in either track.
 
 An arm becomes a record attempt when its screen seeds show **mean dev >= the holder's dev mean
 + 0.03, at least 4 of 5 seeds above the holder's dev mean, and at most 1 collapsed seed**
-(holder dev means: A 0.240, D 0.119). A 3-seed screen with every seed at least +0.03 above the
+(holder dev means: A 0.240, D 0.160 since D 002 landed on 2026-10-24). A 3-seed screen with every seed at least +0.03 above the
 holder's dev mean and none collapsed also qualifies (don't wait for seeds 4-5). A record run
 counts as a screen too: its seeds' dev logs feed the next decision. After a new record lands, it
 becomes the holder for later attempts. Then: a record folder `records/v3/track_{a,d}/<NNN>_<slug>`
 on this branch, N = 5 fixed in advance, `scripts/run_seed_v3.sh` (STAGE=all) on H200 SXMs
 (`QUEUE=record-<slug>`, `--gres=gpu:h200:1`, `REQUIRE_GPU="NVIDIA H200"`, mit_normal_gpu), all 5 seeds
 reported, `validate_record_v3.py --compare-to <holder>`. No PR without the maintainer.
+
+H200 lines (v3.1, INBOX 2026-10-25): the first H200 holders will be the reruns
+`records/v3/track_a/004_ladder_constrained_h200` (A 001's config) and
+`records/v3/track_d/003_dm_math_fp32_h200` (D 002's config). Until they land, promotion uses the
+H100 lines: A 0.2703 (A 001's record dev 0.2403 + 0.03) and D 0.190 (D 002's 0.1603 + 0.03). When a
+rerun lands, its five seeds' in-loop final dev replaces the H100 number here, with the date.
 
 "Collapsed" in this rule (clarified 2026-10-22, before the seeds it first applies to; QUESTIONS.md
 asks the maintainer): a seed that diverged, or a one-guess seed whose final dev is below the

@@ -80,3 +80,23 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   (2) The promotion lines (A 0.270, D 0.190) come from H100 dev numbers. Use them until the reruns land, then recompute them from the reruns' in-loop final dev and note that in PLAN.
   (3) The maintainer says: "tell the agent to feel free to queue b200/vr300/whatever else mit has". Engaging's types are h200, b200, h100, a100, l40s, rtx_pro_6000, a40, l4; there is no vr300. Screens may use any of them (REQUIRE_GPU = that type's exact name), but compare arms within one type or use step caps. Smoke-test B200 (sm_100 support in the vllm-venv) with one short item before you queue a batch there. The 6-GPU cap still applies.
   (4) Your pending H100 preemptable workers may finish their current items. Submit new ones as H200 (or other types), as the brief now says.
+  - Done (agent, 2026-10-25 01:23 EDT): read; AGENT.md, PLAN and RULES_v3 reread.
+    - (1) `records/v3/track_a/004_ladder_constrained_h200` and
+      `records/v3/track_d/003_dm_math_fp32_h200` hold A 001's and D 002's config.json, copied
+      byte for byte (c910630).
+    - The queues are `queue/record-{004_ladder_constrained_h200,002_fp32_skip_cosine,003_dm_math_fp32_h200}.txt`,
+      seeds 0-4 each.
+    - Track A: two chains of five mit_normal_gpu workers, 6 h and one seed each, `--gres=gpu:h200:1`,
+      REQUIRE_GPU="NVIDIA H200". Chain 1 (26824033-37) serves A 004 first, then A 002. Chain 2
+      (26824038-42) serves A 002 first, then A 004. So the two records run side by side.
+      `sbatch --test-only` estimates node2434 at 10-26 21:44.
+    - Track D: a D seed needs 376 min (budgets + 30), more than a 6-h normal job, so D 003 runs on
+      mit_preemptable H200 workers (NVL nodes excluded, `--time-min=06:30:00`, RESERVE_MIN 380).
+      There are four of them, 26824147-50, each `afterany` on one of the four H100 workers. Those
+      finish their current items and then exit: I moved `main` and `long` (15 items) to
+      `queue/h100.txt`, which no worker reads. The cap stays at 2 + 4.
+    - A 003 waits.
+    - (2) Noted in PLAN: H100 lines until the reruns land.
+    - (3) The first H200 screen is r12, r10's config (A 002 + mean-centred advantages) on the H200,
+      seeds 0-2, in `queue/h200.txt`. The D 003 workers turn to it after the record seeds. I'll
+      try B200 with one short item before queueing a batch there, if H200 capacity runs short.

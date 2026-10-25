@@ -1404,3 +1404,61 @@ an ablation of it. Its seeds 3-4 moved from `main` to `later`.
 Preemptions: 26786844 (r9 seed 0) at 23:40, and 26803673 (dm51 seed 1) and 26786872 (r10 seed 1)
 at 23:51. All three are pending and resume from their hourly saves. 26786843 (dm51 seed 0, node2700)
 still runs.
+
+## 2026-10-25 (01:24): v3.1, the reference GPU is now the H200 SXM; three H200 reruns are queued, H100 screens wind down, and r12 is the first H200 screen
+
+The maintainer's change (commit 18a5b37, INBOX 01:40):
+- The reference GPU is the H200 SXM (`NVIDIA H200`), not the H100 80GB SXM.
+- v3.0's H100 records (A 000-001, D 000-002) keep their scores on a separate H100 board, and
+  `validate_record_v3.py --compare-to` refuses mixed-GPU comparisons.
+- The H200 board starts from reruns of the H100 holders' configs.
+- Screens may use any GPU type, compared only within one type, but the promotion screen that gates a
+  record runs on the H200.
+- Until the reruns land, promotion uses the H100 lines (A 0.2703, D 0.190); then they come from the
+  reruns' in-loop final dev (PLAN).
+
+Records (laptop's order: A 004, A 002, D 003; A 003 waits):
+
+| record | config | workers |
+|---|---|---|
+| track_a/004_ladder_constrained_h200 | A 001's, copied byte for byte | chain 1, 26824033-37 (A 004 first, then A 002) |
+| track_a/002_fp32_skip_cosine | as committed on 10-23 | chain 2, 26824038-42 (A 002 first, then A 004) |
+| track_d/003_dm_math_fp32_h200 | D 002's, copied byte for byte | 26824147-50 on mit_preemptable |
+
+- Track A runs on mit_normal_gpu, 6 h jobs of one seed each, `--gres=gpu:h200:1`,
+  REQUIRE_GPU="NVIDIA H200", `scripts/research/run_item.sh` -> `STAGE=all scripts/run_seed_v3.sh`.
+  `sbatch --test-only` estimates node2434 at 10-26 21:44. mit_normal_gpu has 13 H200 nodes.
+- A D seed needs 376 min (budgets + 30), more than a 6-h normal job holds, so D 003 runs on
+  preemptable H200 workers. They exclude the NVL nodes, use `--time-min=06:30:00` so a short
+  backfill gap can't start one, and RESERVE_MIN 380. Each is `afterany` on one of the four H100
+  workers.
+- Like D 002's, D 003's seeds keep their pretrained models in
+  `~/orcd/pool/rlvr-ckpts/records/v3/track_d/003_dm_math_fp32_h200/seeds/<seed>/pretrained`. So
+  RL-only H200 screens can start from them (`screen_pretrained`), as r4 and r11 do from r2's H100
+  models.
+
+H100 screens:
+- The four H100 workers finish the items in their hands and then find `main` and `long` empty:
+  - dm51 seeds 0-1;
+  - r9 seed 0;
+  - r10 seed 1.
+- The other 15 items went to `queue/h100.txt`, which no worker reads:
+  - r9 seeds 1-2 and r10 seed 2;
+  - r11's six seeds (paired with r4's H100 seeds);
+  - dm51 seed 2;
+  - r8 seed 1;
+  - d00_fp32_lr3e-6_skip seeds 0-2;
+  - c90_pos01.
+- They still count for comparisons within the H100. But promotion now needs H200 screens, and
+  r11's pairs are H100 runs. So H200 time goes to H200 arms.
+
+r12 (`calibration/research_r12/a01_fp32_lr1e-6_skip_cos_advnone_h200`, `queue/h200.txt`, seeds 0-2):
+- It is r10's config unchanged (A 002 + mean-centred advantages) on the H200.
+- r10 is the best open track A idea: on the H100 its seed 0 searched through the whole run and
+  ended at 0.340, against A 002's seed 0 at 0.300.
+- A 002's H200 record seeds run the same recipe with the per-group z-score, so they pair with r12
+  seed for seed.
+- The D 003 workers turn to `h200` once the record seeds are taken.
+
+GPU cap: mit_normal_gpu runs 2 (the chain heads), and mit_preemptable 4 (the H100 workers now, their
+H200 successors after them). That is 6.
