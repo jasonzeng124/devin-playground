@@ -6,7 +6,8 @@
 #   BOX=zjason@100.29.118.132 bash scripts/aws/box_sync.sh to b200 [pool paths ...]
 #     the checkout's code, data and every config (no logs, no .git), queue/<q>.txt for each colon-separated
 #     queue name, the base model from ~/.cache/huggingface, the TinyLlama tokenizer, and any extra paths
-#     under ~ (e.g. orcd/pool/rlvr-ckpts/<arm>/seeds/1/final for a probe). Big: run it as a mit_normal CPU job.
+#     (directories, relative to ~, e.g. orcd/pool/rlvr-ckpts/<arm>/seeds/1/final for a probe). Big: run it as
+#     a mit_normal CPU job.
 #   BOX=zjason@100.29.118.132 bash scripts/aws/box_sync.sh from box1 calibration/research_r15 [...]
 #     finished seeds into the checkout (<arm>/seeds/<i>/), running seeds' logs into $CKPT_DIR (so
 #     summarize_screens.py reads them as on Engaging), and the box's worker log, done list and worker
@@ -31,7 +32,10 @@ case $mode in
     } >"$list"
     rsync -a --files-from="$list" ./ "$BOX:rlvr-screens/"
     rm -f "$list"
-    rsync -aR ~/./.cache/huggingface/hub/models--Qwen--Qwen3-1.7B-Base ~/./orcd/pool/data/tinyllama-tokenizer "$@" "$BOX:"
+    for path in .cache/huggingface/hub/models--Qwen--Qwen3-1.7B-Base orcd/pool/data/tinyllama-tokenizer "$@"; do
+      $RSYNC_RSH "$BOX" mkdir -p "$path"  # one by one: ~/orcd/pool is a symlink on Engaging, a directory on the box
+      rsync -a "$HOME/$path/" "$BOX:$path/"
+    done
     ;;
   from)
     tag=${1:?tag for the box logs}
