@@ -8,11 +8,18 @@ p = 0.0092). It is the track D holder and on the README.md leaderboard (LOG 22:3
 seeds' in-loop final dev is 0.167 / 0.137 / 0.150 / 0.193 / 0.155 = 481 of 3,000 (0.160), so the
 new track D promotion line is 0.190 (571 of 3,000).
 
+**Record workers are on HOLD (laptop, INBOX 2026-10-25 00:50): the maintainer is changing the
+reference GPU to H200, with details to follow. Submit no record workers until then.** On the
+laptop's earlier note (00:20) I submitted A 002's five record workers at 00:45. I cancelled them at
+00:46, before any started (LOG 00:47). Their queue file is set aside as
+`queue/record-002_fp32_skip_cosine.held`.
+
 **Two track A record attempts are waiting, both measured against A 001 (dev 0.2403, line 0.2703 =
 811 of 3,000 puzzles) because neither has landed. Whichever lands first becomes the holder, and the
-other would then need 0.354, which neither reaches on dev. So start both before either lands, or
-pick one.** All seeds of a record on one provider; N = 5 (seeds 0-4), `scripts/run_seed_v3.sh`
-STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladder_constrained`.
+other would then need 0.354, which neither reaches on dev. The laptop chose A 002 first and holds
+A 003 until A 002 lands or the maintainer decides on an AWS capacity block (INBOX 10-25 00:20).**
+All seeds of a record on one provider; N = 5 (seeds 0-4), `scripts/run_seed_v3.sh` STAGE=all,
+then `validate_record_v3.py --compare-to records/v3/track_a/001_ladder_constrained`.
 
 - **A 003 (promoted 2026-10-23 21:10): `calibration/research_r7/a01_fp32_lr1e-6_skip_cos_mal0_s300`
   -> `records/v3/track_a/003_fp32_mal0_s300` (config.json committed).** In-loop final dev, seeds
@@ -35,20 +42,22 @@ STAGE=all, then `validate_record_v3.py --compare-to records/v3/track_a/001_ladde
   seeds all ran the full 290 min without collapsing. A 003 still meets the rule, and it costs half
   as much. The record sampler adds about as much to r7 as to A 001 (+0.013), so it doesn't separate
   the two.
-- Engaging: node2906, the only mit_normal_gpu H100 80GB HBM3 node, estimates 10-26 21:57 for a
-  6-h job (checked 10-24 22:40), and my preemptable workers fill the 6-GPU cap, so I have not
-  submitted Engaging record workers. AWS via the laptop is sooner.
+- Engaging: node2906, the only mit_normal_gpu H100 node (4 GPUs, HBM3), estimated 10-27 09:04 for
+  a 6-h job, with 34 H100 jobs pending (checked 10-25 00:45). mit_normal_gpu also has 13 H200 nodes
+  of 8 GPUs. AWS found no H100 capacity in 48 h and ran nothing, so records don't count on it.
 
-Updated 2026-10-24 22:43 EDT.
+Updated 2026-10-25 00:50 EDT.
 
 ## Running
 
 - Workers on mit_preemptable (`RUNNER=scripts/research/run_item.sh`, RESERVE_MIN 330, H100 80GB
-  HBM3; node1800 and the NVL nodes excluded). The QOS allows 4 GPUs per user; 4 run:
-  - 26786844 (node3409): r9 seed 0, since 21:25.
-  - 26803673 (node3409): dm51 seed 1, since 21:25.
-  - 26786872 (node4109): r10 seed 1, since 21:25.
-  - 26786843 (node2700): dm51 seed 0, since ~22:37.
+  HBM3; node1800, node2801 and the NVL nodes excluded). The QOS allows 4 GPUs per user. 1 runs and
+  3 wait after preemptions:
+  - 26786843 (node2700): dm51 seed 0, since 22:36.
+  - 26786844: r9 seed 0, preempted 23:40 at 2 h 12 min; pending.
+  - 26803673: dm51 seed 1, preempted 23:51; pending.
+  - 26786872: r10 seed 1, preempted 23:51; pending.
+  - The three pending ones resume from their hourly saves.
 - One of node2801's GPUs fails every CUDA call ("busy or unavailable"). Between 15:05 and 16:31 it
   stopped four workers: 26644471, 26644474, 26644475 and 26649457 (LOG 16:35). Their failed items
   are requeued. At 20:23 it stopped 26649458, but the CUDA check put its item back (LOG 20:30).
@@ -63,28 +72,25 @@ Updated 2026-10-24 22:43 EDT.
   job time left than its budgets + 30 min (376 min for D 002). Restarted workers get backfill limits
   as short as 5:30. A refused item shows FAILED in worker.log with a "not started, requeue it" note,
   and I requeue it by hand.
-- Successors (`afterany`, same queues, node2801 not excluded; QUESTIONS.md 16:35 asks whether I
-  may add it):
-  - 26649456 is pending. Its predecessor 26644470 exited at 22:34 after D 002 seed 1.
-  - 26649458 and 26649459 landed on node2801 (20:23, 20:30). The CUDA check put their items back,
-    and they exited. 26803673 replaced one. With 26649456 that makes 5 workers for the 4-GPU QOS,
-    so I haven't replaced the other.
-- AWS (laptop session): a01_skip seeds 0-2 on on-demand p5.4xlarge (run a01_skip-aws-od-20261022),
-  dev only; results not here yet.
+- Successors: none pending. 26649458 and 26649459 landed on node2801 on 10-24 and exited without
+  using up their items. I cancelled 26649456 (pending, no item in hand) at 00:45 to make room for
+  the record workers. I may update or cancel my own pending jobs without asking (INBOX 10-25).
 
-## Queues (~90 GPU-hours, counting the items in running workers' hands)
+## Queues (~80 GPU-hours, counting the items in workers' hands)
 
-- In running workers' hands: r4 dm51_fp32_lr3e-6_skip seeds 0-1, r9
-  `a01_fp32_lr1e-6_cos_mal0_cc1e-3` seed 0 (r5 + Clip-Cov 0.1 %, skipping off) and r10
-  `a01_fp32_lr1e-6_skip_cos_advnone` seed 1 (A 002 with mean-centred advantages).
-- `main` (16):
+- In workers' hands: r4 dm51_fp32_lr3e-6_skip seeds 0-1, r9 `a01_fp32_lr1e-6_cos_mal0_cc1e-3`
+  seed 0 (r5 + Clip-Cov 0.1 %, skipping off) and r10 `a01_fp32_lr1e-6_skip_cos_advnone` seed 1
+  (A 002 with mean-centred advantages).
+- `main` (14):
   - First, interleaved: r9 seed 1, r11 dm26_fp32_lr1e-5_skip seed 0, r10 seed 2, r11
     dm26_fp32_lr3e-5_skip seed 0, r9 seed 2, dm51 seed 2.
   - Then r8 seed 1, which resumes from its 03:50 state.
-  - Then d00_fp32_lr3e-6_skip seeds 0-2, r11 seeds 1-2 of both rates, and a01_skip seeds 3-4.
+  - Then d00_fp32_lr3e-6_skip seeds 0-2 and r11 seeds 1-2 of both rates.
 - `long` (1): c90_pos01 seed 0.
-- `later` (18, read by no worker): 11 c90 seeds; r6 seeds 1-2 and its tb768 eval (parked 10-23);
-  r8 seeds 3-4 (parked 10-24 07:30); d00_fp32_lr3e-6_skip seeds 3-4 (parked 10-24 22:43).
+- `later` (20, read by no worker): 11 c90 seeds; r6 seeds 1-2 and its tb768 eval (parked 10-23);
+  r8 seeds 3-4 (parked 10-24 07:30); d00_fp32_lr3e-6_skip seeds 3-4 (parked 10-24 22:43); a01_skip
+  seeds 3-4 (parked 10-25 00:45).
+- `record-002_fp32_skip_cosine.held`: A 002 seeds 0-4, set aside during the hold.
 
 ## Best so far
 
@@ -121,7 +127,7 @@ Updated 2026-10-24 22:43 EDT.
   Do seeds 1 and 2 search too? The 3-seed form needs both at >= 0.2703, none collapsed.
 - c90_cc1e-3 seed 0 ended at 0.162 in one-guess mode, with entropy rising to 2.25 (LOG 16:57).
   Clip-Cov alone doesn't produce search; r9 tests it together with r5's recipe.
-- a01_skip AWS seeds 0-2 whenever the laptop commits them.
+- Records: wait for the laptop's H200 details (INBOX), then start A 002 as they say.
 
 ## Notes
 

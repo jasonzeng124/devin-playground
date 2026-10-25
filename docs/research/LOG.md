@@ -1372,3 +1372,35 @@ Queue (`main`, 16):
   clearly above its r4 pair.
 - d00_fp32_lr3e-6_skip seeds 3-4 moved to `later`. Three seeds paired with d00_fp32_lr3e-6's are
   enough to measure skipping on its own, because D seeds spread by only 0.005-0.009.
+
+## 2026-10-25 (00:47): A 002's record workers submitted, then cancelled on the laptop's HOLD (the reference GPU is changing to H200)
+
+INBOX (laptop, committed 00:12):
+- I may update or cancel my own pending jobs without asking.
+- AWS found no H100 capacity in 48 h, on-demand or spot. Nothing ran there and $0 was spent, so the
+  a01_skip seeds 0-2 never ran.
+- Start A 002's record on Engaging (mit_normal_gpu, HBM3), seeds 0-4 in order. Hold A 003.
+
+What I did:
+- Cancelled 26649456, a pending preemptable successor with no item in hand. That kept 4
+  preemptable workers + 2 record workers at the 6-GPU cap.
+- Queued A 002 seeds 0-4 in `queue/record-002_fp32_skip_cosine.txt`. At 00:45:43 I submitted five
+  chained mit_normal_gpu workers, 6 h and one seed each: 26821229 and 26821230, then 26821231,
+  26821232 and 26821234 `afterany` on them. They used `scripts/research/run_item.sh` (a CUDA check,
+  a time-left check, then `STAGE=all scripts/run_seed_v3.sh`, as D 002's seeds ran).
+  - `sbatch --test-only` put the first start on node2906 at 10-27 09:04, with 34 H100 jobs pending
+    there.
+  - mit_normal_gpu has one H100 node (4 GPUs) beside 13 H200 nodes (8 GPUs each).
+
+A second laptop note was committed at 00:45:29, 14 s before my submission: hold record workers,
+because the maintainer is changing the reference GPU to H200, with details within the hour.
+- I cancelled all five record workers at 00:46:34, before any started.
+- The queue file is set aside as `queue/record-002_fp32_skip_cosine.held`.
+- A 003 stays held. Screens continue on H100 HBM3 until the details say otherwise.
+
+a01_skip (A 001 + skipping): not requeued. A 002 includes skipping, so a01_skip would now only be
+an ablation of it. Its seeds 3-4 moved from `main` to `later`.
+
+Preemptions: 26786844 (r9 seed 0) at 23:40, and 26803673 (dm51 seed 1) and 26786872 (r10 seed 1)
+at 23:51. All three are pending and resume from their hourly saves. 26786843 (dm51 seed 0, node2700)
+still runs.
