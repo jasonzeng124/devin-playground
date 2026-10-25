@@ -7,7 +7,8 @@
 #     the checkout's code, data and every config (no logs, no .git), queue/<q>.txt for each colon-separated
 #     queue name, the base model from ~/.cache/huggingface, the TinyLlama tokenizer, and any extra paths
 #     (directories, relative to ~, e.g. orcd/pool/rlvr-ckpts/<arm>/seeds/1/final for a probe). Big: run it as
-#     a mit_normal CPU job.
+#     a CPU job (compute nodes reach the box through 18.13.54.0/24; mit_quicktest starts at once, while
+#     mit_normal waited days on 2026-10-25).
 #   BOX=zjason@100.29.118.132 bash scripts/aws/box_sync.sh from box1 calibration/research_r15 [...]
 #     finished seeds into the checkout (<arm>/seeds/<i>/), running seeds' logs into $CKPT_DIR (so
 #     summarize_screens.py reads them as on Engaging), and the box's worker log, done list and worker
@@ -15,7 +16,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 BOX=${BOX:?set BOX=zjason@<box ip>}
-export RSYNC_RSH="ssh -i $HOME/.ssh/rlvr_aws -o StrictHostKeyChecking=accept-new -o BatchMode=yes -o ConnectTimeout=20"
+KNOWN_HOSTS=${KNOWN_HOSTS:-$HOME/rlvr-screens/agent/known_hosts_${BOX#*@}}  # as scripts/aws/box_ssh.sh
+export RSYNC_RSH="ssh -i $HOME/.ssh/rlvr_aws -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$KNOWN_HOSTS -o BatchMode=yes -o ConnectTimeout=20"
 CKPT=${CKPT_DIR:-$HOME/orcd/pool/rlvr-ckpts}
 mode=${1:?to or from}
 shift

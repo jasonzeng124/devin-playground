@@ -27,30 +27,40 @@ Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324; seeds 0.300 / 
 0.315 / 0.263) and A 003 (dev 0.324; seeds 0.385 / 0.348 / 0.238 / 0.348 / 0.302; about one seed in
 five of its recipe collapses between steps 250 and 300).
 
-Updated 2026-10-25 14:30 EDT.
+Updated 2026-10-25 16:05 EDT.
 
 ## AWS box 1: 8x B200, 2026-10-26 11:30Z (07:30 EDT) to 10-27 11:30Z
 
 Dev-ladder screens only (no records, no test-ladder scoring), two runs per GPU, step-capped (LOG 14:30).
 - Queue `queue/b200.txt`: r15, seeds 0-3 of eight arms (32 items, ~5-7 h each at two per GPU).
-- Start (the box launches itself at +1/+10/+25 min; launch it by hand if nothing runs at +30 min):
-  1. `ssh -i ~/.ssh/rlvr_aws zjason@100.29.118.132 'cat /var/lib/rlvr-box.ready; tail -3 /var/log/rlvr-box.log'`
-  2. Copy: `BOX=zjason@100.29.118.132 bash scripts/aws/box_sync.sh to b200 orcd/pool/rlvr-ckpts/calibration/research_r7/a01_fp32_lr1e-6_skip_cos_mal0_s300/seeds/1/final orcd/pool/rlvr-ckpts/records/v3/track_d/002_dm_math_fp32/seeds/0/pretrained`
-     (a mit_normal CPU job; ~11 GB).
-  3. On the box, from `~/rlvr-screens`: `GPUS="0 1 2 3 4 5 6" QUEUE=b200 PER_GPU=2 RUNNER=scripts/research/run_item.sh RESERVE_MIN=420 bash scripts/aws/box_workers.sh`,
-     and the packing probe on GPU 7: `CUDA_VISIBLE_DEVICES=7 MEM_1=0.2 MEM_2=0.2 nohup bash scripts/research/pack_probe.sh > slurm_logs/probe.out 2>&1 &`.
-     When it ends: `GPUS=7 QUEUE=b200 PER_GPU=2 ... box_workers.sh`.
-  4. Every wake: `BOX=... bash scripts/aws/box_sync.sh from box1 calibration/research_r15`, then
-     `summarize_screens.py calibration/research_r15/*`; commit the seeds' logs.
+- Start (the box launches itself at +1/+10/+25 min; launch it by hand if nothing runs at +30 min:
+  `aws ec2 run-instances --region us-east-1 --launch-template LaunchTemplateName=rlvr-box-cr-03fec7969fbda8633`).
+  `B="env BOX=zjason@100.29.118.132 bash scripts/aws/box_ssh.sh"` (BatchMode; host key in `agent/known_hosts_<ip>`).
+  1. `$B 'cat /var/lib/rlvr-box.ready; tail -3 /var/log/rlvr-box.log; ls -d /usr/local/cuda*; /usr/local/cuda/bin/nvcc --version | tail -2; nvidia-smi -L'`.
+     vLLM's cu130 wheels JIT-compile with nvcc: if `/usr/local/cuda` is older than 13.0, set CUDA_HOME to a 13.x
+     toolkit on the box (box_workers.sh keeps a CUDA_HOME it is given).
+  2. Copy (~10.6 GB) as a mit_quicktest job (mit_normal waits days; compute nodes egress as 18.13.54.x):
+     `sbatch -p mit_quicktest -c 4 --mem=8G --time=00:15:00 -o slurm_logs/probe/box1_sync_%j.out --wrap 'BOX=zjason@100.29.118.132 bash scripts/aws/box_sync.sh to b200 orcd/pool/rlvr-ckpts/calibration/research_r7/a01_fp32_lr1e-6_skip_cos_mal0_s300/seeds/1/final orcd/pool/rlvr-ckpts/records/v3/track_d/002_dm_math_fp32/seeds/0/pretrained'`
+     (rsync resumes if it needs a second job).
+  3. Staged start (`W="QUEUE=b200 PER_GPU=2 RUNNER=scripts/research/run_item.sh RESERVE_MIN=420"`):
+     - the probe on GPU 7, then GPU 7's workers when it ends:
+       `$B 'cd ~/rlvr-screens && export CUDA_HOME=/usr/local/cuda PATH=/usr/local/cuda/bin:$PATH && setsid nohup bash -c "CUDA_VISIBLE_DEVICES=7 MEM_1=0.2 MEM_2=0.2 bash scripts/research/pack_probe.sh >slurm_logs/probe.out 2>&1; GPUS=7 QUEUE=b200 PER_GPU=2 RUNNER=scripts/research/run_item.sh RESERVE_MIN=420 bash scripts/aws/box_workers.sh" </dev/null >/dev/null 2>&1 &'`
+     - `$B "cd ~/rlvr-screens && GPUS=0 $W bash scripts/aws/box_workers.sh </dev/null"` (stdin from /dev/null, so ssh returns);
+     - once both GPU 0 runs log steps (`tail -2 ~/orcd/pool/rlvr-ckpts/calibration/research_r15/*/seeds/*/train_log.jsonl`;
+       `nvidia-smi` for memory): `$B "cd ~/rlvr-screens && GPUS='1 2 3 4 5 6' $W bash scripts/aws/box_workers.sh </dev/null"`.
+  4. Every wake: `BOX=zjason@100.29.118.132 bash scripts/aws/box_sync.sh from box1 calibration/research_r15`, then
+     `summarize_screens.py calibration/research_r15/*`; commit the seeds' logs. The probe's output is
+     `slurm_logs/probe.out` on the box (copy it by hand).
 - The tail of the block: workers stop taking 800-step items 7 h before the deadline (block end - 35
   min); shorter items for the last hours get decided from the first results.
 
 ## Running
 
 - mit_preemptable H100 workers (`main:long`): 26803673 runs r14 seed 0 (r5 + truncated importance
-  sampling) on node2700 since 13:23; 26786843 runs r10 seed 2 on node2436 since 13:29. Then `main`:
-  r14 seed 1. Their H200 successors 26854533-34 (`afterany`) read `record-003`, both A record queues,
-  then `h200`.
+  sampling) on node2700 since 13:23 (step 254 at 15:45, dev 0.253, truncating half its outputs);
+  26786843 runs r10 seed 2 on node2436 since 13:29 (step 233, dev 0.263, searching). Both end
+  ~18:30. Then `main`: r14 seed 1. Their H200 successors 26854533-34 (`afterany`) read
+  `record-003`, both A record queues, then `h200`.
 - H200 workers on mit_preemptable (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900
   excluded): 26824150 (requeued at 12:10, pending; reruns D 003 seed 1 first), 26862717 (submitted 14:22 to replace node4900's 26824148; reads `record-003`, A 004's and A 002's
   queues, then `h200`). Slurm estimates new H200 starts at 10-26 ~07:45.
@@ -75,9 +85,14 @@ Dev-ladder screens only (no records, no test-ladder scoring), two runs per GPU, 
 
 ## Next
 
-- ~16:30: r14 seed 0 passes r5's collapse window (steps 375-425); r10 seed 2 shows whether it holds
-  past step 300 (decides r12).
+- ~18:30: r14 seed 0 and r10 seed 2 end. r14 has then passed r5's collapse window (steps
+  375-525), and r10 seed 2 shows whether it holds past step 300, which decides r12. Also decide
+  what the two H100 workers run overnight: H200 starts are estimated at 10-26 ~07:45, so two more
+  5-h H100 items each wouldn't delay their H200 successors.
 - 06:30 tomorrow: box 1 prep, then wakes every 20-30 min until the block ends.
+- By ~18:00Z tomorrow (first r15 items done): the box's work after r15 (more seeds of the best
+  arms, or token-capped track D screens: `pretrain_scratch.py` decays on `--max-tokens` when it
+  runs out before `--minutes`).
 - Track D H200 screens can start from D 003's saved pretrained models once seeds finish.
 
 ## Notes

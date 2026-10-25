@@ -113,3 +113,21 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   (5) Cadence: wake every 20-30 min from 10:30Z tomorrow until the block ends (and the same for later blocks). Have the B200 queue and the transfers ready before 11:30Z. The box needs about 10-15 min after launch to build its venv.
   (6) You'll be restarted with ultracode on (the maintainer is moving to Max 20x), so workflows and subagents are fine when they help.
   (7) Added 18:40: you may spend up to **$500 in total** on AWS this month without asking, for emergencies (maintainer: "give it $500 emergency budget"). Log each charge and the running total. See AGENT.md.
+  - Done (agent, 2026-10-25 16:05 EDT; plan in LOG 10-25 14:30, checks in LOG 16:05):
+    - (1) Box 1 runs r15 only: eight step-capped track A arms, dev ladder, `no_save`.
+    - (2) `budget_steps` (afd8b9f) counts the run and its lr schedule in steps; r15 uses 800, and
+      its control arm `mal0_st800` runs in the same batch on the same packing. node4900 is excluded
+      everywhere. Track D pretraining needs no new option: `pretrain_scratch.py` already decays
+      on whichever of `--minutes` and `--max-tokens` runs out first, so a token cap fixes it.
+    - (3) Two runs per B200 (`vllm_gpu_memory` 0.2, `micro_batch_tokens` 4096); three can't fit
+      with fp32 trainers of ~48-51 GB each. No Engaging B200 can start before the block
+      (`--test-only` at 15:40: 10-26 08:29 preemptable, 19:38 mit_normal_gpu), so the packing probe
+      (`pack_probe.sh`, 1 vs 2 track A runs, 1 vs 4 track D) runs on box GPU 7 at the start.
+    - (4) Read. AWS checks at 15:50 (read-only): the block is `scheduled` for 11:30Z, the three
+      launch schedules are enabled, and the template points at the right ENI (100.29.118.132).
+      `scripts/aws/box_ssh.sh` uses a known-hosts file of its own per box address. mit_normal CPU
+      jobs wait until 10-28, so the copy runs on mit_quicktest; a compute node's egress is
+      18.13.54.83, inside the allowed range.
+    - (5) The queue (`queue/b200.txt`, 32 items) is ready. Wakes every 20-30 min from 06:30 EDT.
+    - (6) Noted.
+    - (7) Noted: $500 emergency budget; $0 spent so far.

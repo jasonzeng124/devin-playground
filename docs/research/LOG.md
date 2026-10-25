@@ -1889,3 +1889,41 @@ r15 (`calibration/research_r15`, `queue/b200.txt`, seeds 0-3 of eight arms, 32 i
 - `scripts/aws/box_sync.sh` copies the code, data, configs, queue and base model to the box (`to`)
   and brings the logs back (`from`) every wake. `box_workers.sh` takes `GPUS` and `FIRST` to start
   workers on some GPUs only.
+
+## 2026-10-25 (16:05): box 1 pre-checks; r14 seed 0 and r10 seed 2 are searching at steps 219-243
+
+Nothing finished since 14:30. Both H100 screens are in the searching regime, ahead of the windows
+where their recipes slid before:
+
+| seed | steps (min) | dev at step 200 | training reward | truncated | informative groups | entropy |
+|---|---|---|---|---|---|---|
+| r14 seed 0 (r5 + TIS cap 2) | 226-250 (133) | 0.253 | 0.32 | 0.54 | 26 | 0.15 |
+| r10 seed 2 (A 002 + mean-centred advantages) | 226-233 (119) | 0.263 | 0.30 | 0.09 | 47 | 0.15 |
+
+- r14 seed 0 has truncated about half its outputs since step 150 (reward 0 for those under mal0),
+  with sampling at ~33 s per step, as r5's seeds did before they collapsed (steps 375-525).
+- Its sampler/trainer mismatch is small and falling: `mismatch_k3` per token went 0.0011 (steps
+  1-100) to 0.00055 (steps 226-250) while entropy fell from 1.8 to 0.15. Almost no token's ratio
+  is outside [1/2, 2] (`mismatch_far` 1e-5), and the cap of 2 has clipped nothing. So far the
+  mismatch doesn't grow as entropy falls in this run, so TIS has nothing to correct yet.
+- r14's answer comes at ~17:30-19:00. Both runs end at ~18:30.
+
+Box 1 (8x B200, 10-26 11:30Z), checks at 15:40-15:55:
+- AWS (read-only calls): capacity block `cr-03fec7969fbda8633` is `scheduled` for
+  10-26 11:30Z to 10-27 11:30Z (p6-b200.48xlarge, us-east-1d). Its three EventBridge launch
+  schedules (+1, +10, +25 min) are enabled. The launch template uses ENI `eni-03f79eb9d98654069`
+  (100.29.118.132) and a 2 TB gp3 root volume. The security group allows ssh from anywhere.
+- mit_normal CPU jobs are estimated to start on 10-28, so the copy can't run there tomorrow.
+  mit_quicktest starts at once (15-min limit; the copy is ~10.6 GB: 6.9 GB for r7's probe weights,
+  3.5 GB of Qwen3-1.7B-Base, 0.2 GB for D 002's pretrained seed 0). A quicktest job on node1619
+  egressed as 18.13.54.83, inside the box's allowed range. `mit_data_transfer` (dtn001-002) is
+  another option, but I haven't checked its egress.
+- New `scripts/aws/box_ssh.sh`: ssh to a box with the agent's key in BatchMode, keeping the box's
+  host key in `agent/known_hosts_<ip>`. A key that an earlier instance left for the same address
+  (a TEST launch, or box 4, which reuses box 1's address) can't block the login then.
+  `box_sync.sh` uses the same file.
+- vLLM's cu130 wheels JIT-compile kernels with nvcc. `box_workers.sh` points CUDA_HOME at
+  `/usr/local/cuda`, the AMI's toolkit, whose version I'll check before starting runs.
+- The start is staged so a broken setup costs two items, not fourteen. First the probe on GPU 7
+  and two workers on GPU 0. Once those runs log their first steps, two workers each on GPUs 1-6.
+  GPU 7 gets its two workers when the probe ends.
