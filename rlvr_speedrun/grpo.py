@@ -65,6 +65,14 @@ class GRPOConfig:
     # update only the rows with a nonzero advantage: with kl_coef == 0 and no Clip-Cov the others carry no
     # gradient, and the loss keeps the full token count, so the step is the same, only faster
     skip_zero_advantage: bool = False
+    # vLLM backend: also return the sampler's log-prob of each sampled token (after the answer constraint) and log
+    # how far the training model's log-probs are from it (train_log "mismatch_*", over the updated rows); the
+    # sampled tokens are unchanged
+    log_mismatch: bool = False
+    # truncated importance sampling (Yao et al. 2025): weight each token's policy-gradient term by
+    # min(pi_train / pi_sampler, tis_cap) with the ratio detached, correcting for the sampler/trainer
+    # mismatch; 0 = off. Implies log_mismatch
+    tis_cap: float = 0.0
     malformed_reward: float | None = None  # training reward for unparseable (e.g. truncated) outputs; None = the verifier's -0.1
     malformed_reward_until: int = 0  # if > 0, malformed_reward applies before this step only, then the verifier's -0.1
     temperature: float = 1.0
@@ -350,12 +358,22 @@ def _is_vllm(engine) -> bool:
     return type(engine).__name__ == "VLLMRollout"
 
 
+def _wants_sampler_logprobs(config: GRPOConfig) -> bool:
+    return config.log_mismatch or config.tis_cap > 0
+
+
 def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.device, caches: StaticCachePool | None = None):
     encoded, prefix_len = _encode_prompts(tokenizer, puzzles, config, device)
+    sampler_lp = None  # per completion token, the sampler's log-prob (with log_mismatch / tis_cap)
     if _is_vllm(caches):
-        generated, finished_at = caches.generate(encoded, config.group_size, config.temperature, config.max_new_tokens, tokenizer.pad_token_id,
-                                                 puzzles=puzzles if config.constrain_answer else None, think_budget=config.think_budget)
+        sampled = caches.generate(encoded, config.group_size, config.temperature, config.max_new_tokens, tokenizer.pad_token_id,
+                                  puzzles=puzzles if config.constrain_answer else None, think_budget=config.think_budget,
+                                  return_logprobs=_wants_sampler_logprobs(config))
+        generated, finished_at = sampled[:2]
+        if _wants_sampler_logprobs(config):
+            sampler_lp = sampled[2]
     else:
+        assert not _wants_sampler_logprobs(config), "log_mismatch and tis_cap need rollout_backend='vllm'"
         assert not config.constrain_answer, "constrain_answer needs rollout_backend='vllm'"
         generated, finished_at = _generate_chunked(model, tokenizer, encoded, config, caches)
     prompt_width = encoded["input_ids"].shape[1]
@@ -386,7 +404,7 @@ def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.d
     completion_attention = valid.to(prompt_attention.dtype)
     attention = torch.cat([prompt_attention, completion_attention], dim=1)
     malformed = torch.tensor([r.malformed for r in results], dtype=torch.bool, device=device)
-    return generated, attention, completions, expanded, rewards, prompt_width, prefix_len, malformed
+    return generated, attention, completions, expanded, rewards, prompt_width, prefix_len, malformed, sampler_lp
 
 
 def _micro_batches(completion_valid: torch.Tensor, prompt_width: int, config: GRPOConfig) -> list[torch.Tensor]:
@@ -428,6 +446,45 @@ def _cov_clip(token_lp: torch.Tensor, token_adv: torch.Tensor, frac: float) -> t
     return torch.where(clip, token_lp.detach(), token_lp)
 
 
+# sums kept by `_sampler_mismatch_` (one more slot after them holds the largest |log ratio|)
+_MISMATCH_SUMS = ("tokens", "k1", "k3", "far", "tis_clipped", "rows", "seq_abs")
+
+
+def _sampler_mismatch_(sums: torch.Tensor, token_lp: torch.Tensor, sampler_lp: torch.Tensor, completion_mask: torch.Tensor,
+                       tis_cap: float) -> torch.Tensor | None:
+    """Adds one micro-batch's sampler/trainer mismatch to `sums` and returns its truncated importance
+    weights min(pi_train / pi_sampler, tis_cap) per completion token (as `token_lp[completion_mask]`),
+    or None when tis_cap is 0. `token_lp` (detached) and `sampler_lp` are [rows, completion width]."""
+    with torch.no_grad():
+        log_ratio = torch.where(completion_mask, token_lp - sampler_lp, torch.zeros_like(token_lp))  # log(pi_train / pi_sampler)
+        flat = log_ratio[completion_mask]
+        ratio = flat.exp()
+        far = (flat.abs() > math.log(2.0)).float()
+        clipped = (ratio > tis_cap).float() if tis_cap > 0 else torch.zeros_like(far)
+        sums[:-1] += torch.stack(
+            [flat.new_tensor(float(flat.numel())), -flat.sum(), (ratio - 1 - flat).sum(), far.sum(), clipped.sum(),
+             flat.new_tensor(float(completion_mask.shape[0])), log_ratio.sum(1).abs().sum()]
+        )
+        if flat.numel():
+            sums[-1] = torch.maximum(sums[-1], flat.abs().max())
+        return ratio.clamp(max=tis_cap) if tis_cap > 0 else None
+
+
+def _mismatch_stats(sums: torch.Tensor, dist: Dist, tis_cap: float) -> dict:
+    """train_log fields from `_sampler_mismatch_` sums, with r = pi_train / pi_sampler per updated token:
+    mismatch_k1 = mean -log r and mismatch_k3 = mean r - 1 - log r (two estimates of KL(sampler || train)),
+    mismatch_far = share of tokens with r outside [1/2, 2], mismatch_seq = mean |sum of log r| per row,
+    mismatch_max = largest |log r| (this rank's), tis_clipped = share of tokens with r > tis_cap."""
+    largest = sums[-1].item()
+    tokens, k1, k3, far, clipped, rows, seq_abs = dist.all_reduce_sum_(sums[:-1].clone()).tolist()
+    tokens, rows = max(tokens, 1.0), max(rows, 1.0)
+    stats = {"mismatch_k1": k1 / tokens, "mismatch_k3": k3 / tokens, "mismatch_far": far / tokens, "mismatch_seq": seq_abs / rows,
+             "mismatch_max": largest}
+    if tis_cap > 0:
+        stats["tis_clipped"] = clipped / tokens
+    return stats
+
+
 def _update(
     model,
     ref_model,
@@ -441,8 +498,11 @@ def _update(
     device: torch.device,
     dist: Dist,
     allowed=None,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    """One optimizer step on this rank's rows; returns (loss, kl, entropy_sum, token_count) sums.
+    sampler_lp: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None]:
+    """One optimizer step on this rank's rows; returns (loss, kl, entropy_sum, token_count) sums and,
+    with `sampler_lp` (the sampler's per-token log-probs, [rows, completion width]), the
+    `_sampler_mismatch_` sums (else None).
 
     Under data parallelism the loss is normalised by the global completion-token
     count and gradients are summed across ranks, so the step equals the
@@ -457,6 +517,7 @@ def _update(
     loss_total = torch.zeros((), device=device)
     kl_total = torch.zeros((), device=device)
     entropy_total = torch.zeros((), device=device)
+    mismatch = None if sampler_lp is None else torch.zeros(len(_MISMATCH_SUMS) + 1, device=device)
     for sub in _micro_batches(completion_valid[active], prompt_width, config):
         rows = active[sub]
         width = prompt_width + int(completion_valid[rows].any(0).nonzero().max().item()) + 1 if completion_valid[rows].any() else prompt_width + 1
@@ -465,15 +526,19 @@ def _update(
             model.train()
         rows_allowed = None if allowed is None else [allowed[r] for r in rows.tolist()]
         with torch.autocast(device.type, dtype=torch.bfloat16, enabled=config.master_fp32):
-            policy_lp, completion_mask, entropy = _completion_logprobs(
+            token_lp, completion_mask, entropy = _completion_logprobs(
                 model, ids, mask, prompt_width, config.temperature, 0 if config.grad_checkpoint else prefix_len, rows_allowed
             )
         model.eval()
-        policy_lp = policy_lp[completion_mask]
+        policy_lp = token_lp[completion_mask]
         entropy_total += entropy[completion_mask].sum()
         repeated_advantages = adv.unsqueeze(1).expand(-1, completion_mask.shape[1])[completion_mask]
         if config.cov_clip_frac > 0 and policy_lp.numel() > 1:
             policy_lp = _cov_clip(policy_lp, repeated_advantages, config.cov_clip_frac)
+        if sampler_lp is not None:
+            weights = _sampler_mismatch_(mismatch, token_lp.detach(), sampler_lp[rows, : width - prompt_width], completion_mask, config.tis_cap)
+            if weights is not None:
+                repeated_advantages = repeated_advantages * weights
         policy_loss = -(repeated_advantages * policy_lp).sum() / token_count
         if ref_model is None:
             kl = torch.zeros((), device=device)
@@ -498,7 +563,7 @@ def _update(
     if config.grad_clip > 0:
         torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
     optimizer.step()
-    return loss_total, kl_total, entropy_total, token_count
+    return loss_total, kl_total, entropy_total, token_count, mismatch
 
 
 _GRAMMARS: dict = {}
@@ -528,7 +593,7 @@ def grpo_step(
 ) -> dict:
     """One GRPO step on `puzzles` (this rank's shard of the global prompt batch)."""
     t0 = _now(device)
-    generated, attention, completions, expanded, rewards, prompt_width, prefix_len, malformed = _sample_batch(
+    generated, attention, completions, expanded, rewards, prompt_width, prefix_len, malformed, sampler_lp = _sample_batch(
         model, tokenizer, puzzles, config, device, caches
     )
     t_sample = _now(device) - t0
@@ -539,6 +604,8 @@ def grpo_step(
     if kept.shape[0] < len(puzzles):
         rows = (kept.unsqueeze(1) * config.group_size + torch.arange(config.group_size, device=kept.device)).reshape(-1)
         generated, attention, rewards = generated[rows], attention[rows], rewards[rows]
+        if sampler_lp is not None:
+            sampler_lp = sampler_lp[rows]
         row_list = rows.tolist()
         completions = [completions[r] for r in row_list]
         expanded = [expanded[r] for r in row_list]
@@ -546,8 +613,8 @@ def grpo_step(
     advantages = group_advantages(groups, config.adv_norm, config.pos_adv_scale).reshape(-1)
 
     allowed = _allowed_tokens(tokenizer, generated, attention, prompt_width, expanded, config.think_budget) if config.constrain_answer else None
-    loss, kl, entropy_total, token_count = _update(
-        model, ref_model, generated, attention, advantages, prompt_width, prefix_len, config, optimizer, device, dist, allowed
+    loss, kl, entropy_total, token_count, mismatch = _update(
+        model, ref_model, generated, attention, advantages, prompt_width, prefix_len, config, optimizer, device, dist, allowed, sampler_lp
     )
     t_update = _now(device) - t0 - t_sample
     # global batch statistics: sums over ranks of [reward, solved, malformed, samples, informative, kept, entropy, kl, loss]
@@ -567,7 +634,7 @@ def grpo_step(
         )
     ).tolist()
     reward_sum, solved, malformed, n_samples, informative_sum, kept_sum, entropy_sum, kl_sum, loss_sum = stats
-    return {
+    info = {
         "mean_reward": reward_sum / n_samples,
         "solve_rate_in_batch": solved / n_samples,
         "malformed_rate": malformed / n_samples,
@@ -583,6 +650,9 @@ def grpo_step(
         "rewards": rewards.detach().cpu().tolist(),
         "puzzles": expanded,
     }
+    if mismatch is not None:
+        info.update(_mismatch_stats(mismatch, dist, config.tis_cap))
+    return info
 
 
 def _evaluate(
@@ -781,6 +851,10 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError("skip_zero_advantage needs kl_coef == 0, cov_clip_frac == 0 and one process (only then do the skipped rows carry no gradient)")
     if config.pos_adv_scale < 0:
         raise ValueError(f"pos_adv_scale must be >= 0, got {config.pos_adv_scale}")
+    if config.tis_cap < 0:
+        raise ValueError(f"tis_cap must be >= 0, got {config.tis_cap}")
+    if _wants_sampler_logprobs(config) and config.rollout_backend != "vllm":
+        raise ValueError("log_mismatch and tis_cap need rollout_backend='vllm' (the sampler's log-probs come from vLLM)")
     if config.malformed_reward_until > 0 and config.malformed_reward is None:
         raise ValueError("malformed_reward_until needs malformed_reward (it switches from it to the verifier's -0.1)")
     late_config = replace(config, malformed_reward=None) if config.malformed_reward_until > 0 else config
@@ -797,7 +871,7 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         from .vllm_rollout import VLLMRollout
 
         engine = VLLMRollout(config.model, 512 + config.max_new_tokens, config.vllm_gpu_memory, config.seed + 1_000_003 * dist.rank,
-                             constrain_answer=config.constrain_answer)
+                             constrain_answer=config.constrain_answer, logprobs=_wants_sampler_logprobs(config))
     elif config.rollout_backend != "hf":
         raise ValueError(f"unknown rollout_backend {config.rollout_backend!r} (expected 'hf' or 'vllm')")
     model, device = load_causal_model(config.model, config.device, "fp32" if config.master_fp32 else config.dtype)

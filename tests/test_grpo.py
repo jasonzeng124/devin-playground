@@ -1,5 +1,8 @@
 import copy
 import json
+import math
+import sys
+import types
 
 import pytest
 import torch
@@ -516,3 +519,117 @@ def test_run_with_lr_schedule_sets_and_logs_the_learning_rate(monkeypatch, tmp_p
     run(GRPOConfig(**common, out_dir=str(tmp_path / "const")))
     rows = [json.loads(line) for line in (tmp_path / "const" / "train_log.jsonl").read_text().splitlines()]
     assert all("lr" not in row for row in rows)
+
+
+def _ragged_batch(seed: int, lengths: list[int], prompt_width: int = 4):
+    torch.manual_seed(seed)
+    generated = torch.randint(2, 40, (len(lengths), prompt_width + max(lengths)))
+    attention = torch.ones_like(generated)
+    for row, length in enumerate(lengths):  # right-padded completions
+        attention[row, prompt_width + length :] = 0
+    return generated, attention, prompt_width
+
+
+@pytest.mark.parametrize("offset, cap, scale", [(0.0, 2.0, 1.0), (-5.0, 2.0, 2.0), (1.0, 2.0, math.exp(-1.0))])
+def test_truncated_importance_weights_scale_the_policy_gradient(offset, cap, scale):
+    """Sampler log-probs = the policy's + offset give every token the ratio exp(-offset), capped at tis_cap."""
+    lengths = [7, 2, 5, 3, 7, 1]
+    generated, attention, prompt_width = _ragged_batch(2, lengths)
+    advantages = torch.tensor([1.0, -1.0, 0.5, -0.5, 0.3, -0.3])
+    base = _tiny_model().eval()
+    with torch.no_grad():
+        token_lp, _, _ = grpo._completion_logprobs(base, generated, attention, prompt_width)
+    grads, sums = [], None
+    for extra, sampler_lp in (({}, None), ({"tis_cap": cap}, token_lp + offset)):
+        model = copy.deepcopy(base)
+        config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, micro_batch_size=4, **extra)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+        *_, sums = grpo._update(
+            model, None, generated, attention, advantages, prompt_width, 0, config, optimizer, torch.device("cpu"), grpo.SINGLE, None, sampler_lp
+        )
+        grads.append([p.grad.clone() for p in model.parameters()])
+    for plain, weighted in zip(*grads):
+        assert torch.allclose(scale * plain, weighted, atol=1e-6)
+    stats = grpo._mismatch_stats(sums, grpo.SINGLE, cap)
+    assert stats["mismatch_k1"] == pytest.approx(offset, abs=1e-5)
+    assert stats["mismatch_k3"] == pytest.approx(math.exp(-offset) - 1 + offset, abs=1e-4)
+    assert stats["mismatch_far"] == (1.0 if abs(offset) > math.log(2) else 0.0)
+    assert stats["mismatch_seq"] == pytest.approx(abs(offset) * sum(lengths) / len(lengths), abs=1e-4)
+    assert stats["mismatch_max"] == pytest.approx(abs(offset), abs=1e-5)
+    assert stats["tis_clipped"] == (1.0 if math.exp(-offset) > cap else 0.0)
+
+
+def test_grpo_step_logs_the_sampler_mismatch_of_the_kept_rows():
+    """The sampler's log-probs follow the group selection: only kept rows are compared, position by position."""
+
+    class FirstTokenTokenizer(TinyTokenizer):  # a row is correct when its first completion token is even
+        def batch_decode(self, sequences, skip_special_tokens=True):
+            return ["<answer>1 + 2</answer>" if int(row[0]) % 2 == 0 else "<answer>1 + 1</answer>" for row in sequences]
+
+    model = _tiny_model().eval()
+    lengths, first, shift = [3, 5, 2, 4, 5, 1, 4, 3], [3, 5, 7, 9, 4, 5, 6, 7], 0.3  # groups 0-1 all wrong, 2-3 mixed
+
+    class VLLMRollout:  # grpo._is_vllm checks the class name
+        def generate(self, encoded, n, temperature, max_tokens, pad_id, puzzles=None, think_budget=0, return_logprobs=False):
+            torch.manual_seed(6)
+            ids = encoded["input_ids"].repeat_interleave(n, dim=0)
+            completion = torch.full((ids.shape[0], max(lengths)), pad_id, dtype=torch.long)
+            valid = torch.zeros_like(completion)
+            for row, (length, token) in enumerate(zip(lengths, first)):
+                completion[row, :length] = torch.randint(2, 40, (length,))
+                completion[row, 0] = token
+                valid[row, :length] = 1
+            sequences = torch.cat([ids, completion], dim=1)
+            attention = torch.cat([encoded["attention_mask"].repeat_interleave(n, dim=0), valid], dim=1)
+            with torch.no_grad():
+                lp, _, _ = grpo._completion_logprobs(model, sequences, attention, ids.shape[1])
+            assert return_logprobs
+            return sequences, torch.tensor(lengths), lp - shift
+
+    config = GRPOConfig(model="tiny", group_size=2, prompts_per_step=2, few_shot=0, kl_coef=0.0, log_mismatch=True, rollout_backend="vllm")
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+    info = grpo_step(model, None, FirstTokenTokenizer(), [Puzzle((1, 2), 3)] * 4, config, optimizer, torch.device("cpu"), VLLMRollout())
+    assert info["kept_groups"] == 2
+    assert info["mismatch_k1"] == pytest.approx(-shift, abs=1e-5)
+    assert info["mismatch_k3"] == pytest.approx(math.exp(shift) - 1 - shift, abs=1e-5)
+    assert info["mismatch_far"] == 0.0 and "tis_clipped" not in info
+    assert info["mismatch_seq"] == pytest.approx(shift * sum(lengths[4:]) / 4, abs=1e-5)  # rows 4-7, the kept groups
+    assert info["mismatch_max"] == pytest.approx(shift, abs=1e-5)
+
+
+def test_sampler_logprob_options_need_the_vllm_backend(monkeypatch, tmp_path):
+    _patch_tiny_training(monkeypatch, tmp_path)
+    for extra in ({"log_mismatch": True}, {"tis_cap": 2.0}):
+        with pytest.raises(ValueError, match="rollout_backend='vllm'"):
+            run(GRPOConfig(model="tiny", out_dir=str(tmp_path / "run"), **extra))
+    with pytest.raises(ValueError, match="tis_cap"):
+        run(GRPOConfig(model="tiny", tis_cap=-1.0, rollout_backend="vllm", out_dir=str(tmp_path / "run")))
+
+
+def test_vllm_rollout_returns_each_sampled_tokens_logprob(monkeypatch):
+    from rlvr_speedrun.vllm_rollout import VLLMRollout as Rollout
+
+    inputs = types.ModuleType("vllm.inputs")
+    inputs.TokensPrompt = lambda prompt_token_ids: prompt_token_ids
+    monkeypatch.setitem(sys.modules, "vllm", types.ModuleType("vllm"))
+    monkeypatch.setitem(sys.modules, "vllm.inputs", inputs)
+    monkeypatch.setattr(Rollout, "_params", lambda self, **kwargs: kwargs)
+
+    def flat(values):  # vllm.logprobs.FlatLogprobs with one entry (the sampled token) per position
+        return types.SimpleNamespace(start_indices=list(range(len(values))), logprobs=values)
+
+    sample = lambda ids, lps: types.SimpleNamespace(token_ids=ids, logprobs=flat(lps))  # noqa: E731
+    outputs = [types.SimpleNamespace(outputs=[sample([5, 6, 7], [-0.1, -0.2, -0.3]), sample([8], [-1.5])])]
+    requests = []
+    engine = object.__new__(Rollout)
+    engine.logprobs = True
+    engine.llm = types.SimpleNamespace(generate=lambda prompts, params, use_tqdm: requests.append(params) or outputs)
+    encoded = {"input_ids": torch.tensor([[0, 3, 4]]), "attention_mask": torch.tensor([[0, 1, 1]])}
+    sequences, finished_at, lp = engine.generate(encoded, 2, 1.0, 4, 0, return_logprobs=True)
+    assert requests[0]["logprobs"] is True
+    assert sequences.tolist() == [[0, 3, 4, 5, 6, 7], [0, 3, 4, 8, 0, 0]] and finished_at.tolist() == [3, 1]
+    assert torch.allclose(lp, torch.tensor([[-0.1, -0.2, -0.3], [-1.5, 0.0, 0.0]]))
+    assert len(engine.generate(encoded, 2, 1.0, 4, 0)) == 2 and requests[1]["logprobs"] is False
+    engine.logprobs = False
+    with pytest.raises(ValueError, match="logprobs=True"):
+        engine.generate(encoded, 2, 1.0, 4, 0, return_logprobs=True)
