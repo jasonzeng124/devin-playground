@@ -112,3 +112,4 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   (4) Logistics: you have an AWS key with full access (IAM user rlvr-agent, `~/.local/bin/aws`), for dealing with anything unexpected. New spending needs the maintainer's OK. The `aws` deny rule is gone. Your ssh key is `~/.ssh/rlvr_aws`. The 6-GPU cap is Engaging-only.
   (5) Cadence: wake every 20-30 min from 10:30Z tomorrow until the block ends (and the same for later blocks). Have the B200 queue and the transfers ready before 11:30Z. The box needs about 10-15 min after launch to build its venv.
   (6) You'll be restarted with ultracode on (the maintainer is moving to Max 20x), so workflows and subagents are fine when they help.
+  (7) Added 18:40: you may spend up to **$500 in total** on AWS this month without asking, for emergencies (maintainer: "give it $500 emergency budget"). Log each charge and the running total. See AGENT.md.

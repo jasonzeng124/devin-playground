@@ -29,8 +29,11 @@ Read `docs/research/LOG.md` for what has been tried. Records are the measure of 
   `mit_normal_gpu` allows 2 per user (6 h max); the rest go on `mit_preemptable`.
 - **No Modal** and no other paid service. AWS: only the capacity-block boxes below (see
   "AWS boxes"). Your AWS key (`~/.local/bin/aws`, IAM user rlvr-agent) has full access so you can
-  deal with anything unexpected. Any new spending (another capacity block, on-demand or spot
-  instances, anything that bills) needs the maintainer's OK first: ask in QUESTIONS.md.
+  deal with anything unexpected. New spending (another capacity block, on-demand or spot
+  instances, anything that bills) needs the maintainer's OK first (ask in QUESTIONS.md), except
+  an emergency budget of $500 in total for the month (maintainer, 2026-10-25: "give it $500
+  emergency budget"), e.g. to rescue a block whose box broke. Log every such charge in LOG.md and
+  STATUS.md with the running total.
 - **Never touch `~/rlvr`.** Records 000/001 ran from it.
 - **No other users' jobs or files:**
   - `scancel` only job IDs you have listed and that belong to you; never `scancel -u`.
