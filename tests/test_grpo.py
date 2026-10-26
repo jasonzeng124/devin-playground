@@ -555,6 +555,20 @@ def test_budget_steps_counts_the_budget_and_the_lr_schedule_in_steps(monkeypatch
         run(GRPOConfig(**common, time_budget_s=300.0, budget_steps=-1, out_dir=str(tmp_path / "bad")))
 
 
+def test_budget_steps_time_stop_also_stops_a_step_capped_run_at_its_time_budget(monkeypatch, tmp_path):
+    _patch_tiny_training(monkeypatch, tmp_path)
+    common = dict(model="tiny", group_size=2, prompts_per_step=1, max_new_tokens=4, max_steps=10, eval_every=100,
+                  eval_limit=1, kl_coef=0.0, no_save=True, time_budget_s=1e-6, budget_steps=3)
+    # every step outlasts a 1-us budget: by default the run still takes its 3 steps; with the time stop it ends
+    # after step 1, with its final eval there
+    assert run(GRPOConfig(**common, out_dir=str(tmp_path / "off")))["total_steps"] == 3
+    assert run(GRPOConfig(**common, budget_steps_time_stop=True, out_dir=str(tmp_path / "on")))["total_steps"] == 1
+    evals = [json.loads(line) for line in (tmp_path / "on" / "eval_log.jsonl").read_text().splitlines()]
+    assert [e["step"] for e in evals] == [1]
+    with pytest.raises(ValueError, match="budget_steps_time_stop"):
+        run(GRPOConfig(**{**common, "budget_steps": 0}, budget_steps_time_stop=True, out_dir=str(tmp_path / "bad")))
+
+
 def _ragged_batch(seed: int, lengths: list[int], prompt_width: int = 4):
     torch.manual_seed(seed)
     generated = torch.randint(2, 40, (len(lengths), prompt_width + max(lengths)))

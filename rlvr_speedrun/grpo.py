@@ -91,6 +91,9 @@ class GRPOConfig:
     # schedule and stops on the same step on any GPU or GPU share (step-capped screens); train_s still logs the
     # wall clock, and clock_s the budget's
     budget_steps: int = 0
+    # with budget_steps: also stop once training time reaches time_budget_s, as a time-budgeted run does, so a
+    # step-capped record still keeps to its clock
+    budget_steps_time_stop: bool = False
     eval_every: int = 10
     eval_start_step: int = 0
     eval_limit: int = 200
@@ -872,6 +875,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError("malformed_reward_until needs malformed_reward (it switches from it to the verifier's -0.1)")
     if config.budget_steps < 0:
         raise ValueError(f"budget_steps must be >= 0, got {config.budget_steps}")
+    if config.budget_steps_time_stop and not (config.budget_steps > 0 and config.time_budget_s > 0):
+        raise ValueError("budget_steps_time_stop needs budget_steps and time_budget_s")
     late_config = replace(config, malformed_reward=None) if config.malformed_reward_until > 0 else config
     scheduled = config.lr_schedule != "constant" or config.lr_warmup_s > 0
     lr_at(config, config.lr_warmup_s)  # fail on a bad schedule before loading anything
@@ -978,9 +983,10 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
             out_of_time = False
             if config.budget_steps:
                 out_of_time = step >= config.budget_steps
-            elif config.time_budget_s > 0:  # rank 0 decides so all ranks stop on the same step
+            if config.time_budget_s > 0 and (not config.budget_steps or config.budget_steps_time_stop):
+                # rank 0 decides so all ranks stop on the same step
                 flag = torch.tensor(float(dist.is_main and elapsed - eval_s >= config.time_budget_s), device=device)
-                out_of_time = dist.all_reduce_sum_(flag).item() > 0
+                out_of_time = dist.all_reduce_sum_(flag).item() > 0 or out_of_time
             if device.type == "cuda":
                 free, total = torch.cuda.mem_get_info(device)
                 info["gpu_mem_gb"] = (total - free) / 2**30  # whole-process use, incl. CUDA graph pools
