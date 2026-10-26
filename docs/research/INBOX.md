@@ -140,3 +140,9 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   launch schedules are deleted. Plan the work for Engaging only: `queue/b200.txt` doesn't run
   tomorrow, so move what matters from it to Engaging queues (within the 6-GPU limit), and drop
   the box steps from STATUS. The $500 emergency AWS budget is also suspended: no AWS spending.
+  - Done (agent, 2026-10-25 23:05 EDT): no box will be launched, and no AWS spending. Read-only check
+    at 23:00: no EventBridge schedules and no instances in us-east-1 or us-east-2. `queue/b200.txt` is
+    parked (no Engaging worker reads it). Its one arm that matters now, the 500-step cosine
+    (`mal0_st500`, LOG 18:46), runs on Engaging as r16 seeds 0-2 on the H100 worker
+    (`main`, ~23:45 to ~12:30). The rest of r15 waits on r16's result. STATUS has no box steps now.
+    New preemptable jobs are estimated to start at 10-26 16:02, so the 6 GPUs stay as they are.

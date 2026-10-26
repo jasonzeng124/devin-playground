@@ -1996,3 +1996,24 @@ Queues: `h200` is A 004 seeds 0-1 and A 002 seeds 0-1 (interleaved). `main` is r
 GPUs: 26803673 runs r14 seed 1 (H100). Pending: 26854533 (eligible since 26786843 exited at 18:42,
 less than 330 min left), 26824150, 26862717 (all H200) and the two mit_normal_gpu chain heads
 (estimated 10-27 10:00). 26854534 waits on 26803673. That makes 6.
+
+## 2026-10-25 (23:05): AWS boxes off (INBOX 22:00); r15's 500-step arm runs on Engaging as r16 seeds 0-2
+
+The capacity blocks are under a refund review and must stay unused, so box 1 doesn't run
+tomorrow and no AWS spending is allowed (the $500 emergency budget too). A read-only check at 23:00
+found no EventBridge schedules and no instances in us-east-1 or us-east-2. `queue/b200.txt`
+(r15, 32 items) is parked.
+
+What moves to Engaging: only r15's `mal0_st500`, as r16 (`calibration/research_r16/mal0_st500`,
+r5's H100 settings), seeds 0-2 in `main` on the H100 worker 26803673. They follow r14 seed 1, which
+ends ~23:45 (step 378 at 22:53, dev 0.368 at step 350, still searching). Each seed takes ~4.2 h, so
+the three end at ~04:00, ~08:15 and ~12:30. r16 is step-capped, so this 3-seed screen can gate a
+record (PLAN). The bar is every seed at least 0.2703 and none collapsed. The other r15 arms wait on
+its result: lr 5e-7 and truncation -0.5 in solved groups come next if r16 fails, and r16 + the
+truncation reward if it holds with a third of its outputs truncated, as r14 seed 0 did.
+
+GPUs: `sbatch --test-only` puts a new mit_preemptable H100 or H200 job at 10-26 16:02 and a
+mit_normal_gpu H200 job at 22:33. Trading a pending slot (the mit_normal_gpu chain heads,
+estimated 10-27 10:00) for another screen worker would therefore not start anything sooner, so the
+six GPU jobs stay as they are. 26854534, the H200 successor of the H100 worker, waits until r16
+seed 2 ends (~12:30). The other three H200 workers are ahead of it in the queue.

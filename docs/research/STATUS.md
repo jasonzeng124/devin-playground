@@ -27,38 +27,21 @@ Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324; seeds 0.300 / 
 0.315 / 0.263) and A 003 (dev 0.324; seeds 0.385 / 0.348 / 0.238 / 0.348 / 0.302; about one seed in
 five of its recipe collapses between steps 250 and 300).
 
-Updated 2026-10-25 19:10 EDT.
+Updated 2026-10-25 23:05 EDT.
 
-## AWS box 1: 8x B200, 2026-10-26 11:30Z (07:30 EDT) to 10-27 11:30Z
+## AWS boxes: off
 
-Dev-ladder screens only (no records, no test-ladder scoring), two runs per GPU, step-capped (LOG 14:30).
-- Queue `queue/b200.txt`: r15, seeds 0-3 of eight arms (32 items, ~5-7 h each at two per GPU; `mal0_st500`
-  replaced `advnone_st800` at 18:46, ~3.5-4 h; `mal0_st800_tis2` samples ~2x slower, LOG 18:46).
-- Start (the box launches itself at +1/+10/+25 min; launch it by hand if nothing runs at +30 min:
-  `aws ec2 run-instances --region us-east-1 --launch-template LaunchTemplateName=rlvr-box-cr-03fec7969fbda8633`).
-  `B="env BOX=zjason@100.29.118.132 bash scripts/aws/box_ssh.sh"` (BatchMode; host key in `agent/known_hosts_<ip>`).
-  1. `$B 'cat /var/lib/rlvr-box.ready; tail -3 /var/log/rlvr-box.log; ls -d /usr/local/cuda*; /usr/local/cuda/bin/nvcc --version | tail -2; nvidia-smi -L'`.
-     vLLM's cu130 wheels JIT-compile with nvcc: if `/usr/local/cuda` is older than 13.0, set CUDA_HOME to a 13.x
-     toolkit on the box (box_workers.sh keeps a CUDA_HOME it is given).
-  2. Copy (~10.6 GB) as a mit_quicktest job (mit_normal waits days; compute nodes egress as 18.13.54.x):
-     `sbatch -p mit_quicktest -c 4 --mem=8G --time=00:15:00 -o slurm_logs/probe/box1_sync_%j.out --wrap 'BOX=zjason@100.29.118.132 bash scripts/aws/box_sync.sh to b200 orcd/pool/rlvr-ckpts/calibration/research_r7/a01_fp32_lr1e-6_skip_cos_mal0_s300/seeds/1/final orcd/pool/rlvr-ckpts/records/v3/track_d/002_dm_math_fp32/seeds/0/pretrained'`
-     (rsync resumes if it needs a second job).
-  3. Staged start (`W="QUEUE=b200 PER_GPU=2 RUNNER=scripts/research/run_item.sh RESERVE_MIN=420"`):
-     - the probe on GPU 7, then GPU 7's workers when it ends:
-       `$B 'cd ~/rlvr-screens && export CUDA_HOME=/usr/local/cuda PATH=/usr/local/cuda/bin:$PATH && setsid nohup bash -c "CUDA_VISIBLE_DEVICES=7 MEM_1=0.2 MEM_2=0.2 bash scripts/research/pack_probe.sh >slurm_logs/probe.out 2>&1; GPUS=7 QUEUE=b200 PER_GPU=2 RUNNER=scripts/research/run_item.sh RESERVE_MIN=420 bash scripts/aws/box_workers.sh" </dev/null >/dev/null 2>&1 &'`
-     - `$B "cd ~/rlvr-screens && GPUS=0 $W bash scripts/aws/box_workers.sh </dev/null"` (stdin from /dev/null, so ssh returns);
-     - once both GPU 0 runs log steps (`tail -2 ~/orcd/pool/rlvr-ckpts/calibration/research_r15/*/seeds/*/train_log.jsonl`;
-       `nvidia-smi` for memory): `$B "cd ~/rlvr-screens && GPUS='1 2 3 4 5 6' $W bash scripts/aws/box_workers.sh </dev/null"`.
-  4. Every wake: `BOX=zjason@100.29.118.132 bash scripts/aws/box_sync.sh from box1 calibration/research_r15`, then
-     `summarize_screens.py calibration/research_r15/*`; commit the seeds' logs. The probe's output is
-     `slurm_logs/probe.out` on the box (copy it by hand).
-- The tail of the block: workers stop taking 800-step items 7 h before the deadline (block end - 35
-  min); shorter items for the last hours get decided from the first results.
+INBOX 10-25 22:00: the capacity blocks are under a refund review and must stay unused. No box
+launches (no `run-instances` with the `rlvr-box-*` templates) and no AWS spending, including the
+$500 emergency budget, until a later INBOX note says otherwise. The launch schedules are deleted
+(checked read-only at 23:00: none, and no instances). `queue/b200.txt` (r15) is parked; its
+`mal0_st500` arm runs on Engaging as r16.
 
 ## Running
 
-- mit_preemptable H100 worker (`main:long`) 26803673 runs r14 seed 1 on node2700 since 18:22 (ends
-  ~23:20), then r16 seed 0 (`main`, ~23:20 to ~03:30). 26786843 finished r10 seed 2 and exited
+- mit_preemptable H100 worker (`main:long`) 26803673 runs r14 seed 1 on node2700 since 18:22 (step
+  378 at 22:53, dev 0.368 at step 350; ends ~23:45), then r16 seeds 0-2 (`main`, ~4.2 h each, to
+  ~12:30). 26786843 finished r10 seed 2 and exited
   (18:42). Their H200 successors 26854533 (pending, eligible) and 26854534 (`afterany` 26803673) read
   `record-003`, both A record queues, then `h200`.
 - H200 workers on mit_preemptable (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900
@@ -72,7 +55,7 @@ Dev-ladder screens only (no records, no test-ladder scoring), two runs per GPU, 
 - `record-003_dm_math_fp32_h200`: seeds 2-4. `record-004_ladder_constrained_h200`,
   `record-002_fp32_skip_cosine`: seeds 2-4 each.
 - `h200` (4): A 004 seed 0, A 002 seed 0, A 004 seed 1, A 002 seed 1 (r12 left at 18:46: r10 closed).
-- `main` (1): r16 `mal0_st500` seed 0. `b200` (32): box 1. `h100`, `later`: parked, read by no worker.
+- `main` (3): r16 `mal0_st500` seeds 0-2. `b200` (32, r15), `h100`, `later`: parked, read by no worker.
 
 ## Best so far
 
@@ -85,15 +68,14 @@ Dev-ladder screens only (no records, no test-ladder scoring), two runs per GPU, 
 
 ## Next
 
-- ~23:20: r14 seed 1 ends (second seed of the slow-clock condition, mismatch logged); r16 seed 0
-  starts, the first GPU run of `budget_steps` (check its first steps and `clock_s` before box 1).
-- ~03:30: r16 seed 0 ends. If it holds near 0.40 past step 375, `mal0_st500` goes to the front of
-  box 1's queue and gets an H200 screen after the A record seeds (a record config would also need a
-  hard time stop next to `budget_steps`, a new option).
-- 06:30 tomorrow: box 1 prep, then wakes every 20-30 min until the block ends.
-- By ~18:00Z tomorrow (first r15 items done): the box's work after r15 (more seeds of the best
-  arms, or token-capped track D screens: `pretrain_scratch.py` decays on `--max-tokens` when it
-  runs out before `--minutes`).
+- ~23:45: r14 seed 1 ends (second seed of the slow-clock condition, mismatch logged); r16 seed 0
+  starts, the first GPU run of `budget_steps` (check its first steps, `clock_s` and lr).
+- ~04:00, ~08:15, ~12:30: r16 seeds 0-2 end. r16 is step-capped, so its 3-seed screen can gate a
+  record (PLAN: H200 or step-capped): every seed >= 0.2703 and none collapsed. A record config
+  would also need a hard time stop next to `budget_steps` (a new option, off by default), so a run
+  that searches slowly still stops at 290 min.
+- If r16 fails: the next screens come from the parked r15 arms (lr 5e-7, truncation -0.5 in solved
+  groups).
 - Track D H200 screens can start from D 003's saved pretrained models once seeds finish.
 
 ## Notes
