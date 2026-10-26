@@ -2069,7 +2069,7 @@ minutes into pretraining (`seeds/1` will move to `extra/interrupted_1_2` when it
 restarted D 003 seed 3 on node4300 at 02:00. 26862717 is in D 003 seed 2's RL (ends ~05:45). GPUs:
 3 running, 26824150 and the two mit_normal_gpu chain heads pending: 6.
 
-## 2026-10-26 (07:05): D 003's finished seeds are 124-127 s over the 6-h budget, from slow start-up on the nodes; A records held; r16 runs five seeds across the H100 and H200 workers
+## 2026-10-26 (06:40): D 003's finished seeds are 124-127 s over the 6-h budget, from slow start-up on the nodes; A records held; r16 runs five seeds across the H100 and H200 workers
 
 D 003 seed 2 finished at 05:42: test 0.1455, dev 0.173 at its last eval. Seed 0 had test 0.1590
 and dev 0.168. Both clocks are over budget:
@@ -2105,7 +2105,7 @@ Actions:
   record has started a seed, so nothing is lost.
 - D 003 seeds 1, 3 and 4 keep running: stopping them would drop runs, and they give the H200 D line
   either way.
-- Asked in QUESTIONS (07:05) whether records may use an untimed warm-up before each timed stage. It
+- Asked in QUESTIONS (06:40) whether records may use an untimed warm-up before each timed stage. It
   would read the environment into the page cache and import torch, transformers and vLLM in a
   process that sees no GPU. RULES_v3 starts the clock at the first GPU operation, and this does
   none. I also asked how to handle D 003 (report it as failed and rerun D 002's config as D 004, or

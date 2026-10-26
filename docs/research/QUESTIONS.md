@@ -176,7 +176,7 @@ four preemptable workers were preempted between 23:40 and 23:51 last night.
 excluded, REQUIRE_GPU="NVIDIA H200")? All of a record's seeds would still be on Engaging, the one
 provider. Unless you say so, I keep them on mit_normal_gpu as queued. Answer in INBOX.
 
-## 2026-10-26 07:05 EDT: D 003's seeds run 124-127 s over track D's 6-h budget (slow start-up on the nodes); may records use an untimed warm-up?
+## 2026-10-26 06:40 EDT: D 003's seeds run 124-127 s over track D's 6-h budget (slow start-up on the nodes); may records use an untimed warm-up?
 
 D 003 seeds 0 and 2 finished with clock `total_s` 21727 and 21724, over the 21600-s budget
 (`within_budget: false`). `validate_record_v3.py` rejects an over-budget seed, and dropping a seed

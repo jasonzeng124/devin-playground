@@ -7,11 +7,11 @@ separate board. The H200 board starts with three record runs (LOG 10-25 01:24):*
 
 | record | config | runs on | state |
 |---|---|---|---|
-| `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | preemptable H200 workers | seeds 0, 2 done (test 0.1590, 0.1455), both **over budget** by 124-127 s (LOG 07:05); seeds 1, 3, 4 running |
+| `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | preemptable H200 workers | seeds 0, 2 done (test 0.1590, 0.1455), both **over budget** by 124-127 s (LOG 06:40); seeds 1, 3, 4 running |
 | `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | none: **held** | seeds 0-4 in `queue/held_records.txt` |
 | `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | none: **held** | seeds 0-4 in `queue/held_records.txt` |
 
-- **Start-up overrun (LOG 07:05, QUESTIONS 07:05).** On the H200 nodes, start-up and saves take
+- **Start-up overrun (LOG 06:40, QUESTIONS 06:40).** On the H200 nodes, start-up and saves take
   ~16 min a D seed against 2-3.5 min on the H100. It looks like cold reads of `~/rlvr-venv` over
   NFS, and it pushes D 003's seeds past 21600 s. Track A's margin is only 600 s, so the A records
   are held until the maintainer answers: may records use an untimed warm-up (no GPU) before each
@@ -32,7 +32,7 @@ Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324; seeds 0.300 / 
 0.315 / 0.263) and A 003 (dev 0.324; seeds 0.385 / 0.348 / 0.238 / 0.348 / 0.302; about one seed in
 five of its recipe collapses between steps 250 and 300).
 
-Updated 2026-10-26 07:15 EDT.
+Updated 2026-10-26 06:50 EDT.
 
 ## AWS boxes: off
 
@@ -81,7 +81,7 @@ $500 emergency budget, until a later INBOX note says otherwise. The launch sched
 ## Next
 
 - Build the warm-up as an off-by-default option of `run_seed_v3.sh` and measure it on a compute
-  node. Records use it only after the maintainer's answer (QUESTIONS 07:05).
+  node. Records use it only after the maintainer's answer (QUESTIONS 06:40).
 - ~07:40: r16 seed 0 ends. Steps 375-525 are where r5's seeds collapsed. Then plan r17 on r16
   (e.g. truncation -0.5 in solved groups).
 - ~15:30: all five r16 seeds done. r16 is step-capped, so its 5-seed screen can gate a record (PLAN:

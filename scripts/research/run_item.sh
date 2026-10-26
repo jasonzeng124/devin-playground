@@ -21,7 +21,7 @@ PYTHON=${PYTHON:-python}
 # Untimed warm start first (scripts/warm_start.sh; nothing touches the GPU): it reads the environment and
 # the base model into the node's page cache, which the CUDA check and the trainer otherwise read cold over
 # the network filesystems. On for screens and evals; for record seeds only with WARM_START=1 (QUESTIONS
-# 2026-10-26 07:05). Its time goes to worker.log. On a broken GPU, a cold warm start can make the first
+# 2026-10-26 06:40). Its time goes to worker.log. On a broken GPU, a cold warm start can make the first
 # failure slow (over 5 min), but the next ones are quick, so the worker still stops.
 warm=${WARM_START:-1}
 [[ $dir == records/v3/* ]] && warm=${WARM_START:-0}

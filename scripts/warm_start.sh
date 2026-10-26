@@ -4,7 +4,7 @@
 # import the trainer once in a process that sees no GPU (CUDA_VISIBLE_DEVICES=). Nothing here touches the
 # GPU. On a cold node the timed stages otherwise read all this over the network filesystems: D 003's
 # start-ups took ~16 min a seed on the H200 nodes against 2-3.5 min on the H100, which put its seeds
-# over budget (LOG 2026-10-26 07:05). Prints the time it took; never fails the caller.
+# over budget (LOG 2026-10-26 06:40). Prints the time it took; never fails the caller.
 #
 #   bash scripts/warm_start.sh <config.json>         # LIST=1 only prints the files it would read
 set -uo pipefail
