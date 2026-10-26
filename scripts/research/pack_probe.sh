@@ -11,6 +11,7 @@
 set -uo pipefail
 cd "${RLVR_DIR:-$HOME/rlvr-screens}"
 source "${VENV:-$HOME/orcd/pool/vllm-venv}/bin/activate"
+command -v module >/dev/null && module load cuda/13.0.1  # vLLM JIT-compiles kernels with nvcc (on Engaging; a box has none)
 export HF_HUB_OFFLINE=1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True VLLM_USE_FLASHINFER_SAMPLER=0  # as queue_worker.sbatch
 OUT=${OUT:-$HOME/orcd/pool/rlvr-ckpts/probe/pack_$(date +%m%d_%H%M)_${SLURM_JOB_ID:-local}}
 mkdir -p "$OUT"

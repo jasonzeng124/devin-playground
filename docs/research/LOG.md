@@ -2267,3 +2267,30 @@ Queues and workers:
 - `held_records.txt` is emptied (a one-line note).
 - GPUs: 26824150 and 26854533 running (r16 seeds 3 and 4); pending 26933254, 26933255 and the two mit_normal_gpu
   chain heads (26927304, 26927308): 6.
+
+## 2026-10-26 (17:45): B200 packing probe submitted (INBOX 16:45: screens may use B200 too; records stay on the H200)
+
+The laptop note allows screen-only workers on B200 as well, after a measurement of one B200 with one
+and then two runs. `scripts/research/pack_probe.sh` (written for box 1 on 10-25, never run) does that:
+- track A: one run, then two at once (90 s apart), 30 steps each from r7 `s300` seed 1's searching
+  weights at constant lr, `vllm_gpu_memory` 0.2 and `micro_batch_tokens` 4096 (r15's settings for two
+  runs per B200), no saves;
+- track D: one run, then four, 300 steps each from D 002's pretrained seed 0 (`vllm_gpu_memory` 0.08).
+
+It prints each run's s/step over steps 6-30 and the summed steps per hour. I added the CUDA module
+load the queue workers do (vLLM compiles kernels with nvcc). Job 26953974: mit_preemptable B200, 2.5 h,
+16 CPUs, 128 GB, dev ladder only (a 60-puzzle final eval). `sbatch --test-only` puts it at 10-27
+15:22 (a short H200 job: 11:42; mit_normal_gpu B200: 10-28 09:25).
+
+Cap: the later mit_normal_gpu chain head, 26927308 (estimated 10-29 12:00), now waits on the probe
+(afterany), so the probe takes its slot: 4 preemptable H200 workers + 26927304 + the probe = 6.
+
+H200 numbers to compare with, from r16 seed 2's log (r16's settings: `vllm_gpu_memory` 0.35,
+`micro_batch_tokens` 8192): 16.6 s/step at steps 6-30 (~525 tokens per sample), 27.1 s at steps
+250-300 (~740), 24.8 s at steps 450-500 (~717); sampling is 13-15 s of each step and the update 4-11 s.
+
+What follows depends on the result. If two runs on a B200 add up to clearly more steps per hour than
+one H200 run at matched output lengths, step-capped track A screens move to screen-only B200 workers,
+two per GPU, with r15's memory settings, from a queue with no record items (`h200` holds A 004 and
+A 002, which must stay on the H200). Screens with a time budget (r18, track D RL) stay on the H200,
+since their results depend on the GPU's speed.

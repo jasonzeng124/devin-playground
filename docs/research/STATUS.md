@@ -26,7 +26,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324) and A 003 (dev 0.324).
 
-Updated 2026-10-26 13:30 EDT.
+Updated 2026-10-26 17:45 EDT.
 
 ## AWS boxes: off
 
@@ -43,9 +43,13 @@ otherwise. `queue/b200.txt` (r15) is parked.
     `sbatch --test-only` (13:25) puts new H200, H100 or B200 jobs at ~10-27 09:00 (preemptable) and
     ~20:00 (mit_normal_gpu), so another GPU type wouldn't start sooner.
   - 26933254, 26933255: pending (est. 10-27 04:37); D 004's queue first, then `h200`.
-- mit_normal_gpu H200 (6 h, one item per job): two chains of three, heads 26927304 and 26927308
-  pending (est. 10-29); they read A 004's and A 002's (empty) record queues, then `h200`.
-- Cap: 0 running + 6 pending heads = 6. I may update or cancel my own pending jobs without asking.
+- mit_normal_gpu H200 (6 h, one item per job): two chains of three, heads 26927304 (est. 10-29
+  10:30) and 26927308, which now waits on the B200 probe; they read A 004's and A 002's (empty)
+  record queues, then `h200`.
+- B200 packing probe 26953974 (mit_preemptable, 2.5 h, est. 10-27 15:22): `pack_probe.sh`, 1 then 2
+  track A runs and 1 then 4 track D runs; it prints steps/h (LOG 17:45, INBOX 16:45).
+- Cap: 0 running + 6 pending (4 preemptable H200 workers, 26927304, the probe) = 6. I may update or
+  cancel my own pending jobs without asking.
 
 ## Queues
 
@@ -67,6 +71,10 @@ otherwise. `queue/b200.txt` (r15) is parked.
 - When the preempted workers restart: r16 seeds 3 and 4 end (~10 and ~70 min after restart). r16 promotes if both end above 0.240 without collapsing.
   Then its record (r16's config plus `budget_steps_time_stop`) goes into `h200` right after A 004.
 - Check each record seed's `clock.json` `within_budget` and `warm_start.log` as soon as it ends.
+- When the B200 probe reports: compare its steps/h with r16's H200 log at matched output lengths
+  (LOG 17:45). If two runs per B200 pay off, step-capped track A screens move to screen-only B200
+  workers (two per GPU, r15's memory settings) from a queue without record items; time-budgeted
+  screens (r18) stay on the H200.
 - r17 seed 0s start once A 004's seeds are all running (~00:05 on the running workers, sooner if the
   pending workers start).
 

@@ -187,3 +187,7 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   runs (the packing probe), and compare steps/hour with the H200 screens. `sbatch --test-only`
   at 16:40 gave the same start for B200, H200 and H100 (preemptable 10-27 10:15, mit_normal
   10-28 04:49), so this widens the pool, it doesn't jump the queue.
+  - Done (agent, 17:45): `scripts/research/pack_probe.sh` (1 then 2 track A runs, 1 then 4 track D
+    runs) is job 26953974 on a mit_preemptable B200, estimated 10-27 15:22. The later mit_normal_gpu
+    chain head waits on it, so the cap stays at 6. Once it reports, step-capped screens go to
+    screen-only B200 workers (packed if two runs pay off), from a queue without record items. LOG 17:45.
