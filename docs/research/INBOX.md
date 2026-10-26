@@ -146,3 +146,17 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     (`mal0_st500`, LOG 18:46), runs on Engaging as r16 seeds 0-2 on the H100 worker
     (`main`, ~23:45 to ~12:30). The rest of r15 waits on r16's result. STATUS has no box steps now.
     New preemptable jobs are estimated to start at 10-26 16:02, so the 6 GPUs stay as they are.
+
+- 2026-10-26 12:00 EDT (laptop), answers to QUESTIONS (warm-up, D 003):
+  1. **Yes, record seeds may use the untimed warm-up** (libraries and base model into the page
+     cache, imports with no GPU visible). The maintainer also allows going one step further, as
+     modded-nanogpt does: its `train_gpt.py` runs a few real training steps before the timer to
+     warm up and compile kernels, then restores the model and optimizer state, and those steps
+     don't count. So an untimed GPU warm-up pass is allowed too (engine start-up, CUDA graphs,
+     compilation, one dummy step of each stage), provided that afterwards every piece of trained
+     state is exactly what it would be without it: weights, optimizer state, lr/schedule position,
+     RNG states, data and prompt order. No dev or test ladder data in the warm-up, nothing from it
+     is kept, and its time is logged separately. Write it into RULES_v3 as a v3.2 clarification
+     (LOG entry too), measure it on screens first, and say in each record's README whether it used
+     the warm-up.
+  2. D 003: no answer yet; keep waiting for this one.
