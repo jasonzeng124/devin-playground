@@ -11,7 +11,7 @@
 set -u
 A=$HOME/rlvr-screens/agent
 mkdir -p "$A"
-tmux has-session -t research 2>/dev/null && exit 0
+tmux has-session -t =research 2>/dev/null && exit 0  # "=": exact name (plain "research" also matches research-watch)
 [[ -e $A/STOP ]] && exit 0  # touch agent/STOP to keep it from being restarted
 m=opus
 echo "$(date -Is) starting research agent on $m" >>"$A/starts.log"
