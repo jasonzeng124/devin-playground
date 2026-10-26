@@ -8,7 +8,7 @@ seeds now run `scripts/warm_start.sh` first and log its time to `<record>/warm_s
 
 | record | config | runs on | state |
 |---|---|---|---|
-| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | any H200 worker (front of `h200`) | queued; seeds 0-1 start ~13:25 / ~14:45 on the running workers; lands ~10-27 05:30 if nothing is preempted |
+| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | any H200 worker (front of `h200`) | queued; seeds 0-1 start when the two preempted workers restart and finish r16 |
 | `records/v3/track_d/004_dm_math_fp32_h200_warm` | D 002's, unchanged | preemptable H200 workers 26933254-55 (pending, est. 10-27 04:37) | queued, seeds 0-4 |
 | `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | any H200 worker | queued at the end of `h200` (LOG 13:05) |
 | `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | done | **failed**: seeds 0 and 2 over budget; README reports it (test mean of all five 0.1538) |
@@ -26,7 +26,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324) and A 003 (dev 0.324).
 
-Updated 2026-10-26 13:05 EDT.
+Updated 2026-10-26 13:30 EDT.
 
 ## AWS boxes: off
 
@@ -37,12 +37,15 @@ otherwise. `queue/b200.txt` (r15) is parked.
 ## Running
 
 - mit_preemptable H200 (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900 excluded):
-  - 26824150: r16 seed 3 on node4301, ends ~13:25, then A 004 from `h200`.
-  - 26854533: r16 seed 4 on node4300, ends ~14:45, then A 004 from `h200`.
+  - 26824150 and 26854533 were **preempted at 13:10 and 13:15**, holding r16 seed 3 (step 481 of 500,
+    dev 0.382 at step 450) and seed 4 (step 307, dev 0.358 at step 300). Both are pending again. On
+    restart they resume those seeds from the hourly saves, then take A 004 from `h200`.
+    `sbatch --test-only` (13:25) puts new H200, H100 or B200 jobs at ~10-27 09:00 (preemptable) and
+    ~20:00 (mit_normal_gpu), so another GPU type wouldn't start sooner.
   - 26933254, 26933255: pending (est. 10-27 04:37); D 004's queue first, then `h200`.
 - mit_normal_gpu H200 (6 h, one item per job): two chains of three, heads 26927304 and 26927308
   pending (est. 10-29); they read A 004's and A 002's (empty) record queues, then `h200`.
-- Cap: 2 running + 4 pending heads = 6. I may update or cancel my own pending jobs without asking.
+- Cap: 0 running + 6 pending heads = 6. I may update or cancel my own pending jobs without asking.
 
 ## Queues
 
@@ -61,7 +64,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 ## Next
 
-- ~13:25 and ~14:45: r16 seeds 3 and 4 end. r16 promotes if both end above 0.240 without collapsing.
+- When the preempted workers restart: r16 seeds 3 and 4 end (~10 and ~70 min after restart). r16 promotes if both end above 0.240 without collapsing.
   Then its record (r16's config plus `budget_steps_time_stop`) goes into `h200` right after A 004.
 - Check each record seed's `clock.json` `within_budget` and `warm_start.log` as soon as it ends.
 - r17 seed 0s start once A 004's seeds are all running (~00:05 on the running workers, sooner if the
