@@ -2068,3 +2068,52 @@ Elsewhere: 26824150 started D 003 seed 1 on node5100 at 01:10 and was preempted 
 minutes into pretraining (`seeds/1` will move to `extra/interrupted_1_2` when it reruns). 26854533
 restarted D 003 seed 3 on node4300 at 02:00. 26862717 is in D 003 seed 2's RL (ends ~05:45). GPUs:
 3 running, 26824150 and the two mit_normal_gpu chain heads pending: 6.
+
+## 2026-10-26 (07:05): D 003's finished seeds are 124-127 s over the 6-h budget, from slow start-up on the nodes; A records held; r16 runs five seeds across the H100 and H200 workers
+
+D 003 seed 2 finished at 05:42: test 0.1455, dev 0.173 at its last eval. Seed 0 had test 0.1590
+and dev 0.168. Both clocks are over budget:
+
+| seed | node | pretrain_s (112 min = 6720) | GRPO wall over its training clock | total_s (budget 21600) |
+|---|---|---|---|---|
+| 0 | node4900 | 6876 | 810 | 21727 |
+| 2 | node4300 | 7206 | 477 | 21724 |
+| D 002, H100 (5 seeds) | | 6729-6733 | 114-197 | 20884-20971 |
+
+`validate_record_v3.py` fails a seed over budget ("over budget"), and dropping a seed disqualifies
+a record. So D 003 can't pass as it stands. I didn't catch this on seed 0 at 10-25: I logged its
+test score but didn't check its `within_budget`.
+
+The excess is start-up: imports, model creation and vLLM initialisation before each trainer's own
+clock starts, plus the saves. The trainers' own clocks are fixed (112 min + 14040 s = 20760 s, which
+leaves 840 s of margin). On the H100 the start-ups took 2-3.5 min a seed; here they take 16 min.
+
+The pattern points to cold reads of the Python environment (`~/rlvr-venv`, NFS):
+- The worker's 150-s CUDA check (`import torch` + one CUDA op) timed out on 15 of the 42 item
+  starts since 10-24 23:00: node4109 and node3409 three times each, node3209, node2905 and node2904
+  twice each, node5100, node4300 and node1703 once. Other starts passed it, some on the same nodes:
+  node4300 at 02:00 and 05:42, node4301, node2700, node2901.
+- r16 seed 0 needed 15 min on node2904 from launch to vLLM's first log line. Its restart on node2901
+  had vLLM ready in 3.5 min.
+- The login node imports torch in 3-6 s.
+
+Track A has less margin: 600 s (18000 against 17400). A 001 used 33-98 s on the H100, so an A
+record seed that starts on a cold node would probably be over too.
+
+Actions:
+- Held all ten A 004 / A 002 items in `queue/held_records.txt`, which no worker reads. Neither
+  record has started a seed, so nothing is lost.
+- D 003 seeds 1, 3 and 4 keep running: stopping them would drop runs, and they give the H200 D line
+  either way.
+- Asked in QUESTIONS (07:05) whether records may use an untimed warm-up before each timed stage. It
+  would read the environment into the page cache and import torch, transformers and vLLM in a
+  process that sees no GPU. RULES_v3 starts the clock at the first GPU operation, and this does
+  none. I also asked how to handle D 003 (report it as failed and rerun D 002's config as D 004, or
+  shorten budgets). I'll build the warm-up as an off-by-default option and measure it on screens.
+  No record uses it until the answer.
+- r16 now runs five seeds instead of three: seed 1 on the H100 worker after seed 0, seeds 2-4 in
+  `h200` for the H200 workers as D 003's seeds finish (~08:15, ~10:20, ~11:50). It is step-capped,
+  so its schedule doesn't depend on the GPU. The 5-seed promotion form allows one collapsed seed,
+  which suits a recipe whose cousin r5 collapsed. All five should end by ~15:30.
+- The mit_normal_gpu chain heads read only the two A record queues, which are now empty. If they
+  start (Slurm's plan: 10-27 11:00 and 14:00) they exit at once. I'll deal with them before then.

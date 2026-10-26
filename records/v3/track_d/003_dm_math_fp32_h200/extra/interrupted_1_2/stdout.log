@@ -1,0 +1,4 @@
+=== v3 track D seed 1 on node5100 NVIDIA H200 2026-10-26T05:12:33Z
+=== copy /home/zjason/orcd/pool/data/dm_math/mix_0.2.bin to /tmp (untimed)
+=== pretrain (timed)
+params 109.5M

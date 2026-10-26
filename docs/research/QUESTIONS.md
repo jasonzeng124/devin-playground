@@ -175,3 +175,49 @@ four preemptable workers were preempted between 23:40 and 23:51 last night.
 **Question.** May track A's H200 record seeds also run on mit_preemptable H200 workers (NVL nodes
 excluded, REQUIRE_GPU="NVIDIA H200")? All of a record's seeds would still be on Engaging, the one
 provider. Unless you say so, I keep them on mit_normal_gpu as queued. Answer in INBOX.
+
+## 2026-10-26 07:05 EDT: D 003's seeds run 124-127 s over track D's 6-h budget (slow start-up on the nodes); may records use an untimed warm-up?
+
+D 003 seeds 0 and 2 finished with clock `total_s` 21727 and 21724, over the 21600-s budget
+(`within_budget: false`). `validate_record_v3.py` rejects an over-budget seed, and dropping a seed
+disqualifies a record, so D 003 can't pass as it stands.
+
+Where the time goes: the trainers' own clocks are fixed (pretraining 112 min + GRPO 14040 s =
+20760 s). The rest is process start-up (imports, tokenizer, model creation, vLLM initialisation)
+and the final saves, all inside `run_seed_v3.sh`'s timed stages:
+
+| seeds | GPU | pretraining over its 112 min | GRPO process over its training clock | total |
+|---|---|---|---|---|
+| D 002, 5 seeds | H100 | 9-13 s | 114-197 s | 20884-20971 |
+| D 003 seed 0 | H200 (node4900, CPUs oversubscribed) | 156 s | 810 s | 21727 |
+| D 003 seed 2 | H200 (node4300) | 486 s | 477 s | 21724 |
+
+It looks like cold reads of the Python environment (`~/rlvr-venv` on NFS) on the compute nodes.
+The workers' 150-s CUDA check (`import torch; torch.zeros(1, device="cuda")`) timed out on 15 of
+the 42 starts since 10-24 23:00. The same nodes started fast at other times: node4300 at 02:00 and
+05:42, and node2901, where r16 seed 0 restarted with vLLM ready in 3.5 min. On node2904, r16
+seed 0 took 15 min from launch to vLLM's first log line. The login node imports torch in 3-6 s.
+
+Track A has 600 s of margin (18000 against 17400), and A 001 used 33-98 s on the H100. An A record
+seed that starts on a cold node would probably be over too.
+
+What I did (all reversible):
+- Held A 004's and A 002's ten items in `queue/held_records.txt`, which no worker reads. Neither
+  record has started or scored a seed, so its N and seeds are untouched.
+- D 003's seeds 1, 3 and 4 keep running, because stopping them would drop runs.
+- The H200 workers run r16 screens in the meantime.
+
+Proposal: an untimed warm-up before each timed stage of `run_seed_v3.sh` (a new option, off by
+default). It would read the environment's shared libraries into the node's page cache and import
+torch, transformers and vLLM in a process that sees no GPU (`CUDA_VISIBLE_DEVICES=`), before `t0`.
+RULES_v3 starts the clock at the first GPU operation, and this does none. The CUDA check (a GPU
+call) already runs before `t0` in every record seed. I'll build it and measure it on screens. No
+record uses it until you answer.
+
+**Questions.**
+1. May record seeds use that warm-up?
+2. D 003: may I report it as failed (over budget, all five seeds kept in the record folder with a
+   note) and rerun D 002's config, unchanged, with the warm-up as D 004? Or would you rather
+   shorten the reruns' budgets, for example pretraining 108 min, to leave margin?
+
+Answer in INBOX.

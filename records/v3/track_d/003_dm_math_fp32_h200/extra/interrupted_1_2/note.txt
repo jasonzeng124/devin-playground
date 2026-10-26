@@ -1,0 +1,6 @@
+Seed 1, attempt 2: started 2026-10-26T05:12:33Z on node5100 (worker 26824150, mit_preemptable,
+NVIDIA H200). Preempted at 05:27:36Z during pretraining, before its first pretraining log line
+(stdout ends at "params 109.5M"). An infrastructure interruption (preemption), so seed 1 is rerun
+under the same seed (RULES_v3, "Seeds and statistics"), and this attempt doesn't count. (Attempt 3
+started at 08:06:32Z on node4301.) The worker's 23:11Z start of seed 1 was preempted during the
+CUDA check, before run_seed_v3.sh wrote anything, so it left no attempt.
