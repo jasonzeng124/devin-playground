@@ -18,6 +18,17 @@ set -euo pipefail
 dir=${1:?usage: run_item.sh <dir> <seed>}
 seed=${2:?usage: run_item.sh <dir> <seed>}
 PYTHON=${PYTHON:-python}
+# Untimed warm start first (scripts/warm_start.sh; nothing touches the GPU): it reads the environment and
+# the base model into the node's page cache, which the CUDA check and the trainer otherwise read cold over
+# the network filesystems. On for screens and evals; for record seeds only with WARM_START=1 (QUESTIONS
+# 2026-10-26 07:05). Its time goes to worker.log. On a broken GPU, a cold warm start can make the first
+# failure slow (over 5 min), but the next ones are quick, so the worker still stops.
+warm=${WARM_START:-1}
+[[ $dir == records/v3/* ]] && warm=${WARM_START:-0}
+if [[ -n ${SLURM_JOB_ID:-} && $warm == 1 ]]; then
+  msg=$(timeout 900 bash scripts/warm_start.sh "$dir/config.json" 2>&1 | tail -n 1) || true
+  echo "$(date -u +%FT%TZ) worker $SLURM_JOB_ID: ${msg:-warm start timed out} on $(hostname) before $dir $seed" | tee -a queue/worker.log >&2
+fi
 # A GPU that nvidia-smi lists but CUDA can't open ("busy or unavailable": one of node2801's on
 # 2026-10-24) fails every item at its first CUDA call, and Slurm hands the freed GPU to the next job.
 # Try CUDA first. If that fails with a CUDA error, put the item back at the front of the worker's
