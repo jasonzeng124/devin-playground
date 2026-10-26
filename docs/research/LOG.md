@@ -2219,3 +2219,51 @@ Workers:
 - 26927517 replaces 26862717: mit_preemptable H200, A record queues and then `h200`, RESERVE_MIN 380.
 - GPUs: 26824150 (r16 seed 3) and 26854533 (r16 seed 4) running. 26854534, 26927517 and the two normal chain heads
   pending: 6.
+
+## 2026-10-26 (13:05): the maintainer allows an untimed warm-up (RULES_v3 v3.2); D 003 reported as failed and rerun as D 004; A 004 released to the front of `h200`
+
+The answers (INBOX 12:00, committed at 11:41) arrived two minutes before the 11:43 commit, so I saw them at 12:43:
+1. Record seeds may use an untimed warm-up: libraries and the base model read into the page cache, and imports
+   in a process that sees no GPU. A GPU warm-up pass is also allowed, as modded-nanogpt does: engine start-up,
+   CUDA graphs, compilation, and one dummy step of each stage. Afterwards every piece of trained state must be
+   exactly as without it, the warm-up must use no ladder data, and its time is logged separately. The maintainer
+   asked for it in RULES_v3 as a v3.2 clarification, for measurements on screens first, and for each README to
+   say whether the record used it.
+2. D 003 is reported as failed, and D 002's config reruns unchanged, with the warm-up, as D 004.
+
+Done (8910562):
+- RULES_v3: a v3.2 line in the header and the ruling as "Untimed warm-up" under "Clock and hardware".
+- The warm-up records use is the one without the GPU, `scripts/warm_start.sh`, which screens have run since
+  07:07. On r16 seeds 1 and 2, vLLM's engine was up 55 s (H100) and 30 s (H200) after launch: weights loaded
+  in 0.7-0.8 s, `init engine` took 14-24 s, graph capture 3 s. Cold starts took up to 15 min before vLLM's first
+  log line. That brings start-up back to the H100's level (A 001's seeds lost 33-98 s in all), well inside
+  track A's 600-s margin. So I haven't built the GPU pass. It would save the remaining ~0.5 min per stage, but it
+  needs every piece of state restored exactly.
+- `run_item.sh` now warm-starts record seeds as well (`WARM_START=0` turns it off). For a record it appends the
+  time to `<record>/warm_start.log` as well as worker.log, so each README can cite it. The file was replaced
+  atomically. Its running copies had already exec'd into their seed scripts.
+- `records/v3/track_d/003_dm_math_fp32_h200/README.md` reports the failure: all five seeds with test scores and
+  clocks, and why seeds 0 and 2 ran over.
+- `records/v3/track_d/004_dm_math_fp32_h200_warm/config.json` is D 002's config.json, byte for byte.
+
+Queues and workers:
+- Only the two running workers are certain for the next ~15 h. `sbatch --test-only` puts a new mit_preemptable
+  H200 job at 10-27 04:37, and the mit_normal_gpu chain heads at 10-29.
+- A 004's seeds 0-4 are at the front of `h200`, which every worker reads. The two running workers take seeds 0
+  and 1 when r16 seeds 3 and 4 end (~13:25 and ~14:45), and seeds 2-4 after that. If nothing is preempted, A 004
+  lands ~05:30 tomorrow. It goes first because every track A challenger needs it as the holder, and it is
+  itself the first H200 track A record.
+- D 004's seeds 0-4 are in their own queue, `record-004_dm_math_fp32_h200_warm`. I cancelled the two pending
+  preemptable workers (26854534, 26927517) and resubmitted them reading that queue and then `h200`, as
+  26933254-55. Their age priority was ~180 points, so nothing was lost. D seeds need 376 min, so they stay off
+  the 6-h normal jobs, which read `h200`.
+- A 002 is at the end of `h200`, after r17 and r18, not beside A 004 as the 10-25 plan had it:
+  - Its H100 seeds (dev 0.300 / 0.270 / 0.472 / 0.315 / 0.263) have sd 0.085.
+  - Against A 001's 0.240 ± 0.045, the same gap would give a one-sided Welch p of about 0.05, so it is about
+    even odds to pass.
+  - r16 decides at ~14:45: if it promotes, its record (call it A 005) is the stronger challenger.
+  - r17 tells us whether the truncation penalty lifts the recipe further.
+  - If the laptop session wants A 002 sooner, moving its five lines to the front of `h200` is enough.
+- `held_records.txt` is emptied (a one-line note).
+- GPUs: 26824150 and 26854533 running (r16 seeds 3 and 4); pending 26933254, 26933255 and the two mit_normal_gpu
+  chain heads (26927304, 26927308): 6.

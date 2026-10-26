@@ -3,25 +3,22 @@
 (maintained by the research agent; see AGENT.md)
 
 **v3.1 (2026-10-25): the reference GPU is the H200 SXM (`NVIDIA H200`). The H100 records keep a
-separate board. The H200 board starts with reruns of the H100 holders' configs (LOG 10-25 01:24):**
+separate board. v3.2 (2026-10-26): an untimed warm-up is allowed (RULES_v3, "Untimed warm-up"); record
+seeds now run `scripts/warm_start.sh` first and log its time to `<record>/warm_start.log`.**
 
 | record | config | runs on | state |
 |---|---|---|---|
-| `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | preemptable H200 workers | all 5 seeds done; test 0.1590 / 0.1385 / 0.1455 / 0.1734 / 0.1526 (mean 0.1538); **seeds 0 and 2 over budget**, so the validator fails it (LOG 11:45) |
-| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | none: **held** | seeds 0-4 in `queue/held_records.txt` |
-| `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | none: **held** | seeds 0-4 in `queue/held_records.txt` |
+| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | any H200 worker (front of `h200`) | queued; seeds 0-1 start ~13:25 / ~14:45 on the running workers; lands ~10-27 05:30 if nothing is preempted |
+| `records/v3/track_d/004_dm_math_fp32_h200_warm` | D 002's, unchanged | preemptable H200 workers 26933254-55 (pending, est. 10-27 04:37) | queued, seeds 0-4 |
+| `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | any H200 worker | queued at the end of `h200` (LOG 13:05) |
+| `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | done | **failed**: seeds 0 and 2 over budget; README reports it (test mean of all five 0.1538) |
 
-- **Waiting on the maintainer (QUESTIONS 06:40, updated 11:45):** may record seeds use the untimed warm
-  start (no GPU) before each timed stage, and how should D 003 be handled (report it as failed and
-  rerun D 002's config with the warm start as D 004, or shorten budgets)? On H200 nodes a cold start
-  costs up to ~13 min a stage. The warm start runs on screens since 07:07 and fixed it there (vLLM up
-  20-62 s after the item starts). This gates the whole H200 board: A 004 must land before any track A
-  challenger can be compared.
 - A preempted seed is an infrastructure stop: its partial attempt goes to `extra/` and the same seed
   reruns (INBOX 10-25 11:15).
 - Promotion uses the H100 lines until the reruns land: A 0.2703 (3-seed form: every seed at least
   that), D 0.190. 5-seed form: mean at least the line, at least 4 of 5 seeds above the holder's dev
-  mean (A 0.240, D 0.160), at most one collapsed.
+  mean (A 0.240, D 0.160), at most one collapsed. When A 004 and D 004 land, their in-loop final dev
+  replaces these (PLAN).
 - node4900 is excluded from every worker (CPUs oversubscribed, LOG 10-25 14:30).
 
 H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 holds track D
@@ -29,7 +26,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324) and A 003 (dev 0.324).
 
-Updated 2026-10-26 11:45 EDT.
+Updated 2026-10-26 13:05 EDT.
 
 ## AWS boxes: off
 
@@ -40,19 +37,19 @@ otherwise. `queue/b200.txt` (r15) is parked.
 ## Running
 
 - mit_preemptable H200 (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900 excluded):
-  - 26824150: r16 seed 3 on node4301, ends ~13:25.
-  - 26854533: r16 seed 4 on node4300, ends ~14:45.
-  - 26854534, 26927517: pending.
+  - 26824150: r16 seed 3 on node4301, ends ~13:25, then A 004 from `h200`.
+  - 26854533: r16 seed 4 on node4300, ends ~14:45, then A 004 from `h200`.
+  - 26933254, 26933255: pending (est. 10-27 04:37); D 004's queue first, then `h200`.
 - mit_normal_gpu H200 (6 h, one item per job): two chains of three, heads 26927304 and 26927308
-  pending (successors `afterany`). They read A 004's and A 002's record queues, then `h200`.
+  pending (est. 10-29); they read A 004's and A 002's (empty) record queues, then `h200`.
 - Cap: 2 running + 4 pending heads = 6. I may update or cancel my own pending jobs without asking.
 
 ## Queues
 
-- `h200` (16): r17 `mal0_st500_trs05` / `trs02` seeds 0-2, r18 `d003rl_p256_lr3e-6` / `lr6e-6`
-  seeds 1-3, r17 seeds 3-4.
-- Record queues: empty. `queue/held_records.txt`: the ten A 004 / A 002 items, read by no worker.
-- `b200` (r15), `h100`, `later`: parked, read by no worker.
+- `h200` (26): A 004 seeds 0-4; r17 `mal0_st500_trs05` / `trs02` seeds 0-2; r18 `d003rl_p256_lr3e-6`
+  / `lr6e-6` seeds 1-3; r17 seeds 3-4; A 002 seeds 0-4. Every H200 worker reads it.
+- `record-004_dm_math_fp32_h200_warm` (5): D 004 seeds 0-4 (read by 26933254-55 only).
+- Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.
 
 ## Best so far
 
@@ -65,9 +62,10 @@ otherwise. `queue/b200.txt` (r15) is parked.
 ## Next
 
 - ~13:25 and ~14:45: r16 seeds 3 and 4 end. r16 promotes if both end above 0.240 without collapsing.
-  A record from it: r16's config plus `budget_steps_time_stop`, queued once A 004 can run.
-- ~15:00-17:00: r17 seed 0s end (trs05 and trs02 against r16).
-- Whenever the maintainer answers: release A 004 and A 002 (and start the D rerun) per the answer.
+  Then its record (r16's config plus `budget_steps_time_stop`) goes into `h200` right after A 004.
+- Check each record seed's `clock.json` `within_budget` and `warm_start.log` as soon as it ends.
+- r17 seed 0s start once A 004's seeds are all running (~00:05 on the running workers, sooner if the
+  pending workers start).
 
 ## Notes
 

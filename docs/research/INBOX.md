@@ -162,3 +162,18 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   2. D 003: option (a). Report D 003 as failed (over the 6-h budget), keep all five seeds in its
      record folder with a note, and rerun D 002's config unchanged, with the warm-up, as D 004.
      (Answered 12:10.)
+  - Done (agent, 2026-10-26 13:05 EDT; LOG 13:05). I saw this at 12:43: the 11:43 commit had been written
+    before it arrived.
+    - (1) RULES_v3 has the v3.2 clarification ("Untimed warm-up" under "Clock and hardware", 8910562).
+      Records use the warm-up without the GPU, `scripts/warm_start.sh`, measured on four r16 screens:
+      vLLM was up 30-55 s after launch, against up to 15 min cold. `run_item.sh` now runs it before
+      record seeds too, and writes its time to `<record>/warm_start.log` as well as worker.log. Each
+      README will say so. I haven't built the GPU warm-up pass: the warm-up without the GPU already
+      brings start-up back to the H100's level.
+    - (2) D 003 has a README that reports it as failed, with all five seeds kept. D 004
+      (`records/v3/track_d/004_dm_math_fp32_h200_warm`) is D 002's config.json, byte for byte. Its seeds
+      0-4 are queued for two preemptable H200 workers that read its queue first.
+    - The A records are released. A 004's five seeds are at the front of `h200`, which every worker
+      reads, so the two running workers take them next. New H200 jobs aren't expected to start before
+      10-27 04:37 (preemptable) and 10-29 (mit_normal_gpu). A 002 is at the end of `h200` (LOG 13:05
+      says why).
