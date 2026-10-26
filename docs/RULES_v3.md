@@ -5,6 +5,8 @@ decision, and the corrections made after launch). **Frozen on 2026-10-19** with 
 external data (see "Both tracks: external data"); the rules don't change while they are frozen.
 **v3.1 (2026-10-25):** the maintainer moved the reference GPU from the H100 80GB SXM to the
 **H200 SXM** (see "Clock and hardware"); nothing else changed.
+**v3.2 (2026-10-26), a clarification:** the maintainer ruled that an untimed warm-up before the
+clock starts is allowed, with conditions (see "Untimed warm-up" under "Clock and hardware").
 Edge cases the text doesn't settle are arbitrated by the maintainer, and rulings are added
 here. v3 replaces v2's "time to a threshold" with a **fixed compute budget, scored on a
 difficulty ladder**, and has two tracks. Evidence for each choice is in `docs/v3_design.md`.
@@ -181,6 +183,20 @@ constraint by itself solves nothing (base models: 0.003-0.011). On trained Qwen 
   configs (A 001, D 002) on the H200, as ordinary 5-seed records. Why: Engaging's
   non-preemptable queue has one H100 node and thirteen H200 SXM nodes, so H100 records queued
   behind a single node.
+- **Untimed warm-up** (v3.2, maintainer, 2026-10-26). A seed may warm up before its clock
+  starts, and the warm-up isn't timed:
+  - Without the GPU: reading the environment's libraries and the base model into the page cache,
+    and importing them in a process that sees no GPU.
+  - On the GPU, as modded-nanogpt's `train_gpt.py` does before its timer: engine start-up, CUDA
+    graphs, compilation, and one dummy step of each stage. This is allowed only if, afterwards,
+    every piece of trained state is exactly what it would have been without the warm-up: weights,
+    optimizer state, the lr schedule's position, RNG states, and data and prompt order.
+  - The warm-up uses no dev or test ladder data, nothing it produces is kept, and its time is
+    logged separately.
+  - Each record's README says whether its seeds used a warm-up, and which kind.
+  Why: on Engaging's H200 nodes, a cold start read the Python environment over the network
+  filesystems for up to ~13 min per stage. That pushed two of track D 003's five seeds over the
+  6-h budget, while the trainers' own clocks were unchanged (`docs/research/LOG.md`, 2026-10-26).
 - All seeds of a record train on one provider (one cloud, or one cluster), so differences between
   hosts don't mix into the seed spread. Runs elsewhere go in `extra/` with a note (for example
   track A 000's Modal run, `extra/modal_0`).
