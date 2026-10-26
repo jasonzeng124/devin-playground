@@ -2031,3 +2031,40 @@ seed 2 ends (~12:30). The other three H200 workers are ahead of it in the queue.
 - 26862717 runs D 003 seed 2 on node4300 since 23:30 (pretraining, then RL; ~6.2 h, ends ~05:45).
 - Six GPU jobs: 2 running, 4 pending (26824150, 26854533, the two mit_normal_gpu chain heads), and
   26854534 waits on 26803673.
+
+## 2026-10-26 (03:00): r14 seed 1 holds too (dev 0.403), so r14 closes at 0.401 on two seeds against r5's 0.087 with the same recipe; r16 seed 0 starts
+
+```
+  a01_fp32_lr1e-6_skip_cos_mal0      s0 done  290m final 0.113 best 0.392 t.10   50 spm  31.1 ent 0.06 inf  6.1 one-guess | 0.098 0.215 0.380 0.023 0.068
+  a01_fp32_lr1e-6_skip_cos_mal0      s1 done  290m final 0.063 best 0.378 t.10   48 spm  11.5 ent 0.26 inf 12.7 ok        | 0.087 0.168 0.322 0.333 0.047
+  a01_fp32_lr1e-6_skip_cos_mal0      s2 done  290m final 0.083 best 0.407 t.10   34 spm   8.8 ent 0.11 inf 10.2 ok        | 0.067 0.252 0.373 0.407 0.062
+= a01_fp32_lr1e-6_skip_cos_mal0        n=3 final 0.087 ± 0.025  ok/1-guess/div 2/1/0  median t.10 48m
+  a01_fp32_lr1e-6_skip_cos_mal0_tis2 s0 done  290m final 0.398 best 0.410 t.10   53 spm   1.3 ent 0.11 inf 26.4 ok        | 0.068 0.150 0.253 0.343 0.358
+  a01_fp32_lr1e-6_skip_cos_mal0_tis2 s1 done  290m final 0.403 best 0.403 t.10   57 spm   1.8 ent 0.11 inf 27.0 diverged  | 0.010 0.132 0.250 0.348 0.377
+= a01_fp32_lr1e-6_skip_cos_mal0_tis2   n=2 final 0.401 ± 0.004  ok/1-guess/div 1/0/1  median t.10 55m
+```
+
+- r14 seed 1 ended at dev 0.403, its best, still rising: 0.348 at step 300, 0.377 at 400, 0.390 at
+  500, 0.403 at its last step, 526. It resumed at step 333 after the 23:05 preemption; its rerun of
+  steps 334-350 scored 0.350 at step 350, where the first pass had 0.368. Seed 0 ran 463 steps.
+- The summarizer flags seed 1 "diverged" because half its outputs are malformed (0.47 in training,
+  0.505 in the last eval). That is the mal0 recipe, where a truncated answer scores 0 instead of a
+  penalty, and not a collapse: L1 is 0.99, and the pass rate climbed to the end. The malformed half
+  is room for the truncation reward (r15's `trs05`) later.
+- The sampler/trainer mismatch stayed flat (k3 ~0.00058 per token at step 452), and the clip did
+  nothing, as in seed 0.
+- So r14 = r5 + per-token logprobs + a cap that never clipped. Its two seeds hold at 0.40, where
+  r5's three seeds peaked at 0.38-0.41 and fell to 0.06-0.11. The difference that remains is speed:
+  r14 samples 2.2x slower, ran 463-526 steps in 290 min (r5: 1300-3179, most of them fast,
+  collapsed steps), and its time-based cosine reached the low lr by step count much earlier. r16
+  (`calibration/research_r16/mal0_st500`: r5's config, fast sampling, the cosine over 500 steps)
+  tests that directly. r16 seed 0 started at 02:41 on node2904 (H100); seeds 0-2 end ~07:00, ~11:15,
+  ~15:30.
+- r14 itself can't gate a record: it is time-based and ran on the H100, and its lr path would change
+  with the H200's sampling speed. If r16 passes (every seed at least 0.2703, none collapsed), the
+  record config is r16's with a hard time stop added.
+
+Elsewhere: 26824150 started D 003 seed 1 on node5100 at 01:10 and was preempted at 01:27, two
+minutes into pretraining (`seeds/1` will move to `extra/interrupted_1_2` when it reruns). 26854533
+restarted D 003 seed 3 on node4300 at 02:00. 26862717 is in D 003 seed 2's RL (ends ~05:45). GPUs:
+3 running, 26824150 and the two mit_normal_gpu chain heads pending: 6.

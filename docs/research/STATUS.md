@@ -27,7 +27,7 @@ Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324; seeds 0.300 / 
 0.315 / 0.263) and A 003 (dev 0.324; seeds 0.385 / 0.348 / 0.238 / 0.348 / 0.302; about one seed in
 five of its recipe collapses between steps 250 and 300).
 
-Updated 2026-10-26 00:58 EDT.
+Updated 2026-10-26 03:00 EDT.
 
 ## AWS boxes: off
 
@@ -39,16 +39,15 @@ $500 emergency budget, until a later INBOX note says otherwise. The launch sched
 
 ## Running
 
-- mit_preemptable H100 worker (`main:long`) 26803673: preempted at 23:05 (r14 seed 1 at step 396,
-  dev 0.368 at step 350), restarted on node2904 at 23:40 and resumed at step 333 from the 22:18 save
-  (step 348 at 00:56); ends ~02:45. Then r16 seeds 0-2 (`main`, ~4.2 h each, to ~15:30). 26786843 finished r10 seed 2 and exited
-  (18:42). Their H200 successors 26854533 (pending, eligible) and 26854534 (`afterany` 26803673) read
-  `record-003`, both A record queues, then `h200`.
+- mit_preemptable H100 worker (`main:long`) 26803673 on node2904: r16 seed 0 since 02:41 (ends
+  ~07:00), then seeds 1-2 (`main`, ~4.2 h each, to ~15:30). r14 seed 1 finished at 02:38 (dev 0.403).
+  Its H200 successor 26854534 (`afterany` 26803673) reads `record-003`, both A record queues, then
+  `h200`.
 - H200 workers on mit_preemptable (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900
-  excluded): 26862717 runs D 003 seed 2 on node4300 since 23:30 (ends ~05:45). 26824150 (D 003
-  seed 1 in hand) and 26854533 (seed 3 in hand) started on node4300 at 23:11 and 23:36 and were
-  preempted within a minute, before training; both pending again. All read `record-003` first, then
-  the A record queues, then `h200`.
+  excluded): 26862717 runs D 003 seed 2 on node4300 since 23:30 (in RL, ends ~05:45). 26854533 runs
+  D 003 seed 3 there since 02:00 (ends ~08:15). 26824150 (seed 1 in hand) was preempted again at
+  01:27 on node5100, two minutes into pretraining; pending. All read `record-003` first, then the A
+  record queues, then `h200`.
 - mit_normal_gpu: the two record chains, pending (Slurm's plan: 10-27).
 - Cap: 2 normal + 4 preemptable = 6. I may update or cancel my own pending jobs without asking.
 
@@ -57,21 +56,21 @@ $500 emergency budget, until a later INBOX note says otherwise. The launch sched
 - `record-003_dm_math_fp32_h200`: seeds 2-4. `record-004_ladder_constrained_h200`,
   `record-002_fp32_skip_cosine`: seeds 2-4 each.
 - `h200` (4): A 004 seed 0, A 002 seed 0, A 004 seed 1, A 002 seed 1 (r12 left at 18:46: r10 closed).
-- `main` (3): r16 `mal0_st500` seeds 0-2. `b200` (32, r15), `h100`, `later`: parked, read by no worker.
+- `main` (2): r16 `mal0_st500` seeds 1-2. `b200` (32, r15), `h100`, `later`: parked, read by no worker.
 
 ## Best so far
 
-- Track A, H100 dev: A 002 and A 003 (0.324). Best single screen seed: r14 seed 0 (r5 + TIS) 0.398
-  (best 0.410), held by its slow sampling's annealed lr, not by TIS (LOG 18:46); r16 / r15
-  `mal0_st500` test that. Closed: r10 (mean-centred advantages, 0.261 on three seeds), r9 (Clip-Cov),
+- Track A, H100 dev: A 002 and A 003 (0.324). Best screen: r14 (r5 + TIS) 0.401 on two seeds
+  (0.398, 0.403), where r5 fell to 0.087. TIS clipped nothing, so the likely cause is its slow
+  sampling's earlier lr anneal by step (LOG 03:00); r16 tests that by step. Closed: r10 (mean-centred advantages, 0.261 on three seeds), r9 (Clip-Cov),
   r13 (KL 0.05 with mean-centred advantages), W-REINFORCE, training temperature 1.2 in the -0.1 regime.
 - Track D, H100 dev: D 002's recipe 0.153 (screens) / 0.160 (record seeds). Closed: dm51 (+0.010 over
   dm26 on three seeds), r11 (lr 1e-5, 3e-5).
 
 ## Next
 
-- ~02:45: r14 seed 1 ends (second seed of the slow-clock condition, mismatch logged); r16 seed 0
-  starts, the first GPU run of `budget_steps` (check its first steps, `clock_s` and lr).
+- ~03:30: r16 seed 0's first steps, the first GPU run of `budget_steps`: check `clock_s` and the
+  lr path (8.2e-7 at step 150, 4.1e-7 at 300, 1.9e-7 at 400).
 - ~07:00, ~11:15, ~15:30: r16 seeds 0-2 end. r16 is step-capped, so its 3-seed screen can gate a
   record (PLAN: H200 or step-capped): every seed >= 0.2703 and none collapsed. A record config
   would also need a hard time stop next to `budget_steps` (a new option, off by default), so a run
