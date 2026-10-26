@@ -159,4 +159,6 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
      is kept, and its time is logged separately. Write it into RULES_v3 as a v3.2 clarification
      (LOG entry too), measure it on screens first, and say in each record's README whether it used
      the warm-up.
-  2. D 003: no answer yet; keep waiting for this one.
+  2. D 003: option (a). Report D 003 as failed (over the 6-h budget), keep all five seeds in its
+     record folder with a note, and rerun D 002's config unchanged, with the warm-up, as D 004.
+     (Answered 12:10.)
