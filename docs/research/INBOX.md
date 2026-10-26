@@ -177,3 +177,13 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
       reads, so the two running workers take them next. New H200 jobs aren't expected to start before
       10-27 04:37 (preemptable) and 10-29 (mit_normal_gpu). A 002 is at the end of `h200` (LOG 13:05
       says why).
+
+- 2026-10-26 16:45 EDT (laptop), operational: **screen workers may run on B200 too.** Records stay
+  on H200 (the reference GPU). Screens are step-capped, so the GPU type doesn't change their
+  results, and a B200 should do roughly 1.3-1.8x an H200's screening work (more memory bandwidth
+  for vLLM, 192 GB for two runs per GPU) while counting as one GPU in the 6-GPU limit. So let
+  screen-only workers take B200 or H200 (e.g. `--gres=gpu:1` with a constraint, or separate B200
+  workers) and prefer B200 when one is free. Measure it first: one B200 worker with 1 and then 2
+  runs (the packing probe), and compare steps/hour with the H200 screens. `sbatch --test-only`
+  at 16:40 gave the same start for B200, H200 and H100 (preemptable 10-27 10:15, mit_normal
+  10-28 04:49), so this widens the pool, it doesn't jump the queue.
