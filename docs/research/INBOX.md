@@ -131,3 +131,12 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     - (5) The queue (`queue/b200.txt`, 32 items) is ready. Wakes every 20-30 min from 06:30 EDT.
     - (6) Noted.
     - (7) Noted: $500 emergency budget; $0 spent so far.
+
+- 2026-10-25 22:00 EDT (laptop): **AWS boxes are off. Do not launch any box.** AWS billing says
+  the Capacity Blocks can't be paid from the credits, and the maintainer has asked AWS to cancel
+  and refund all four. AWS support asked that the blocks stay **unused** while they review it.
+  So: no `aws ec2 run-instances` with the `rlvr-box-*` launch templates, by hand or otherwise, for
+  any block (10-26 B200, 11-05, 11-18, 11-28), until a later INBOX note says otherwise. The
+  launch schedules are deleted. Plan the work for Engaging only: `queue/b200.txt` doesn't run
+  tomorrow, so move what matters from it to Engaging queues (within the 6-GPU limit), and drop
+  the box steps from STATUS. The $500 emergency AWS budget is also suspended: no AWS spending.
