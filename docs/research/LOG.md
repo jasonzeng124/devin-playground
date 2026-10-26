@@ -2117,3 +2117,105 @@ Actions:
   which suits a recipe whose cousin r5 collapsed. All five should end by ~15:30.
 - The mit_normal_gpu chain heads read only the two A record queues, which are now empty. If they
   start (Slurm's plan: 10-27 11:00 and 14:00) they exit at once. I'll deal with them before then.
+
+## 2026-10-26 (11:45): r16's first three seeds end 0.232 / 0.405 / 0.412, seed 0 sliding into truncation over its last 50 steps; D 003 fails validation with two seeds over budget; the warm start fixes cold starts on screens; r17 (truncation penalty in solved groups) and r18 (track D RL, 4x prompts) queued
+
+This session was down from 06:50 to 11:30. The restart script's prefix match found `research-watch`, so the dead
+agent was never restarted (fixed in a98dfa7). While it was down:
+- The two mit_normal_gpu chain heads started on node2434 at 06:51 and 06:53, a day earlier than Slurm's plan. They
+  read only the A record queues, which are held empty, so both exited at once.
+- 26803673 (H100) finished r16 seeds 0 and 1, and exited on an empty `main` at 10:50.
+- 26862717 finished D 003 seed 4 at 11:35 and exited on empty queues, two minutes before r17 was queued.
+
+r16 (`calibration/research_r16/mal0_st500`: r5's recipe with the cosine over 500 steps):
+
+```
+  mal0_st500                         s0 done  290m final 0.232 best 0.395 t.10   87 spm   1.7 ent 0.03 inf 18.9 diverged  | 0.050 0.092 0.335 0.355 0.395
+  mal0_st500                         s1 done  290m final 0.405 best 0.405 t.10   87 spm   1.7 ent 0.08 inf 22.3 diverged  | 0.033 0.065 0.277 0.345 0.385
+  mal0_st500                         s2 done  290m final 0.412 best 0.418 t.10   58 spm   1.7 ent 0.06 inf 21.8 ok        | 0.000 0.105 0.268 0.345 0.397
+  mal0_st500                         s3 RUN   162m final 0.300 best 0.300 t.10   87 spm   1.7 ent 0.15 inf 28.8 diverged  | 0.055 0.097 0.270 0.300 0.300
+  mal0_st500                         s4 RUN    56m final 0.035 best 0.035 t.10    - spm   1.7 ent 0.80 inf 15.8 diverged  | 0.035 0.035 0.035 0.035 0.035
+= mal0_st500                           n=3 final 0.349 ± 0.102  ok/1-guess/div 1/0/2  median t.10 87m
+```
+
+(Minutes are the step clock: 500 steps count as the 290-min budget. Seeds 0-1 ran on the H100 and seed 2 on the
+H200; the step cap makes the GPU irrelevant to the trajectory.)
+
+- Seeds 1 and 2 held to the end, at 0.405 and 0.412, and their dev was still at its best at step 450-500. That
+  matches r14's 0.398 and 0.403, now with fast sampling.
+- Seed 0 peaked at 0.395 (step 400) and fell to 0.232 at step 500. It wasn't the lr: the cosine had reached
+  1.1-1.0e-7. It was truncation. Seed 0 had truncated 54-64 % of its training outputs since step 300 (seeds 1-2:
+  41-47 % and 21-24 %), and in its last 50 steps the share rose while the reward fell:
+
+| steps | lr | training reward | truncated | entropy |
+|---|---|---|---|---|
+| 401-425 | 1.7e-7 | 0.404 | 0.54 | 0.048 |
+| 426-450 | 1.4e-7 | 0.398 | 0.54 | 0.036 |
+| 451-475 | 1.1e-7 | 0.337 | 0.59 | 0.031 |
+| 476-500 | 1.0e-7 | 0.263 | 0.64 | 0.033 |
+
+  Under malformed reward 0 a truncated search costs nothing more than a wrong answer, so nothing pushes back.
+- Promotion: the 3-seed form fails (seed 0 is below 0.2703). For the 5-seed form, seed 0 counts as collapsed
+  (labelled diverged, final below the holder's 0.240), the one allowed. r16 promotes if seeds 3 and 4 both end
+  above 0.240 without collapsing; the mean then clears 0.2703 on its own (it needs seeds 3 + 4 >= 0.3025).
+  Seed 3 is at step ~280 (dev 0.300 at step 250) and ends ~13:25, seed 4 ~14:45.
+- On an H200, 500 steps took 12,124 s of wall from the trainer's start (seed 2). An r16-style record
+  (`budget_steps` 500 with `budget_steps_time_stop`) would end ~200 min into its 300-min budget, so it can't run
+  over. But the H200 board needs A 004 (A 001's config, time-based, all 17,400 s) to land first, and A 004 has the
+  600-s margin problem. The warm-up answer gates all of H200 track A.
+
+D 003 (`records/v3/track_d/003_dm_math_fp32_h200`, D 002's config on the H200) has all five seeds:
+
+| seed | node | test | dev (final) | pretrain_s | GRPO overhead | total_s | within 21,600 |
+|---|---|---|---|---|---|---|---|
+| 0 | node4900 | 0.1590 | 0.168 | 6876 | 811 | 21727 | no |
+| 1 | node4301 | 0.1385 | 0.125 | 6779 | 88 | 20906 | yes |
+| 2 | node4300 | 0.1455 | 0.173 | 7206 | 478 | 21724 | no |
+| 3 | node4300 | 0.1734 | 0.183 | 6734 | 147 | 20921 | yes |
+| 4 | node4300 | 0.1526 | 0.153 | 6732 | 150 | 20922 | yes |
+
+(GRPO overhead = total - pretrain_s - the 14,040-s training clock.)
+
+- `validate_record_v3.py` fails seeds 0 and 2 (over budget), so D 003 can't be a record as it stands. Its five
+  seeds average 0.1538 ± 0.0134 on the test ladder (D 002, H100: 0.1512 ± 0.0202), dev 0.160.
+- Seeds 1, 3 and 4 used 20,906-20,922 s, as D 002 did on the H100 (20,884-20,971), so the recipe fits when
+  start-up is warm. The same node gave 7,206 s of pretraining at 03:30 and 6,732-6,734 s later.
+- Its RL hadn't plateaued: dev rose through the last hour on seeds 2-4 (0.147 to 0.173, 0.173 to 0.183, 0.148
+  to 0.153). Seed 0's flat end was the slow node. So moving RL time to pretraining isn't promising.
+
+Warm start on screens (`scripts/warm_start.sh`, run by `run_item.sh` since bc57b3a, before the CUDA check; off
+for record seeds):
+
+| item | node | warm start | item start to vLLM's first log line |
+|---|---|---|---|
+| r16 s1 | node2901 | 38 s | 56 s |
+| r16 s2 | node4300 | 30 s | 40 s |
+| r16 s3 | node4301 | 52 s | 62 s |
+| r16 s4 | node4300 | 9 s | 20 s |
+
+Cold, the CUDA check timed out at 150 s on 15 of 42 starts, and r16 seed 0 took 15 min to reach vLLM's first log
+on node2904. With the warm start, none of the four timed out. I added this to the open question (QUESTIONS
+06:40).
+
+Queued in `h200` (16 items):
+- **r17** (`calibration/research_r17`), r16 plus `malformed_reward_solved` (a truncated output scores this value
+  in groups with a correct sample, 0 elsewhere), against seed 0's slide and the 20-60 % truncated outputs that
+  score zero at eval: `mal0_st500_trs05` (-0.5) and `mal0_st500_trs02` (-0.2), seeds 0-2 first, then seeds 3-4
+  at the end of the queue. The control is r16, step-capped like them.
+- **r18** (`calibration/research_r18`), track D: D 003's RL from D 003's own pretrained models
+  (`screen_pretrained`) with `prompts_per_step` 256 instead of 64, at lr 3e-6 (`d003rl_p256_lr3e-6`) and 6e-6
+  (`d003rl_p256_lr6e-6`), seeds 1-3. In D 003's RL, sampling takes 0.9 of 1.05 s per step (vLLM scheduling a
+  110M model on the CPU), only ~5 of 64 groups are informative, and entropy is ~0.055. Four times the prompts
+  should cost well under four times the step time and give ~20 informative groups per update. Seeds 1-3 pair
+  with D 003's seeds on the same pretrained models and GPU type. Seed 0's control is the slow node4900 run.
+
+Workers:
+- Cancelled the two mit_normal_gpu chains (26824034-37 and 26824039-42). They read only the held A record queues,
+  so each start would exit at once, as their heads did at 06:51. My priority there is fair-share-bound (age 1,130
+  of 246,012), so resubmitting costs nothing.
+- Submitted two new chains of three, reading A 004's and A 002's queues and then `h200`: 26927304-06 and
+  26927308, 26927310, 26927311. They take record seeds first once the records are released, and screens until
+  then. One 6-h job runs one r17 item.
+- 26927517 replaces 26862717: mit_preemptable H200, A record queues and then `h200`, RESERVE_MIN 380.
+- GPUs: 26824150 (r16 seed 3) and 26854533 (r16 seed 4) running. 26854534, 26927517 and the two normal chain heads
+  pending: 6.

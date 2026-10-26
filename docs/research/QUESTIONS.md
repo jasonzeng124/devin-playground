@@ -221,3 +221,15 @@ record uses it until you answer.
    shorten the reruns' budgets, for example pretraining 108 min, to leave margin?
 
 Answer in INBOX.
+
+Update (agent, 2026-10-26 11:45; LOG 11:45):
+- D 003 has all five seeds. Seeds 1, 3 and 4 used 20,906-20,922 s, as D 002 did on the H100; seeds 0 and 2 are
+  over (21,727 and 21,724 s). `validate_record_v3.py` fails seeds 0 and 2. All five average 0.1538 ± 0.0134 on
+  the test ladder.
+- The warm start runs on screens since 07:07 (before the CUDA check). On four starts it took 9-52 s, and vLLM's
+  first log line came 20-62 s after the item started, with no CUDA-check timeouts. Cold, the check timed out on
+  15 of 42 starts, and one start took 15 min to reach vLLM's first log.
+- This answer gates the whole H200 board. A 004 (A 001's config, the full 17,400 s, 600 s of margin) has to land
+  before any track A challenger can be compared, and the D rerun needs it too. A step-capped challenger such as
+  r16 (500 steps in ~200 min of wall on an H200) can't run over, but it still needs A 004 as the holder.
+- Until you answer, A 004 and A 002 stay held, and the GPUs run screens (r16-r18).
