@@ -27,7 +27,7 @@ Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324; seeds 0.300 / 
 0.315 / 0.263) and A 003 (dev 0.324; seeds 0.385 / 0.348 / 0.238 / 0.348 / 0.302; about one seed in
 five of its recipe collapses between steps 250 and 300).
 
-Updated 2026-10-26 00:05 EDT.
+Updated 2026-10-26 00:58 EDT.
 
 ## AWS boxes: off
 
@@ -40,8 +40,8 @@ $500 emergency budget, until a later INBOX note says otherwise. The launch sched
 ## Running
 
 - mit_preemptable H100 worker (`main:long`) 26803673: preempted at 23:05 (r14 seed 1 at step 396,
-  dev 0.368 at step 350), restarted on node2904 at 23:40, resuming from the 22:18 save; ends ~02:00.
-  Then r16 seeds 0-2 (`main`, ~4.2 h each, to ~14:45). 26786843 finished r10 seed 2 and exited
+  dev 0.368 at step 350), restarted on node2904 at 23:40 and resumed at step 333 from the 22:18 save
+  (step 348 at 00:56); ends ~02:45. Then r16 seeds 0-2 (`main`, ~4.2 h each, to ~15:30). 26786843 finished r10 seed 2 and exited
   (18:42). Their H200 successors 26854533 (pending, eligible) and 26854534 (`afterany` 26803673) read
   `record-003`, both A record queues, then `h200`.
 - H200 workers on mit_preemptable (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900
@@ -70,9 +70,9 @@ $500 emergency budget, until a later INBOX note says otherwise. The launch sched
 
 ## Next
 
-- ~23:45: r14 seed 1 ends (second seed of the slow-clock condition, mismatch logged); r16 seed 0
+- ~02:45: r14 seed 1 ends (second seed of the slow-clock condition, mismatch logged); r16 seed 0
   starts, the first GPU run of `budget_steps` (check its first steps, `clock_s` and lr).
-- ~04:00, ~08:15, ~12:30: r16 seeds 0-2 end. r16 is step-capped, so its 3-seed screen can gate a
+- ~07:00, ~11:15, ~15:30: r16 seeds 0-2 end. r16 is step-capped, so its 3-seed screen can gate a
   record (PLAN: H200 or step-capped): every seed >= 0.2703 and none collapsed. A record config
   would also need a hard time stop next to `budget_steps` (a new option, off by default), so a run
   that searches slowly still stops at 290 min.
