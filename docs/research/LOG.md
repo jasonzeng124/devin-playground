@@ -2017,3 +2017,17 @@ mit_normal_gpu H200 job at 22:33. Trading a pending slot (the mit_normal_gpu cha
 estimated 10-27 10:00) for another screen worker would therefore not start anything sooner, so the
 six GPU jobs stay as they are. 26854534, the H200 successor of the H100 worker, waits until r16
 seed 2 ends (~12:30). The other three H200 workers are ahead of it in the queue.
+
+## 2026-10-26 (00:05): three H200 workers started at 23:11-23:36, two were preempted within a minute; D 003 seed 2 runs; r14 seed 1 resumes after a preemption
+
+- 26803673 (H100) was preempted on node2700 at 23:05, with r14 seed 1 at step 396 (229 min, dev
+  0.368 at step 350, still searching). It restarted on node2904 at 23:40 and resumes from the
+  hourly state saved at 22:18 (`resume/1/state.pt`, 20.6 GB). It redoes the steps since then and should end
+  ~02:00. r16 seeds 0-2 follow, now ending ~06:15, ~10:30 and ~14:45.
+- 26824150 started D 003 seed 1 on node4300 at 23:11 and was preempted at 23:12. 26854533 started
+  D 003 seed 3 there at 23:36 and was preempted at 23:36:48. Both stopped before training, during
+  the CUDA check: no seed directory was written, so nothing goes to `extra/`. Each keeps its seed in
+  hand (`queue/running/`) and reruns it when it restarts. Both are pending again (reason None).
+- 26862717 runs D 003 seed 2 on node4300 since 23:30 (pretraining, then RL; ~6.2 h, ends ~05:45).
+- Six GPU jobs: 2 running, 4 pending (26824150, 26854533, the two mit_normal_gpu chain heads), and
+  26854534 waits on 26803673.

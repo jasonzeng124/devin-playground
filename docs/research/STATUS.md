@@ -27,7 +27,7 @@ Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324; seeds 0.300 / 
 0.315 / 0.263) and A 003 (dev 0.324; seeds 0.385 / 0.348 / 0.238 / 0.348 / 0.302; about one seed in
 five of its recipe collapses between steps 250 and 300).
 
-Updated 2026-10-25 23:05 EDT.
+Updated 2026-10-26 00:05 EDT.
 
 ## AWS boxes: off
 
@@ -39,14 +39,16 @@ $500 emergency budget, until a later INBOX note says otherwise. The launch sched
 
 ## Running
 
-- mit_preemptable H100 worker (`main:long`) 26803673 runs r14 seed 1 on node2700 since 18:22 (step
-  378 at 22:53, dev 0.368 at step 350; ends ~23:45), then r16 seeds 0-2 (`main`, ~4.2 h each, to
-  ~12:30). 26786843 finished r10 seed 2 and exited
+- mit_preemptable H100 worker (`main:long`) 26803673: preempted at 23:05 (r14 seed 1 at step 396,
+  dev 0.368 at step 350), restarted on node2904 at 23:40, resuming from the 22:18 save; ends ~02:00.
+  Then r16 seeds 0-2 (`main`, ~4.2 h each, to ~14:45). 26786843 finished r10 seed 2 and exited
   (18:42). Their H200 successors 26854533 (pending, eligible) and 26854534 (`afterany` 26803673) read
   `record-003`, both A record queues, then `h200`.
 - H200 workers on mit_preemptable (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900
-  excluded): 26824150 (requeued at 12:10, pending; reruns D 003 seed 1 first), 26862717 (submitted 14:22 to replace node4900's 26824148; reads `record-003`, A 004's and A 002's
-  queues, then `h200`). Slurm estimates new H200 starts at 10-26 ~07:45.
+  excluded): 26862717 runs D 003 seed 2 on node4300 since 23:30 (ends ~05:45). 26824150 (D 003
+  seed 1 in hand) and 26854533 (seed 3 in hand) started on node4300 at 23:11 and 23:36 and were
+  preempted within a minute, before training; both pending again. All read `record-003` first, then
+  the A record queues, then `h200`.
 - mit_normal_gpu: the two record chains, pending (Slurm's plan: 10-27).
 - Cap: 2 normal + 4 preemptable = 6. I may update or cancel my own pending jobs without asking.
 
