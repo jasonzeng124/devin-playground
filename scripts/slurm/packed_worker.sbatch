@@ -21,6 +21,10 @@ set -uo pipefail
 cd "${RLVR_DIR:-$HOME/rlvr}"
 job=$SLURM_JOB_ID n=${PER_GPU:-2}
 export DEADLINE=${DEADLINE:-${SLURM_JOB_END_TIME:-$(date -d "$(squeue -h -j "$job" -o %e)" +%s)}}
+# On a B200, vLLM's attention (FlashInfer) JIT-builds kernels with $CXX (Spack GCC 12 in Engaging's default
+# environment) that need its libstdc++, newer than the Rocky 8 system one, so it goes first (LOG 2026-10-28).
+lib=$("${CXX:-g++}" -print-file-name=libstdc++.so.6 2>/dev/null)
+[[ $lib == /* ]] && export LD_LIBRARY_PATH=$(dirname "$lib")${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 for k in $(seq 1 "$n"); do
   SLURM_JOB_ID=$job-$k bash scripts/slurm/queue_worker.sbatch &
   (( k < n )) && sleep "${STAGGER_S:-120}"

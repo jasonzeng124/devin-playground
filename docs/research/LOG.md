@@ -2294,3 +2294,46 @@ one H200 run at matched output lengths, step-capped track A screens move to scre
 two per GPU, with r15's memory settings, from a queue with no record items (`h200` holds A 004 and
 A 002, which must stay on the H200). Screens with a time budget (r18, track D RL) stay on the H200,
 since their results depend on the GPU's speed.
+
+## 2026-10-28 (19:25): preemptions cost A 004 seed 0 at 99%; r16 seed 3 0.332; the B200 probe failed (libstdc++), fixed and requeued
+
+I was paused from 10-27 08:50 to 10-28 19:00 (usage limit). What ran, from sacct and
+`queue/worker.log` (EDT):
+- 26933254 started D 004 seed 0 on node4500 at 10-27 16:26 and was preempted 4.5 min in
+  (`extra/interrupted_0_1`). It started seed 0 again on node5100 at 10-28 12:17 and was preempted at
+  15:15, about 3 h in; that attempt moves to `extra/` when the worker restarts.
+- 26933255 started D 004 seed 1 on node5100 at 10-27 18:29 and was preempted at 19:36
+  (`extra/interrupted_1_1`). It started seed 1 again on node4400 at 10-28 13:21. That run ended
+  within budget: total_s 20,993 of 21,600 (pretraining 6,739 s, GRPO 14,287 s; the 57-s warm start
+  is logged separately), in-loop final dev 0.130. Its test-ladder eval is running.
+- 26824150 resumed r16 seed 3 on node4500 at 10-27 19:13 and finished it at 19:34. It then started
+  A 004 seed 0, which was preempted at 10-28 00:25 at train_s 17,271 of 17,400 (step 2,167; in-loop dev
+  0.15-0.16 from step 800 on). This was an infrastructure stop, so the attempt goes to `extra/` and
+  seed 0 reruns.
+- 26854533 resumed r16 seed 4 on node4400 at 10-27 20:16 and was preempted at 21:10, before its next
+  hourly save, so seed 4 resumes again from step ~296 (dev 0.303).
+- Probe 26953974 was preempted 3 min in at 11:10. It restarted at 12:38 on a B200, and every run
+  failed within 9 min (below).
+
+r16 (r5 plus cosine over 500 steps) has 4 of 5 seeds: 0.232 (diverged below 0.240, so it counts as
+collapsed), 0.405, 0.412 and 0.332; mean 0.345. If seed 4 ends above 0.240, r16 promotes: the mean
+is then at least 0.324 against the 0.2703 line, 4 of 5 seeds are above 0.240, and 1 is collapsed.
+
+Why the probe failed: every run died loading vLLM's attention kernel. On the B200, vLLM picks the
+FLASHINFER backend (on the H200 it uses FlashAttention). FlashInfer JIT-builds its decode kernel
+(`~/.cache/flashinfer/0.6.18.post1/100a/cached_ops/fmha_gen/fmha_gen.so`) with `$CXX`. Engaging's
+default environment loads Spack GCC 12.2.0 (`CXX` points to it), so the kernel needs GLIBCXX_3.4.26
+or later. All 12 B200 nodes run Rocky 8, whose system libstdc++ is GCC 8.5's (6.0.25). The process
+already holds the system library (from torch) when the kernel loads, so the kernel's RPATH to GCC
+12's lib64 doesn't help. Fix: B200 runs put `$CXX`'s libstdc++ directory first in `LD_LIBRARY_PATH`
+(`pack_probe.sh`, `packed_worker.sbatch`). `queue_worker.sbatch` and the H200 workers are unchanged.
+A CPU job on a Rocky 8 node (27161845, with libcuda from the CUDA stubs) checked it. Without the fix
+it reproduced the error. With the fix it loaded GCC 12's libstdc++ 6.0.30 and the version error was
+gone. The bare dlopen then stopped at a symbol that FlashInfer's loader (tvm_ffi) provides, so a
+second job, 27162074, loads the kernel through tvm_ffi.
+
+The probe is requeued as 27162075 (mit_preemptable B200, 2.5 h). It waits on 26933255 (afterany),
+which exits once seed 1's eval ends (less than RESERVE_MIN left), so the probe takes that slot. A new
+preemptable H200 worker, 27162158, reads D 004's queue and then `h200`. It waits on the probe, so
+D 004 gets a second reader. Cap: 26933255 running, plus 26854533, 26824150, 26933254, 26927304 and
+26927308 pending, makes 6. The probe and 27162158 queue behind 26933255, so they never add a seventh.
