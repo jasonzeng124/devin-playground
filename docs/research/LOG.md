@@ -2337,3 +2337,16 @@ which exits once seed 1's eval ends (less than RESERVE_MIN left), so the probe t
 preemptable H200 worker, 27162158, reads D 004's queue and then `h200`. It waits on the probe, so
 D 004 gets a second reader. Cap: 26933255 running, plus 26854533, 26824150, 26933254, 26927304 and
 26927308 pending, makes 6. The probe and 27162158 queue behind 26933255, so they never add a seventh.
+
+## 2026-10-28 (19:35): D 004 seed 1 test 0.1296; FlashInfer's loader works with the fix; the probe is next
+
+- D 004 seed 1 (rerun, node4400): test ladder 0.1296, pass@16 0.160, in-loop final dev 0.130,
+  within budget (total_s 20,993). D 003's five H200 seeds scored 0.139-0.173 (seed 1: 0.1385).
+  Committed with the two preempted first attempts (`extra/interrupted_0_1`, `interrupted_1_1`, with
+  notes).
+- CPU check 27162074 (node2507, Rocky 8): with `$CXX`'s libstdc++ first, `tvm_ffi.load_module` (the
+  loader FlashInfer uses) loads the cached B200 decode kernel. So the probe should get past the
+  error that stopped it.
+- 26933255 exited after seed 1 (less than 380 min left). Probe 27162075 is now eligible, and 27162158
+  (the second D 004 reader) waits on it. Cap: 0 running + 6 pending (26824150, 26854533, 26933254,
+  26927304, 26927308, 27162075).

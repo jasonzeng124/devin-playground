@@ -9,7 +9,7 @@ seeds now run `scripts/warm_start.sh` first and log its time to `<record>/warm_s
 | record | config | runs on | state |
 |---|---|---|---|
 | `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | any H200 worker (front of `h200`) | seed 0 preempted at 99% (10-28 00:25), reruns first on 26824150; seeds 1-4 queued |
-| `records/v3/track_d/004_dm_math_fp32_h200_warm` | D 002's, unchanged | preemptable H200 workers 26933254 (+ 27162158 after the probe) | seed 1 done (within budget, eval running); seed 0 reruns on 26933254; seeds 2-4 queued |
+| `records/v3/track_d/004_dm_math_fp32_h200_warm` | D 002's, unchanged | preemptable H200 workers 26933254 (+ 27162158 after the probe) | seed 1 done: test 0.1296, within budget; seed 0 reruns on 26933254; seeds 2-4 queued |
 | `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | any H200 worker | queued at the end of `h200` (LOG 13:05) |
 | `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | done | **failed**: seeds 0 and 2 over budget; README reports it (test mean of all five 0.1538) |
 
@@ -26,7 +26,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324) and A 003 (dev 0.324).
 
-Updated 2026-10-28 19:25 EDT.
+Updated 2026-10-28 19:35 EDT.
 
 ## AWS boxes: off
 
@@ -37,23 +37,23 @@ otherwise. `queue/b200.txt` (r15) is parked.
 ## Running
 
 - mit_preemptable H200 (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900 excluded):
-  - 26933255 (node4400): D 004 seed 1's test eval; then it exits (less than RESERVE_MIN left).
   - Pending after the 10-27/28 preemptions (LOG 10-28 19:25): 26824150 (A 004 seed 0 rerun first),
     26854533 (r16 seed 4 from step ~296), 26933254 (D 004 seed 0 rerun first).
   - 27162158: waits on the probe; D 004's queue, then `h200`.
 - mit_normal_gpu H200 (6 h, one item per job): two chains of three, heads 26927304 and 26927308
   (pending); they read A 004's and A 002's (empty) record queues, then `h200`.
-- B200 packing probe 27162075 (mit_preemptable, 2.5 h), waiting on 26933255: `pack_probe.sh`, now
-  with GCC 12's libstdc++ first (26953974 failed on it). 1 then 2 track A runs and 1 then 4 track D
+- B200 packing probe 27162075 (mit_preemptable, 2.5 h, pending): `pack_probe.sh`, now with GCC 12's
+  libstdc++ first (26953974 failed on it; a CPU check confirmed the fix). 1 then 2 track A runs and 1 then 4 track D
   runs; it prints steps/h (LOG 10-26 17:45, 10-28 19:25).
-- Cap: 1 running + 5 pending = 6; the probe and 27162158 wait in a chain behind 26933255. I may
+- Cap: 0 running + 6 pending (3 preemptable H200 workers, 2 normal heads, the probe); 27162158
+  waits on the probe. I may
   update or cancel my own pending jobs without asking.
 
 ## Queues
 
 - `h200` (25): A 004 seeds 1-4; r17 `mal0_st500_trs05` / `trs02` seeds 0-2; r18 `d003rl_p256_lr3e-6`
   / `lr6e-6` seeds 1-3; r17 seeds 3-4; A 002 seeds 0-4. Every H200 worker reads it.
-- `record-004_dm_math_fp32_h200_warm` (3): D 004 seeds 2-4 (read by 26933254, 26933255 and 27162158 only).
+- `record-004_dm_math_fp32_h200_warm` (3): D 004 seeds 2-4 (read by 26933254 and 27162158 only).
 - Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.
 
 ## Best so far
@@ -74,8 +74,6 @@ otherwise. `queue/b200.txt` (r15) is parked.
   workers (two per GPU, r15's memory settings) from a queue without record items; time-budgeted
   screens (r18) stay on the H200.
 - r17 seed 0s start once A 004's seeds 1-4 are all taken from `h200`.
-- When D 004 seed 1's eval ends: commit its files (`within_budget` already true).
-- CPU check 27162074 (FlashInfer's loader on Rocky 8): if it fails, fix it before the probe starts.
 
 ## Notes
 
