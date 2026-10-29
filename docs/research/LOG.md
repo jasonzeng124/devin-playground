@@ -2855,3 +2855,24 @@ r21 `mal0_st500_ent01_t10` (r16 + entropy bonus 0.01 below an entropy of 0.1), s
   seed is not enough to tell it from r16's good seeds (0.405-0.438). The bonus also cost nothing on
   memory (no OOM).
 - `ent05_t10` seed 0 started on the same worker at 19:18Z; seeds 1-2 of both arms follow.
+
+## 2026-10-29 18:45 EDT: r21 ent05 seed 0 ends at 0.395
+
+r21 `mal0_st500_ent05_t10` (r16 + entropy bonus 0.05 below an entropy of 0.1), seed 0, on B200 worker
+27168550 (15:18-18:21), 500 steps:
+
+| step | 100 | 200 | 300 | 400 | 500 |
+|---|---|---|---|---|---|
+| dev (greedy) | 0.072 | 0.232 | 0.313 | 0.372 | 0.395 |
+| logged entropy | 1.200 | 0.196 | 0.137 | 0.104 | 0.106 |
+
+- This seed's entropy fell more slowly than ent01 seed 0's, so the bonus was on for only 6 steps (first
+  at step 364). Dev rose to the end, with no slide. The final dev by level: L1 0.99, L2 0.39, L3 0.26,
+  L4 0.17, L5 0.08, L6 0.48. Max memory was 120 GB.
+- Quirk: step 12 logged entropy 0.0 (a step with no informative groups, so nothing was updated). That
+  turned the bonus on for step 13. It is harmless (one step at 1.6 entropy), but the target check should
+  skip such steps. I'll fix it as a new option-free change only after r21's queued seeds finish, since
+  they read this code.
+- Both r21 seeds so far end at about 0.40 with no slide. That is r16's good-seed level, not yet the
+  0.43 that a new record candidate needs. `ent01_t10` seed 1 started at 22:21Z; seeds 1-2 of
+  `ent05_t10` and seed 2 of `ent01_t10` follow.
