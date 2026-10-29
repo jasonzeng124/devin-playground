@@ -28,7 +28,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-29 10:10 EDT.
+Updated 2026-10-29 12:15 EDT.
 
 ## AWS boxes: off
 
@@ -42,24 +42,24 @@ otherwise. `queue/b200.txt` (r15) is parked.
   - 26854533 (pending, preempted 10-29 04:48): reruns A 004 seed 3 first.
   - 26824150 (pending, preempted 10-29 04:48): reruns A 004 seed 2 first.
   - 26933254: D 004 seed 0's rerun (node4300, from 10-29 08:43).
-  - 27162158: waits on B200 worker 27206873 (afterany); D 004's queue, then `h200`.
+  - 27162158 (pending, eligible since 10-29 12:05): D 004's queue, then `h200`.
 - mit_normal_gpu H200 (6 h, one item per job): two chains of three, heads 26927304 (est. 10-29 18:00)
   and 26927308 (waits on B200 worker 27168550); they read A 004's and A 002's (empty) record queues,
   then `h200`.
-- mit_preemptable B200 screen workers 27168550 and 27206873 (27168549 exited 10-29 04:43 on node5501-c1's
-  failed GPU; 27206873 excludes that node, LOG 10-29 04:50) (LOG 10-28 20:25): `packed_worker.sbatch`
+- mit_preemptable B200 screen worker 27168550 (27168549 exited 10-29 04:43 on node5501-c1's failed GPU;
+  27206873 cancelled 10-29 12:05 after a preemption, LOG 12:10) (LOG 10-28 20:25): `packed_worker.sbatch`
   with PER_GPU=1 (GCC 12's libstdc++ first, deadline from `squeue`), REQUIRE_GPU "NVIDIA B200",
   RESERVE_MIN 240, queue `screens_b200` only. One run per GPU: the probe found a second track A run
   adds 11 %.
-- Cap: 2 running (both B200) + 4 eligible pending (26824150, 26854533, 26933254, 26927304); 27162158
-  and 26927308 wait on the B200 workers. I may update or cancel my own pending jobs without asking.
+- Cap: 3 running (26927304, 26933254, 27168550) + 3 eligible pending (26824150, 26854533, 27162158);
+  26927308 waits on B200 worker 27168550, which exits when `screens_b200` is empty. I may update or cancel my own pending jobs without asking.
 
 ## Queues
 
 - `h200` (16): A 005 (`005_fp32_mal0_cos500_s400`) seeds 0-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_b200` (1): r20 `p96` seed 2. Running: `p96` seeds 0 (node5800-c1) and 1 (node5600-c1). r20 `t11`
-  closed on two seeds (0.290, 0.183; LOG 10-29 10:10). r17 and r19 closed. Read by the B200 workers only.
+- `screens_b200` (0): `p96` seed 1 runs on 27168550 (node5600-c1), the last item. r20 closed: `t11` (0.290,
+  0.183) and `p96` (collapses after step 300; LOG 10-29 12:10). r17 and r19 closed.
 - `record-004_dm_math_fp32_h200_warm` (3): D 004 seeds 2-4 (read by 26933254 and 27162158 only).
 - Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.
 
@@ -76,9 +76,10 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - A 005's seeds follow A 004's in `h200`. Check each record seed's `clock.json` `within_budget` and
   `warm_start.log` as soon as it ends; an A 005 seed should train about 2.7 h (400 steps).
-- r19 closed 10-29 08:45 (step 400: tc768 0.359, tc896 0.351, below r16; LOG). Earlier: (step 400: tc768 0.362 /
-  0.350, tc896 0.375). r20 tests training temperature 1.1 and 96 prompts per step. A new arm needs
-  about 0.43 to beat A 005's expected 0.397; its gating seeds then run on the H200.
+- Every slide so far (r16, r17, r19, r20 `p96`) starts within 50-100 steps of entropy reaching
+  0.035-0.045. Next: r21, an entropy bonus that turns on below a target entropy (new option, off by
+  default), on fresh B200 workers. A new arm needs about 0.43 to beat A 005's expected 0.397; its
+  gating seeds then run on the H200.
 - Track D packs well on a B200 (three runs 2.5x one run's steps/h), but only for step-capped RL
   screens; r18 is time-budgeted and stays on the H200.
 

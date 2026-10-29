@@ -2729,3 +2729,42 @@ Dev by step, mean ± sd of three seeds (r16: 0.351, 0.372, 0.397, 0.401, 0.364):
     was preempted at 15:15 EDT, 3,644 s into RL after the full pretraining. The rerun started at
     08:43.
 - A 004 seeds 2 and 3 still wait on their preempted workers (26824150, 26854533, Resources).
+
+## 2026-10-29 (12:10): r20 `p96` collapses after step 300 (seed 0 ends at 0.045); the collapse follows the entropy, not the step count; B200 worker 27206873 cancelled
+
+`p96` (96 prompts per step, r16's lr path):
+
+| seed | 250 | 300 | 350 | 400 | 450 | 500 |
+|---|---|---|---|---|---|---|
+| 0 | 0.377 | 0.395 | 0.357 | 0.227 | 0.172 | 0.045 |
+| 1 | 0.380 | 0.385 | 0.362 | 0.182 | (running) | |
+| r16 mean | 0.317 | 0.351 | 0.372 | 0.397 | 0.401 | 0.364 |
+
+Seed 0's training, by window:
+
+| steps | reward | truncated | entropy | lr |
+|---|---|---|---|---|
+| 251-300 | 0.412 | 0.53 | 0.068 | 4.8e-7 |
+| 301-350 | 0.403 | 0.54 | 0.044 | 3.5e-7 |
+| 351-400 | 0.305 | 0.41 | 0.036 | 2.3e-7 |
+| 401-450 | 0.231 | 0.28 | 0.041 | 1.5e-7 |
+| 451-500 | 0.107 | 0.29 | 0.061 | 1.1e-7 |
+
+Seed 1: reward 0.425 at steps 251-300, then 0.282 and 0.167. Its entropy went 0.078, 0.047, 0.035,
+0.056.
+
+- Bigger batches learn faster per step: 0.39 by step 300, which r16 reached at step 400. They also
+  reach the low-entropy state sooner. In both seeds, the reward fell within 50-100 steps of entropy
+  reaching 0.035-0.045, with truncation falling, not rising.
+- That matches every slide so far: r16 seeds 0 and 3, r19, r17 `trs02`. The trigger is entropy near
+  0.04, whatever the step or batch. Stopping before it (A 005 at step 400 on r16's path) works, but it
+  caps the recipe near 0.40.
+- The next lever is keeping entropy up once the policy is sharp. Entropy control doesn't exist in
+  `grpo.py` yet: KL 0.05 to the base held the policy at the base (r13), and Clip-Cov blew up (r9).
+  r21 will add an entropy bonus that turns on below a target entropy (off by default).
+- `p96` closes. Seed 1 finishes on 27168550, and then that worker exits on the empty queue.
+- B200 worker 27206873 was preempted at 11:58, 8 min into `p96` seed 2, and was pending. I cancelled
+  it (my own listed job) and removed its held item, so seed 2 isn't rerun. That makes 27162158 (D 004
+  then `h200`, H200) eligible.
+- Cap: 3 running (26927304, 26933254, 27168550), plus 3 that could run (26824150, 26854533,
+  27162158): 6.
