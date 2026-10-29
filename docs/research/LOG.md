@@ -2807,3 +2807,21 @@ r21 (`calibration/research_r21/`, r16's config, step-capped at 500 steps, B200):
   about 1.5-2 h.
 - What counts: dev that keeps rising past step 400 without a slide. A record candidate needs about
   0.43 (A 005's expected 0.397 + 0.03).
+
+## 2026-10-29 (13:10): A 004 seed 4: test 0.1834, a one-guess seed, within budget
+
+| seed | node | test ladder | pass@16 | truncated | mean tokens | in-loop final dev | steps | total_s |
+|---|---|---|---|---|---|---|---|---|
+| 0 | node4301 | 0.3135 | 0.5754 | 0.012 | 525 | 0.287 | 998 | 17,463 |
+| 1 | node4301 | 0.2358 | 0.5579 | 0.005 | 425 | 0.230 | 1042 | 17,438 |
+| 4 | node3100 | 0.1834 | 0.2429 | 0.000 | 47 | 0.185 | 2501 | 17,508 |
+
+- Seed 4 ran on mit_normal_gpu worker 26927304, with a 59-s warm start. It never learned to search:
+  47-token answers, 2,501 short steps, and pass@16 0.243 against 0.56-0.58 for the searching seeds.
+  It is the one-guess mode that A 001 also showed in one of five seeds on the H100 (PLAN reference
+  points: 4/1/0).
+- Its test pass@1 by level: L1 0.595, L2 0.151, L3 0.084, L4 0.058, L5 0.017, L6 0.195.
+- Every seed counts. Seeds 2 and 3 rerun when their preempted workers (26824150, 26854533) restart.
+- 26927304 exited after the seed: less than 330 min was left of its 6 h. The next job in its chain,
+  26927305, is now eligible and reads A 004's and A 002's (empty) queues, then `h200`, whose head is
+  A 005 seed 0.
