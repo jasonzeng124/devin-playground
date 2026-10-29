@@ -8,7 +8,7 @@ seeds now run `scripts/warm_start.sh` first and log its time to `<record>/warm_s
 
 | record | config | runs on | state |
 |---|---|---|---|
-| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | any H200 worker (front of `h200`) | seed 0's rerun runs on 26824150 (node4301, from 10-28 21:36); its preempted attempt is in `extra/interrupted_0_1`; seed 1 runs on 26854533 (node4301, from 23:06); seeds 2-4 queued |
+| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | any H200 worker (front of `h200`) | seed 0 done: test 0.3135, dev 0.287, within budget (17,463 s); its preempted attempt is in `extra/interrupted_0_1`; seed 1 runs on 26854533 (from 10-28 23:06), seed 2 on 26824150 (from 10-29 02:50); seeds 3-4 queued |
 | `records/v3/track_a/005_fp32_mal0_cos500_s400` | r16's, stopped at step 400 (`max_steps` 400), + `budget_steps_time_stop`, weights saved | any H200 worker | **new** (LOG 10-28 23:10, 10-29 00:30): r16 promoted; r16's dev at step 400 0.397 ± 0.011; seeds 0-4 queued in `h200` after A 004 |
 | `records/v3/track_d/004_dm_math_fp32_h200_warm` | D 002's, unchanged | preemptable H200 workers 26933254 (+ 27162158 after the B200 worker) | seed 1 done: test 0.1296, within budget; seed 0 reruns on 26933254; seeds 2-4 queued |
 | `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | any H200 worker | queued at the end of `h200` (LOG 13:05) |
@@ -28,7 +28,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-29 01:50 EDT.
+Updated 2026-10-29 02:55 EDT.
 
 ## AWS boxes: off
 
@@ -40,7 +40,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - mit_preemptable H200 (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900 excluded):
   - 26854533: A 004 seed 1 (node4301, from 23:06).
-  - 26824150: A 004 seed 0's rerun (node4301, from 21:36).
+  - 26824150: A 004 seed 2 (node4301, from 10-29 02:50).
   - 26933254 (pending): D 004 seed 0's rerun first.
   - 27162158: waits on B200 worker 27168549 (afterany); D 004's queue, then `h200`.
 - mit_normal_gpu H200 (6 h, one item per job): two chains of three, heads 26927304 (est. 10-29 18:00)
@@ -55,7 +55,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 ## Queues
 
-- `h200` (19): A 004 seeds 2-4; A 005 (`005_fp32_mal0_cos500_s400`) seeds 0-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
+- `h200` (18): A 004 seeds 3-4; A 005 (`005_fp32_mal0_cos500_s400`) seeds 0-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
   A 002 seeds 0-4. Every H200 worker reads it.
 - `screens_b200` (11): r19 `mal0_st500_tc768` / `tc896` seeds 0-2 first (LOG 10-29 01:45), then r17's
   remaining five. Read by the B200 workers only (no record items, no time-budgeted screens). r17: Done: `trs05` seeds 0 (0.190, short-guess collapse) and 1 (0.357),

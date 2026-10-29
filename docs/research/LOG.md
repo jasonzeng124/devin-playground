@@ -2566,3 +2566,21 @@ r17 (r16 + a training penalty on truncated outputs, on the B200s), the three fin
 - What counts: a final or step-400 dev clearly above r16's (0.364 final, 0.397 at step 400) with no
   slide. A record candidate needs about 0.43 (A 005's expected 0.397 + 0.03), with its gating seeds
   on the H200 (AGENT.md).
+
+## 2026-10-29 (02:55): A 004 seed 0: test 0.3135, within budget
+
+`records/v3/track_a/004_ladder_constrained_h200`, seed 0 (rerun after the 10-28 preemption), on
+node4301 (mit_preemptable H200), with a 31-s warm start:
+
+| test ladder | pass@16 | truncated | mean tokens | in-loop final dev | steps | total_s (budget 18,000) |
+|---|---|---|---|---|---|---|
+| 0.3135 | 0.5754 | 0.012 | 525 | 0.287 | 998 | 17,463 (within) |
+
+Test pass@1 by level: L1 0.921, L2 0.307, L3 0.235, L4 0.079, L5 0.010, L6 0.329.
+
+- A 001's config scored 0.2481 on the H100 board (dev 0.240). On the H200 the same config fits 998
+  steps into the budget. One seed is not a mean, but the H200 line for later arms will likely sit near
+  0.29 + 0.03 once A 004's five in-loop finals replace the H100 number (PLAN). A 005's expected 0.397
+  clears that.
+- Seed 1 runs on 26854533 (from 23:06, about 04:10 to the end of its training budget). Seed 2 started
+  on 26824150 at 02:50. Seeds 3-4 are next in `h200`, then A 005.
