@@ -2838,3 +2838,20 @@ third attempt, on preemptable worker 26933254 (node4300, 36-s warm start):
 - It is within budget and scores above D 002's H100 test mean (0.1512) and D 004 seed 1 (0.1296).
 - Seed 1 and seed 0 are done. Seed 2 started on the same worker at 18:34Z (144-s warm start); seeds 3
   and 4 stay queued for 26933254 and 27162158.
+
+## 2026-10-29 15:45 EDT: r21 ent01 seed 0, no slide
+
+r21 `mal0_st500_ent01_t10` (r16 + entropy bonus 0.01 below an entropy of 0.1), seed 0, on B200 worker
+27168550 (12:27-15:18), 500 steps:
+
+| step | 100 | 200 | 300 | 400 | 500 |
+|---|---|---|---|---|---|
+| dev (greedy) | 0.117 | 0.273 | 0.368 | 0.378 | 0.400 |
+| logged entropy | 0.391 | 0.126 | 0.101 | 0.104 | 0.104 |
+
+- The bonus first engaged at step 237 and was on for 57 of the remaining 264 steps. It held entropy
+  at about 0.10. Without it, r16, r17, r19 and r20 drifted down to 0.035-0.045 and then slid.
+- Dev kept rising to the end with no slide (r16's five seeds at 500: 0.232-0.438, mean 0.364). One
+  seed is not enough to tell it from r16's good seeds (0.405-0.438). The bonus also cost nothing on
+  memory (no OOM).
+- `ent05_t10` seed 0 started on the same worker at 19:18Z; seeds 1-2 of both arms follow.
