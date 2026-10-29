@@ -569,6 +569,27 @@ def test_budget_steps_time_stop_also_stops_a_step_capped_run_at_its_time_budget(
         run(GRPOConfig(**{**common, "budget_steps": 0}, budget_steps_time_stop=True, out_dir=str(tmp_path / "bad")))
 
 
+def test_eval_max_new_tokens_sets_the_eval_limit_and_leaves_training_rollouts_at_max_new_tokens(monkeypatch, tmp_path):
+    model, _, _ = _patch_tiny_training(monkeypatch, tmp_path)
+    limits = []
+    generate = model.generate
+
+    def spy(*args, **kwargs):  # (sampled = a training rollout, limit)
+        limits.append((kwargs["do_sample"], kwargs["max_new_tokens"]))
+        return generate(*args, **kwargs)
+
+    monkeypatch.setattr(model, "generate", spy)
+    common = dict(model="tiny", group_size=2, prompts_per_step=1, max_new_tokens=3, max_steps=1, eval_every=100,
+                  eval_limit=1, kl_coef=0.0, no_save=True)
+    run(GRPOConfig(**common, out_dir=str(tmp_path / "same")))
+    assert set(limits) == {(True, 3), (False, 3)}
+    limits.clear()
+    run(GRPOConfig(**common, eval_max_new_tokens=5, out_dir=str(tmp_path / "longer")))
+    assert set(limits) == {(True, 3), (False, 5)}
+    with pytest.raises(ValueError, match="eval_max_new_tokens"):
+        run(GRPOConfig(**common, eval_max_new_tokens=5, cache_len=16, out_dir=str(tmp_path / "bad")))
+
+
 def _ragged_batch(seed: int, lengths: list[int], prompt_width: int = 4):
     torch.manual_seed(seed)
     generated = torch.randint(2, 40, (len(lengths), prompt_width + max(lengths)))

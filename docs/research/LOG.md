@@ -2534,3 +2534,35 @@ r17 (r16 + a training penalty on truncated outputs, on the B200s), the three fin
   (about 1.5 h each on the B200s, and nothing else is waiting for those GPUs). But the arms would
   need about 0.43+ to beat A 005's expected dev, so r17 is now a question about the slide, not a
   record candidate.
+
+## 2026-10-29 (01:45): r19 trains with a shorter token limit than it is scored with (768 or 896, eval at 1,024); queued first on the B200s
+
+- The idea. The 1,024-token limit is where r16's points go:
+  - By step 400, 20-60 % of its dev outputs were truncated (seed 0 0.56, seed 4 0.20), and every
+    truncated output scores 0.
+  - Its two weakest finals (seeds 0 and 3) came from searches that grew into the limit after step
+    450.
+  - r17's flat penalty on truncated rollouts either overcorrected (short guesses) or didn't hold.
+
+  r19 instead caps the training rollouts below the eval limit. A truncated rollout still gets
+  reward 0, no worse than a wrong answer, so the only pressure is the positive advantage of shorter
+  correct searches. The policy should learn searches that finish within 768 or 896 tokens, leaving
+  slack at 1,024.
+- New option `eval_max_new_tokens` (`rlvr_speedrun/grpo.py`, off by default, so existing configs run
+  as before):
+  - If set, the in-loop eval uses it as its token limit, and training rollouts keep
+    `max_new_tokens`.
+  - vLLM's context is sized for the larger of the two.
+  - It needs `cache_len` 0 (the HF static caches are sized by `max_new_tokens`).
+
+  A new test checks both limits and the check. Ruff and the 134 tests pass. A record's test ladder
+  is scored by the reference scorer at 1,024 regardless.
+- Arms (`calibration/research_r19/`): `mal0_st500_tc768` and `mal0_st500_tc896`, which are r16's config
+  with `max_new_tokens` 768 or 896 and `eval_max_new_tokens` 1,024. Both are step-capped at 500 steps,
+  so they compare with r16's H100/H200 seeds. In-loop evals run every 50 steps, so the step-400
+  numbers compare with A 005.
+- Queue: seeds 0-2 of both, interleaved, at the front of `screens_b200`, ahead of r17's remaining five.
+  Each takes about 1.5 h on a B200, so the six take about 4.5 h on the two workers.
+- What counts: a final or step-400 dev clearly above r16's (0.364 final, 0.397 at step 400) with no
+  slide. A record candidate needs about 0.43 (A 005's expected 0.397 + 0.03), with its gating seeds
+  on the H200 (AGENT.md).

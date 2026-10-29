@@ -81,6 +81,9 @@ class GRPOConfig:
     malformed_reward_solved: float | None = None
     temperature: float = 1.0
     max_new_tokens: int = 48
+    # if > 0, the in-loop eval's token limit (needs cache_len 0); training rollouts keep max_new_tokens, so a run can
+    # train under a shorter limit than it is scored with
+    eval_max_new_tokens: int = 0
     few_shot: int = 3
     prompt_style: str = "v1"  # countdown.PROMPT_STYLES; used for training rollouts
     eval_prompt_style: str = ""  # prompt for the in-loop eval; "" = same as prompt_style
@@ -683,6 +686,7 @@ def _evaluate(
     """Greedy pass rate on `puzzles`; under data parallelism each rank decodes its shard and all ranks get the full result."""
     local = dist.shard(puzzles)
     local_completions = []
+    limit = config.eval_max_new_tokens or config.max_new_tokens
     with torch.no_grad():
         for start in range(0, len(local), config.eval_batch_size):
             batch = local[start : start + config.eval_batch_size]
@@ -692,7 +696,7 @@ def _evaluate(
             encoded, _ = _encode_prompts(tokenizer, batch, config, device, config.eval_prompt_style or config.prompt_style)
             if _is_vllm(caches):
                 k = max(1, config.eval_samples)
-                generated, _ = caches.generate(encoded, k, 1.0 if config.eval_samples else 0.0, config.max_new_tokens, tokenizer.pad_token_id,
+                generated, _ = caches.generate(encoded, k, 1.0 if config.eval_samples else 0.0, limit, tokenizer.pad_token_id,
                                                puzzles=batch if config.constrain_answer else None, think_budget=config.think_budget)
                 texts = tokenizer.batch_decode(generated[: n_real * k, encoded["input_ids"].shape[1] :], skip_special_tokens=True)
                 local_completions.extend(texts[i * k : (i + 1) * k] if config.eval_samples else texts[i] for i in range(n_real))
@@ -701,7 +705,7 @@ def _evaluate(
             assert not config.constrain_answer, "constrain_answer needs rollout_backend='vllm'"
             generated = model.generate(
                 **encoded,
-                max_new_tokens=config.max_new_tokens,
+                max_new_tokens=limit,
                 do_sample=False,
                 pad_token_id=tokenizer.pad_token_id,
                 stopping_criteria=answer_stopping_criteria(tokenizer),
@@ -877,6 +881,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError(f"budget_steps must be >= 0, got {config.budget_steps}")
     if config.budget_steps_time_stop and not (config.budget_steps > 0 and config.time_budget_s > 0):
         raise ValueError("budget_steps_time_stop needs budget_steps and time_budget_s")
+    if config.eval_max_new_tokens < 0 or (config.eval_max_new_tokens and config.cache_len):
+        raise ValueError(f"eval_max_new_tokens must be >= 0 and needs cache_len 0, got {config.eval_max_new_tokens}")
     late_config = replace(config, malformed_reward=None) if config.malformed_reward_until > 0 else config
     scheduled = config.lr_schedule != "constant" or config.lr_warmup_s > 0
     lr_at(config, config.lr_warmup_s)  # fail on a bad schedule before loading anything
@@ -890,7 +896,7 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
     if config.rollout_backend == "vllm":  # before the training model, so vLLM's memory profiling sees an empty GPU
         from .vllm_rollout import VLLMRollout
 
-        engine = VLLMRollout(config.model, 512 + config.max_new_tokens, config.vllm_gpu_memory, config.seed + 1_000_003 * dist.rank,
+        engine = VLLMRollout(config.model, 512 + max(config.max_new_tokens, config.eval_max_new_tokens), config.vllm_gpu_memory, config.seed + 1_000_003 * dist.rank,
                              constrain_answer=config.constrain_answer, logprobs=_wants_sampler_logprobs(config))
     elif config.rollout_backend != "hf":
         raise ValueError(f"unknown rollout_backend {config.rollout_backend!r} (expected 'hf' or 'vllm')")
