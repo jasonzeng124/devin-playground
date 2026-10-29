@@ -2825,3 +2825,16 @@ r21 (`calibration/research_r21/`, r16's config, step-capped at 500 steps, B200):
 - 26927304 exited after the seed: less than 330 min was left of its 6 h. The next job in its chain,
   26927305, is now eligible and reads A 004's and A 002's (empty) queues, then `h200`, whose head is
   A 005 seed 0.
+
+## 2026-10-29 14:45 EDT: D 004 seed 0 within budget
+
+D 004 (`004_dm_math_fp32_h200_warm`, D 002's recipe on the H200 with the untimed warm-up), seed 0's
+third attempt, on preemptable worker 26933254 (node4300, 36-s warm start):
+
+| seed | test ladder | pass@16 | truncated | mean tokens | final dev | RL steps | total s (of 21,600) |
+|---|---|---|---|---|---|---|---|
+| 0 | 0.1832 | 0.2367 | 0.000 | 25 | 0.182 | 14,955 | 20,816 (pretrain 6,731) |
+
+- It is within budget and scores above D 002's H100 test mean (0.1512) and D 004 seed 1 (0.1296).
+- Seed 1 and seed 0 are done. Seed 2 started on the same worker at 18:34Z (144-s warm start); seeds 3
+  and 4 stay queued for 26933254 and 27162158.
