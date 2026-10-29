@@ -28,7 +28,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-29 04:20 EDT.
+Updated 2026-10-29 04:55 EDT.
 
 ## AWS boxes: off
 
@@ -42,16 +42,17 @@ otherwise. `queue/b200.txt` (r15) is parked.
   - 26854533: A 004 seed 3 (node4301, from 10-29 04:14).
   - 26824150: A 004 seed 2 (node4301, from 10-29 02:50).
   - 26933254 (pending): D 004 seed 0's rerun first.
-  - 27162158: waits on B200 worker 27168549 (afterany); D 004's queue, then `h200`.
+  - 27162158: waits on B200 worker 27206873 (afterany); D 004's queue, then `h200`.
 - mit_normal_gpu H200 (6 h, one item per job): two chains of three, heads 26927304 (est. 10-29 18:00)
   and 26927308 (waits on B200 worker 27168550); they read A 004's and A 002's (empty) record queues,
   then `h200`.
-- mit_preemptable B200 screen workers 27168549 and 27168550 (LOG 10-28 20:25): `packed_worker.sbatch`
+- mit_preemptable B200 screen workers 27168550 and 27206873 (27168549 exited 10-29 04:43 on node5501-c1's
+  failed GPU; 27206873 excludes that node, LOG 10-29 04:50) (LOG 10-28 20:25): `packed_worker.sbatch`
   with PER_GPU=1 (GCC 12's libstdc++ first, deadline from `squeue`), REQUIRE_GPU "NVIDIA B200",
   RESERVE_MIN 240, queue `screens_b200` only. One run per GPU: the probe found a second track A run
   adds 11 %.
-- Cap: 4 running (2 B200, 2 H200) + 2 eligible pending (26933254, 26927304); 27162158 and 26927308 wait
-  on the B200 workers. I may update or cancel my own pending jobs without asking.
+- Cap: 3 running (2 H200, 1 B200) + 3 eligible pending (27206873, 26933254, 26927304); 27162158 and
+  26927308 wait on the B200 workers. I may update or cancel my own pending jobs without asking.
 
 ## Queues
 

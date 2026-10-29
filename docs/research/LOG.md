@@ -2595,3 +2595,24 @@ Test pass@1 by level: L1 0.921, L2 0.307, L3 0.235, L4 0.079, L5 0.010, L6 0.329
 Seed 1 had a 9-s warm start. Its test pass@1 by level: L1 0.778, L2 0.202, L3 0.130, L4 0.063,
 L5 0.014, L6 0.228. The two seeds spread as A 001's did on the H100 (dev 0.240 ± 0.045). Seed 3
 started on 26854533 at 04:14, and seed 2 runs on 26824150. Seed 4 is next in `h200`, then A 005.
+
+## 2026-10-29 (04:50): node5501-c1's GPU failed; r19 `tc896` seed 1 requeued once; replacement B200 worker 27206873
+
+- What happened on node5501-c1:
+  - At 04:43, B200 worker 27168549 finished r19 `tc896` seed 0 (final dev 0.352).
+  - The next item, `tc896` seed 1, failed 21 s after its start, in `torch._C._cuda_init()`.
+  - The item after that failed the worker's CUDA check ("CUDA unknown error"). That made two quick
+    failures in a row, so the worker put the second item (`tc768` seed 2) back and exited.
+
+  The cause is the node's GPU, not the item. So `tc896` seed 1 goes back to the front of
+  `screens_b200`, once.
+- New B200 worker 27206873: the same settings as 27168549, plus `--exclude=node5501-c1`. It starts
+  with warm Triton kernels in the shared cache (the other B200 worker is mid-run), so the
+  start-up race of 10-28 20:34 doesn't apply.
+- Cap: 27162158 (D 004's second reader) waits on 27206873 again (afterany). That leaves 3 running
+  (2 H200, 1 B200), plus 3 that could run (27206873, 26933254, 26927304): 6.
+- r19 so far, as dev at step 400 / final (r16: 0.397 / 0.364):
+  - `tc768` seed 0: 0.362 / 0.272.
+  - `tc896` seed 0: 0.375 / 0.352. Its dev truncated share went from 0.54 at step 400 to 0.27 at
+    step 500.
+  - `tc768` seed 1 is at step ~300, with dev 0.325 at step 300.
