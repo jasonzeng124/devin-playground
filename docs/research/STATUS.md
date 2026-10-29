@@ -43,9 +43,9 @@ otherwise. `queue/b200.txt` (r15) is parked.
   - 26824150 (pending, preempted 10-29 04:48): reruns A 004 seed 2 first.
   - 26933254: D 004 seed 0's rerun (node4300, from 10-29 08:43).
   - 27162158 (pending, eligible since 10-29 12:05): D 004's queue, then `h200`.
-- mit_normal_gpu H200 (6 h, one item per job): two chains of three, heads 26927304 (est. 10-29 18:00)
-  and 26927308 (waits on B200 worker 27168550); they read A 004's and A 002's (empty) record queues,
-  then `h200`.
+- mit_normal_gpu H200 (6 h, one item per job): two chains. 26927304 ran A 004 seed 4 (10-29 08:07-13:07);
+  26927305 is next (eligible), then 26927306. The other chain, 26927308 -> 26927310 -> 26927311, waits on B200
+  worker 27168550. They read A 004's and A 002's (empty) record queues, then `h200` (head: A 005 seed 0).
 - mit_preemptable B200 screen worker 27168550 (27168549 exited 10-29 04:43 on node5501-c1's failed GPU;
   27206873 cancelled 10-29 12:05 after a preemption, LOG 12:10) (LOG 10-28 20:25): `packed_worker.sbatch`
   with PER_GPU=1 (GCC 12's libstdc++ first, deadline from `squeue`), REQUIRE_GPU "NVIDIA B200",
