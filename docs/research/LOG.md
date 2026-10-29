@@ -2629,3 +2629,39 @@ started on 26854533 at 04:14, and seed 2 runs on 26824150. Seed 4 is next in `h2
   then.
 - The replacement B200 worker 27206873 started at 04:48 on node5800-c1, with r19 `tc896` seed 1.
 - Cap: 2 running (both B200), plus 4 that could run (26824150, 26854533, 26933254, 26927304): 6.
+
+## 2026-10-29 (07:00): r17 closes on five seeds (truncation penalties lose to r16); r20 (training temperature 1.1, 96 prompts per step) replaces its last five items on the B200s
+
+r17 (r16 + a training penalty on truncated rollouts in solved groups, B200, step-capped):
+
+```
+  mal0_st500_trs05  s0 done  290m final 0.190 best 0.305 t.10  87 spm  1.7 ent 0.03 inf 16.1 ok  | 0.032 0.097 0.305 0.240 0.177
+  mal0_st500_trs05  s1 done  290m final 0.357 best 0.357 t.10  87 spm  1.7 ent 0.08 inf 22.7 ok  | 0.030 0.090 0.212 0.293 0.332
+  mal0_st500_trs05  s2 done  290m final 0.340 best 0.340 t.10  116 spm  1.7 ent 0.08 inf 20.8 ok  | 0.018 0.078 0.212 0.283 0.322
+= mal0_st500_trs05  n=3 final 0.296 ± 0.092  ok/1-guess/div 3/0/0  median t.10 87m
+  mal0_st500_trs02  s0 done  290m final 0.230 best 0.395 t.10  58 spm  1.7 ent 0.05 inf 18.6 ok  | 0.047 0.110 0.250 0.382 0.395
+  mal0_st500_trs02  s1 done  290m final 0.392 best 0.400 t.10  87 spm  1.7 ent 0.08 inf 19.7 ok  | 0.042 0.075 0.292 0.357 0.392
+= mal0_st500_trs02  n=2 final 0.311 ± 0.114  ok/1-guess/div 2/0/0  median t.10 72m
+```
+
+- Both arms end below r16 (0.364 final, 0.397 at step 400). At -0.5, one seed gave up searching
+  (outputs fell to 165 tokens, dev 0.190). At -0.2, one seed still slid at the end (0.395 to 0.230).
+  r17 closes here.
+- Its remaining five items (`trs02` seeds 2-4, `trs05` seeds 3-4) are dropped from `screens_b200`
+  rather than run as filler on shared B200s.
+
+r20 (`calibration/research_r20/`, r16's config with one change each, step-capped at 500 steps, B200):
+
+| arm | change | what it tests |
+|---|---|---|
+| `mal0_st500_t11` | training rollouts at temperature 1.1 (log-probs at the same temperature) | the entropy fall: r16's and r19's seeds that slid had entropy near 0.03, and r19 `tc768` seed 0 slid with its truncated share flat |
+| `mal0_st500_p96` | 96 prompts per step instead of 64 | lower-noise steps on the same lr path. A 005 uses about 2.7 h of the 4.8-h budget, so 1.5x the batch fits 400 steps on an H200 (about 4 h) |
+
+- Seeds 0-2 of both, interleaved, follow r19's last two seeds. A `t11` seed takes about 1.5 h on a
+  B200, a `p96` seed about 3 h.
+- The in-loop dev eval stays greedy. A record scores at T = 1 (`v3.sampler`) whatever the training
+  temperature.
+- When `screens_b200` empties, the B200 workers exit, and the two chained H200 jobs (27162158,
+  26927308) become eligible.
+- H200s: all four pending H200 workers wait on Resources (A 004's two preempted seeds, D 004, and the
+  mit_normal_gpu head), so only the B200s are running.
