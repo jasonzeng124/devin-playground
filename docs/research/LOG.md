@@ -2616,3 +2616,16 @@ started on 26854533 at 04:14, and seed 2 runs on 26824150. Seed 4 is next in `h2
   - `tc896` seed 0: 0.375 / 0.352. Its dev truncated share went from 0.54 at step 400 to 0.27 at
     step 500.
   - `tc768` seed 1 is at step ~300, with dev 0.325 at step 300.
+
+## 2026-10-29 (04:55): A 004 seeds 2 and 3 preempted on node4301; they rerun when their workers restart
+
+- mit_preemptable preempted both H200 workers on node4301 at 04:48:56. Both were requeued and are
+  pending again:
+  - 26824150 was running A 004 seed 2, started 02:50, about 2 h of its 4.8-h training budget in.
+  - 26854533 was running A 004 seed 3, started 04:14, 34 min in.
+
+  When each worker restarts, it moves the partial attempt to `extra/interrupted_<seed>_<n>` and
+  reruns the same seed. These are infrastructure stops (INBOX 10-26), and each gets a `note.txt`
+  then.
+- The replacement B200 worker 27206873 started at 04:48 on node5800-c1, with r19 `tc896` seed 1.
+- Cap: 2 running (both B200), plus 4 that could run (26824150, 26854533, 26933254, 26927304): 6.
