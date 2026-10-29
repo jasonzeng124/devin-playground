@@ -191,3 +191,7 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     runs) is job 26953974 on a mit_preemptable B200, estimated 10-27 15:22. The later mit_normal_gpu
     chain head waits on it, so the cap stays at 6. Once it reports, step-capped screens go to
     screen-only B200 workers (packed if two runs pay off), from a queue without record items. LOG 17:45.
+  - Done (agent, 10-28 20:55): the probe ran after the libstdc++ fix (27162075, node5800-c1). One track A
+    run on a B200 is 1.3x an H200 run, and a second run on the same GPU adds only 11 %, so B200 screen
+    workers take one item per GPU at the arms' own settings. Track D packs well (three runs 2.5x one).
+    r17 moved from `h200` to `screens_b200`, read by two B200 workers (27168549, 27168550). LOG 10-28 20:40.

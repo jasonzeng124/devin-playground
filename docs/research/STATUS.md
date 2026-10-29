@@ -26,7 +26,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324) and A 003 (dev 0.324).
 
-Updated 2026-10-28 19:35 EDT.
+Updated 2026-10-28 20:55 EDT.
 
 ## AWS boxes: off
 
@@ -39,20 +39,23 @@ otherwise. `queue/b200.txt` (r15) is parked.
 - mit_preemptable H200 (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900 excluded):
   - Pending after the 10-27/28 preemptions (LOG 10-28 19:25): 26824150 (A 004 seed 0 rerun first),
     26854533 (r16 seed 4 from step ~296), 26933254 (D 004 seed 0 rerun first).
-  - 27162158: waits on the probe; D 004's queue, then `h200`.
-- mit_normal_gpu H200 (6 h, one item per job): two chains of three, heads 26927304 and 26927308
-  (pending); they read A 004's and A 002's (empty) record queues, then `h200`.
-- B200 packing probe 27162075 (mit_preemptable, 2.5 h, pending): `pack_probe.sh`, now with GCC 12's
-  libstdc++ first (26953974 failed on it; a CPU check confirmed the fix). 1 then 2 track A runs and 1 then 4 track D
-  runs; it prints steps/h (LOG 10-26 17:45, 10-28 19:25).
-- Cap: 0 running + 6 pending (3 preemptable H200 workers, 2 normal heads, the probe); 27162158
-  waits on the probe. I may
-  update or cancel my own pending jobs without asking.
+  - 27162158: waits on B200 worker 27168549 (afterany); D 004's queue, then `h200`.
+- mit_normal_gpu H200 (6 h, one item per job): two chains of three, heads 26927304 (est. 10-29 18:00)
+  and 26927308 (waits on B200 worker 27168550); they read A 004's and A 002's (empty) record queues,
+  then `h200`.
+- mit_preemptable B200 screen workers 27168549 and 27168550 (LOG 10-28 20:40): `packed_worker.sbatch`
+  with PER_GPU=1 (GCC 12's libstdc++ first, deadline from `squeue`), REQUIRE_GPU "NVIDIA B200",
+  RESERVE_MIN 240, queue `screens_b200` only. One run per GPU: the probe found a second track A run
+  adds 11 %.
+- Cap: 6 eligible (2 B200 workers, 3 preemptable H200 workers, 26927304); 27162158 and 26927308 wait
+  on the B200 workers. I may update or cancel my own pending jobs without asking.
 
 ## Queues
 
-- `h200` (25): A 004 seeds 1-4; r17 `mal0_st500_trs05` / `trs02` seeds 0-2; r18 `d003rl_p256_lr3e-6`
-  / `lr6e-6` seeds 1-3; r17 seeds 3-4; A 002 seeds 0-4. Every H200 worker reads it.
+- `h200` (15): A 004 seeds 1-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3; A 002 seeds 0-4.
+  Every H200 worker reads it.
+- `screens_b200` (10): r17 `mal0_st500_trs05` / `trs02` seeds 0-4, read by the B200 workers only (no
+  record items, no time-budgeted screens).
 - `record-004_dm_math_fp32_h200_warm` (3): D 004 seeds 2-4 (read by 26933254 and 27162158 only).
 - Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.
 
@@ -69,11 +72,11 @@ otherwise. `queue/b200.txt` (r15) is parked.
 - When 26854533 restarts: r16 seed 4 ends ~90 min later. r16 promotes if it ends above 0.240 without collapsing.
   Then its record (r16's config plus `budget_steps_time_stop`) goes into `h200` right after A 004.
 - Check each record seed's `clock.json` `within_budget` and `warm_start.log` as soon as it ends.
-- When the B200 probe reports: compare its steps/h with r16's H200 log at matched output lengths
-  (LOG 10-26 17:45). If two runs per B200 pay off, step-capped track A screens move to screen-only B200
-  workers (two per GPU, r15's memory settings) from a queue without record items; time-budgeted
-  screens (r18) stay on the H200.
-- r17 seed 0s start once A 004's seeds 1-4 are all taken from `h200`.
+- When r17's first B200 seeds run: read their s/step at r16's settings against r16's H200 27.1 s
+  (probe: 20.5 s at the packing settings). If r17 meets the promotion rule on the B200, three seeds
+  rerun on the H200 (AGENT.md: the screen that gates a record runs there).
+- Track D packs well on a B200 (three runs 2.5x one run's steps/h), but only for step-capped RL
+  screens; r18 is time-budgeted and stays on the H200.
 
 ## Notes
 

@@ -20,7 +20,14 @@
 set -uo pipefail
 cd "${RLVR_DIR:-$HOME/rlvr}"
 job=$SLURM_JOB_ID n=${PER_GPU:-2}
-export DEADLINE=${DEADLINE:-${SLURM_JOB_END_TIME:-$(date -d "$(squeue -h -j "$job" -o %e)" +%s)}}
+# The job's end from the time squeue says is left ([D-]HH:MM:SS, as queue_worker.sbatch reads it), not from
+# SLURM_JOB_END_TIME, which put two B200 workers with 2 days left under 4 h (LOG 2026-10-28 20:40).
+left=$(squeue -h -j "$job" -o %L) days=0 secs=0
+[[ $left == UNLIMITED ]] && left=30-00:00:00
+[[ $left == *-* ]] && { days=${left%%-*}; left=${left#*-}; }
+IFS=: read -ra parts <<<"$left"
+for x in "${parts[@]}"; do secs=$(( secs * 60 + 10#$x )); done
+export DEADLINE=${DEADLINE:-$(( $(date +%s) + 10#$days * 86400 + secs ))}
 # On a B200, vLLM's attention (FlashInfer) JIT-builds kernels with $CXX (Spack GCC 12 in Engaging's default
 # environment) that need its libstdc++, newer than the Rocky 8 system one, so it goes first (LOG 2026-10-28).
 lib=$("${CXX:-g++}" -print-file-name=libstdc++.so.6 2>/dev/null)

@@ -2350,3 +2350,63 @@ D 004 gets a second reader. Cap: 26933255 running, plus 26854533, 26824150, 2693
 - 26933255 exited after seed 1 (less than 380 min left). Probe 27162075 is now eligible, and 27162158
   (the second D 004 reader) waits on it. Cap: 0 running + 6 pending (26824150, 26854533, 26933254,
   26927304, 26927308, 27162075).
+
+## 2026-10-28 (20:40): the B200 probe: one track A run is 1.3x an H200 and a second adds 11 %, track D packs 2.5x with three runs; r17 moves to two B200 workers, one run each
+
+Probe 27162075 ran on node5800-c1 (mit_preemptable B200) from 19:16 to 20:14 with the libstdc++ fix
+(LOG 19:25). Track A started from r7 `s300` seed 1 (long searching outputs), track D from D 002's
+pretrained seed 0, as planned (LOG 10-26 17:45).
+
+| phase | settings | s/step (sampling + update) | tokens per sample | steps/h, summed |
+|---|---|---|---|---|
+| A, one run | `vllm_gpu_memory` 0.2, `micro_batch_tokens` 4096 | 20.5 (10.0 + 10.3) | 758 | 176 |
+| A, two runs | the same, started 90 s apart | 38.6 and 35.3 | 755 | 195 |
+| D, one run | `vllm_gpu_memory` 0.08 | 1.26 | 27 | 2,860 |
+| D, four runs | the same | 1.50 / 1.60 / 1.47; run 2 failed | 26 | 7,093 (three runs) |
+
+The H200 number to compare with is r16 seed 2's log (`vllm_gpu_memory` 0.35, `micro_batch_tokens` 8192):
+27.1 s/step at steps 250-300 (15.5 s sampling + 11.5 s update), at 740 tokens per sample, which is
+133 steps/h.
+
+What it means:
+- One track A run on a B200 is 1.3x an H200 run (20.5 against 27.1 s/step), even with the packing
+  settings, which give vLLM less cache and the update half-size micro-batches. Sampling is the gain:
+  10.0 s against 15.5 s.
+- A second run on the same B200 adds only 11 % (195 against 176 steps/h): one run already keeps the
+  GPU busy. One run at the arms' own settings (0.35 and 8192, too big to fit twice in 183 GB) should be
+  at least as fast as at the packing settings, so packing track A would need new configs for a few
+  percent at most. I don't pack track A on Engaging. Counted per GPU in the 6-GPU limit, a B200 does
+  1.3-1.5x an H200's track A screening.
+- Track D packs well: three runs together made 2.5x one run's steps per hour, and four would make about
+  3.3x. Run 2 died at start-up: vLLM found no memory for its cache ("No available memory for the
+  cache blocks"), because run 1 was still growing while run 2's engine measured the free memory. A longer
+  stagger or a larger share would fix that. Only step-capped track D RL screens could use this; r18 has
+  a time budget and stays on the H200.
+
+The cluster at 20:20: 436 jobs were pending for H200s on mit_preemptable and 23 for B200s, and 9
+B200s were free. None of my H200 jobs has started since 19:15, and `squeue --start` puts the
+mit_normal_gpu heads at 10-29 18:00 and 10-30 09:00.
+
+Decisions:
+- r17's ten items (`mal0_st500_trs05` and `trs02`, seeds 0-4) move from `h200` to a new screen-only
+  queue, `screens_b200`, with no record items. Two B200 workers read it, one run per GPU at the arms'
+  own settings: 27168549 and 27168550 (mit_preemptable, `packed_worker.sbatch` with PER_GPU=1 for its
+  libstdc++ line, REQUIRE_GPU "NVIDIA B200", RESERVE_MIN 240, 8 CPUs, 64 GB). r17's configs are
+  unchanged. r17 is step-capped at 500 steps, so its B200 seeds compare with r16's H200 seeds. The first
+  seeds' logs will give the real B200 speed at those settings.
+- AGENT.md wants the screen that gates a record to run on the H200. If r17 meets the promotion rule on
+  the B200, three seeds rerun on the H200 before a record attempt.
+- Cap: 27162158 (the second D 004 reader) now waits on 27168549, and the mit_normal_gpu head 26927308
+  waits on 27168550 (afterany). Six jobs can run together: the 2 B200 workers, the 3 preemptable H200
+  workers and 26927304. When `screens_b200` is empty, the B200 workers exit and the other two become
+  eligible.
+- `h200` now holds A 004 seeds 1-4, then r18 (6) and A 002 (5): 15 items.
+
+The first two B200 workers, 27167715 and 27167716, started at 20:22 on node5502-c1 and node5501-c1 and
+exited 3 s later ("less than 240 min left"), with nothing popped. `packed_worker.sbatch` took its
+sub-workers' deadline from `SLURM_JOB_END_TIME`, and on this Slurm (26.05.4) that is the start plus
+`--time-min`, not the time limit. A 1-CPU test job (27168049, the same `--time` and `--time-min`)
+printed END - START = 14,400 s while `squeue` gave 1-23:59:59 left. My earlier test of the script ran
+outside Slurm with DEADLINE set, so it missed this. The packed worker now reads the time left from
+`squeue` (%L), as `queue_worker.sbatch` itself does; ruff and the 133 tests pass. The workers were
+resubmitted as 27168549 and 27168550, and the two H200 jobs were chained behind those instead.
