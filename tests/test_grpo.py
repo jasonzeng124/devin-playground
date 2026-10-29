@@ -569,6 +569,47 @@ def test_budget_steps_time_stop_also_stops_a_step_capped_run_at_its_time_budget(
         run(GRPOConfig(**{**common, "budget_steps": 0}, budget_steps_time_stop=True, out_dir=str(tmp_path / "bad")))
 
 
+def test_entropy_bonus_raises_the_policy_entropy_on_a_step_without_advantages():
+    generated, attention, prompt_width = _ragged_batch(3, [7, 2, 5, 3])
+    advantages = torch.zeros(4)
+    base = _tiny_model().eval()
+    with torch.no_grad():
+        base.get_output_embeddings().weight.mul_(50.0)  # a sharp policy, as late in training
+
+    def mean_entropy(model):
+        with torch.no_grad():
+            _, mask, ent = grpo._completion_logprobs(model, generated, attention, prompt_width)
+        return ent[mask].mean().item()
+
+    after = {}
+    for coef in (0.0, 0.5):
+        model = copy.deepcopy(base)
+        config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, micro_batch_size=4, entropy_coef=coef)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+        grpo._update(model, None, generated, attention, advantages, prompt_width, 0, config, optimizer, torch.device("cpu"), grpo.SINGLE)
+        after[coef] = mean_entropy(model)
+    assert after[0.0] == pytest.approx(mean_entropy(base))  # no advantage and no bonus: no gradient
+    assert after[0.5] > after[0.0] + 1e-3
+
+
+def test_entropy_target_turns_the_bonus_on_after_a_step_below_it(monkeypatch, tmp_path):
+    _patch_tiny_training(monkeypatch, tmp_path)
+    common = dict(model="tiny", group_size=2, prompts_per_step=1, max_new_tokens=4, max_steps=3, eval_every=100,
+                  eval_limit=1, kl_coef=0.0, no_save=True, entropy_coef=0.1)
+
+    def coefs(name, **extra):
+        run(GRPOConfig(**common, **extra, out_dir=str(tmp_path / name)))
+        return [json.loads(line)["entropy_coef"] for line in (tmp_path / name / "train_log.jsonl").read_text().splitlines()]
+
+    assert coefs("always") == [0.1, 0.1, 0.1]  # target 0: every step
+    assert coefs("below", entropy_target=1e9) == [0.0, 0.1, 0.1]  # step 1 has no previous entropy
+    assert coefs("never", entropy_target=1e-9) == [0.0, 0.0, 0.0]
+    run(GRPOConfig(**{**common, "entropy_coef": 0.0}, out_dir=str(tmp_path / "off")))
+    assert all("entropy_coef" not in json.loads(line) for line in (tmp_path / "off" / "train_log.jsonl").read_text().splitlines())
+    with pytest.raises(ValueError, match="entropy_coef"):
+        run(GRPOConfig(**{**common, "entropy_coef": -0.1}, out_dir=str(tmp_path / "bad")))
+
+
 def test_eval_max_new_tokens_sets_the_eval_limit_and_leaves_training_rollouts_at_max_new_tokens(monkeypatch, tmp_path):
     model, _, _ = _patch_tiny_training(monkeypatch, tmp_path)
     limits = []

@@ -19,6 +19,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import transformers
+from torch.utils.checkpoint import checkpoint
 from transformers import StaticCache
 
 from . import benchmark
@@ -62,6 +63,11 @@ class GRPOConfig:
     constrain_answer: bool = False
     think_budget: int = 0  # with constrain_answer: force "<answer>" after this many free tokens (0 = never)
     cov_clip_frac: float = 0.0  # Clip-Cov: drop the gradient of this fraction of tokens with the largest log-prob x advantage covariance
+    # if > 0, subtract entropy_coef x the mean token entropy of the updated rows from the loss (a bonus against the
+    # policy sharpening), on steps after one whose logged entropy was below entropy_target (0 = on every step); the
+    # first step after a start or resume has no logged entropy, so it runs without the bonus unless the target is 0
+    entropy_coef: float = 0.0
+    entropy_target: float = 0.0
     # update only the rows with a nonzero advantage: with kl_coef == 0 and no Clip-Cov the others carry no
     # gradient, and the loss keeps the full token count, so the step is the same, only faster
     skip_zero_advantage: bool = False
@@ -152,6 +158,12 @@ def _set_seed(seed: int, rank: int = 0) -> None:
     torch.manual_seed(seed + 1_000_003 * rank)
 
 
+def _entropy(logits: torch.Tensor, log_z: torch.Tensor) -> torch.Tensor:
+    """Entropy of softmax(logits) per row, given log_z = logsumexp(logits); -inf (masked) logits add nothing."""
+    probs = torch.softmax(logits, dim=-1)
+    return log_z - (probs * logits.masked_fill(probs == 0, 0.0)).sum(-1)
+
+
 def _completion_logprobs(
     model,
     input_ids: torch.Tensor,
@@ -160,11 +172,13 @@ def _completion_logprobs(
     temperature: float = 1.0,
     prefix_len: int = 0,
     allowed=None,
+    entropy_grad: bool = False,
 ):
     """Per-token log-probs (at the sampling temperature) and entropies of completion tokens.
 
     `allowed` (per row, per completion position: allowed token ids or None) renormalises over the
     tokens the constrained sampler could pick, so log-probs are those of the constrained policy.
+    The entropies carry a gradient only with `entropy_grad` (for the entropy bonus).
 
     Positions follow the attention mask (as in `generate`), so padding may sit anywhere.
     If `prefix_len > 0`, columns `[:prefix_len]` are identical and fully attended in
@@ -202,9 +216,11 @@ def _completion_logprobs(
         logits = mask_logits(logits, pairs)
     log_z = torch.logsumexp(logits, dim=-1)
     lp = logits.gather(-1, labels[completion_mask].unsqueeze(-1)).squeeze(-1) - log_z
-    with torch.no_grad():
-        probs = torch.softmax(logits, dim=-1)
-        ent = log_z - (probs * logits.masked_fill(probs == 0, 0.0)).sum(-1)
+    if entropy_grad and torch.is_grad_enabled():  # for the entropy bonus; recomputed in the backward to keep memory flat
+        ent = checkpoint(_entropy, logits, log_z, use_reentrant=False)
+    else:
+        with torch.no_grad():
+            ent = _entropy(logits, log_z)
     token_lp = torch.zeros(labels.shape, dtype=lp.dtype, device=lp.device)
     token_lp[completion_mask] = lp
     entropy = torch.zeros(labels.shape, dtype=ent.dtype, device=ent.device)
@@ -537,6 +553,9 @@ def _update(
     kl_total = torch.zeros((), device=device)
     entropy_total = torch.zeros((), device=device)
     mismatch = None if sampler_lp is None else torch.zeros(len(_MISMATCH_SUMS) + 1, device=device)
+    bonus = config.entropy_coef > 0
+    if bonus:  # the bonus is a mean over the updated rows' tokens
+        bonus_tokens = dist.all_reduce_sum_(completion_valid[active].sum()).clamp_min(1)
     for sub in _micro_batches(completion_valid[active], prompt_width, config):
         rows = active[sub]
         width = prompt_width + int(completion_valid[rows].any(0).nonzero().max().item()) + 1 if completion_valid[rows].any() else prompt_width + 1
@@ -546,11 +565,12 @@ def _update(
         rows_allowed = None if allowed is None else [allowed[r] for r in rows.tolist()]
         with torch.autocast(device.type, dtype=torch.bfloat16, enabled=config.master_fp32):
             token_lp, completion_mask, entropy = _completion_logprobs(
-                model, ids, mask, prompt_width, config.temperature, 0 if config.grad_checkpoint else prefix_len, rows_allowed
+                model, ids, mask, prompt_width, config.temperature, 0 if config.grad_checkpoint else prefix_len, rows_allowed,
+                entropy_grad=bonus,
             )
         model.eval()
         policy_lp = token_lp[completion_mask]
-        entropy_total += entropy[completion_mask].sum()
+        entropy_total += entropy[completion_mask].detach().sum()
         repeated_advantages = adv.unsqueeze(1).expand(-1, completion_mask.shape[1])[completion_mask]
         if config.cov_clip_frac > 0 and policy_lp.numel() > 1:
             policy_lp = _cov_clip(policy_lp, repeated_advantages, config.cov_clip_frac)
@@ -559,6 +579,8 @@ def _update(
             if weights is not None:
                 repeated_advantages = repeated_advantages * weights
         policy_loss = -(repeated_advantages * policy_lp).sum() / token_count
+        if bonus:
+            policy_loss = policy_loss - config.entropy_coef * entropy[completion_mask].sum() / bonus_tokens
         if ref_model is None:
             kl = torch.zeros((), device=device)
             loss = policy_loss
@@ -881,6 +903,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError(f"budget_steps must be >= 0, got {config.budget_steps}")
     if config.budget_steps_time_stop and not (config.budget_steps > 0 and config.time_budget_s > 0):
         raise ValueError("budget_steps_time_stop needs budget_steps and time_budget_s")
+    if config.entropy_coef < 0 or config.entropy_target < 0:
+        raise ValueError(f"entropy_coef and entropy_target must be >= 0, got {config.entropy_coef} and {config.entropy_target}")
     if config.eval_max_new_tokens < 0 or (config.eval_max_new_tokens and config.cache_len):
         raise ValueError(f"eval_max_new_tokens must be >= 0 and needs cache_len 0, got {config.eval_max_new_tokens}")
     late_config = replace(config, malformed_reward=None) if config.malformed_reward_until > 0 else config
@@ -954,6 +978,7 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         if engine is not None:
             engine.sync(model)
     last_save = time.perf_counter() - start - eval_s
+    last_entropy = None  # the previous step's logged entropy, for entropy_target
     try:
         for step in range(first_step, config.max_steps + 1):
             easy_frac = max(0.0, 1.0 - step / config.curriculum_steps) if config.curriculum_steps > 0 else 0.0
@@ -968,7 +993,12 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
                     group["lr"] = lr_at(config, spent)
             step_start = time.perf_counter()
             step_config = late_config if 0 < config.malformed_reward_until <= step else config
+            if config.entropy_coef > 0 and config.entropy_target > 0 and not (last_entropy is not None and last_entropy < config.entropy_target):
+                step_config = replace(step_config, entropy_coef=0.0)
             info = grpo_step(model, ref_model, tokenizer, dist.shard(puzzles), step_config, optimizer, device, caches, dist)
+            last_entropy = info["entropy"]
+            if config.entropy_coef > 0:
+                info["entropy_coef"] = step_config.entropy_coef
             if engine is not None:
                 engine.sync(model)
             step_elapsed = time.perf_counter() - step_start

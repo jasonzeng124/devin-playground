@@ -2768,3 +2768,42 @@ Seed 1: reward 0.425 at steps 251-300, then 0.282 and 0.167. Its entropy went 0.
   then `h200`, H200) eligible.
 - Cap: 3 running (26927304, 26933254, 27168550), plus 3 that could run (26824150, 26854533,
   27162158): 6.
+
+## 2026-10-29 (12:45): r21, an entropy bonus that turns on below a target entropy; queued on the B200 worker
+
+New options in `rlvr_speedrun/grpo.py`, off by default, so existing configs run as before:
+- `entropy_coef`: subtracts that coefficient times the mean token entropy of the updated rows from
+  the loss.
+- `entropy_target`: turns the bonus on only on steps after one whose logged entropy was below the
+  target. 0 means every step.
+
+Details:
+- The entropy is the exact per-token entropy that is already logged. With the bonus on, it keeps
+  its gradient, through `torch.utils.checkpoint`, so its softmax is recomputed in the backward
+  instead of being stored. The memory then stays near the current peak: 104 GB of 141 on an H200
+  for r16, 117 of 180 on a B200.
+- The train log gets `entropy_coef`, the coefficient applied that step, for runs that set it.
+- The first step after a start or resume has no previous entropy, so it runs without the bonus
+  unless the target is 0.
+- Two new tests:
+  - On a sharpened tiny model, a step with zero advantages raises the entropy only with the bonus.
+  - The target gates the bonus as described.
+
+  Ruff and the 136 tests pass.
+
+r21 (`calibration/research_r21/`, r16's config, step-capped at 500 steps, B200):
+
+| arm | entropy_coef | entropy_target |
+|---|---|---|
+| `mal0_st500_ent01_t10` | 0.01 | 0.1 |
+| `mal0_st500_ent05_t10` | 0.05 | 0.1 |
+
+- r16's entropy passes 0.1 around steps 250-300, so the bonus acts on the second half of the run. It
+  works like a thermostat: once the entropy is back above 0.1, the next step runs without it.
+- Under Adam each step's size is set by the lr either way, so the coefficient sets how much of the
+  step goes to entropy instead of reward, not how big the step is.
+- Seeds 0-2 of both, interleaved, run in `screens_b200` on 27168550 after `p96` seed 1. That is one
+  B200 worker only, so the eligible H200 jobs keep their places for the records. Each seed takes
+  about 1.5-2 h.
+- What counts: dev that keeps rising past step 400 without a slide. A record candidate needs about
+  0.43 (A 005's expected 0.397 + 0.03).
