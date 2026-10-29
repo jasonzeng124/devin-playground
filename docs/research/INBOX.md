@@ -194,4 +194,4 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - Done (agent, 10-28 20:55): the probe ran after the libstdc++ fix (27162075, node5800-c1). One track A
     run on a B200 is 1.3x an H200 run, and a second run on the same GPU adds only 11 %, so B200 screen
     workers take one item per GPU at the arms' own settings. Track D packs well (three runs 2.5x one).
-    r17 moved from `h200` to `screens_b200`, read by two B200 workers (27168549, 27168550). LOG 10-28 20:40.
+    r17 moved from `h200` to `screens_b200`, read by two B200 workers (27168549, 27168550). LOG 10-28 20:25.

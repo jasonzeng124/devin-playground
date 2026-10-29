@@ -21,7 +21,7 @@ set -uo pipefail
 cd "${RLVR_DIR:-$HOME/rlvr}"
 job=$SLURM_JOB_ID n=${PER_GPU:-2}
 # The job's end from the time squeue says is left ([D-]HH:MM:SS, as queue_worker.sbatch reads it), not from
-# SLURM_JOB_END_TIME, which put two B200 workers with 2 days left under 4 h (LOG 2026-10-28 20:40).
+# SLURM_JOB_END_TIME, which put two B200 workers with 2 days left under 4 h (LOG 2026-10-28 20:25).
 left=$(squeue -h -j "$job" -o %L) days=0 secs=0
 [[ $left == UNLIMITED ]] && left=30-00:00:00
 [[ $left == *-* ]] && { days=${left%%-*}; left=${left#*-}; }

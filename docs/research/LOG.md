@@ -2351,7 +2351,7 @@ D 004 gets a second reader. Cap: 26933255 running, plus 26854533, 26824150, 2693
   (the second D 004 reader) waits on it. Cap: 0 running + 6 pending (26824150, 26854533, 26933254,
   26927304, 26927308, 27162075).
 
-## 2026-10-28 (20:40): the B200 probe: one track A run is 1.3x an H200 and a second adds 11 %, track D packs 2.5x with three runs; r17 moves to two B200 workers, one run each
+## 2026-10-28 (20:25): the B200 probe: one track A run is 1.3x an H200 and a second adds 11 %, track D packs 2.5x with three runs; r17 moves to two B200 workers, one run each
 
 Probe 27162075 ran on node5800-c1 (mit_preemptable B200) from 19:16 to 20:14 with the libstdc++ fix
 (LOG 19:25). Track A started from r7 `s300` seed 1 (long searching outputs), track D from D 002's
@@ -2410,3 +2410,14 @@ printed END - START = 14,400 s while `squeue` gave 1-23:59:59 left. My earlier t
 outside Slurm with DEADLINE set, so it missed this. The packed worker now reads the time left from
 `squeue` (%L), as `queue_worker.sbatch` itself does; ruff and the 133 tests pass. The workers were
 resubmitted as 27168549 and 27168550, and the two H200 jobs were chained behind those instead.
+
+## 2026-10-28 (20:34): r17 `trs05` seed 0 failed at start-up on the shared Triton cache; requeued once
+
+Both B200 workers started their first items at the same moment (20:28), and vLLM's kernel warm-up
+compiled the same new sm_100 Triton kernels on both nodes into the shared cache under my home
+directory. `trs05` seed 0 (node5600-c1) read a file that the other node was replacing: `OSError: [Errno
+116] Stale file handle` in Triton's compiler, 4 min in, before any step. It is a host failure, so the
+item goes back to the front of `screens_b200`, once (`screen_seed.sh` keeps the failed log as
+`stdout.interrupted.<stamp>.log`). The other node's run (`trs02` seed 0) got past the warm-up, and the
+same worker's next item (`trs05` seed 1) found the kernels cached. Only simultaneous first compiles
+race, so later B200 workers start a few minutes apart.

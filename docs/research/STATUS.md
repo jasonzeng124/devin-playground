@@ -43,7 +43,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
 - mit_normal_gpu H200 (6 h, one item per job): two chains of three, heads 26927304 (est. 10-29 18:00)
   and 26927308 (waits on B200 worker 27168550); they read A 004's and A 002's (empty) record queues,
   then `h200`.
-- mit_preemptable B200 screen workers 27168549 and 27168550 (LOG 10-28 20:40): `packed_worker.sbatch`
+- mit_preemptable B200 screen workers 27168549 and 27168550 (LOG 10-28 20:25): `packed_worker.sbatch`
   with PER_GPU=1 (GCC 12's libstdc++ first, deadline from `squeue`), REQUIRE_GPU "NVIDIA B200",
   RESERVE_MIN 240, queue `screens_b200` only. One run per GPU: the probe found a second track A run
   adds 11 %.
@@ -54,8 +54,9 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - `h200` (15): A 004 seeds 1-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3; A 002 seeds 0-4.
   Every H200 worker reads it.
-- `screens_b200` (10): r17 `mal0_st500_trs05` / `trs02` seeds 0-4, read by the B200 workers only (no
-  record items, no time-budgeted screens).
+- `screens_b200` (8): r17 `mal0_st500_trs05` / `trs02`, read by the B200 workers only (no record items,
+  no time-budgeted screens). Running: `trs02` seed 0 (node5501-c1), `trs05` seed 1 (node5600-c1).
+  Queued: `trs05` seed 0 (requeued once after the shared Triton cache race, LOG 20:34), then seeds 1-4.
 - `record-004_dm_math_fp32_h200_warm` (3): D 004 seeds 2-4 (read by 26933254 and 27162158 only).
 - Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.
 
