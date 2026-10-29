@@ -28,7 +28,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-29 00:35 EDT.
+Updated 2026-10-29 01:50 EDT.
 
 ## AWS boxes: off
 
@@ -57,10 +57,10 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - `h200` (19): A 004 seeds 2-4; A 005 (`005_fp32_mal0_cos500_s400`) seeds 0-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_b200` (5): r17 `mal0_st500_trs05` / `trs02`, read by the B200 workers only (no record items,
-  no time-budgeted screens). Done: `trs05` seeds 0 (0.190, short-guess collapse) and 1 (0.357),
+- `screens_b200` (11): r19 `mal0_st500_tc768` / `tc896` seeds 0-2 first (LOG 10-29 01:45), then r17's
+  remaining five. Read by the B200 workers only (no record items, no time-budgeted screens). r17: Done: `trs05` seeds 0 (0.190, short-guess collapse) and 1 (0.357),
   `trs02` seed 0 (0.230, slid). Running: `trs02` seed 1 (node5501-c1, from 23:21), `trs05` seed 2
-  (node5600-c1, from 23:58). Queued: `trs05` 3, `trs02` 2-3, then seed 4 of both (LOG 10-29 00:30).
+  (node5600-c1, from 23:58). Queued after r19: `trs05` 3, `trs02` 2-3, then seed 4 of both (LOG 10-29 00:30).
 - `record-004_dm_math_fp32_h200_warm` (3): D 004 seeds 2-4 (read by 26933254 and 27162158 only).
 - Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.
 
@@ -77,11 +77,10 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - A 005's seeds follow A 004's in `h200`. Check each record seed's `clock.json` `within_budget` and
   `warm_start.log` as soon as it ends; an A 005 seed should train about 2.7 h (400 steps).
-- r17 (B200, step-capped) is now a question about the late slide, not a record candidate: a new arm
-  needs about 0.43 to beat A 005's expected 0.397 (LOG 10-29 00:30). Before `screens_b200` empties
-  (~6 h), queue the next B200 arm or let the workers exit (the chained H200 jobs then become eligible).
-  Candidates: bigger batches in A 005's spare ~2 h (prompts 96 or group 12), aimed at running past
-  step 400 without the slide.
+- r19 (B200, step-capped): training under a shorter token limit (768 / 896) than the eval's 1,024,
+  against the truncation slide. A new arm needs about 0.43 to beat A 005's expected 0.397; its gating
+  seeds then run on the H200. r17 is now a question about the slide, not a record candidate.
+  Other candidates for A 005's spare ~2 h: bigger batches (prompts 96 or group 12).
 - Track D packs well on a B200 (three runs 2.5x one run's steps/h), but only for step-capped RL
   screens; r18 is time-budgeted and stays on the H200.
 
