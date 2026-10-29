@@ -8,8 +8,9 @@ seeds now run `scripts/warm_start.sh` first and log its time to `<record>/warm_s
 
 | record | config | runs on | state |
 |---|---|---|---|
-| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | any H200 worker (front of `h200`) | seed 0's rerun runs on 26824150 (node4301, from 10-28 21:36); its preempted attempt is in `extra/interrupted_0_1`; seeds 1-4 queued |
-| `records/v3/track_d/004_dm_math_fp32_h200_warm` | D 002's, unchanged | preemptable H200 workers 26933254 (+ 27162158 after the probe) | seed 1 done: test 0.1296, within budget; seed 0 reruns on 26933254; seeds 2-4 queued |
+| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | any H200 worker (front of `h200`) | seed 0's rerun runs on 26824150 (node4301, from 10-28 21:36); its preempted attempt is in `extra/interrupted_0_1`; seed 1 runs on 26854533 (node4301, from 23:06); seeds 2-4 queued |
+| `records/v3/track_a/005_fp32_mal0_cos500` | r16's + `budget_steps_time_stop`, weights saved | any H200 worker | **new** (LOG 10-28 23:10): r16 promoted; seeds 0-4 queued in `h200` after A 004 |
+| `records/v3/track_d/004_dm_math_fp32_h200_warm` | D 002's, unchanged | preemptable H200 workers 26933254 (+ 27162158 after the B200 worker) | seed 1 done: test 0.1296, within budget; seed 0 reruns on 26933254; seeds 2-4 queued |
 | `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | any H200 worker | queued at the end of `h200` (LOG 13:05) |
 | `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | done | **failed**: seeds 0 and 2 over budget; README reports it (test mean of all five 0.1538) |
 
@@ -24,9 +25,10 @@ seeds now run `scripts/warm_start.sh` first and log its time to `<record>/warm_s
 H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 holds track D
 (test 0.1512 ± 0.0202, dev 0.160).
 
-Promoted on H100 dev numbers, not yet recorded: A 002 (dev 0.324) and A 003 (dev 0.324).
+Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16, step-capped dev
+0.364, 10-28).
 
-Updated 2026-10-28 21:58 EDT.
+Updated 2026-10-28 23:15 EDT.
 
 ## AWS boxes: off
 
@@ -37,8 +39,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
 ## Running
 
 - mit_preemptable H200 (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900 excluded):
-  - 26854533: r16 seed 4 (node4301, from 21:00), resumed from its step-~250 save; step 299 at 21:55,
-    23 s/step, so it ends about 23:20.
+  - 26854533: A 004 seed 1 (node4301, from 23:06).
   - 26824150: A 004 seed 0's rerun (node4301, from 21:36).
   - 26933254 (pending): D 004 seed 0's rerun first.
   - 27162158: waits on B200 worker 27168549 (afterany); D 004's queue, then `h200`.
@@ -54,32 +55,30 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 ## Queues
 
-- `h200` (15): A 004 seeds 1-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3; A 002 seeds 0-4.
-  Every H200 worker reads it.
-- `screens_b200` (8): r17 `mal0_st500_trs05` / `trs02`, read by the B200 workers only (no record items,
-  no time-budgeted screens). Running: `trs02` seed 0 (node5501-c1, step 242 at 21:55, dev 0.250 at
-  200), `trs05` seed 1 (node5600-c1, step 352, dev 0.303 at 350).
-  Queued: `trs05` seed 0 (requeued once after the shared Triton cache race, LOG 20:34), then seeds 1-4.
+- `h200` (19): A 004 seeds 2-4; A 005 seeds 0-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
+  A 002 seeds 0-4. Every H200 worker reads it.
+- `screens_b200` (7): r17 `mal0_st500_trs05` / `trs02`, read by the B200 workers only (no record items,
+  no time-budgeted screens). Done: `trs05` seed 1, dev 0.357. Running: `trs02` seed 0 (node5501-c1,
+  dev 0.395 at step 400), `trs05` seed 0 (node5600-c1, from 22:29). Queued: `trs02` seed 1, then
+  seeds 2-4 of both.
 - `record-004_dm_math_fp32_h200_warm` (3): D 004 seeds 2-4 (read by 26933254 and 27162158 only).
 - Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.
 
 ## Best so far
 
-- Track A (dev): r16 (r5 + cosine over 500 steps) 0.232 / 0.405 / 0.412 / 0.332, seed 4 pending;
-  r14 (r5 + TIS, same lr path by accident) 0.398 / 0.403. A 002 and A 003 0.324 (H100). r16 seed 0
-  slid into truncation in its last 50 steps (truncated 0.54 to 0.64), which r17 targets.
+- Track A (dev): r16 (r5 + cosine over 500 steps) 0.232 / 0.405 / 0.412 / 0.332 / 0.438, mean 0.364:
+  promoted to A 005. r14 (r5 + TIS, same lr path by accident) 0.398 / 0.403. A 002 and A 003 0.324
+  (H100). r16's seeds that kept about a fifth of outputs truncated ended highest; seed 0 slid into
+  truncation in its last 50 steps (0.54 to 0.61), which r17 targets.
 - Track D: D 002's recipe, test 0.1512 (H100 record) and 0.1538 (D 003 on the H200, invalid clocks).
   Closed: dm51, r11 (lr 1e-5, 3e-5).
 
 ## Next
 
-- When 26854533 restarts: r16 seed 4 ends ~90 min later. r16 promotes if it ends above 0.240 without collapsing.
-  Then its record (r16's config plus `budget_steps_time_stop`) goes into `h200` right after A 004.
-- Check each record seed's `clock.json` `within_budget` and `warm_start.log` as soon as it ends.
-- B200 speed at r16's settings, 21:55: `trs05` seed 1 16.3 s/step at ~690 tokens per sample, against
-  r16 seed 4's 23.0 s at ~700 on an H200 (1.4x); `trs02` seed 0 20.9 s at ~640. If r17 meets the
-  promotion rule on the B200, three seeds rerun on the H200 (AGENT.md: the screen that gates a record
-  runs there).
+- A 005's seeds follow A 004's in `h200`. Check each record seed's `clock.json` `within_budget` and
+  `warm_start.log` as soon as it ends; an A 005 seed should end about 200 min into its 300-min budget.
+- r17 (B200, step-capped): its line is effectively r16's dev, since A 005 becomes the holder if it
+  lands (LOG 23:10). If an arm clears r16 clearly, three seeds rerun on the H200 before any record.
 - Track D packs well on a B200 (three runs 2.5x one run's steps/h), but only for step-capped RL
   screens; r18 is time-budgeted and stays on the H200.
 
@@ -96,3 +95,5 @@ otherwise. `queue/b200.txt` (r15) is parked.
 - Ubuntu 24 nodes: the worker adds gcc's multiarch paths; `module load` fails there.
 - Record seeds: check `clock.json` `within_budget` as soon as a seed finishes.
 - Workers exit on empty queues: keep `h200` stocked ahead of every worker's next pop.
+- B200 workers: start them a few minutes apart (simultaneous first Triton compiles race on the shared
+  cache, LOG 10-28 20:34).

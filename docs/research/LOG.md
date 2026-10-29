@@ -2421,3 +2421,66 @@ item goes back to the front of `screens_b200`, once (`screen_seed.sh` keeps the 
 `stdout.interrupted.<stamp>.log`). The other node's run (`trs02` seed 0) got past the warm-up, and the
 same worker's next item (`trs05` seed 1) found the kernels cached. Only simultaneous first compiles
 race, so later B200 workers start a few minutes apart.
+
+## 2026-10-28 (23:10): r16 seed 4 ends at dev 0.438, so r16 promotes; its record, A 005, is queued on the H200s after A 004
+
+r16 (`calibration/research_r16/mal0_st500`) is r5's recipe, with the cosine to 0.1x counted over 500
+steps. r5's recipe is A 001 plus fp32 master weights at lr 1e-6, with zero-advantage rows skipped
+and training reward 0 for truncated outputs. All five seeds are in. Seed 4 started on 10-26 on
+mit_preemptable H200s. It was preempted twice and resumed from its saved state each time (node4300,
+node4400, node4301), and ended at 03:06Z. A step cap makes it GPU-independent.
+
+```
+  mal0_st500   s0 done  290m final 0.232 best 0.395 t.10   87 spm   1.7 ent 0.03 inf 18.9 diverged  | 0.050 0.092 0.335 0.355 0.395
+  mal0_st500   s1 done  290m final 0.405 best 0.405 t.10   87 spm   1.7 ent 0.08 inf 22.3 diverged  | 0.033 0.065 0.277 0.345 0.385
+  mal0_st500   s2 done  290m final 0.412 best 0.418 t.10   58 spm   1.7 ent 0.06 inf 21.8 ok        | 0.000 0.105 0.268 0.345 0.397
+  mal0_st500   s3 done  290m final 0.332 best 0.393 t.10   87 spm   1.7 ent 0.04 inf 27.4 ok        | 0.055 0.097 0.270 0.343 0.393
+  mal0_st500   s4 done  290m final 0.438 best 0.438 t.10   87 spm   1.7 ent 0.07 inf 20.8 ok        | 0.035 0.078 0.268 0.368 0.415
+= mal0_st500     n=5 final 0.364 ± 0.084  ok/1-guess/div 3/0/2  median t.10 87m
+```
+
+("290m" is the step clock: 500 steps count as 17,400 s.)
+
+- Promotion, 5-seed form, against the H100 line until A 004 lands:
+  - The mean, 0.364, clears 0.2703.
+  - Four seeds end above the holder's 0.240 (0.405, 0.412, 0.332, 0.438).
+  - Only seed 0 counts as collapsed: it is labelled diverged and ends below 0.240. Seed 1 is also
+    labelled diverged, but on this answer-constrained arm that counts only below 0.240 (PLAN, 10-23).
+
+  **r16 promotes.**
+- The last 100 steps show where the seeds part:
+
+| seed | steps 401-450: reward / truncated | steps 451-500: reward / truncated | final dev |
+|---|---|---|---|
+| 0 | 0.401 / 0.54 | 0.300 / 0.61 | 0.232 |
+| 1 | 0.425 / 0.42 | 0.414 / 0.46 | 0.405 |
+| 2 | 0.432 / 0.21 | 0.409 / 0.22 | 0.412 |
+| 3 | 0.405 / 0.45 | 0.372 / 0.43 | 0.332 |
+| 4 | 0.439 / 0.19 | 0.444 / 0.19 | 0.438 |
+
+  The lr is the same for every seed: 1.5e-7, then 1.1e-7. The seeds that kept their searches short
+  (2 and 4, about a fifth truncated) end highest. Seed 0 slid into truncation. r17's penalties on
+  truncated outputs target that slide.
+- Record: `records/v3/track_a/005_fp32_mal0_cos500`. Its config is r16's, with two changes: weights
+  are saved (no `no_save`), and `budget_steps_time_stop` is set, so training also stops at
+  17,400 s of real time. The sampler is unchanged (`constrain`, T = 1). On an H200, 500 steps took
+  12,124 s of wall time (seed 2), so a seed should end about 200 min into its 300-min budget.
+  `validate_record_v3.py` checks the wall-clock `clock.json`, not the step clock. N = 5, seeds 0-4,
+  in `h200` after A 004's seeds 2-4 and before r18 and A 002. Every H200 worker reads that queue:
+  mit_normal_gpu, and mit_preemptable under INBOX 10-26 (a preempted seed's attempt goes to `extra/`
+  and the same seed reruns).
+- It is compared with the H200 holder, A 004, once both land. A 004's seed 1 started on 26854533
+  right after r16's seed 4.
+- B200 against H200 at r16's settings, steps 251-500:
+
+| run | GPU | s/step | sampling | update | tokens/sample |
+|---|---|---|---|---|---|
+| r17 `trs05` seed 1 | B200 | 15.2 | 8.4 | 6.8 | ~654 |
+| r16 seed 4 | H200 | 22.1 | 11.4 | 10.7 | ~697 |
+| r16 seed 2 | H200 | 25.2 | 14.4 | 10.8 | ~712 |
+
+  Per token, the B200 is 1.4-1.5x faster. `trs05` seed 1 (malformed_reward_solved -0.5) ended at dev
+  0.357. r17 gets its own entry when its arms finish.
+- What r17 must beat: A 005 becomes the holder if it lands, and its line would then be about
+  0.364 + 0.03. So an r17 arm that clears today's line but not r16's dev waits for A 005's result
+  rather than becoming another record attempt.
