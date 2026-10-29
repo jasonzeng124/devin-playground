@@ -9,7 +9,7 @@ seeds now run `scripts/warm_start.sh` first and log its time to `<record>/warm_s
 | record | config | runs on | state |
 |---|---|---|---|
 | `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | any H200 worker (front of `h200`) | seed 0's rerun runs on 26824150 (node4301, from 10-28 21:36); its preempted attempt is in `extra/interrupted_0_1`; seed 1 runs on 26854533 (node4301, from 23:06); seeds 2-4 queued |
-| `records/v3/track_a/005_fp32_mal0_cos500` | r16's + `budget_steps_time_stop`, weights saved | any H200 worker | **new** (LOG 10-28 23:10): r16 promoted; seeds 0-4 queued in `h200` after A 004 |
+| `records/v3/track_a/005_fp32_mal0_cos500_s400` | r16's, stopped at step 400 (`max_steps` 400), + `budget_steps_time_stop`, weights saved | any H200 worker | **new** (LOG 10-28 23:10, 10-29 00:30): r16 promoted; r16's dev at step 400 0.397 ± 0.011; seeds 0-4 queued in `h200` after A 004 |
 | `records/v3/track_d/004_dm_math_fp32_h200_warm` | D 002's, unchanged | preemptable H200 workers 26933254 (+ 27162158 after the B200 worker) | seed 1 done: test 0.1296, within budget; seed 0 reruns on 26933254; seeds 2-4 queued |
 | `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | any H200 worker | queued at the end of `h200` (LOG 13:05) |
 | `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | done | **failed**: seeds 0 and 2 over budget; README reports it (test mean of all five 0.1538) |
@@ -25,10 +25,10 @@ seeds now run `scripts/warm_start.sh` first and log its time to `<record>/warm_s
 H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 holds track D
 (test 0.1512 ± 0.0202, dev 0.160).
 
-Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16, step-capped dev
-0.364, 10-28).
+Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
+step-capped dev 0.397, 10-29).
 
-Updated 2026-10-28 23:15 EDT.
+Updated 2026-10-29 00:35 EDT.
 
 ## AWS boxes: off
 
@@ -55,19 +55,19 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 ## Queues
 
-- `h200` (19): A 004 seeds 2-4; A 005 seeds 0-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
+- `h200` (19): A 004 seeds 2-4; A 005 (`005_fp32_mal0_cos500_s400`) seeds 0-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_b200` (7): r17 `mal0_st500_trs05` / `trs02`, read by the B200 workers only (no record items,
-  no time-budgeted screens). Done: `trs05` seed 1, dev 0.357. Running: `trs02` seed 0 (node5501-c1,
-  dev 0.395 at step 400), `trs05` seed 0 (node5600-c1, from 22:29). Queued: `trs02` seed 1, then
-  seeds 2-4 of both.
+- `screens_b200` (5): r17 `mal0_st500_trs05` / `trs02`, read by the B200 workers only (no record items,
+  no time-budgeted screens). Done: `trs05` seeds 0 (0.190, short-guess collapse) and 1 (0.357),
+  `trs02` seed 0 (0.230, slid). Running: `trs02` seed 1 (node5501-c1, from 23:21), `trs05` seed 2
+  (node5600-c1, from 23:58). Queued: `trs05` 3, `trs02` 2-3, then seed 4 of both (LOG 10-29 00:30).
 - `record-004_dm_math_fp32_h200_warm` (3): D 004 seeds 2-4 (read by 26933254 and 27162158 only).
 - Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.
 
 ## Best so far
 
-- Track A (dev): r16 (r5 + cosine over 500 steps) 0.232 / 0.405 / 0.412 / 0.332 / 0.438, mean 0.364:
-  promoted to A 005. r14 (r5 + TIS, same lr path by accident) 0.398 / 0.403. A 002 and A 003 0.324
+- Track A (dev): r16 (r5 + cosine over 500 steps) 0.232 / 0.405 / 0.412 / 0.332 / 0.438, mean 0.364;
+  at step 400 0.397 ± 0.011, which A 005 uses (stop at 400). r14 (r5 + TIS, same lr path by accident) 0.398 / 0.403. A 002 and A 003 0.324
   (H100). r16's seeds that kept about a fifth of outputs truncated ended highest; seed 0 slid into
   truncation in its last 50 steps (0.54 to 0.61), which r17 targets.
 - Track D: D 002's recipe, test 0.1512 (H100 record) and 0.1538 (D 003 on the H200, invalid clocks).
@@ -76,9 +76,12 @@ otherwise. `queue/b200.txt` (r15) is parked.
 ## Next
 
 - A 005's seeds follow A 004's in `h200`. Check each record seed's `clock.json` `within_budget` and
-  `warm_start.log` as soon as it ends; an A 005 seed should end about 200 min into its 300-min budget.
-- r17 (B200, step-capped): its line is effectively r16's dev, since A 005 becomes the holder if it
-  lands (LOG 23:10). If an arm clears r16 clearly, three seeds rerun on the H200 before any record.
+  `warm_start.log` as soon as it ends; an A 005 seed should train about 2.7 h (400 steps).
+- r17 (B200, step-capped) is now a question about the late slide, not a record candidate: a new arm
+  needs about 0.43 to beat A 005's expected 0.397 (LOG 10-29 00:30). Before `screens_b200` empties
+  (~6 h), queue the next B200 arm or let the workers exit (the chained H200 jobs then become eligible).
+  Candidates: bigger batches in A 005's spare ~2 h (prompts 96 or group 12), aimed at running past
+  step 400 without the slide.
 - Track D packs well on a B200 (three runs 2.5x one run's steps/h), but only for step-capped RL
   screens; r18 is time-budgeted and stays on the H200.
 

@@ -13,7 +13,7 @@
   "micro_batch_size": 8,
   "compile": false,
   "pad_to_multiple": 64,
-  "max_steps": 1000000,
+  "max_steps": 400,
   "eval_start_step": 50,
   "eval_every": 50,
   "cache_len": 0,
@@ -40,7 +40,7 @@
   "skip_zero_advantage": true,
   "lr_schedule": "cosine",
   "lr_final_frac": 0.1,
-  "description": "Track A 005: A 001 (ladder mix, answer-constrained decoding) with fp32 master weights at lr 1e-6, zero-advantage rows skipped and training reward 0 for truncated outputs, on a cosine to 0.1x counted over 500 steps (budget_steps 500). Training stops at step 500 or at the 17,400-s budget, whichever comes first (budget_steps_time_stop). Scored with --constrain at temperature 1.0. Research screen calibration/research_r16/mal0_st500: five seeds, final dev 0.232 / 0.405 / 0.412 / 0.332 / 0.438 (mean 0.364).",
+  "description": "Track A 005: A 001 (ladder mix, answer-constrained decoding) with fp32 master weights at lr 1e-6, zero-advantage rows skipped and training reward 0 for truncated outputs, on a cosine to 0.1x counted over 500 steps (budget_steps 500), stopped at step 400 (max_steps 400; budget_steps_time_stop also stops it at the 17,400-s budget). Scored with --constrain at temperature 1.0. Research screen calibration/research_r16/mal0_st500 (the same schedule, run to step 500): its five seeds' dev at step 400 is 0.395 / 0.385 / 0.397 / 0.393 / 0.415 (mean 0.397), and at step 500 0.232 / 0.405 / 0.412 / 0.332 / 0.438 (mean 0.364).",
   "malformed_reward": 0.0,
   "budget_steps": 500,
   "budget_steps_time_stop": true

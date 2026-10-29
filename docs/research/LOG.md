@@ -2484,3 +2484,53 @@ node4400, node4301), and ended at 03:06Z. A step cap makes it GPU-independent.
 - What r17 must beat: A 005 becomes the holder if it lands, and its line would then be about
   0.364 + 0.03. So an r17 arm that clears today's line but not r16's dev waits for A 005's result
   rather than becoming another record attempt.
+
+## 2026-10-29 (00:30): A 005 stops at step 400 instead of 500 (r16's dev at step 400: 0.397 ± 0.011); r17's first seeds overcorrect or slide
+
+r16's five seeds, in-loop dev by step (dev truncated share after the slash):
+
+| seed | 300 | 350 | 400 | 450 | 500 |
+|---|---|---|---|---|---|
+| 0 | 0.355/0.61 | 0.390/0.57 | 0.395/0.56 | 0.382/0.56 | 0.232/0.68 |
+| 1 | 0.345/0.43 | 0.370/0.45 | 0.385/0.51 | 0.402/0.51 | 0.405/0.52 |
+| 2 | 0.345/0.25 | 0.362/0.21 | 0.397/0.23 | 0.418/0.22 | 0.412/0.22 |
+| 3 | 0.343/0.45 | 0.368/0.37 | 0.393/0.38 | 0.382/0.48 | 0.332/0.37 |
+| 4 | 0.368/0.22 | 0.368/0.23 | 0.415/0.20 | 0.423/0.23 | 0.438/0.19 |
+| mean ± sd | 0.351 ± 0.011 | 0.372 ± 0.011 | **0.397 ± 0.011** | 0.401 ± 0.020 | 0.364 ± 0.084 |
+
+- All five seeds rise together to step 400. After that, two seeds keep gaining (2 and 4) and two slide
+  (0 and 3). So the last 100 steps add risk without adding to the mean.
+- A 005 had no seed started, so its config now stops at step 400 (`max_steps` 400). The rest is
+  unchanged: the cosine is still counted over 500 steps (`budget_steps` 500), and
+  `budget_steps_time_stop` is still set. Up to step 400 the run is the one r16's seeds made, and its
+  final eval is the in-loop eval at step 400.
+  - r16's seeds at step 400 serve as its screen: mean 0.397 (line 0.2703), five of five above 0.240,
+    none collapsed. Seeds 0 and 1 have more than half their dev outputs truncated, but on this
+    constrained arm that counts as collapse only below 0.240 (PLAN, 10-23).
+  - The folder is renamed `records/v3/track_a/005_fp32_mal0_cos500_s400`, and its five `h200` lines
+    follow.
+- Choosing the stop from the same seeds' evals flatters the estimate a little. But the curve is smooth,
+  the sd at 400 is 0.011, and the test ladder is held out, so the reported number is unaffected.
+- Cost: 500 steps on an H200 took 12,124 s of wall time (r16 seed 2). Steps 401-500 are the slowest
+  (longest outputs), so 400 steps should take about 9,600 s, about 2.7 h of the 4.8-h training budget.
+  That leaves room to spend the extra time on bigger batches later (agenda A2/A3).
+- r16 ran on two GPU types under a step cap (PLAN: the gating screen is on the H200 or step-capped):
+  seeds 0-1 on H100s (10-26), seeds 2-4 on H200s. A 002 (H100 dev 0.324) is still at the end of `h200`
+  in the laptop's order, after A 005.
+
+r17 (r16 + a training penalty on truncated outputs, on the B200s), the three finished seeds:
+
+| arm (penalty) | seed | dev at 400 | final dev | steps 451-500: reward / truncated / tokens per sample |
+|---|---|---|---|---|
+| `trs05` (-0.5) | 0 | 0.177 | 0.190 | 0.177 / 0.00 / 165 |
+| `trs05` (-0.5) | 1 | 0.332 | 0.357 | 0.345 / 0.12 / 661 |
+| `trs02` (-0.2) | 0 | 0.395 | 0.230 | 0.279 / 0.29 / 723 |
+
+- At -0.5, seed 0's truncation fell to zero by step 300. Its outputs then shrank from about 580 to
+  165 tokens, and it stopped searching: the opposite failure from r16 seed 0's.
+- At -0.2, seed 0 still slid in its last 50 steps: truncated 0.19, then 0.29, and dev 0.395, then
+  0.230.
+- Two seeds per arm can't settle it, given how widely seeds differ. The remaining seven items run
+  (about 1.5 h each on the B200s, and nothing else is waiting for those GPUs). But the arms would
+  need about 0.43+ to beat A 005's expected dev, so r17 is now a question about the slide, not a
+  record candidate.
