@@ -2584,3 +2584,14 @@ Test pass@1 by level: L1 0.921, L2 0.307, L3 0.235, L4 0.079, L5 0.010, L6 0.329
   clears that.
 - Seed 1 runs on 26854533 (from 23:06, about 04:10 to the end of its training budget). Seed 2 started
   on 26824150 at 02:50. Seeds 3-4 are next in `h200`, then A 005.
+
+## 2026-10-29 (04:20): A 004 seed 1: test 0.2358, within budget
+
+| seed | node | test ladder | pass@16 | truncated | mean tokens | in-loop final dev | steps | total_s |
+|---|---|---|---|---|---|---|---|---|
+| 0 | node4301 | 0.3135 | 0.5754 | 0.012 | 525 | 0.287 | 998 | 17,463 |
+| 1 | node4301 | 0.2358 | 0.5579 | 0.005 | 425 | 0.230 | 1042 | 17,438 |
+
+Seed 1 had a 9-s warm start. Its test pass@1 by level: L1 0.778, L2 0.202, L3 0.130, L4 0.063,
+L5 0.014, L6 0.228. The two seeds spread as A 001's did on the H100 (dev 0.240 ± 0.045). Seed 3
+started on 26854533 at 04:14, and seed 2 runs on 26824150. Seed 4 is next in `h200`, then A 005.
