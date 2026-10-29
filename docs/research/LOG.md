@@ -2876,3 +2876,17 @@ r21 `mal0_st500_ent05_t10` (r16 + entropy bonus 0.05 below an entropy of 0.1), s
 - Both r21 seeds so far end at about 0.40 with no slide. That is r16's good-seed level, not yet the
   0.43 that a new record candidate needs. `ent01_t10` seed 1 started at 22:21Z; seeds 1-2 of
   `ent05_t10` and seed 2 of `ent01_t10` follow.
+
+## 2026-10-29 19:50 EDT: H200 waits are days long; r22 design, a second B200 worker
+
+- No H200 job has started since 08:43. Slurm puts 26927305 (mit_normal_gpu) at 11-03 10:30, and many
+  mit_normal_gpu H200 nodes are under user reservations until 11-04 or later. A 005 seed 0 (head of
+  `h200`), A 004 seeds 2-3 and D 004 seeds 3-4 wait on that. Records stay on the H200, so for now
+  B200 screens are the work that moves.
+- r22: r21's two arms at lr 2e-6 (`calibration/research_r22/mal0_st500_{ent01,ent05}_t10_lr2e-6`, seeds
+  0-1 each, queued in `screens_b200` after r21's three remaining seeds). In r1-r3, lr 2e-6 peaked
+  earliest and highest, then collapsed. r21 shows the entropy floor stops the late slide at lr 1e-6, so
+  the open question is whether it makes the faster lr usable within 500 steps.
+- A second B200 screen worker, 27283068 (`packed_worker.sbatch`, PER_GPU=1, `screens_b200`), starts
+  after 26933254 ends. 26933254 runs D 004 seed 2 until about 20:30 and then exits (less than 6.5 h
+  left). That keeps the cap at 2 running + 4 eligible pending.
