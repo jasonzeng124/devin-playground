@@ -28,7 +28,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-29 13:10 EDT.
+Updated 2026-10-29 13:45 EDT (quiet wake: no item ended since 13:10; pool 47 %).
 
 ## AWS boxes: off
 
@@ -58,7 +58,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - `h200` (16): A 005 (`005_fp32_mal0_cos500_s400`) seeds 0-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_b200` (6): r21 `ent01_t10` / `ent05_t10` seeds 0-2 (LOG 10-29 12:25), after `p96` seed 1 on 27168550. r20 closed: `t11` (0.290,
+- `screens_b200` (5): r21 `ent01_t10` / `ent05_t10` seeds 0-2 (LOG 10-29 12:25); `ent01_t10` seed 0 runs on 27168550 since 12:27 (no errors at 13:40). r20 closed: `t11` (0.290,
   0.183) and `p96` (collapses after step 300; LOG 10-29 12:10). r17 and r19 closed.
 - `record-004_dm_math_fp32_h200_warm` (3): D 004 seeds 2-4 (read by 26933254 and 27162158 only).
 - Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.
