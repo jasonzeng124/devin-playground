@@ -2695,3 +2695,37 @@ Dev by step, mean ± sd of three seeds (r16: 0.351, 0.372, 0.397, 0.401, 0.364):
   past it.
 - r20 runs on both B200s: `t11` seed 0 on node5600-c1 (dev 0.143 at step 250, a slow takeoff after
   a high-entropy start), and `p96` seed 0 on node5800-c1 (from 08:40).
+
+## 2026-10-29 (10:10): r20 `t11` closes on two seeds (0.290, 0.183); `p96` learns faster per step so far; A 004 seed 4 and D 004 seed 0's rerun started
+
+```
+  mal0_st500_t11  s0 done  290m final 0.290 best 0.292 t.10  145 spm  1.7 ent 0.04 inf 18.6 ok  | 0.017 0.058 0.082 0.213 0.275
+  mal0_st500_t11  s1 done  290m final 0.183 best 0.183 t.10  116 spm  1.7 ent 0.06 inf  8.6 one-guess | 0.032 0.063 0.128 0.130 0.157
+= mal0_st500_t11  n=2 final 0.237 ± 0.075  ok/1-guess/div 1/1/0  median t.10 130m
+```
+
+- Training at temperature 1.1:
+  - The base model's first 50 steps are near-random long outputs (entropy 5.8, three quarters
+    truncated).
+  - The policy then shrinks to about 150-token guesses, and only starts searching again around
+    step 250.
+  - Seed 1 never did. It took 26 min of B200 time for 500 steps and ended one-guess at 0.183.
+
+  The entropy stays higher in the middle, but both seeds end far below r16 (0.364). `t11` closes,
+  and its seed 2 is dropped from `screens_b200`.
+- `p96` (96 prompts per step), dev by step against r16's five-seed mean:
+
+| | 100 | 150 | 200 |
+|---|---|---|---|
+| `p96` seed 0 | 0.147 | 0.273 | 0.318 |
+| `p96` seed 1 | 0.130 | | |
+| r16 mean | 0.087 | 0.183 | 0.284 |
+
+  It learns faster per step so far. Seeds 0 and 1 end about 11:40 and 12:10, and seed 2 follows.
+- H200 workers that got GPUs:
+  - 26927304 (mit_normal_gpu, node3100) started A 004 seed 4 at 08:07 (59-s warm start).
+  - 26933254 (node4300) restarted at 08:42 and moved D 004 seed 0's second attempt to
+    `extra/interrupted_0_2`, with a `note.txt`. That attempt started 10-28 16:19Z on node5100 and
+    was preempted at 15:15 EDT, 3,644 s into RL after the full pretraining. The rerun started at
+    08:43.
+- A 004 seeds 2 and 3 still wait on their preempted workers (26824150, 26854533, Resources).
