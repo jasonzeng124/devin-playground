@@ -2769,7 +2769,7 @@ Seed 1: reward 0.425 at steps 251-300, then 0.282 and 0.167. Its entropy went 0.
 - Cap: 3 running (26927304, 26933254, 27168550), plus 3 that could run (26824150, 26854533,
   27162158): 6.
 
-## 2026-10-29 (12:45): r21, an entropy bonus that turns on below a target entropy; queued on the B200 worker
+## 2026-10-29 (12:25): r21, an entropy bonus that turns on below a target entropy; queued on the B200 worker
 
 New options in `rlvr_speedrun/grpo.py`, off by default, so existing configs run as before:
 - `entropy_coef`: subtracts that coefficient times the mean token entropy of the updated rows from
