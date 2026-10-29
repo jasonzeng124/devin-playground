@@ -28,7 +28,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-29 07:00 EDT.
+Updated 2026-10-29 08:45 EDT.
 
 ## AWS boxes: off
 
@@ -77,7 +77,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - A 005's seeds follow A 004's in `h200`. Check each record seed's `clock.json` `within_budget` and
   `warm_start.log` as soon as it ends; an A 005 seed should train about 2.7 h (400 steps).
-- r19 (B200, step-capped, shorter training token limit): so far below r16 (step 400: tc768 0.362 /
+- r19 closed 10-29 08:45 (step 400: tc768 0.359, tc896 0.351, below r16; LOG). Earlier: (step 400: tc768 0.362 /
   0.350, tc896 0.375). r20 tests training temperature 1.1 and 96 prompts per step. A new arm needs
   about 0.43 to beat A 005's expected 0.397; its gating seeds then run on the H200.
 - Track D packs well on a B200 (three runs 2.5x one run's steps/h), but only for step-capped RL

@@ -2665,3 +2665,33 @@ r20 (`calibration/research_r20/`, r16's config with one change each, step-capped
   26927308) become eligible.
 - H200s: all four pending H200 workers wait on Resources (A 004's two preempted seeds, D 004, and the
   mit_normal_gpu head), so only the B200s are running.
+
+## 2026-10-29 (08:45): r19 closes: a shorter training token limit doesn't help (step 400: 0.359 and 0.351 against r16's 0.397)
+
+```
+  mal0_st500_tc768  s0 done  290m final 0.272 best 0.372 t.10  87 spm  1.7 ent 0.04 inf 17.3 ok  | 0.020 0.093 0.262 0.362 0.362
+  mal0_st500_tc768  s1 done  290m final 0.365 best 0.365 t.10  87 spm  1.7 ent 0.07 inf 24.5 ok  | 0.012 0.083 0.247 0.325 0.350
+  mal0_st500_tc768  s2 done  290m final 0.342 best 0.365 t.10  87 spm  1.7 ent 0.04 inf 21.3 diverged  | 0.037 0.052 0.227 0.347 0.365
+= mal0_st500_tc768  n=3 final 0.326 ± 0.049  ok/1-guess/div 2/0/1  median t.10 87m
+  mal0_st500_tc896  s0 done  290m final 0.352 best 0.375 t.10  116 spm  1.7 ent 0.05 inf 23.4 ok  | 0.030 0.037 0.225 0.303 0.375
+  mal0_st500_tc896  s1 done  290m final 0.338 best 0.338 t.10  87 spm  1.7 ent 0.07 inf 20.9 diverged  | 0.023 0.058 0.223 0.278 0.322
+  mal0_st500_tc896  s2 done  290m final 0.210 best 0.357 t.10  116 spm  1.7 ent 0.04 inf 20.4 diverged  | 0.040 0.068 0.167 0.297 0.357
+= mal0_st500_tc896  n=3 final 0.300 ± 0.078  ok/1-guess/div 1/0/2  median t.10 116m
+```
+
+Dev by step, mean ± sd of three seeds (r16: 0.351, 0.372, 0.397, 0.401, 0.364):
+
+| arm | 300 | 350 | 400 | 450 | 500 |
+|---|---|---|---|---|---|
+| `tc768` | 0.344 ± 0.018 | 0.353 ± 0.018 | 0.359 ± 0.008 | 0.340 ± 0.018 | 0.326 ± 0.049 |
+| `tc896` | 0.293 ± 0.013 | 0.312 ± 0.019 | 0.351 ± 0.027 | 0.320 ± 0.032 | 0.300 ± 0.078 |
+
+- Both arms are below r16 at every step from 350 on, and both still slide after step 400 (`tc896`
+  seed 2: 0.357 to 0.210).
+- The dev truncated share stayed at 0.5-0.6 for `tc896` and for `tc768` seed 2, even with the
+  slack. Training under a lower limit didn't teach the policy to finish sooner at eval.
+- r19 closes. Together with r17, this says the late slide isn't a truncation problem. Stopping at
+  step 400 (A 005) stays the answer until r20 (temperature 1.1, 96 prompts) or something else holds
+  past it.
+- r20 runs on both B200s: `t11` seed 0 on node5600-c1 (dev 0.143 at step 250, a slow takeoff after
+  a high-entropy start), and `p96` seed 0 on node5800-c1 (from 08:40).
