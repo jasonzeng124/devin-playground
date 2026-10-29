@@ -62,8 +62,10 @@ Read `docs/research/LOG.md` for what has been tried. Records are the measure of 
   before. Run `uv run ruff check . && uv run pytest -q` before committing code. Running jobs use
   this checkout, so don't edit a file a running job is about to read in a way that changes its
   meaning. Add new configs instead of changing queued ones.
-- **Spending:** keep quiet wakes short (a status check, then sleep). Since 2026-10-25 you run with
-  ultracode on (Max 20x plan), so workflows and subagents are fine when they help.
+- **Spending:** keep quiet wakes short (a status check, then end). Since 2026-10-29 (maintainer, to
+  save usage) each wake is a fresh session started every 6 hours by the keepalive, at effort high,
+  without ultracode: don't run workflows or spawn subagents. Nothing carries over between wakes
+  except the repo files, so write down in STATUS what the next wake needs to know.
 
 ## Infrastructure
 
@@ -148,6 +150,5 @@ Read `docs/research/LOG.md` for what has been tried. Records are the measure of 
 4. Keep the GPUs busy: at least a day of queued work, never more than 6 GPUs at once.
 5. Update `docs/research/STATUS.md`, a short current-state page: running jobs, queues, the best
    result so far, the next decision and when. Commit it whenever it changes materially.
-6. Schedule the next wake by what you're waiting for: about 1-2 h while screens run, longer when
-   nothing can finish sooner. Stop the loop after 2026-11-19, once the final LOG summary is
-   written.
+6. End the session; the next wake starts 6 hours later. Queue enough work to keep the GPUs busy
+   until then. After 2026-11-19, once the final LOG summary is written, `touch agent/STOP`.
