@@ -58,7 +58,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - `h200` (16): A 005 (`005_fp32_mal0_cos500_s400`) seeds 0-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_b200` (7): r22 `ent01_t10_lr2e-6` / `ent05_t10_lr2e-6` seeds 0-1 after r21 (LOG 19:50);: r21 `ent01_t10` / `ent05_t10` seeds 0-2 (LOG 10-29 12:25); `ent01_t10` seed 0 done: dev 0.400 at step 500, no slide, bonus held entropy at 0.10 (LOG 15:45); `ent05_t10` seed 0 done: dev 0.395, no slide (LOG 18:45); `ent01_t10` seed 1 runs since 18:21. r20 closed: `t11` (0.290,
+- `screens_b200` (7): r22 `ent01_t10_lr2e-6` / `ent05_t10_lr2e-6` seeds 0-1 after r21 (LOG 19:50); r21 `ent01_t10` / `ent05_t10` seeds 0-2 (LOG 10-29 12:25); `ent01_t10` seed 0 done: dev 0.400 at step 500, no slide, bonus held entropy at 0.10 (LOG 15:45); `ent05_t10` seed 0 done: dev 0.395, no slide (LOG 18:45); `ent01_t10` seed 1 runs since 18:21. r20 closed: `t11` (0.290,
   0.183) and `p96` (collapses after step 300; LOG 10-29 12:10). r17 and r19 closed.
 - `record-004_dm_math_fp32_h200_warm` (3): D 004 seeds 2-4 (read by 26933254 and 27162158 only).
 - Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.
