@@ -2923,3 +2923,21 @@ The B200 runs take about 2.3 h each (500 steps), so three more seeds finished on
 - `ent05_t10` seed 2 is running; r22 (the same arms at lr 2e-6) has started (`ent05` seed 0). The question
   now is whether the floor lets a higher lr pay off. I added r22 seed 2 for both arms to `screens_b200`
   so the two workers have about 7 h of work.
+
+## 2026-10-30 01:45 EDT: r21 done; preemptions on the second B200 worker
+
+| arm | n | dev at step 400 | final dev (500) | seeds |
+|---|---|---|---|---|
+| `ent01_t10` | 3 | 0.364 | 0.369 ± 0.058 | 0.400 / 0.405 / 0.302 |
+| `ent05_t10` | 3 | 0.381 | 0.399 ± 0.011 | 0.395 / 0.390 / 0.412 |
+| r16 (no bonus) | 5 | 0.397 | 0.364 ± 0.084 | 0.232 / 0.405 / 0.412 / 0.332 / 0.438 |
+
+- `ent05_t10` seed 2 ended at 0.412 (L4 0.22, L6 0.49), with the bonus on for 11 steps. None of the three
+  `ent05` seeds slid, and they ended close together.
+- r21 is closed. `ent05_t10` is the steadier run, but its mean (0.399) is about A 005's expected 0.397,
+  far from the 0.43 a record needs. Its step-400 dev (0.381) is below r16's. The bonus is worth keeping
+  as a guard for longer or higher-lr runs, which is what r22 tests.
+- B200 worker 27283068 was preempted twice, at 00:35 (about 1.5 h into r22 `ent05` seed 0) and at 01:38
+  (about 1 h in). Slurm requeued it each time. It restarted on node5702-c1 and is running that seed again
+  from the start; the partial runs are kept as `stdout.interrupted.*.log` in the seed dir. 27168550 has
+  started r22 `ent01` seed 0. `screens_b200` holds four more r22 items (about 7 h on the two workers).
