@@ -4,3 +4,5 @@
 2026-10-28T17:22:18Z worker 26933255: warm start: 57 s on node4400 before records/v3/track_d/004_dm_math_fp32_h200_warm 1
 2026-10-29T12:43:03Z worker 26933254: warm start: 36 s on node4300 before records/v3/track_d/004_dm_math_fp32_h200_warm 0
 2026-10-29T18:36:42Z worker 26933254: warm start: 144 s on node4300 before records/v3/track_d/004_dm_math_fp32_h200_warm 2
+2026-10-30T10:42:47Z worker 27162158: warm start: 59 s on node2500 before records/v3/track_d/004_dm_math_fp32_h200_warm 3
+2026-10-30T16:36:02Z worker 27162158: warm start: 11 s on node2500 before records/v3/track_d/004_dm_math_fp32_h200_warm 4

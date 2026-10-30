@@ -3055,3 +3055,20 @@ The B200 runs take about 2.3 h each (500 steps), so three more seeds finished on
   same run as r22 `ent01`. gc03 seed 0 keeps running (it logs the norms through step 500, including any spike
   before a collapse). Its queued seeds 1-2 are replaced by r23 `mal0_st500_ent01_t10_lr2e-6_gc015`
   (`grad_clip` 0.15, which binds on 122 of those 176 steps), seeds 0-3.
+
+## 2026-10-30 12:50 EDT: D 004 seed 3: test 0.1677; r22 `ent01` closes at 0.355; r23 gc03 seed 0: 0.378
+
+- D 004 seed 3 (worker 27162158, node2500, H200, after a 59-s warm start): test **0.1677** (L1 0.57,
+  L6 0.20, pass@16 0.228), last in-loop dev 0.183. Within budget: 20,941 s of 21,600 (pretrain 6,736 s,
+  GRPO 14,239 s). Seed 4 started on the same worker at 16:36Z (12:36 EDT) after an 11-s warm start.
+  D 004 so far: 0.1832, 0.1296, 0.1384, 0.1677.
+- r22 `ent01_t10_lr2e-6` seed 4: 0.378 (0.405 at step 450). The arm closes at n=5: 0.427, 0.078, 0.445,
+  0.448, 0.378, mean **0.355 ± 0.157**. Step 400: 0.458, 0.065, 0.422, 0.430, 0.382, mean 0.351.
+  Without the collapse it would be about 0.425; with it, below r16's 0.364 and A 005's step-400 0.397.
+  r22 is closed. The entropy floor removes the slow slide; one collapse in eight r22 runs remains.
+- r23 `ent01_t10_lr2e-6_gc03` seed 0: 0.378 final, 0.428 at steps 350 and 450.
+- Grad norms over full runs (r22 `ent01` s4 / gc03 s0), median per 100 steps: 0.17/0.17, 0.18/0.19,
+  0.20/0.17, 0.23/0.20, 0.27/0.23. They grow late as the lr decays, and no run so far shows a spike
+  (max 0.38 and 0.50). So clip 0.3 binds mostly in the last 100 steps (26 and 6 of them). Neither run
+  collapsed, so there's no norm trace of a collapse yet.
+- Queue: r23 gc015 seeds 0-1 running, seeds 2-4 and gc03 seed 1 queued (about 6 h for the two B200 workers).
