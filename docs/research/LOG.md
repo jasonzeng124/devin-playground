@@ -2981,3 +2981,29 @@ The B200 runs take about 2.3 h each (500 steps), so three more seeds finished on
   checkpoint, so a preemption before step 225 still costs the whole run so far.
 - The restarted seed is at dev 0.43 at step 300, the best step-300 dev of any arm so far (malformed 0.51).
   `ent05_t10_lr2e-6` seed 1 is at 0.405 at its latest eval.
+
+## 2026-10-30 05:55 EDT: A 004 seeds 2 and 3 preempted again; r22 two more seeds; r23 queued
+
+- Both A 004 reruns on node4301 were preempted at 04:53:04 EDT (08:53:04Z). Seed 2's attempt 2 had reached
+  step 728 (10,221 s of 17,400, 59 %); seed 3's attempt 2 reached step 75 (1,299 s, 7 %). Workers 26824150 and
+  26854533 are pending again; they move the partial runs to `extra/` on restart, and I'll add the
+  `interrupted_2_2` and `interrupted_3_2` notes then. Neither attempt counts.
+- r22 (lr 2e-6, cosine over 500 steps, entropy floor at 0.1). Dev every 50 steps:
+
+| arm | seed | 100 | 200 | 300 | 350 | 400 | 450 | 500 | malformed (end) |
+|---|---|---|---|---|---|---|---|---|---|
+| `ent01_t10_lr2e-6` | 0 | 0.245 | 0.362 | 0.430 | 0.437 | **0.458** | 0.438 | 0.427 | 0.47 |
+| `ent05_t10_lr2e-6` | 0 | 0.250 | 0.378 | 0.402 | 0.397 | 0.387 | 0.403 | 0.360 | 0.34 |
+| `ent05_t10_lr2e-6` | 1 | 0.290 | 0.410 | 0.428 | 0.437 | 0.400 | 0.382 | 0.387 | 0.25 |
+
+  - All three peak between steps 300 and 400 (0.403-0.458) and lose 0.03-0.05 by step 500, while the lr
+    is already small (0.2-0.4e-6). Entropy stayed at 0.10-0.14 throughout, so this isn't the
+    entropy slide.
+  - `ent01` seed 0 is the best single run so far: 0.427 final, L4 0.19, L6 0.58. The summarizer labels it
+    "diverged" only because training malformed passed 0.5 early (0.72 at step 100). It ends at 0.47,
+    the most truncation of the three; r16's best seeds also kept the most.
+  - The step-400 mean of the three is 0.415, against r16's 0.397 (which A 005 uses). A stop at step 400 is
+    the natural record form here too, but one seed of `ent01` isn't enough.
+- Queued on `screens_b200`: `ent01_t10_lr2e-6` seeds 3-4 (with seeds 1-2 that makes 5 for a step-400
+  estimate; it needs about 0.43 to beat A 005's expected 0.397). Also r23 `ent01_t10_lr3e-6` seeds 0-1:
+  does the floor keep lr 3e-6 stable too? About 6 h for the two B200 workers.
