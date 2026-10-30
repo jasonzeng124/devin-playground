@@ -3035,3 +3035,23 @@ The B200 runs take about 2.3 h each (500 steps), so three more seeds finished on
 - The arm closes at n=3: final 0.396 ± 0.041 (0.360, 0.387, 0.440), step-400 0.405 (0.387, 0.400, 0.427).
   That's about r16's 0.397 at step 400, so not a gain worth a record. Still running: r22 `ent01` seeds 2-3.
   Queued: `ent01` seed 4, r23 grad_clip 0.3 seeds 0-2.
+
+## 2026-10-30 10:55 EDT: r22 `ent01_t10_lr2e-6` seeds 2-3: 0.445, 0.448; grad norms are small, so r23 moves to clip 0.15
+
+- r22 `ent01_t10_lr2e-6`, dev every 50 steps (seed 4 running):
+
+| seed | 100 | 200 | 300 | 350 | 400 | 450 | 500 | malformed (end) |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 0.245 | 0.362 | 0.430 | 0.437 | 0.458 | 0.438 | 0.427 | 0.52 |
+| 1 | 0.252 | 0.352 | 0.372 | 0.223 | 0.065 | 0.058 | 0.078 | 0.01 |
+| 2 | 0.237 | 0.335 | 0.383 | 0.397 | 0.422 | 0.440 | **0.445** | 0.21 |
+| 3 | 0.190 | 0.373 | 0.398 | 0.413 | 0.430 | 0.437 | **0.448** | 0.33 |
+
+  - Seeds 2 and 3 climb to the end with no late decline. The three that didn't collapse average 0.440 at
+    step 500, the best of any arm. But seed 1's collapse puts the mean of four at 0.350, and a mean of five
+    can't reach 0.43 now. The arm's problem is the collapse risk, not its ceiling.
+- The first `grad_norm` logs (r22 `ent01` seed 4 and r23 gc03 seed 0, steps 1-175): median 0.17, max 0.34.
+  So `grad_clip` 1.0 has never bound in these runs, and gc03 bound on only 4 of 176 steps: it's nearly the
+  same run as r22 `ent01`. gc03 seed 0 keeps running (it logs the norms through step 500, including any spike
+  before a collapse). Its queued seeds 1-2 are replaced by r23 `mal0_st500_ent01_t10_lr2e-6_gc015`
+  (`grad_clip` 0.15, which binds on 122 of those 176 steps), seeds 0-3.
