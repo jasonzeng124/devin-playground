@@ -2902,3 +2902,24 @@ r21 `mal0_st500_ent05_t10` (r16 + entropy bonus 0.05 below an entropy of 0.1), s
 - Seeds 3-4 are left for 27162158, which waits on the H200 shortage (LOG 19:50).
 - 26933254 then exited. B200 screen worker 27283068 started on node5702-c1 at 00:32Z with r21
   `ent05_t10` seed 1.
+
+## 2026-10-29 23:55 EDT: r21 three more seeds; the entropy floor stops slides but doesn't raise the level
+
+The B200 runs take about 2.3 h each (500 steps), so three more seeds finished on 27168550 and 27283068.
+
+| arm | seed | dev at 100 / 200 / 300 / 400 / 500 | final entropy | bonus steps |
+|---|---|---|---|---|
+| `ent01_t10` | 0 | 0.117 / 0.273 / 0.368 / 0.378 / 0.400 | 0.10 | 57 |
+| `ent01_t10` | 1 | 0.085 / 0.283 / 0.343 / 0.395 / 0.405 | 0.10 | 32 |
+| `ent01_t10` | 2 | 0.092 / 0.280 / 0.307 / 0.318 / 0.302 | 0.09 | 156 |
+| `ent05_t10` | 0 | 0.072 / 0.232 / 0.313 / 0.372 / 0.395 | 0.11 | 7 |
+| `ent05_t10` | 1 | 0.067 / 0.263 / 0.345 / 0.372 / 0.390 | 0.11 | - |
+
+- `ent01_t10`, n=3: final 0.369 ± 0.058; at step 400 0.364. r16 (no bonus, n=5): final 0.364 ± 0.084, at step 400 0.397.
+- No seed slid, so the bonus does what it was meant to. But seed 2 stopped improving at about 0.31 from
+  step 250 on (L2 0.28, L4 0.09 at step 500), with the bonus on for 156 steps. The other seeds end near 0.40,
+  the same as r16's good seeds. The step-400 mean is below A 005's 0.397, so neither arm is a
+  record candidate (needs about 0.43).
+- `ent05_t10` seed 2 is running; r22 (the same arms at lr 2e-6) has started (`ent05` seed 0). The question
+  now is whether the floor lets a higher lr pay off. I added r22 seed 2 for both arms to `screens_b200`
+  so the two workers have about 7 h of work.

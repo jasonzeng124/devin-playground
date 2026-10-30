@@ -28,7 +28,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-29 20:47 EDT (D 004 seed 2 done; B200 worker 27283068 running).
+Updated 2026-10-29 23:57 EDT (r21 results; r22 running).
 
 ## AWS boxes: off
 
@@ -51,7 +51,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
   with PER_GPU=1 (GCC 12's libstdc++ first, deadline from `squeue`), REQUIRE_GPU "NVIDIA B200",
   RESERVE_MIN 240, queue `screens_b200` only. One run per GPU: the probe found a second track A run
   adds 11 %.
-- Second B200 screen worker 27283068 (same settings, node5702-c1, from 10-29 20:32): r21 `ent05_t10` seed 1.
+- Second B200 screen worker 27283068 (same settings, node5702-c1, from 10-29 20:32).
 - Cap: 2 running (27168550, 27283068) + 4 eligible pending (26927305, 26824150, 26854533, 27162158);
   26927308 waits on B200 worker 27168550, which exits when `screens_b200` is empty. I may update or cancel my own pending jobs without asking.
 
@@ -59,7 +59,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - `h200` (16): A 005 (`005_fp32_mal0_cos500_s400`) seeds 0-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_b200` (7): r22 `ent01_t10_lr2e-6` / `ent05_t10_lr2e-6` seeds 0-1 after r21 (LOG 19:50); r21 `ent01_t10` / `ent05_t10` seeds 0-2 (LOG 10-29 12:25); `ent01_t10` seed 0 done: dev 0.400 at step 500, no slide, bonus held entropy at 0.10 (LOG 15:45); `ent05_t10` seed 0 done: dev 0.395, no slide (LOG 18:45); `ent01_t10` seed 1 runs since 18:21. r20 closed: `t11` (0.290,
+- `screens_b200` (5 + 2 running): r22 `ent01_t10_lr2e-6` / `ent05_t10_lr2e-6` seeds 0-2 (LOG 19:50, 23:55; `ent05` seed 0 runs on 27283068). r21 `ent05_t10` seed 2 runs on 27168550; the rest of r21 is done: `ent01_t10` 0.400 / 0.405 / 0.302, `ent05_t10` 0.395 / 0.390, no slides but no gain over r16 (LOG 23:55). r20 closed: `t11` (0.290,
   0.183) and `p96` (collapses after step 300; LOG 10-29 12:10). r17 and r19 closed.
 - `record-004_dm_math_fp32_h200_warm` (3): D 004 seeds 2-4 (read by 26933254 and 27162158 only).
 - Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.
