@@ -3027,3 +3027,11 @@ The B200 runs take about 2.3 h each (500 steps), so three more seeds finished on
   collapses. In its place, r23 `mal0_st500_ent01_t10_lr2e-6_gc03`: r22 `ent01` with `grad_clip` 0.3
   instead of 1.0 (PLAN A2, tighter clipping), seeds 0-2. `screens_b200` is now r22 `ent01` seeds 3-4 and
   gc03 seeds 0-2, interleaved; with r22 `ent01` s2 and `ent05` s2 running, about 7 h for the two B200 workers.
+
+## 2026-10-30 09:50 EDT: r22 `ent05_t10_lr2e-6` seed 2: 0.440
+
+- Seed 2 of `ent05_t10_lr2e-6` ends at **0.440** (300 0.447, 350 0.443, 400 0.427, 450 0.443, 500 0.440;
+  malformed 0.46, entropy 0.11 at the end). It is the first r22 seed with no late decline.
+- The arm closes at n=3: final 0.396 ± 0.041 (0.360, 0.387, 0.440), step-400 0.405 (0.387, 0.400, 0.427).
+  That's about r16's 0.397 at step 400, so not a gain worth a record. Still running: r22 `ent01` seeds 2-3.
+  Queued: `ent01` seed 4, r23 grad_clip 0.3 seeds 0-2.
