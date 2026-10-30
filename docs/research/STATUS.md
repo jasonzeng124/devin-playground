@@ -28,7 +28,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-30 12:50 EDT (D 004 seed 3 0.1677; r22 closed; r23 gc015 running).
+Updated 2026-10-30 14:55 EDT (r23 gc015 seed 0 0.392, seed 1 collapsed; r24 queued).
 
 ## AWS boxes: off
 
@@ -59,9 +59,10 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - `h200` (16): A 005 (`005_fp32_mal0_cos500_s400`) seeds 0-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_b200` (4 + 2 running): r23 `ent01_t10_lr2e-6_gc015` (clip 0.15) seeds 0-1 running, seeds 2-4 and
-  `gc03` (clip 0.3) seed 1 queued (LOG 10-30 12:50). `gc03` seed 0: 0.378. r22 closed: `ent01` 0.355 ± 0.157 (one collapse in five;
-  the others 0.378-0.448), `ent05` 0.396 ± 0.041. Logged grad norms: median 0.17 early to 0.27 late, so clip 1.0 never binds. r21 closed: `ent01_t10` 0.369 ± 0.058, `ent05_t10` 0.399 ± 0.011 (LOG 10-30 01:45). r20, r17, r19 closed.
+- `screens_b200` (3 + 2 running): r23 `gc015` (clip 0.15) seeds 2-3 running (seed 0 0.392, seed 1 collapsed to
+  0.018 with no grad-norm spike first; seed 4 dropped, LOG 10-30 14:55); queued: `gc03` seed 1, r24
+  `mal0_st500_ent05_t10_lr3e-6` seeds 0-1. `gc03` seed 0: 0.378. r22 closed: `ent01` 0.355 ± 0.157 (one collapse in five;
+  the others 0.378-0.448), `ent05` 0.396 ± 0.041. ent01-based runs: 2 collapses in 8. r21, r20, r17, r19 closed.
 - `record-004_dm_math_fp32_h200_warm`: empty (seed 4 running).
 - Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.
 

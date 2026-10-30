@@ -3072,3 +3072,26 @@ The B200 runs take about 2.3 h each (500 steps), so three more seeds finished on
   (max 0.38 and 0.50). So clip 0.3 binds mostly in the last 100 steps (26 and 6 of them). Neither run
   collapsed, so there's no norm trace of a collapse yet.
 - Queue: r23 gc015 seeds 0-1 running, seeds 2-4 and gc03 seed 1 queued (about 6 h for the two B200 workers).
+
+## 2026-10-30 14:55 EDT: r23 clip 0.15: seed 0 0.392, seed 1 collapses (0.018); no grad-norm spike before it, so r24 tries ent05 at lr 3e-6
+
+- r23 `ent01_t10_lr2e-6_gc015` (`grad_clip` 0.15), dev every 50 steps:
+
+| seed | 100 | 200 | 250 | 300 | 350 | 400 | 450 | 500 | malformed (end) |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0.213 | 0.328 | 0.377 | **0.435** | 0.417 | 0.393 | 0.390 | 0.392 | 0.57 |
+| 1 | 0.237 | 0.387 | 0.427 | 0.422 | 0.408 | 0.278 | 0.063 | 0.018 | 0.62 |
+
+- Seed 1's collapse, from the training log: reward fell from 0.45 (step 345) to 0.17 (step 393) while the batch's
+  malformed rate stayed at 0.27-0.29. Truncation followed later (0.48 at steps 425-450, 0.67 after). So this one
+  starts as wrong but well-formed answers, not as a slide into truncation. The pre-clip grad norm stayed at
+  0.19-0.26 through the fall and only rose (0.30-0.48) once reward was already near 0.1. Entropy stayed at the
+  0.10 floor throughout. A clip can't catch a collapse that has no spike before it.
+- ent01-based runs so far: 2 collapses in 8 (r22 `ent01` seed 1, this one). Seed 0 kept a high malformed rate
+  (0.55) the whole run and was stable but flat after step 300.
+- With seeds 0-1 at 0.392 and 0.018, gc015's mean of five can't reach 0.43. Seeds 2-3 are running and finish;
+  seed 4 is dropped from the queue. In its place, r24 `mal0_st500_ent05_t10_lr3e-6` (r22 `ent05` at lr 3e-6) seeds
+  0-1. `ent05` had no collapse in three seeds at 2e-6 but peaked lower. gc03 seed 1 stays queued.
+- Next larger item if the bonus arms stay near 0.40: PLAN A4 (SFT on a public math-reasoning set before RL).
+  The existing `scripts/sft_warmstart.py` trains on generator solutions, which v3 doesn't allow, so it would
+  need new code and a data job.
