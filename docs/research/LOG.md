@@ -2941,3 +2941,17 @@ The B200 runs take about 2.3 h each (500 steps), so three more seeds finished on
   (about 1 h in). Slurm requeued it each time. It restarted on node5702-c1 and is running that seed again
   from the start; the partial runs are kept as `stdout.interrupted.*.log` in the seed dir. 27168550 has
   started r22 `ent01` seed 0. `screens_b200` holds four more r22 items (about 7 h on the two workers).
+
+## 2026-10-30 02:50 EDT: A 004 seed 2 rerun started; B200 worker replaced
+
+- 26824150 (preemptable H200) restarted on node4301 and started the A 004 seed 2 rerun at 05:59Z, after a
+  98-s warm start. The preempted attempt is in `extra/interrupted_2_1` with a note: step 1000, 7,026 s of
+  the 17,400-s budget used. It doesn't count.
+- B200 worker 27168550 was preempted at about 01:38 while running r22 `ent01` seed 0. Slurm requeued it
+  onto node5501-c1, the node with the failed GPU; that job was submitted before the exclusion was added.
+  CUDA failed twice in 8 s there, so the worker put the item back at the front of `screens_b200` and exited
+  as designed. Its partial run of `ent01` seed 0 reruns from the start.
+- 27283068 was preempted a third time (now on node5800-c1, from 02:05) and is on r22 `ent05` seed 0 again.
+- New B200 worker 27318631 (same settings, excludes node5501-c1). I moved the dependency of the
+  mit_normal_gpu H200 job 26927308 from 27168550 to 27318631, so it still waits for a B200 worker to end.
+  The cap stays at 6: running 26824150, 27283068; eligible pending 26927305, 26854533, 27162158, 27318631.
