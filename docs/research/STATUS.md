@@ -8,7 +8,7 @@ seeds now run `scripts/warm_start.sh` first and log its time to `<record>/warm_s
 
 | record | config | runs on | state |
 |---|---|---|---|
-| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | any H200 worker (front of `h200`) | seed 0 done: test 0.3135, dev 0.287, within budget (17,463 s); its preempted attempt is in `extra/interrupted_0_1`; seed 1 done: test 0.2358, dev 0.230, within budget; seeds 2 and 3 were preempted on 10-29 04:48 (their workers, 26824150 and 26854533, rerun them on restart and keep the partial runs under `extra/`); seed 2 rerun running on 26824150 since 10-30 01:59 (attempt 1 in `extra/interrupted_2_1`); seed 4 done: test 0.1834 (one-guess), dev 0.185, within budget |
+| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | any H200 worker (front of `h200`) | seed 0 done: test 0.3135, dev 0.287, within budget (17,463 s); its preempted attempt is in `extra/interrupted_0_1`; seed 1 done: test 0.2358, dev 0.230, within budget; seeds 2 and 3 were preempted on 10-29 04:48 (their workers, 26824150 and 26854533, rerun them on restart and keep the partial runs under `extra/`); seed 2 rerun running on 26824150 since 10-30 01:59 (attempt 1 in `extra/interrupted_2_1`); seed 3 rerun running on 26854533 since 10-30 04:30 (attempt 1 in `extra/interrupted_3_1`); seed 4 done: test 0.1834 (one-guess), dev 0.185, within budget |
 | `records/v3/track_a/005_fp32_mal0_cos500_s400` | r16's, stopped at step 400 (`max_steps` 400), + `budget_steps_time_stop`, weights saved | any H200 worker | **new** (LOG 10-28 23:10, 10-29 00:30): r16 promoted; r16's dev at step 400 0.397 ± 0.011; seeds 0-4 queued in `h200` after A 004 |
 | `records/v3/track_d/004_dm_math_fp32_h200_warm` | D 002's, unchanged | preemptable H200 workers 26933254 (+ 27162158 after the B200 worker) | seed 1 done: test 0.1296, within budget; seed 0 done (third attempt; attempt 2 in `extra/interrupted_0_2`): test 0.1832, dev 0.182, within budget (20,816 s); seed 2 done: test 0.1384, dev 0.137, within budget (20,892 s); seeds 3-4 queued for 27162158 |
 | `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | any H200 worker | queued at the end of `h200` (LOG 13:05) |
@@ -28,7 +28,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-30 02:52 EDT (A 004 seed 2 rerun running; B200 worker 27318631 replaces 27168550).
+Updated 2026-10-30 04:50 EDT (A 004 seeds 2 and 3 rerunning; r22 seed 0 of `ent05` done, LOG 03:50).
 
 ## AWS boxes: off
 
@@ -39,7 +39,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
 ## Running
 
 - mit_preemptable H200 (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900 excluded):
-  - 26854533 (pending, preempted 10-29 04:48): reruns A 004 seed 3 first.
+  - 26854533: A 004 seed 3 rerun (node4301, from 10-30 04:30; attempt 1 in `extra/interrupted_3_1`).
   - 26824150: A 004 seed 2 rerun (node4301, from 10-30 01:59; attempt 1 in `extra/interrupted_2_1`).
   - 26933254 exited 10-29 20:29 after D 004 seed 2.
   - 27162158 (pending, eligible since 10-29 12:05): D 004's queue, then `h200`.
@@ -52,14 +52,14 @@ otherwise. `queue/b200.txt` (r15) is parked.
   RESERVE_MIN 240, queue `screens_b200` only. One run per GPU: the probe found a second track A run
   adds 11 %.
 - Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38 and about 02:00, now on node5800-c1).
-- Cap: 2 running (26824150, 27283068) + 4 eligible pending (26927305, 26854533, 27162158, 27318631);
+- Cap: 4 running (26824150, 26854533, 27283068, 27318631) + 2 eligible pending (26927305, 27162158);
   26927308 waits on B200 worker 27318631, which exits when `screens_b200` is empty. I may update or cancel my own pending jobs without asking.
 
 ## Queues
 
 - `h200` (16): A 005 (`005_fp32_mal0_cos500_s400`) seeds 0-4; r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_b200` (5 + 2 running): r22 `ent01_t10_lr2e-6` / `ent05_t10_lr2e-6` seeds 0-2 (LOG 19:50, 23:55; seed 0 of both arms is running). r21 closed: `ent01_t10` 0.369 ± 0.058, `ent05_t10` 0.399 ± 0.011, no slides but no gain over r16 (LOG 10-30 01:45). r20 closed: `t11` (0.290,
+- `screens_b200` (5 + 2 running): r22 `ent01_t10_lr2e-6` / `ent05_t10_lr2e-6` seeds 0-2 (LOG 19:50, 23:55; `ent05` seed 0 done: 0.360 final, 0.40 by step 300, LOG 03:50; `ent05` seed 1 and `ent01` seed 0 running). r21 closed: `ent01_t10` 0.369 ± 0.058, `ent05_t10` 0.399 ± 0.011, no slides but no gain over r16 (LOG 10-30 01:45). r20 closed: `t11` (0.290,
   0.183) and `p96` (collapses after step 300; LOG 10-29 12:10). r17 and r19 closed.
 - `record-004_dm_math_fp32_h200_warm` (3): D 004 seeds 2-4 (read by 26933254 and 27162158 only).
 - Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.

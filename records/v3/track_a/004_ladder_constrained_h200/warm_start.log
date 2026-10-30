@@ -4,3 +4,5 @@
 2026-10-29T06:50:37Z worker 26824150: warm start: 9 s on node4301 before records/v3/track_a/004_ladder_constrained_h200 2
 2026-10-29T08:15:15Z worker 26854533: warm start: 52 s on node4301 before records/v3/track_a/004_ladder_constrained_h200 3
 2026-10-29T12:08:58Z worker 26927304: warm start: 59 s on node3100 before records/v3/track_a/004_ladder_constrained_h200 4
+2026-10-30T05:59:27Z worker 26824150: warm start: 98 s on node4301 before records/v3/track_a/004_ladder_constrained_h200 2
+2026-10-30T08:30:46Z worker 26854533: warm start: 7 s on node4301 before records/v3/track_a/004_ladder_constrained_h200 3

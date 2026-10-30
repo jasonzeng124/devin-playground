@@ -2969,3 +2969,15 @@ The B200 runs take about 2.3 h each (500 steps), so three more seeds finished on
   checkpoint (this seed resumed at step 225 after its last preemption), so a preemption costs well
   under an hour.
 - Seed 1 of this arm and `ent01_t10_lr2e-6` seed 0 are running on 27283068 and 27318631.
+
+## 2026-10-30 04:50 EDT: A 004 seed 3 rerun started; r22 `ent01_t10_lr2e-6` seed 0 restarted
+
+- A 004 seed 3: worker 26854533 restarted on node4301 and began the rerun at 08:30:46Z (7-s warm start).
+  The worker had moved attempt 1 (preempted 10-29 at step 126, 11 % of the budget) to
+  `extra/interrupted_3_1`; I added its `note.txt`. Seeds 2 and 3 are both rerunning now.
+- B200 worker 27318631 was preempted and requeued at 03:16 (same node). Its run of `ent01_t10_lr2e-6` seed 0
+  had reached step 200, before the first resume checkpoint (step 225), so it started over. The worker kept the
+  partial run as `seeds/0.interrupted.1793344598` in the pool. Correction to 03:50: resuming needs a
+  checkpoint, so a preemption before step 225 still costs the whole run so far.
+- The restarted seed is at dev 0.43 at step 300, the best step-300 dev of any arm so far (malformed 0.51).
+  `ent05_t10_lr2e-6` seed 1 is at 0.405 at its latest eval.
