@@ -2955,3 +2955,17 @@ The B200 runs take about 2.3 h each (500 steps), so three more seeds finished on
 - New B200 worker 27318631 (same settings, excludes node5501-c1). I moved the dependency of the
   mit_normal_gpu H200 job 26927308 from 27168550 to 27318631, so it still waits for a B200 worker to end.
   The cap stays at 6: running 26824150, 27283068; eligible pending 26927305, 26854533, 27162158, 27318631.
+
+## 2026-10-30 03:50 EDT: r22 `ent05_t10_lr2e-6` seed 0: faster, same ceiling
+
+| step | 100 | 200 | 300 | 400 | 450 | 500 |
+|---|---|---|---|---|---|---|
+| dev | 0.250 | 0.378 | 0.402 | 0.387 | 0.403 | 0.360 |
+
+- At lr 2e-6 the run reaches 0.40 by step 300, against step 500 at lr 1e-6 (r21). It then stays at 0.39-0.40
+  and drops to 0.360 at step 500 (L1 1.00, L2 0.33, L4 0.07, malformed 0.34). Entropy stayed at 0.10-0.14
+  (bonus on 14 steps). That's no slide in the r16 sense, but no gain either.
+- Correction to the 01:45 entry: preempted screens don't start over. They resume from the last
+  checkpoint (this seed resumed at step 225 after its last preemption), so a preemption costs well
+  under an hour.
+- Seed 1 of this arm and `ent01_t10_lr2e-6` seed 0 are running on 27283068 and 27318631.
