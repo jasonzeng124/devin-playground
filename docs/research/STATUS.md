@@ -51,7 +51,8 @@ otherwise. `queue/b200.txt` (r15) is parked.
   with PER_GPU=1 (GCC 12's libstdc++ first, deadline from `squeue`), REQUIRE_GPU "NVIDIA B200",
   RESERVE_MIN 240, queue `screens_b200` only. One run per GPU: the probe found a second track A run
   adds 11 %.
-- Cap: 3 running (26927304, 26933254, 27168550) + 3 eligible pending (26824150, 26854533, 27162158);
+- Second B200 screen worker 27283068 (same settings, node5702-c1, from 10-29 20:32): r21 `ent05_t10` seed 1.
+- Cap: 2 running (27168550, 27283068) + 4 eligible pending (26927305, 26824150, 26854533, 27162158);
   26927308 waits on B200 worker 27168550, which exits when `screens_b200` is empty. I may update or cancel my own pending jobs without asking.
 
 ## Queues
