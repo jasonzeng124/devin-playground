@@ -2890,3 +2890,15 @@ r21 `mal0_st500_ent05_t10` (r16 + entropy bonus 0.05 below an entropy of 0.1), s
 - A second B200 screen worker, 27283068 (`packed_worker.sbatch`, PER_GPU=1, `screens_b200`), starts
   after 26933254 ends. 26933254 runs D 004 seed 2 until about 20:30 and then exits (less than 6.5 h
   left). That keeps the cap at 2 running + 4 eligible pending.
+
+## 2026-10-29 20:45 EDT: D 004 seed 2 within budget
+
+| seed | test ladder | pass@16 | truncated | mean tokens | final dev | RL steps | total s (of 21,600) |
+|---|---|---|---|---|---|---|---|
+| 2 | 0.1384 | 0.2100 | 0.000 | 22 | 0.137 | 14,972 | 20,892 (pretrain 6,728) |
+
+- Seed 2 ran on 26933254 (node4300, 18:34-00:29Z, 144-s warm start).
+- D 004 so far: seed 0 0.1832, seed 1 0.1296, seed 2 0.1384 (mean 0.1504; D 002's H100 mean 0.1512).
+- Seeds 3-4 are left for 27162158, which waits on the H200 shortage (LOG 19:50).
+- 26933254 then exited. B200 screen worker 27283068 started on node5702-c1 at 00:32Z with r21
+  `ent05_t10` seed 1.
