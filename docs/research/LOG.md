@@ -3119,3 +3119,27 @@ The B200 runs take about 2.3 h each (500 steps), so three more seeds finished on
 - A 004 seeds 2 and 3: workers 26824150 and 26854533 restarted on node4801 at 21:08Z (17:08 EDT) and rerun both
   seeds after a 71-s warm start (attempt 3). Attempts 2 are in `extra/interrupted_2_2` (step 728, 59 % of the
   budget) and `extra/interrupted_3_2` (step 75, 7 %), with notes.
+
+## 2026-10-30 18:55 EDT: D 004 complete, the first track D record on the H200 (0.1552 ± 0.0217); D line now 0.189
+
+Seed 4 finished at about 18:30 on node2500 (worker 27162158, after an 11-s warm start). It scored
+test 0.1572, and its total was 20,932 s, within budget. All five seeds are in:
+
+| seed | node | test ladder | pass@16 | final dev | total_s | within 21,600 s |
+|---|---|---|---|---|---|---|
+| 0 | node4300 | 0.1832 | 0.2367 | 0.182 | 20816 | yes |
+| 1 | node4400 | 0.1296 | 0.1604 | 0.130 | 20993 | yes |
+| 2 | node4300 | 0.1384 | 0.2100 | 0.137 | 20892 | yes |
+| 3 | node2500 | 0.1677 | 0.2283 | 0.183 | 20941 | yes |
+| 4 | node2500 | 0.1572 | 0.2037 | 0.163 | 20932 | yes |
+
+- Mean test 0.1552 ± 0.0217. On the H100, D 002 scored 0.1512 ± 0.0202, and the invalid D 003
+  scored 0.1538.
+- With the warm-up, start-up and saves took 56-233 s per seed. Without it, D 003's two
+  over-budget seeds took about 965 s.
+- `validate_record_v3.py` passes. The README is written, and the README leaderboard lists 004 as
+  the track D (H200) holder.
+- Three preempted attempts are in `extra/`, each with a note.
+- PLAN's D line moves from 0.190 (H100) to 0.189: dev mean 0.159 + 0.03.
+- Worker 27162158 went on to `h200` and is running A 005 seed 0.
+- r23 `gc03` seed 1 is at step 200, dev 0.362.

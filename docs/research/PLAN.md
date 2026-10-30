@@ -58,6 +58,9 @@ H200 lines (v3.1, INBOX 2026-10-25): the first H200 holders will be the reruns
 `records/v3/track_d/003_dm_math_fp32_h200` (D 002's config). Until they land, promotion uses the
 H100 lines: A 0.2703 (A 001's record dev 0.2403 + 0.03) and D 0.190 (D 002's 0.1603 + 0.03). When a
 rerun lands, its five seeds' in-loop final dev replaces the H100 number here, with the date.
+D 003 failed (two seeds over budget); its rerun `004_dm_math_fp32_h200_warm` landed on 2026-10-30:
+in-loop final dev 0.182 / 0.130 / 0.137 / 0.183 / 0.163, mean 0.1590, so **the D line is now 0.189**
+(holder dev mean 0.159).
 
 "Collapsed" in this rule (clarified 2026-10-22, before the seeds it first applies to; QUESTIONS.md
 asks the maintainer): a seed that diverged, or a one-guess seed whose final dev is below the
