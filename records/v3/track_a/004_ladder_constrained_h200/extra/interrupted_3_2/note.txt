@@ -1,0 +1,6 @@
+Seed 3, attempt 2: started 2026-10-30T08:30:48Z on node4301 (worker 26854533, mit_preemptable,
+NVIDIA H200). Preempted at 2026-10-30T08:53:04Z (04:53:04 EDT), at step 75 with 1,299 s of its
+17,400-s training budget used (7 %), before the final eval and the test ladder. An infrastructure
+interruption (preemption), so seed 3 is rerun under the same seed (RULES_v3, "Seeds and statistics"),
+and this attempt doesn't count. The rerun (attempt 3) started 2026-10-30T21:09:17Z on node4801 (same
+worker, after a 71-s warm start).

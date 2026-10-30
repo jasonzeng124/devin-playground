@@ -3095,3 +3095,27 @@ The B200 runs take about 2.3 h each (500 steps), so three more seeds finished on
 - Next larger item if the bonus arms stay near 0.40: PLAN A4 (SFT on a public math-reasoning set before RL).
   The existing `scripts/sft_warmstart.py` trains on generator solutions, which v3 doesn't allow, so it would
   need new code and a data job.
+
+## 2026-10-30 17:55 EDT: r23 clip 0.15 closes with 2 collapses in 4; A 004 seeds 2-3 rerun (attempt 3)
+
+- r23 `ent01_t10_lr2e-6_gc015`, seeds 2-3 (seed 4 was dropped):
+
+| seed | 100 | 200 | 250 | 300 | 350 | 400 | 450 | 500 | malformed (end) |
+|---|---|---|---|---|---|---|---|---|---|
+| 2 | 0.282 | 0.362 | 0.385 | 0.082 | 0.012 | 0.002 | 0.003 | 0.005 | 0.54 |
+| 3 | 0.248 | 0.380 | 0.343 | 0.385 | 0.417 | 0.405 | 0.407 | **0.435** | 0.13 |
+
+  - The arm closes at n=4: 0.392, 0.018, 0.005, 0.435, mean **0.212 ± 0.233**. Clip 0.15 doesn't help and may
+    hurt (2 collapses in 4, against 1 in 5 for r22 `ent01` without it). ent01-based runs: 3 collapses in 10.
+  - Seed 2 was preempted and resumed from its step-234 checkpoint at 15:59 (worker 27318631, node5600-c1).
+    It collapsed about 40 steps later, with the same signature as seed 1: training reward fell (0.34 at step 264
+    to 0.04 at step 306) before truncation rose (0.30 to 0.62), and the grad norm fell rather than spiked
+    (0.25 to 0.08). The resume isn't the cause: seed 1 and r22 `ent01` seed 1 collapsed without one, and r22
+    `ent05` seed 0 resumed four times at step 225 and finished at 0.360.
+  - Seed 3 is the r22-style good run: still climbing at step 500, with truncation falling to 0.13.
+- Worker 27318631 exited at 16:58 (less than 240 min left after its requeue). `screens_b200` keeps one worker
+  (27283068, gc03 seed 1, then r24 seeds 0-1, about 7 h). I don't start another while the cap is full: A 004's
+  workers restarted, and 26927308 became eligible when 27318631 ended.
+- A 004 seeds 2 and 3: workers 26824150 and 26854533 restarted on node4801 at 21:08Z (17:08 EDT) and rerun both
+  seeds after a 71-s warm start (attempt 3). Attempts 2 are in `extra/interrupted_2_2` (step 728, 59 % of the
+  budget) and `extra/interrupted_3_2` (step 75, 7 %), with notes.
