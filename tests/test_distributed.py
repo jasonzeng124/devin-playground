@@ -47,7 +47,7 @@ def _update_worker(rank: int, init_file: str, out_file: str):
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr)
     generated, attention, advantages, prompt_width = _fixed_batch()
     start, end = shard_bounds(generated.shape[0], rank, WORLD)
-    _loss, _kl, _entropy, token_count, _mismatch = _update(
+    _loss, _kl, _entropy, token_count, _mismatch, _grad_norm = _update(
         model, None, generated[start:end], attention[start:end], advantages[start:end], prompt_width, 0, config, optimizer, torch.device("cpu"), dist
     )
     if rank == 0:
@@ -63,7 +63,7 @@ def test_sharded_update_matches_single_process(tmp_path):
     config = GRPOConfig(lr=1e-3, micro_batch_size=3, kl_coef=0.0, grad_clip=0.0)
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr)
     generated, attention, advantages, prompt_width = _fixed_batch()
-    _loss, _kl, _entropy, token_count, _mismatch = _update(
+    _loss, _kl, _entropy, token_count, _mismatch, _grad_norm = _update(
         model, None, generated, attention, advantages, prompt_width, 0, config, optimizer, torch.device("cpu"), Dist()
     )
     assert sharded["tokens"] == int(token_count) == int(attention[:, prompt_width:].sum())

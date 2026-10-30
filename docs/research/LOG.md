@@ -3007,3 +3007,23 @@ The B200 runs take about 2.3 h each (500 steps), so three more seeds finished on
 - Queued on `screens_b200`: `ent01_t10_lr2e-6` seeds 3-4 (with seeds 1-2 that makes 5 for a step-400
   estimate; it needs about 0.43 to beat A 005's expected 0.397). Also r23 `ent01_t10_lr3e-6` seeds 0-1:
   does the floor keep lr 3e-6 stable too? About 6 h for the two B200 workers.
+
+## 2026-10-30 07:50 EDT: r22 `ent01_t10_lr2e-6` seed 1 collapses at step 350; grad-norm logging; r23 switches to grad_clip 0.3
+
+- r22 `ent01_t10_lr2e-6` seed 1 (one clean run on 27283068, node5800-c1, no resume) ends at **0.078**.
+  Dev by step: 100 0.252, 200 0.352, 300 0.372, 350 0.223, 400 0.065, 450 0.058, 500 0.078.
+  - The mechanism matches the known mal0 collapses (LOG 10-24 09:40): a truncation spike first. Training
+    malformed went from 0.25 to 0.70 between steps 335 and 366, while entropy drifted from 0.11 to 0.077
+    with the bonus on. Reward fell from 0.37 to 0.02. Then malformed dropped to 0.01 with reward stuck at
+    0.03-0.07: a degenerate short-answer policy that doesn't recover.
+  - So the entropy floor stops the slow entropy slide but not this jump. The arm now stands at 0.427 and
+    0.078 (seeds 2-4 to come); one collapse in five is allowed by the promotion rule, but the mean needs
+    about 0.43.
+- Code: `_update` now returns the gradient norm before clipping, and `grpo_step` logs it as `grad_norm`
+  in train_log (only when `grad_clip` > 0, the default). Nothing else changes. ruff and pytest
+  (136 passed) are clean. Runs that start from now on log it; it shows whether the clip binds before
+  and during a collapse.
+- r23 `ent01_t10_lr3e-6` is dropped before it ran: a faster lr makes no sense while 2e-6 still
+  collapses. In its place, r23 `mal0_st500_ent01_t10_lr2e-6_gc03`: r22 `ent01` with `grad_clip` 0.3
+  instead of 1.0 (PLAN A2, tighter clipping), seeds 0-2. `screens_b200` is now r22 `ent01` seeds 3-4 and
+  gc03 seeds 0-2, interleaved; with r22 `ent01` s2 and `ent05` s2 running, about 7 h for the two B200 workers.

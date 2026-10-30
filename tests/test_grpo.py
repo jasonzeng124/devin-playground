@@ -74,6 +74,7 @@ def test_single_grpo_step_has_finite_loss_and_updates_parameters():
         torch.device("cpu"),
     )
     assert torch.isfinite(torch.tensor(result["loss"]))
+    assert result["grad_norm"] >= 0  # logged with the default grad_clip
     assert any(not torch.equal(old, new) for old, new in zip(before, model.parameters()))
 
 
@@ -654,7 +655,7 @@ def test_truncated_importance_weights_scale_the_policy_gradient(offset, cap, sca
         model = copy.deepcopy(base)
         config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, micro_batch_size=4, **extra)
         optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
-        *_, sums = grpo._update(
+        *_, sums, _grad_norm = grpo._update(
             model, None, generated, attention, advantages, prompt_width, 0, config, optimizer, torch.device("cpu"), grpo.SINGLE, None, sampler_lp
         )
         grads.append([p.grad.clone() for p in model.parameters()])

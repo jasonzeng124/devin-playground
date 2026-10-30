@@ -534,10 +534,11 @@ def _update(
     dist: Dist,
     allowed=None,
     sampler_lp: torch.Tensor | None = None,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None]:
-    """One optimizer step on this rank's rows; returns (loss, kl, entropy_sum, token_count) sums and,
-    with `sampler_lp` (the sampler's per-token log-probs, [rows, completion width]), the
-    `_sampler_mismatch_` sums (else None).
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
+    """One optimizer step on this rank's rows; returns (loss, kl, entropy_sum, token_count) sums,
+    with `sampler_lp` (the sampler's per-token log-probs, [rows, completion width]) the
+    `_sampler_mismatch_` sums (else None), and the gradient norm before clipping (None without
+    `grad_clip`).
 
     Under data parallelism the loss is normalised by the global completion-token
     count and gradients are summed across ranks, so the step equals the
@@ -601,10 +602,9 @@ def _update(
         # the logged entropy (entropy_total / token_count) becomes the mean over the updated rows
         entropy_total = entropy_total * token_count / completion_valid[active].sum().clamp_min(1)
     dist.all_reduce_grads_(model.parameters())
-    if config.grad_clip > 0:
-        torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
+    grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip) if config.grad_clip > 0 else None
     optimizer.step()
-    return loss_total, kl_total, entropy_total, token_count, mismatch
+    return loss_total, kl_total, entropy_total, token_count, mismatch, grad_norm
 
 
 _GRAMMARS: dict = {}
@@ -654,7 +654,7 @@ def grpo_step(
     advantages = group_advantages(groups, config.adv_norm, config.pos_adv_scale).reshape(-1)
 
     allowed = _allowed_tokens(tokenizer, generated, attention, prompt_width, expanded, config.think_budget) if config.constrain_answer else None
-    loss, kl, entropy_total, token_count, mismatch = _update(
+    loss, kl, entropy_total, token_count, mismatch, grad_norm = _update(
         model, ref_model, generated, attention, advantages, prompt_width, prefix_len, config, optimizer, device, dist, allowed, sampler_lp
     )
     t_update = _now(device) - t0 - t_sample
@@ -691,6 +691,8 @@ def grpo_step(
         "rewards": rewards.detach().cpu().tolist(),
         "puzzles": expanded,
     }
+    if grad_norm is not None:
+        info["grad_norm"] = grad_norm.item()  # before clipping; the same on every rank (grads are all-reduced)
     if mismatch is not None:
         info.update(_mismatch_stats(mismatch, dist, config.tis_cap))
     return info
