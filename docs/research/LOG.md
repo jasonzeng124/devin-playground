@@ -3386,3 +3386,19 @@ D 004's ~15,000 steps, D 004's config otherwise (`vllm_gpu_memory` 0.08 for pack
 - Seeds 2 and 3 wait for their workers (27412797, 27412796, both pending). Worker 27162158 popped the
   next `h200` item, r18 `d003rl_p256_lr3e-6` seed 1 (track D).
 - B200 workers 27441594 and 27460856 restarted on node5800-c1 at 15:38; r25's first three runs resume.
+
+## 2026-10-31 18:50 EDT: r25 restarted from step 1 at every preemption; its worker now saves every 10 min
+
+- r25's three seed-0 runs had only 27-135 steps after six hours. Worker 27460856 was preempted eight
+  times on node5800-c1, each time within an hour of starting. Screens save resumable state every
+  3,600 training seconds (`RESUME_EVERY_S`, `scripts/slurm/screen_seed.sh`), so no `state.pt` was
+  ever written and each restart began again at step 1. The 15:50 entry's "resume" was wrong. The
+  partial attempts are in the weights dir as `0.interrupted.<stamp>` (logs only, `no_save`).
+- At 3 runs per B200, a track D run takes 2.4 s per step, so the 6,000 steps need about 4 h of
+  training. A 110M fp32 model's state is about 1.3 GB, so saving every 10 min costs little.
+- I cancelled 27460856 while it was pending, put its three held items back at the front of
+  `screens_d_b200`, and submitted 27483976 with the same settings plus `RESUME_EVERY_S=600`. The track A
+  B200 worker (27441594, r22) keeps hourly saves: a 1.7B state is 20 GB, and r22 seed 3 has one.
+- No other results since 15:50. r18 `d003rl_p256_lr3e-6` seed 1 runs on node4300 (27162158). A 005 seeds 2
+  and 3 wait for 27412797 and 27412796 (pending, Resources). Both B200 workers wait on
+  ReqNodeNotAvail.
