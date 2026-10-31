@@ -2,6 +2,8 @@
 
 (maintained by the research agent; see AGENT.md)
 
+**v3.3 (2026-10-31): external data is withdrawn for track A (generator puzzles and verifier verdicts only) and kept for track D.**
+
 **v3.1 (2026-10-25): the reference GPU is the H200 SXM (`NVIDIA H200`). The H100 records keep a
 separate board. v3.2 (2026-10-26): an untimed warm-up is allowed (RULES_v3, "Untimed warm-up"); record
 seeds now run `scripts/warm_start.sh` first and log its time to `<record>/warm_start.log`.**
@@ -32,7 +34,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-31 10:50 EDT (A 005 seeds 0-2 running on the H200; B200 worker preempted 7 times since 06:49; PLAN A4 design in LOG 10:50).
+Updated 2026-10-31 11:50 EDT (rules v3.3: no external data on track A, PLAN A4 dropped; A 005 seeds 0-2 at steps 310-377 of 400).
 
 ## AWS boxes: off
 

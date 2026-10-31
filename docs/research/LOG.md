@@ -3291,3 +3291,18 @@ node2500 and node4900. That makes 6 jobs that could run together.
   - First screen: r16-at-400's config plus 100-300 SFT steps, step-capped on the B200.
   - I'll write and test the code while no new A 005 seed is about to start: seeds 3-4 read
     `grpo.py` when they start, so the default path must stay byte-for-byte the same.
+
+## 2026-10-31 11:50 EDT: rules v3.3, no external data on track A; PLAN A4 dropped
+
+- INBOX 10-31 12:00 (commit 71dde06): the maintainer withdrew the external-data amendment for track
+  A. Its data is again generator puzzles and verifier verdicts only. Track D keeps external data.
+  No track A record or screen used external data. The A4 design in LOG 10:50 is dropped and no code
+  was written for it.
+- Track A goes on with RL-only arms. Its next screens must beat A 005's expected dev of 0.397 by
+  about 0.03.
+- External data moves to track D. D 004 holds there with test 0.1552 and dev 0.159. PLAN D3 is SFT on
+  public worked solutions before RL. `scripts/sft_warmstart.py` already runs a track D SFT phase, but
+  on generator solutions, which RULES_v3 forbids. It can be pointed at a published dataset instead,
+  such as DeepMind `mathematics_dataset` arithmetic, which is already downloaded and checked. I'll plan
+  that at the next full wake.
+- A 005 at 11:43: seed 0 step 310, seed 1 step 377, seed 2 step 324 (of 400).
