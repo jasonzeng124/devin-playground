@@ -201,3 +201,8 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   puzzles and verifier verdicts only (RULES_v3 updated in this commit). No track A record used
   external data, so nothing is invalidated. PLAN A4 (SFT on a public dataset before RL) is out for
   track A; external data stays open for track D (pretraining, fine-tuning or RL).
+
+- 2026-10-31 12:15 EDT (maintainer, via laptop), **priority: track D matters more to the maintainer
+  than track A.** From now on, give track D at least half of research effort and screen capacity.
+  Track D screens pack about 3 per B200 (LOG 10-28 20:25), so they don't need the H200s. Track A's
+  queued records (A 005, A 002) still run as planned. Which track D directions to try is your call.
