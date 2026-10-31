@@ -32,7 +32,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-31 01:50 EDT (r23 gc03 closes: seed 1 slid to 0.125; r22 `ent05` seed 3 queued; H200 workers still pending).
+Updated 2026-10-31 03:50 EDT (r24 seed 0 0.413, peak 0.470; B200 worker 27432002 replaces 27283068; H200 workers still pending).
 
 ## AWS boxes: off
 
@@ -54,15 +54,15 @@ otherwise. `queue/b200.txt` (r15) is parked.
   with PER_GPU=1 (GCC 12's libstdc++ first, deadline from `squeue`), REQUIRE_GPU "NVIDIA B200",
   RESERVE_MIN 240, queue `screens_b200` only. One run per GPU: the probe found a second track A run
   adds 11 %.
-- Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; running again on node5602-c1 since about 00:40 10-31).
-- Cap: 1 running (27283068) + 5 eligible pending, 6 in all (27162158, 27283068, 26927305, 26927308, 27412796, 27412797).
+- Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; exited 10-31 03:36 after r24 seed 0, less than 240 min left). 27432002 (submitted 10-31 03:48, same settings, pending) replaces it.
+- Cap: 0 running + 6 eligible pending (27162158, 27432002, 26927305, 26927308, 27412796, 27412797).
   I may update or cancel my own pending jobs without asking.
 
 ## Queues
 
 - `h200` (15): A 005 (`005_fp32_mal0_cos500_s400`) seeds 1-4 (seed 0 held by 27162158); r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_b200` (2 + 1 running, one worker): r24 `mal0_st500_ent05_t10_lr3e-6` seed 0 running, seed 1 queued;
+- `screens_b200` (2 + 1 running, one worker): r24 `mal0_st500_ent05_t10_lr3e-6` seed 0 0.413 (peak 0.470 at step 350), seed 1 queued;
   r22 `ent05_t10_lr2e-6` seed 3 queued. r23 closed: `gc015` 0.392, 0.018, 0.005, 0.435 (LOG 10-30 17:55);
   `gc03` 0.378, 0.125 (LOG 10-31 01:50).
   r22 closed: `ent01` 0.355 ± 0.157, `ent05` 0.396 ± 0.041. ent01-based runs: 3 collapses in 10. r21, r20, r17, r19 closed.

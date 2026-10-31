@@ -3219,3 +3219,18 @@ node2500 and node4900. That makes 6 jobs that could run together.
   `ent05_t10_lr2e-6` seed 3 after it. That arm had no collapse in three seeds (0.396 ± 0.041), and a fourth
   seed tells us more about its collapse rate. This keeps about 6 h of work queued for the one worker.
 - H200 jobs: all seven still pending (27162158 holds A 005 seed 0).
+
+## 2026-10-31 03:50 EDT: r24 `ent05_lr3e-6` seed 0 ends at 0.413; new B200 worker 27432002
+
+- r24 `mal0_st500_ent05_t10_lr3e-6` seed 0 finished at 03:36 (worker 27283068, node5602-c1):
+
+| seed | 100 | 150 | 200 | 250 | 300 | 350 | 400 | 450 | 500 | malformed (end) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0.333 | 0.400 | 0.432 | 0.390 | 0.443 | **0.470** | 0.382 | 0.412 | 0.413 | 0.22 |
+
+  - It ends at 0.413 with no collapse. Its peak (0.470 at step 350) is the highest dev eval of any screen so far.
+    It is also ahead of r22 `ent05` at lr 2e-6 at every step from 100 to 350 (r22's seeds ended at 0.360-0.440).
+    One seed is too few to judge; seed 1 is next.
+- Worker 27283068 then exited (less than 240 min left). I submitted 27432002 in its place, with the same
+  settings: B200, `screens_b200`, excludes node5501-c1 and node4900. Queue: r24 seed 1, then r22 `ent05` seed 3.
+- Cap: 0 running, 6 eligible pending (27162158, 26927305, 26927308, 27412796, 27412797, 27432002).
