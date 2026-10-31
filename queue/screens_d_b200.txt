@@ -1,0 +1,10 @@
+calibration/research_r25/d004rl_shape02 0
+calibration/research_r25/d004rl_shape05 0
+calibration/research_r25/d004rl_ent05_t10 0
+calibration/research_r25/d004rl_ctl 0
+calibration/research_r25/d004rl_shape02 1
+calibration/research_r25/d004rl_shape05 1
+calibration/research_r25/d004rl_ent05_t10 1
+calibration/research_r25/d004rl_shape02 2
+calibration/research_r25/d004rl_shape05 2
+calibration/research_r25/d004rl_ent05_t10 2

@@ -3306,3 +3306,61 @@ node2500 and node4900. That makes 6 jobs that could run together.
   such as DeepMind `mathematics_dataset` arithmetic, which is already downloaded and checked. I'll plan
   that at the next full wake.
 - A 005 at 11:43: seed 0 step 310, seed 1 step 377, seed 2 step 324 (of 400).
+
+## 2026-10-31 12:50 EDT: A 005 seeds 0-1 test 0.3995 and 0.4076; seed 2 preempted in its test ladder; INBOX: track D first; r25 (track D, B200) queued
+
+A 005 (`records/v3/track_a/005_fp32_mal0_cos500_s400`, H200, 400 steps):
+
+| seed | node | test ladder | pass@16 | truncated | mean tokens | in-loop final dev | total_s | within 18,000 s |
+|---|---|---|---|---|---|---|---|---|
+| 0 (attempt 3) | node4300 | 0.3995 | 0.6346 | 0.529 | 709 | 0.375 | 7,781 | yes |
+| 1 | node4400 | 0.4076 | 0.6608 | 0.549 | 723 | 0.4033 | 8,867 | yes |
+| 2 | node4400 | none: preempted | | | | 0.36 | 7,645 | (training yes) |
+| 3 | node4400 | running since 12:16 | | | | | | |
+| 4 | node4300 | running since 12:38 | | | | | | |
+
+- Seeds 0 and 1 are the best track A test scores so far: A 004 holds at 0.2671. Both seeds stopped on
+  their step count (400) at less than half the budget.
+- Seed 2 finished training, but worker 27412797 was preempted at 12:22 during the test ladder, so it
+  has no `confirm_v3.json`. That counts as an infrastructure stop under INBOX 10-25: when the worker
+  restarts, the runner moves the attempt to `extra/interrupted_2_1` and reruns seed 2 from the start.
+  I'll write its `note.txt` then. Its rerun runs the whole seed again, training included.
+
+INBOX 10-31 12:15 (commit ba1f819): track D matters more to the maintainer. It gets at least half of
+research effort and screen capacity from now on; A 005 and A 002 still run as planned.
+
+Why track D stalls: every D 004 seed ends with almost no learning signal. Seed 0's last step has 1 of 64
+groups informative, entropy 0.020 and batch reward 0.20. From step ~1,500 on, it has 3-10 informative
+groups and entropy about 0.05. Its dev still creeps up across all ~15,000 steps (seed 0: 0.083 at step
+500, 0.122 at 6,000, 0.182 at the end), so most of the 234 min of RL is spent on a few groups per step.
+This is the one-guess mode of LOG 10-19. Two existing options (both off by default) attack that
+directly:
+
+- `shaping`: partial credit for wrong answers (`partial_credit` in grpo.py). With the answer
+  constrained, almost every wrong answer uses the puzzle's numbers and earns 0.5-0.99 of the weight by
+  closeness to the target. Groups stop being all-equal, so most of them carry a gradient.
+- the entropy bonus with a target (r21/r22; `ent05` was track A's steadiest arm).
+
+r25 (`calibration/research_r25`), track D, RL from D 004's own pretrained seeds 0-2, step-capped at 6,000 of
+D 004's ~15,000 steps, D 004's config otherwise (`vllm_gpu_memory` 0.08 for packing):
+
+| arm | change | seeds |
+|---|---|---|
+| `d004rl_shape02` | `shaping` 0.2 | 0-2 |
+| `d004rl_shape05` | `shaping` 0.5 | 0-2 |
+| `d004rl_ent05_t10` | `entropy_coef` 0.05 below entropy 0.10 | 0-2 |
+| `d004rl_ctl` | none | 0 |
+
+- The paired control is free: D 004's own eval logs at step 6,000 (0.122 / 0.115 / 0.075 for seeds
+  0-2, mean 0.104), on the same pretrained weights. `d004rl_ctl` seed 0 checks that the B200 and the
+  packing reproduce it.
+- An arm worth following needs a clear gain at step 6,000 with the informative groups still above about
+  10. The full-length gating seeds then run on the H200 against the D line of 0.189.
+- New B200 worker 27460856 (`packed_worker.sbatch`, PER_GPU=3, queue `screens_d_b200`, RESERVE_MIN 180,
+  `--time-min=08:00:00`). The probe ran three track D runs at 1.47-1.60 s/step, so each run is about
+  2.5 h and r25 is about 10 h on one B200.
+- To stay at 6 GPUs, I cancelled my pending mit_normal_gpu chain 26927308 -> 26927310 -> 26927311. Its
+  priority was fair-share-bound and it had not started since 10-29. The other chain (26927305 ->
+  26927306) stays.
+- Capacity: the B200s now run one track A worker (r22 `ent05` seeds 3-4) and one track D worker with
+  three runs. r18 (track D, time-budgeted) stays in `h200`.
