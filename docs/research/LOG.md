@@ -3373,3 +3373,16 @@ D 004's ~15,000 steps, D 004's config otherwise (`vllm_gpu_memory` 0.08 for pack
   pending. Seed 4 is at step 231 on node4300 (27162158).
 - B200 worker 27460856 started at 13:36 on node5800-c1 with r25's first three runs (`shape02`,
   `shape05`, `ent05_t10`, seed 0); 27441594 restarted on the same node at 13:46 (r22 `ent05` seed 3).
+
+## 2026-10-31 15:50 EDT: A 005 seed 4 test 0.2899, within budget; worker 27162158 moves on to r18
+
+| seed | node | test ladder | pass@16 | truncated | mean tokens | in-loop final dev | total_s | within 18,000 s | warm start |
+|---|---|---|---|---|---|---|---|---|---|
+| 4 | node4300 | 0.2899 | 0.5875 | 0.232 | 554 | 0.248 | 8,075 | yes | 17 s |
+
+- Seed 4 is well below seeds 0-1 (0.3995, 0.4076), with shorter outputs and fewer truncated. Its dev
+  at step 400 (0.248) is also the lowest of the four seeds that trained, so this looks like seed spread
+  rather than a test-ladder effect. The mean of the three scored seeds is 0.366.
+- Seeds 2 and 3 wait for their workers (27412797, 27412796, both pending). Worker 27162158 popped the
+  next `h200` item, r18 `d003rl_p256_lr3e-6` seed 1 (track D).
+- B200 workers 27441594 and 27460856 restarted on node5800-c1 at 15:38; r25's first three runs resume.
