@@ -51,7 +51,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
   - 27412796 (submitted 10-30 22:50, excludes node2500 and node4900): preempted 12:48 with A 005 seed 3 at step 130; pending, holds seed 3.
   - 27412797 (same): preempted 12:22 in A 005 seed 2's test ladder; pending, holds seed 2.
   - 26933254 exited 10-29 20:29 after D 004 seed 2.
-  - 27162158 (preempted 10-30 21:03 and 10-31 09:03): ran A 005 seed 4 (test 0.2899); running r18 `d003rl_p256_lr3e-6` seed 1 on node4300 since 15:39.
+  - 27162158 (preempted 10-30 21:03 and 10-31 09:03): ran A 005 seed 4 (test 0.2899); running r18 `d003rl_p256_lr3e-6` seed 1 on node4300 since 15:13.
 - mit_normal_gpu H200 (6 h, one item per job): two chains. 26927304 ran A 004 seed 4 (10-29 08:07-13:07);
   26927305 is next (eligible), then 26927306. The other chain (26927308 -> 26927310 -> 26927311) was cancelled 10-31 12:48 to free a slot for track D. They read A 004's and A 002's (empty) record queues, then `h200` (head: A 005 seed 0).
 - mit_preemptable B200 screen worker 27318631 (exited 10-30 16:58 with less than 240 min left; from 10-30 02:48, replaces 27168550, which was requeued onto node5501-c1 and exited there 10-30 02:10, LOG 02:50; 27168549 exited 10-29 04:43 on node5501-c1's failed GPU;
