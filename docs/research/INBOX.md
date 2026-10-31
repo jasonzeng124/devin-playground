@@ -195,3 +195,9 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     run on a B200 is 1.3x an H200 run, and a second run on the same GPU adds only 11 %, so B200 screen
     workers take one item per GPU at the arms' own settings. Track D packs well (three runs 2.5x one).
     r17 moved from `h200` to `screens_b200`, read by two B200 workers (27168549, 27168550). LOG 10-28 20:25.
+
+- 2026-10-31 12:00 EDT (maintainer, via laptop), **rules v3.3: no external data on track A.** The
+  external-data amendment of 10-19 now applies to track D only. Track A's data is again generator
+  puzzles and verifier verdicts only (RULES_v3 updated in this commit). No track A record used
+  external data, so nothing is invalidated. PLAN A4 (SFT on a public dataset before RL) is out for
+  track A; external data stays open for track D (pretraining, fine-tuning or RL).

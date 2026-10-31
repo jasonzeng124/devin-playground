@@ -7,6 +7,9 @@ external data (see "Both tracks: external data"); the rules don't change while t
 **H200 SXM** (see "Clock and hardware"); nothing else changed.
 **v3.2 (2026-10-26), a clarification:** the maintainer ruled that an untimed warm-up before the
 clock starts is allowed, with conditions (see "Untimed warm-up" under "Clock and hardware").
+**v3.3 (2026-10-31):** the maintainer withdrew the external-data amendment for **track A**: its
+data is again generator puzzles and verifier verdicts only (see "Track A"). Track D keeps it.
+No track A record used external data, so none is affected.
 Edge cases the text doesn't settle are arbitrated by the maintainer, and rulings are added
 here. v3 replaces v2's "time to a threshold" with a **fixed compute budget, scored on a
 difficulty ladder**, and has two tracks. Evidence for each choice is in `docs/v3_design.md`.
@@ -59,9 +62,9 @@ it is left for the next benchmark version.
 - Start from `Qwen/Qwen3-1.7B-Base` at revision `ea980cb0a6c2ae4b936e82123acc929f1cec04c1`.
 - Budget: **5 h** of GPU wall clock on one H200 SXM (see "Clock and hardware").
 - Data: puzzles from the generator (`countdown.generate_puzzle`, `ladder.ladder_stream`, or any
-  other program that produces (numbers, target, operators) without solving them), the
-  verifier's verdicts, and public datasets that aren't Countdown-specific (see "Both tracks:
-  external data"). No other models.
+  other program that produces (numbers, target, operators) without solving them) and the
+  verifier's verdicts. No external datasets (v3.3, 2026-10-31: the external-data amendment
+  applies to track D only) and no other models.
 
 ### Track D — from scratch
 
@@ -86,7 +89,7 @@ FineWeb-Edu are allowed (see "Both tracks: external data"), and no pilot has use
   pilot score, so the tokenizer is a real part of an entry.
 - The baseline uses two shards (`benchmark.V3_TRACK_D_SHARDS`, 1.72B tokens), prepared by
   `scripts/prepare_track_d_data.py`.
-- RL data: as in track A (generator puzzles, verifier verdicts and allowed public datasets).
+- RL data: generator puzzles, verifier verdicts and allowed public datasets.
 
 ### Both tracks: what counts as "verifier-only"
 
@@ -120,9 +123,9 @@ Forbidden:
 
 ### Both tracks: external data
 
-From 2026-10-19, any public dataset may be used in either track, at any stage (pretraining,
-fine-tuning, or RL on its problems against its published answers), unless it is
-Countdown-specific. A dataset is Countdown-specific if it
+From 2026-10-19, any public dataset may be used in track D (until 2026-10-31 also in track A;
+v3.3 withdrew it there), at any stage (pretraining, fine-tuning, or RL on its problems against
+its published answers), unless it is Countdown-specific. A dataset is Countdown-specific if it
 was made for Countdown, the 24 game or other numbers-game puzzles, or for this benchmark. A
 general dataset that contains some such items may be used once those items are removed (a
 keyword filter is enough). A published dataset that another model wrote (a distillation or
