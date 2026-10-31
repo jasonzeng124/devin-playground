@@ -3143,3 +3143,30 @@ test 0.1572, and its total was 20,932 s, within budget. All five seeds are in:
 - PLAN's D line moves from 0.190 (H100) to 0.189: dev mean 0.159 + 0.03.
 - Worker 27162158 went on to `h200` and is running A 005 seed 0.
 - r23 `gc03` seed 1 is at step 200, dev 0.362.
+
+## 2026-10-30 21:55 EDT: A 005 seed 0 ran about 3x slow on node2500 and was preempted; node2500 excluded
+
+Worker 27162158 started A 005 seed 0 at 18:28 on node2500, after a 10-s warm start. It was
+preempted between 21:03 and 21:44, at step 165, with 9,273 s of real time. The worker is requeued
+(pending), and on restart it moves the partial attempt to `extra/` and reruns seed 0.
+
+The attempt was far too slow. r16, whose config this is, ran on the H100 at about 3,460 s by step
+165 and 10,190 s by step 400. Here both stages were slower from the first steps:
+
+| step | A 005 s0 (node2500 H200): sample / update s | r16 s0 (H100): sample / update s |
+|---|---|---|
+| 5 | 32.4 / 8.5 | 11.1 / 2.6 |
+| 50 | 23.3 / 8.5 | 8.0 / 3.8 |
+| 150 | 45.0 / 43.9 | 16.3 / 14.0 |
+
+Generation at 4,200-7,000 tokens/s against 13,000-22,000 points to a slow GPU or node, not the
+config. At this speed the real-time stop (18,000 s) would end a seed near step 320 instead of 400.
+
+D 004's seeds 3 and 4 ran on node2500 too. Their RL steps were 13,299 and 15,912 against
+14,955-16,522 elsewhere, so seed 3's GPU may have been slow as well. Those seeds are already
+counted and within budget.
+
+I added node2500 to the exclude list of every pending H200 worker: 27162158, 26927305, 26927306,
+26927308, 26927310 and 26927311. node4900 was excluded the same way (10-25). Future H200 workers
+exclude node2500 as well. This is an infrastructure exclusion made before seed 0's rerun, and it
+does not depend on any seed's score.
