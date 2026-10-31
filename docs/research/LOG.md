@@ -3198,3 +3198,24 @@ Both workers then exited with less than 380 min left. That left no GPU job runni
 eligible pending: 27162158, 27283068, 26927305 and 26927308. I submitted two new mit_preemptable
 H200 workers on `h200`, 27412796 and 27412797 (the second starts 5 min later). They exclude
 node2500 and node4900. That makes 6 jobs that could run together.
+
+## 2026-10-31 01:50 EDT: r23 clip 0.3 seed 1 slides to 0.125; gc03 closes; r22 `ent05` seed 3 queued
+
+- r23 `ent01_t10_lr2e-6_gc03` seed 1 finished at 01:10 (B200 worker 27283068, node5602-c1, after four
+  preemptions; `stdout.interrupted.*` logs kept):
+
+| seed | 100 | 200 | 250 | 300 | 350 | 400 | 450 | 500 | malformed (end) |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0.260 | 0.415 | 0.390 | 0.428 | 0.407 | 0.425 | 0.428 | 0.378 | 0.19 |
+| 1 | 0.135 | 0.362 | 0.408 | 0.417 | 0.272 | 0.222 | 0.135 | **0.125** | 0.00 |
+
+  - Seed 1 peaked at 0.417 (step 300) and then lost accuracy at every level: L1 fell from 0.99 to 0.50 and
+    L6 from 0.53 to 0.14. This slide is different from the earlier ones. Truncation fell to zero instead of
+    rising, answers kept their length (about 350 characters), and the grad norm rose from 0.22 to about
+    0.5 while training reward fell from 0.48 (step 275) to 0.11.
+  - The arm closes at n=2: 0.378 and 0.125. Clipping at 0.3 doesn't stop the slides either. With r23 `gc015`
+    (2 collapses in 4), gradient clipping is closed. ent01-based runs: 4 collapses or slides in 11.
+- `screens_b200`: the worker moved on to r24 `ent05_lr3e-6` seed 0 (seed 1 queued). I added r22
+  `ent05_t10_lr2e-6` seed 3 after it. That arm had no collapse in three seeds (0.396 ± 0.041), and a fourth
+  seed tells us more about its collapse rate. This keeps about 6 h of work queued for the one worker.
+- H200 jobs: all seven still pending (27162158 holds A 005 seed 0).

@@ -1,0 +1,2 @@
+calibration/research_r24/mal0_st500_ent05_t10_lr3e-6 1
+calibration/research_r22/mal0_st500_ent05_t10_lr2e-6 3
