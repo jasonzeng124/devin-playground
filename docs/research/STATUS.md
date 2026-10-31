@@ -32,7 +32,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-31 03:50 EDT (r24 seed 0 0.413, peak 0.470; B200 worker 27432002 replaces 27283068; H200 workers still pending).
+Updated 2026-10-31 04:50 EDT (B200 worker 27432002 running r24 seed 1; H200 workers pending on priority since 10-30 22:50, mit_normal_gpu start estimate 11-03).
 
 ## AWS boxes: off
 
@@ -54,8 +54,8 @@ otherwise. `queue/b200.txt` (r15) is parked.
   with PER_GPU=1 (GCC 12's libstdc++ first, deadline from `squeue`), REQUIRE_GPU "NVIDIA B200",
   RESERVE_MIN 240, queue `screens_b200` only. One run per GPU: the probe found a second track A run
   adds 11 %.
-- Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; exited 10-31 03:36 after r24 seed 0, less than 240 min left). 27432002 (submitted 10-31 03:48, same settings, pending) replaces it.
-- Cap: 0 running + 6 eligible pending (27162158, 27432002, 26927305, 26927308, 27412796, 27412797).
+- Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; exited 10-31 03:36 after r24 seed 0, less than 240 min left). 27432002 (submitted 10-31 03:48, same settings, running on node5602-c1 since about 03:50) replaces it.
+- Cap: 1 running (27432002) + 5 eligible pending (27162158, 26927305, 26927308, 27412796, 27412797).
   I may update or cancel my own pending jobs without asking.
 
 ## Queues
