@@ -3234,3 +3234,27 @@ node2500 and node4900. That makes 6 jobs that could run together.
 - Worker 27283068 then exited (less than 240 min left). I submitted 27432002 in its place, with the same
   settings: B200, `screens_b200`, excludes node5501-c1 and node4900. Queue: r24 seed 1, then r22 `ent05` seed 3.
 - Cap: 0 running, 6 eligible pending (27162158, 26927305, 26927308, 27412796, 27412797, 27432002).
+
+## 2026-10-31 06:50 EDT: r24 `ent05_lr3e-6` seed 1 collapses at step 430; r24 closes; r22 `ent05` seed 4 queued; B200 worker 27441594
+
+- r24 `mal0_st500_ent05_t10_lr3e-6` seed 1 finished at 06:10 (worker 27432002, node5602-c1):
+
+| seed | 100 | 200 | 250 | 300 | 350 | 400 | 450 | 500 | malformed (end) |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0.333 | 0.432 | 0.390 | 0.443 | 0.470 | 0.382 | 0.412 | 0.413 | 0.22 |
+| 1 | 0.328 | 0.365 | 0.402 | 0.375 | 0.373 | 0.347 | 0.017 | **0.065** | 0.17 |
+
+  - Seed 1 collapsed between steps 400 and 440. Training reward fell from 0.40 to 0.03 while truncation rose
+    from 0.25 to 0.56 and entropy rose from 0.13 to 0.19. The grad norm stayed between 0.15 and 0.21. The
+    entropy bonus was off throughout (`entropy_coef` 0), since entropy stayed above the 0.10 target.
+  - The arm closes at n=2: 0.413 and 0.065. lr 3e-6 is faster early but collapses like the `ent01` runs. The
+    lr 2e-6 arm (`ent05`, three seeds and no collapse) stays the reference.
+- Every B200 worker so far ran one item and then exited with less than 240 min left: Slurm grants them close
+  to their 4-h `--time-min`. The new worker, 27441594, has `--time-min=08:00:00` so it can run two
+  screens per start. Its other settings are the same.
+- `screens_b200`: r22 `ent05_t10_lr2e-6` seeds 3 and 4 (about 4.6 h). Five seeds of that arm show whether
+  its no-collapse run holds up.
+- Next larger step, at the 10:45 full wake: plan PLAN A4 (SFT on a public math-reasoning set before RL).
+  RL-only stability arms keep landing near 0.40 and do not beat A 005's expected 0.397.
+  `scripts/sft_warmstart.py` trains on generator solutions, which v3's data rules don't allow. A4 needs a
+  published dataset instead.
