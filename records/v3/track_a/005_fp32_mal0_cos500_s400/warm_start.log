@@ -1,0 +1,5 @@
+2026-10-30T22:28:25Z worker 27162158: warm start: 10 s on node2500 before records/v3/track_a/005_fp32_mal0_cos500_s400 0
+2026-10-31T13:02:40Z worker 27162158: warm start: 42 s on node4400 before records/v3/track_a/005_fp32_mal0_cos500_s400 0
+2026-10-31T13:22:06Z worker 27412796: warm start: 10 s on node4400 before records/v3/track_a/005_fp32_mal0_cos500_s400 1
+2026-10-31T14:03:19Z worker 27412797: warm start: 12 s on node4400 before records/v3/track_a/005_fp32_mal0_cos500_s400 2
+2026-10-31T14:03:42Z worker 27162158: warm start: 35 s on node4300 before records/v3/track_a/005_fp32_mal0_cos500_s400 0

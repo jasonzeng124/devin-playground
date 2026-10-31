@@ -3258,3 +3258,36 @@ node2500 and node4900. That makes 6 jobs that could run together.
   RL-only stability arms keep landing near 0.40 and do not beat A 005's expected 0.397.
   `scripts/sft_warmstart.py` trains on generator solutions, which v3's data rules don't allow. A4 needs a
   published dataset instead.
+
+## 2026-10-31 10:50 EDT: A 005 seeds 0-2 running on the H200; B200 worker preempted 7 times since 06:49
+
+- H200 workers started at last. The A 005 record seeds are running on mit_preemptable (step clock
+  34.8 s per step, 400 steps):
+
+| seed | worker | node | started (EDT) | step at 10:45 |
+|---|---|---|---|---|
+| 0 | 27162158 | node4300 | 10-31 10:03 (attempt 3) | 156 |
+| 1 | 27412796 | node4400 | 10-31 09:22 | 226 |
+| 2 | 27412797 | node4400 | 10-31 10:03 | 178 |
+
+  - Seed 0's attempt 2 started on node4400 at 09:02 and was preempted at 09:03 at step 1. Both
+    preempted attempts are in `extra/interrupted_0_1` (node2500, step 165) and `extra/interrupted_0_2`,
+    each with a `note.txt`. Seed 0 reran under the same seed, as RULES_v3 allows.
+  - Real time runs at about 15-21 s per step on these nodes, so each seed should finish in about 2-2.5 h.
+- B200 worker 27441594 (node5800-c1) has been preempted and requeued 7 times since 06:49. The longest
+  stretch was 63 min. Every restart begins r22 `ent05` seed 3 again from step 0, because screens save no
+  weights. No screen step has finished since 06:10. I'm leaving it queued: the B200s are contested in
+  the daytime, and the worker loses nothing else.
+- Cap: 4 running (27162158, 27412796, 27412797, 27441594) and 2 eligible pending on mit_normal_gpu
+  (26927305, 26927308).
+- PLAN A4 (SFT on public data before RL, track A): RULES_v3 ("Both tracks: external data") allows any
+  public dataset that isn't Countdown-specific, including published distilled sets. The training counts
+  toward the 5-h budget. Data preparation is untimed, done by a deterministic script with no model.
+  Design, to build next:
+  - A new, off-by-default `sft_steps` phase in `rlvr_speedrun/grpo.py`. It runs next-token loss on a
+    Qwen-tokenized text file before the first RL step, inside the timed run.
+  - Data: DeepMind `mathematics_dataset` v1.0 arithmetic, already downloaded and checked
+    (`~/orcd/pool/data/dm_math/parquet`). It needs a Qwen tokenization, a CPU job on mit_normal.
+  - First screen: r16-at-400's config plus 100-300 SFT steps, step-capped on the B200.
+  - I'll write and test the code while no new A 005 seed is about to start: seeds 3-4 read
+    `grpo.py` when they start, so the default path must stay byte-for-byte the same.
