@@ -3170,3 +3170,31 @@ I added node2500 to the exclude list of every pending H200 worker: 27162158, 269
 26927308, 26927310 and 26927311. node4900 was excluded the same way (10-25). Future H200 workers
 exclude node2500 as well. This is an infrastructure exclusion made before seed 0's rerun, and it
 does not depend on any seed's score.
+
+## 2026-10-30 22:55 EDT: A 004 complete, the first track A record on the H200 (0.2671 ± 0.0565); A line now 0.285
+
+Seeds 2 and 3 finished their third attempts on node4801 at 22:20 (workers 26824150 and 26854533,
+after 71-s warm starts). Both are within budget. All five seeds are in:
+
+| seed | node | test ladder | pass@16 | mean tokens | final dev | total_s | within 18,000 s |
+|---|---|---|---|---|---|---|---|
+| 0 | node4301 | 0.3135 | 0.5754 | 525 | 0.287 | 17463 | yes |
+| 1 | node4301 | 0.2358 | 0.5579 | 425 | 0.230 | 17438 | yes |
+| 2 | node4801 | 0.3132 | 0.5429 | 453 | 0.310 | 17527 | yes |
+| 3 | node4801 | 0.2895 | 0.5704 | 543 | 0.263 | 17535 | yes |
+| 4 | node3100 | 0.1834 | 0.2429 | 47 | 0.185 | 17508 | yes |
+
+- Mean test 0.2671 ± 0.0565. A 001 scored 0.2481 ± 0.0460 on the H100.
+- Seed 4 collapsed into single guesses, as A 001's seed 2 did on the H100.
+- `validate_record_v3.py` passes. The README is written, and the README leaderboard lists 004 as
+  the track A (H200) holder.
+- The five preempted attempts are in `extra/`, each with a note.
+- PLAN's A line moves from 0.2703 (H100) to 0.285: dev mean 0.255 + 0.03. The 4-of-5 bar is now
+  the holder's dev mean, 0.255.
+- A 005 (step-capped dev 0.397 at step 400) and A 002 (H100 dev 0.324) clear the new line, so both
+  stay queued.
+
+Both workers then exited with less than 380 min left. That left no GPU job running and four
+eligible pending: 27162158, 27283068, 26927305 and 26927308. I submitted two new mit_preemptable
+H200 workers on `h200`, 27412796 and 27412797 (the second starts 5 min later). They exclude
+node2500 and node4900. That makes 6 jobs that could run together.

@@ -61,6 +61,8 @@ rerun lands, its five seeds' in-loop final dev replaces the H100 number here, wi
 D 003 failed (two seeds over budget); its rerun `004_dm_math_fp32_h200_warm` landed on 2026-10-30:
 in-loop final dev 0.182 / 0.130 / 0.137 / 0.183 / 0.163, mean 0.1590, so **the D line is now 0.189**
 (holder dev mean 0.159).
+A 004 (`004_ladder_constrained_h200`) landed on 2026-10-30: in-loop final dev 0.287 / 0.230 / 0.310 /
+0.263 / 0.185, mean 0.255, so **the A line is now 0.285** (holder dev mean 0.255).
 
 "Collapsed" in this rule (clarified 2026-10-22, before the seeds it first applies to; QUESTIONS.md
 asks the maintainer): a seed that diverged, or a one-guess seed whose final dev is below the

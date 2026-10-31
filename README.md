@@ -35,7 +35,12 @@ hardware"). The first H200 records are reruns of the H100 holders' configs; they
 
 ### Track A (H200)
 
-No records yet.
+| # | record | test ladder score (mean ± sd) | N | sampler | clock (measured) | author |
+|---|---|---:|--:|---|---|---|
+| 004 | **[004_ladder_constrained_h200](records/v3/track_a/004_ladder_constrained_h200)** (holder) | **0.2671 ± 0.0565** | 5 | constrained | 291-292 min GRPO | Claude / @jasonzeng124 |
+
+004 reruns A 001's config unchanged on the H200, after the untimed warm-up (v3.2). As on the H100,
+one seed collapsed into single guesses and still scored 0.183 (see its README).
 
 ### Track D (H200)
 
