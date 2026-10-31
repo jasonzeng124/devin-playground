@@ -36,7 +36,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-31 18:50 EDT (r25 had restarted from step 1 at each preemption; its worker is now 27483976 with 10-min saves; A 005 seeds 2-3 wait for their workers).
+Updated 2026-10-31 19:50 EDT (r18 `lr3e-6` seed 1 dev 0.148 against D 003's 0.125; new H200 worker 27487788; r25 running again on 27483976 with 10-min saves; A 005 seeds 2-3 wait for their workers).
 
 ## AWS boxes: off
 
@@ -51,7 +51,8 @@ otherwise. `queue/b200.txt` (r15) is parked.
   - 27412796 (submitted 10-30 22:50, excludes node2500 and node4900): preempted 12:48 with A 005 seed 3 at step 130; pending, holds seed 3.
   - 27412797 (same): preempted 12:22 in A 005 seed 2's test ladder; pending, holds seed 2.
   - 26933254 exited 10-29 20:29 after D 004 seed 2.
-  - 27162158 (preempted 10-30 21:03 and 10-31 09:03): ran A 005 seed 4 (test 0.2899); running r18 `d003rl_p256_lr3e-6` seed 1 on node4300 since 15:13.
+  - 27162158 (preempted 10-30 21:03 and 10-31 09:03): ran A 005 seed 4 (test 0.2899) and r18 `d003rl_p256_lr3e-6` seed 1 (dev 0.148); exited 10-31 19:07 (less than 380 min left).
+  - 27487788 (submitted 10-31 19:50, same settings, queue `h200`): pending.
 - mit_normal_gpu H200 (6 h, one item per job): two chains. 26927304 ran A 004 seed 4 (10-29 08:07-13:07);
   26927305 is next (eligible), then 26927306. The other chain (26927308 -> 26927310 -> 26927311) was cancelled 10-31 12:48 to free a slot for track D. They read A 004's and A 002's (empty) record queues, then `h200` (head: A 005 seed 0).
 - mit_preemptable B200 screen worker 27318631 (exited 10-30 16:58 with less than 240 min left; from 10-30 02:48, replaces 27168550, which was requeued onto node5501-c1 and exited there 10-30 02:10, LOG 02:50; 27168549 exited 10-29 04:43 on node5501-c1's failed GPU;
@@ -61,12 +62,12 @@ otherwise. `queue/b200.txt` (r15) is parked.
   adds 11 %.
 - Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; exited 10-31 03:36 after r24 seed 0, less than 240 min left). 27432002 (10-31 03:54-06:10) ran r24 seed 1 and exited the same way. 27441594 (submitted 10-31 06:48, `--time-min=08:00:00` so it runs two screens per start) replaces it; preempted 7 times on node5800-c1 since 06:49, running r22 `ent05` seed 3 again from 10:36; pending again at 12:43.
 - Track D B200 worker 27483976 (submitted 10-31 18:50, replaces 27460856, whose eight preemptions on node5800-c1 each came before the first hourly save, LOG 18:50): `packed_worker.sbatch` with PER_GPU=3, RESERVE_MIN 180, `--time-min=08:00:00`, `RESUME_EVERY_S=600`, queue `screens_d_b200` (r25).
-- Cap: 1 running (27162158) + 5 pending that could run together (27412796, 27412797, 26927305, 27441594, 27483976).
+- Cap: 2 running (27441594, 27483976) + 4 pending that could run together (27412796, 27412797, 26927305, 27487788).
   I may update or cancel my own pending jobs without asking.
 
 ## Queues
 
-- `h200` (11): r18 `d003rl_p256_lr3e-6` / `lr6e-6` seeds 1-3;
+- `h200` (10): r18 `lr6e-6` seeds 1-3, `lr3e-6` seeds 2-3 (`lr3e-6` seed 1: dev 0.148, D 003's pair 0.125, LOG 19:50);
   A 002 seeds 0-4. Every H200 worker reads it.
 - `screens_d_b200` (10, worker 27483976): r25, track D RL from D 004's pretrained seeds 0-2, 6,000 steps:
   `d004rl_shape02`, `d004rl_shape05`, `d004rl_ent05_t10` seeds 0-2, `d004rl_ctl` seed 0. Paired control: D 004's

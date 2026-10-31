@@ -3402,3 +3402,22 @@ D 004's ~15,000 steps, D 004's config otherwise (`vllm_gpu_memory` 0.08 for pack
 - No other results since 15:50. r18 `d003rl_p256_lr3e-6` seed 1 runs on node4300 (27162158). A 005 seeds 2
   and 3 wait for 27412797 and 27412796 (pending, Resources). Both B200 workers wait on
   ReqNodeNotAvail.
+
+## 2026-10-31 19:50 EDT: r18 `d003rl_p256_lr3e-6` seed 1 dev 0.148 (D 003 seed 1: 0.125); new H200 worker
+
+r18 is D 003's RL from D 003's own pretrained models, with 256 prompts per step instead of 64. Same
+time budget (14,040 s), H200, paired with D 003's seed.
+
+| arm | seed | final dev | D 003 same seed | steps | informative groups (late) | entropy (late) | s per step |
+|---|---|---|---|---|---|---|---|
+| `d003rl_p256_lr3e-6` | 1 | 0.148 | 0.125 | 4,334 | 11-28 of 256 | 0.06-0.08 | 4.5 (sampling 4.1) |
+
+- Dev by 500 steps: 0.073, 0.100, 0.103, 0.127, 0.137, 0.150, 0.147, 0.148, 0.148 (step 4,334). It
+  gains 0.023 on its pair but flattens from step 3,000. Informative groups stay near 8 % of the batch,
+  about the share D 003 had with 64 prompts, so 4x prompts gives 4x signal per step at about 4.3x the step
+  time. That is close to break-even, so the gain is no more than one seed's noise (D 004's seeds span
+  0.130-0.183).
+- Seed 1 is one of six r18 items; the rest (`lr3e-6` seeds 2-3, `lr6e-6` seeds 1-3) stay in `h200`. A
+  gating run needs about 0.19 (line 0.189).
+- Worker 27162158 exited after it (less than 380 min left). I submitted 27487788 (same H200 settings,
+  queue `h200`). With 27483976 (r25, now running on node5800-c1) and 27441594 that makes 6 GPU jobs.
