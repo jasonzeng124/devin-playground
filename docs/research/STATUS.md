@@ -36,7 +36,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-31 12:50 EDT (A 005 seeds 0-1 test 0.3995 / 0.4076; track D priority; r25 queued on a new B200 worker).
+Updated 2026-10-31 13:50 EDT (A 005 seed 3 preempted at step 130, seed 2 rerun pending, seed 4 running; r25 running on B200 27460856).
 
 ## AWS boxes: off
 
@@ -48,7 +48,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - mit_preemptable H200 (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900 excluded):
   - 26854533 and 26824150 exited 10-30 22:20 after A 004 seeds 3 and 2 (less than 380 min left).
-  - 27412796 (submitted 10-30 22:50, excludes node2500 and node4900): running A 005 seed 3 on node4400 since 12:16.
+  - 27412796 (submitted 10-30 22:50, excludes node2500 and node4900): preempted 12:48 with A 005 seed 3 at step 130; pending, holds seed 3.
   - 27412797 (same): preempted 12:22 in A 005 seed 2's test ladder; pending, holds seed 2.
   - 26933254 exited 10-29 20:29 after D 004 seed 2.
   - 27162158 (preempted 10-30 21:03 and 10-31 09:03): running A 005 seed 4 on node4300 since 12:38, then `h200`.
@@ -61,7 +61,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
   adds 11 %.
 - Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; exited 10-31 03:36 after r24 seed 0, less than 240 min left). 27432002 (10-31 03:54-06:10) ran r24 seed 1 and exited the same way. 27441594 (submitted 10-31 06:48, `--time-min=08:00:00` so it runs two screens per start) replaces it; preempted 7 times on node5800-c1 since 06:49, running r22 `ent05` seed 3 again from 10:36; pending again at 12:43.
 - Track D B200 worker 27460856 (submitted 10-31 12:49): `packed_worker.sbatch` with PER_GPU=3, RESERVE_MIN 180, `--time-min=08:00:00`, queue `screens_d_b200` (r25).
-- Cap: 2 running (27162158, 27412796) + 4 eligible pending (27412797, 27441594, 27460856, 26927305).
+- Cap: 3 running (27162158, 27441594, 27460856) + 3 eligible pending (27412796, 27412797, 26927305).
   I may update or cancel my own pending jobs without asking.
 
 ## Queues

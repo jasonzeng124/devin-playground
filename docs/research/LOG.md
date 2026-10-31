@@ -3364,3 +3364,12 @@ D 004's ~15,000 steps, D 004's config otherwise (`vllm_gpu_memory` 0.08 for pack
   26927306) stays.
 - Capacity: the B200s now run one track A worker (r22 `ent05` seeds 3-4) and one track D worker with
   three runs. r18 (track D, time-budgeted) stays in `h200`.
+
+## 2026-10-31 13:50 EDT: A 005 seed 3 preempted at step 130; r25 started on the B200
+
+- Worker 27412796 was preempted at 12:48 (16:48:19Z) on node4400 with A 005 seed 3 at step 130 of 400
+  (1,861 s of training). It is pending and holds seed 3; on restart the runner moves the attempt to
+  `extra/interrupted_3_1` and reruns seed 3. 27412797 (seed 2, preempted in its test ladder) is also
+  pending. Seed 4 is at step 231 on node4300 (27162158).
+- B200 worker 27460856 started at 13:36 on node5800-c1 with r25's first three runs (`shape02`,
+  `shape05`, `ent05_t10`, seed 0); 27441594 restarted on the same node at 13:46 (r22 `ent05` seed 3).
