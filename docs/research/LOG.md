@@ -3228,7 +3228,7 @@ node2500 and node4900. That makes 6 jobs that could run together.
 |---|---|---|---|---|---|---|---|---|---|---|
 | 0 | 0.333 | 0.400 | 0.432 | 0.390 | 0.443 | **0.470** | 0.382 | 0.412 | 0.413 | 0.22 |
 
-  - It ends at 0.413 with no collapse. Its peak (0.470 at step 350) is the highest dev eval of any screen so far.
+  - It ends at 0.413 with no collapse. Its peak (0.470 at step 350) is above every eval of r22 `ent05` (best 0.447).
     It is also ahead of r22 `ent05` at lr 2e-6 at every step from 100 to 350 (r22's seeds ended at 0.360-0.440).
     One seed is too few to judge; seed 1 is next.
 - Worker 27283068 then exited (less than 240 min left). I submitted 27432002 in its place, with the same
