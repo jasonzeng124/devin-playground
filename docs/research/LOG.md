@@ -3421,3 +3421,22 @@ time budget (14,040 s), H200, paired with D 003's seed.
   gating run needs about 0.19 (line 0.189).
 - Worker 27162158 exited after it (less than 380 min left). I submitted 27487788 (same H200 settings,
   queue `h200`). With 27483976 (r25, now running on node5800-c1) and 27441594 that makes 6 GPU jobs.
+
+## 2026-11-01 00:45 EDT: r25 resumed from its 10-minute saves; early dev ahead of D 004 for `shape05`
+
+B200 workers 27441594 and 27483976 restarted on node5800-c1 at 00:17. r25's runs resumed from their
+saved state (`shape02` at step 278, `shape05` at 270) instead of step 1, and they now save every
+10 minutes. At three runs per B200 a step takes about 1.8 s, so seed 0 should finish around 03:30.
+
+Dev ladder so far, against D 004 seed 0's own RL run at the same step (same pretrained weights):
+
+| run | step 500 | step 1,000 | entropy now | informative groups of 64 now |
+|---|---|---|---|---|
+| D 004 seed 0 (control) | 0.083 | 0.087 | | |
+| `shape02` (partial credit 0.2) | 0.065 | 0.093 | 0.06 at step 1,158 | 34 |
+| `shape05` (partial credit 0.5) | 0.092 | 0.137 | 0.08 at step 1,061 | 36 |
+| `ent05_t10` (entropy bonus) | 0.067 | | 0.16 at step 734 | 14 |
+
+One seed at step 1,000 decides nothing, but `shape05` keeps about half its groups informative. D 004
+had 1-10 by step 1,500. r22 `ent05_t10_lr2e-6` seed 3 resumed on 27441594 from its saved state at step 224 and is at
+step 308.

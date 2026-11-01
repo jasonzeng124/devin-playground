@@ -36,7 +36,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-10-31 19:50 EDT (r18 `lr3e-6` seed 1 dev 0.148 against D 003's 0.125; new H200 worker 27487788; r25 running again on 27483976 with 10-min saves; A 005 seeds 2-3 wait for their workers).
+Updated 2026-11-01 00:45 EDT (B200 workers restarted 00:17; r25 resumed from its 10-min saves, `shape05` dev 0.137 at step 1,000 against D 004's 0.087; A 005 seeds 2-3 and the H200 worker still pending).
 
 ## AWS boxes: off
 
@@ -61,8 +61,8 @@ otherwise. `queue/b200.txt` (r15) is parked.
   RESERVE_MIN 240, queue `screens_b200` only. One run per GPU: the probe found a second track A run
   adds 11 %.
 - Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; exited 10-31 03:36 after r24 seed 0, less than 240 min left). 27432002 (10-31 03:54-06:10) ran r24 seed 1 and exited the same way. 27441594 (submitted 10-31 06:48, `--time-min=08:00:00` so it runs two screens per start) replaces it; preempted 7 times on node5800-c1 since 06:49, running r22 `ent05` seed 3 again from 10:36; pending again at 12:43.
-- Track D B200 worker 27483976 (submitted 10-31 18:50, replaces 27460856, whose eight preemptions on node5800-c1 each came before the first hourly save, LOG 18:50): `packed_worker.sbatch` with PER_GPU=3, RESERVE_MIN 180, `--time-min=08:00:00`, `RESUME_EVERY_S=600`, queue `screens_d_b200` (r25).
-- Cap: 2 running (27441594, 27483976) + 4 pending that could run together (27412796, 27412797, 26927305, 27487788).
+- Track D B200 worker 27483976 (submitted 10-31 18:50, replaces 27460856, whose eight preemptions on node5800-c1 each came before the first hourly save, LOG 18:50): `packed_worker.sbatch` with PER_GPU=3, RESERVE_MIN 180, `--time-min=08:00:00`, `RESUME_EVERY_S=600`, queue `screens_d_b200` (r25); running again since 11-01 00:17, resumed from the saves.
+- Cap: 2 running (27441594, 27483976, both on node5800-c1 since 11-01 00:17) + 4 pending that could run together (27412796, 27412797, 26927305, 27487788).
   I may update or cancel my own pending jobs without asking.
 
 ## Queues
