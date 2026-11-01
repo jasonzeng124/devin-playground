@@ -3440,3 +3440,14 @@ Dev ladder so far, against D 004 seed 0's own RL run at the same step (same pret
 One seed at step 1,000 decides nothing, but `shape05` keeps about half its groups informative. D 004
 had 1-10 by step 1,500. r22 `ent05_t10_lr2e-6` seed 3 resumed on 27441594 from its saved state at step 224 and is at
 step 308.
+
+## 2026-11-01 01:45 EST: A 005 seed 2 reruns; B200 workers preempted again
+
+Clocks moved back to EST at 02:00 EDT; entries from here on use EST.
+
+H200 worker 27412797 restarted on node4500 at 00:49 EST and is running A 005 seed 2 again. The
+preempted attempt (trained to dev 0.36, stopped in its test ladder on 10-31) is in
+`extra/interrupted_2_1` with its `note.txt`; no test score had been written. Both B200 workers were
+preempted again around 01:40 EDT. r25 has saved every 10 minutes, so its runs resume where they
+stopped: `shape02` at step 2,033, `shape05` at 1,530 (dev 0.135 at 1,500 against D 004's 0.102),
+`ent05_t10` at 1,234.

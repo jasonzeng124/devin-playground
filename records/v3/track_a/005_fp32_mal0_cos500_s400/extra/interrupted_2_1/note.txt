@@ -1,0 +1,6 @@
+Seed 2, attempt 1: started 2026-10-31T14:03:19Z on node4400 (worker 27412797, mit_preemptable,
+NVIDIA H200). It trained all 400 steps (in-loop final dev 0.36, total_s 7,645 of 18,000, within
+budget) and was preempted at 2026-10-31T16:22:06Z (12:22:06 EDT) during the test ladder, before any
+test score was written. An infrastructure interruption (preemption), so seed 2 is rerun under the
+same seed (RULES_v3, "Seeds and statistics"), and this attempt doesn't count. The rerun started
+2026-11-01T05:49Z on node4500 (same worker).
