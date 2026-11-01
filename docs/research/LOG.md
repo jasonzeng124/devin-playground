@@ -3644,3 +3644,32 @@ Dev scores at step 6,000:
 So far, doubling the lr is about even with r25 (0.164 against 0.164 over two seeds). Larger groups did worse on seed 0. r27 seed 2 and r28 seeds 1-2 are running.
 
 B200 worker 27534692 ended normally at 16:17. Its time limit left less than 240 min, so it exited after r28 seed 0. Its replacement is 27585540, with the same settings but RESUME_EVERY_S 600, because node5800-c1 preempts often (LOG 11:50). It runs `screens_b200`, starting with r29 seed 0.
+
+## 2026-11-01 17:45 EST: r26 H200 seed 2 ends at 0.183 (D 004: 0.137); r27 complete; r30/r31 queued
+
+r26 `shape05_h200` seed 2 (shaping 0.5, D 004's full time budget on the H200) ended at 0.183 on the dev ladder at step 13,718. D 004's seed 2 ended at 0.137.
+
+| full budget, H200 | seed 0 | seed 1 | seed 2 |
+|---|---|---|---|
+| D 004 (final dev) | 0.182 | 0.130 | 0.137 |
+| r26 `shape05_h200` | pending | 0.148 | 0.183 |
+
+Shaping is ahead on both pairs, by 0.018 and 0.046. The promotion line is 0.189, and seed 1 is under it, so the 3-seed form can't be met. Seed 0 (preempted job 27412796, about step 2,500) stays queued for the paired comparison.
+
+Dev scores at step 6,000 (B200 packed):
+
+| run | seed 0 | seed 1 | seed 2 | mean |
+|---|---|---|---|---|
+| D 004 (control) | 0.122 | 0.115 | 0.075 | 0.104 |
+| r25 `shape05` (lr 3e-6) | 0.188 | 0.140 | 0.153 | 0.160 |
+| r27 `shape05_lr6e-6` | 0.175 | 0.152 | 0.180 | 0.169 |
+| r28 `shape05_g16` | 0.138 | 0.158 | running | |
+
+r27 is complete. Against r25 it is -0.013, +0.012 and +0.027 by seed: about level, maybe slightly ahead. r28 seed 1 beat r25's seed 1 (0.158 against 0.140), so groups of 16 are 1-1 so far. r28 seed 2 and r29 (lr 1e-5) are running.
+
+All of these runs end with one guess per answer: L1 near 0.6 and L6 near 0.2, with L3-L5 under 0.1. The open question is whether anything lifts the level reached at the end of a full run. The queues were empty, so I added two runs at the full length, step-capped at 15,000 steps (about what D 004's RL reaches on the H200, about 6.3 h packed):
+
+- r30 `d004rl_shape05_lr6e-6_s15k`: r27 at full length.
+- r31 `d004rl_shape05_lr6e-6_cos_s15k`: the same with a cosine lr decay to 0.1x over the 15,000 steps. Track D has used a constant lr so far.
+
+Seeds 0-2 of each are interleaved in `screens_d_b200`; r30 seed 2 is in `screens_b200`. The comparison is with r26's H200 finals (step-capped, not time-capped, so the GPU type doesn't matter). If r29 shows that lr 1e-5 is clearly better, I'll swap the queued r30/r31 items for that lr.
