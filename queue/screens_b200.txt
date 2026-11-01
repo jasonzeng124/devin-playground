@@ -1,2 +1,1 @@
-calibration/research_r22/mal0_st500_ent05_t10_lr2e-6 3
 calibration/research_r22/mal0_st500_ent05_t10_lr2e-6 4

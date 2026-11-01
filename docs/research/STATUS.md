@@ -36,7 +36,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each); A 005 (r16 stopped at step 400,
 step-capped dev 0.397, 10-29).
 
-Updated 2026-11-01 03:45 EST (A 005 seed 2 test 0.3821, four seeds' mean 0.370; seed 3 waits for 27412796; new H200 worker 27530015; r25 resumes from its 10-min saves when 27483976 restarts).
+Updated 2026-11-01 05:50 EST (r25 `shape05` leads D 004 by about 0.05 dev at mid-run; r26 queued: its H200 gating screen at the head of `h200`, and shaping 1.0 on the B200; B200 track A worker 27441594 replaced by 27534692 with 30-min saves).
 
 ## AWS boxes: off
 
@@ -61,19 +61,20 @@ otherwise. `queue/b200.txt` (r15) is parked.
   with PER_GPU=1 (GCC 12's libstdc++ first, deadline from `squeue`), REQUIRE_GPU "NVIDIA B200",
   RESERVE_MIN 240, queue `screens_b200` only. One run per GPU: the probe found a second track A run
   adds 11 %.
-- Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; exited 10-31 03:36 after r24 seed 0, less than 240 min left). 27432002 (10-31 03:54-06:10) ran r24 seed 1 and exited the same way. 27441594 (submitted 10-31 06:48, `--time-min=08:00:00` so it runs two screens per start) replaces it; preempted 7 times on node5800-c1 since 06:49, running r22 `ent05` seed 3 again from 10:36; pending again at 12:43.
+- Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; exited 10-31 03:36 after r24 seed 0, less than 240 min left). 27432002 (10-31 03:54-06:10) ran r24 seed 1 and exited the same way. 27441594 (10-31 06:48 to 11-01 05:45) kept resuming r22 seed 3 from its only save (step 224) and was cancelled. 27534692 (submitted 11-01 05:45 EST) uses the same settings plus `RESUME_EVERY_S=1800`.
 - Track D B200 worker 27483976 (submitted 10-31 18:50, replaces 27460856, whose eight preemptions on node5800-c1 each came before the first hourly save, LOG 18:50): `packed_worker.sbatch` with PER_GPU=3, RESERVE_MIN 180, `--time-min=08:00:00`, `RESUME_EVERY_S=600`, queue `screens_d_b200` (r25); running again since 11-01 00:17, resumed from the saves.
-- Cap: 1 running (27441594) + 5 pending that could run together (27483976, 27412796, 26927305, 27487788, 27530015).
+- Cap: 2 running (27483976, 27534692) + 4 pending that could run together (27412796, 26927305, 27487788, 27530015).
   I may update or cancel my own pending jobs without asking.
 
 ## Queues
 
-- `h200` (10): r18 `lr6e-6` seeds 1-3, `lr3e-6` seeds 2-3 (`lr3e-6` seed 1: dev 0.148, D 003's pair 0.125, LOG 19:50);
+- `h200` (13): r26 `d004rl_shape05_h200` seeds 0-2 (D 004's full RL with shaping 0.5; the track D gating screen, line 0.189 every seed); r18 `lr6e-6` seeds 1-3, `lr3e-6` seeds 2-3 (`lr3e-6` seed 1: dev 0.148, D 003's pair 0.125, LOG 19:50);
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_d_b200` (10, worker 27483976): r25, track D RL from D 004's pretrained seeds 0-2, 6,000 steps:
-  `d004rl_shape02`, `d004rl_shape05`, `d004rl_ent05_t10` seeds 0-2, `d004rl_ctl` seed 0. Paired control: D 004's
+- `screens_d_b200` (7 + 3 running, worker 27483976): r25, track D RL from D 004's pretrained seeds 0-2, 6,000 steps:
+  `d004rl_shape02`, `d004rl_shape05` seeds 0-2, `d004rl_ent05_t10` seed 0 only (diverging), `d004rl_ctl` seed 0; then r26 `d004rl_shape10` seeds 0-1.
+  At mid-run, `shape05` leads D 004 by 0.03-0.06 dev (LOG 11-01 05:50). Paired control: D 004's
   own dev at step 6,000 (0.122 / 0.115 / 0.075, LOG 10-31 12:50).
-- `screens_b200` (1 + 1 held, one worker): r22 `ent05_t10_lr2e-6` seed 4 (seed 3 running). r24 `ent05_lr3e-6` closed: 0.413, 0.065
+- `screens_b200` (2, worker 27534692): r22 `ent05_t10_lr2e-6` seeds 3 (resumes from step 224) and 4. r24 `ent05_lr3e-6` closed: 0.413, 0.065
   (collapse at step 430; LOG 10-31 06:50). r23 closed: `gc015` 0.392, 0.018, 0.005, 0.435 (LOG 10-30 17:55);
   `gc03` 0.378, 0.125 (LOG 10-31 01:50).
   r22 closed: `ent01` 0.355 ± 0.157, `ent05` 0.396 ± 0.041. ent01-based runs: 3 collapses in 10. r21, r20, r17, r19 closed.

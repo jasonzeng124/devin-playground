@@ -1,0 +1,13 @@
+calibration/research_r26/d004rl_shape05_h200 0
+calibration/research_r26/d004rl_shape05_h200 1
+calibration/research_r26/d004rl_shape05_h200 2
+calibration/research_r18/d003rl_p256_lr6e-6 1
+calibration/research_r18/d003rl_p256_lr3e-6 2
+calibration/research_r18/d003rl_p256_lr6e-6 2
+calibration/research_r18/d003rl_p256_lr3e-6 3
+calibration/research_r18/d003rl_p256_lr6e-6 3
+records/v3/track_a/002_fp32_skip_cosine 0
+records/v3/track_a/002_fp32_skip_cosine 1
+records/v3/track_a/002_fp32_skip_cosine 2
+records/v3/track_a/002_fp32_skip_cosine 3
+records/v3/track_a/002_fp32_skip_cosine 4

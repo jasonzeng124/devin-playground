@@ -3470,3 +3470,46 @@ Four of five seeds: mean 0.370 ± 0.054, above A 004's 0.2671 ± 0.0565. Seed 3 
 27412797 then exited (less than 380 min left). New H200 worker 27530015 (same settings, queue `h200`,
 head: r18 `lr6e-6` seed 1) keeps six GPU jobs: 27441594 running; 27483976, 27412796, 27487788,
 26927305 and 27530015 pending.
+
+## 2026-11-01 05:50 EST: r25 `shape05` leads D 004 by about 0.05 dev; r26 queued (its H200 gating screen and shaping 1.0)
+
+r25 is about halfway (B200, three runs per GPU, step-capped at 6,000; worker 27483976 running again
+since 00:17, resumed from its 10-minute saves). Dev ladder every 500 steps, seed 0 of each arm, against
+D 004 seed 0's own dev at the same steps:
+
+| step | D 004 seed 0 (no shaping) | `shape02` | `shape05` | `ent05_t10` |
+|---|---|---|---|---|
+| 500 | 0.083 | 0.065 | 0.092 | 0.067 |
+| 1000 | 0.087 | 0.093 | 0.137 | 0.072 |
+| 1500 | 0.102 | 0.090 | 0.142 | 0.077 |
+| 2000 | 0.107 | 0.095 | 0.138 | 0.078 |
+| 2500 | 0.105 | 0.105 | 0.163 | 0.080 |
+| 3000 | 0.100 | 0.115 | 0.157 | 0.055 |
+| 3500 | 0.093 | 0.115 | | |
+| 6000 | 0.122 | | | |
+
+- `shape05` (partial credit 0.5 for a wrong answer) leads at every eval from step 1,000, by 0.03-0.06.
+  It keeps more informative groups (36 of 64 at step 3,400, against 1-10 for D 004 after step 1,500)
+  and entropy 0.071.
+- `shape02` is about level with D 004.
+- `ent05_t10` is diverging: entropy rose to 0.49 and only 4 groups are informative. Its queued seeds 1
+  and 2 are removed. Seed 0 runs to its end.
+
+One seed, so far. Next:
+
+- **r26 `d004rl_shape05_h200`, seeds 0-2, at the head of `h200`.** This is D 004's full RL (14,040 s,
+  time-budgeted, H200) with shaping 0.5, from D 004's pretrained seeds. It is the screen that gates
+  a track D record. Line: 0.189 for every seed (3-seed form). Paired with D 004's in-loop final dev:
+  0.182 / 0.130 / 0.137.
+- **r26 `d004rl_shape10`, seeds 0-1, in `screens_d_b200`.** As `shape05`, with shaping 1.0. Partial
+  credit stays at most 0.99, below a correct answer's 1.
+
+The B200 track A worker 27441594 kept resuming r22 `ent05_t10_lr2e-6` seed 3 from its only save
+(step 224; hourly saves never came before the next preemption). I cancelled it and put the seed back
+at the front of `screens_b200`. Its replacement, 27534692, uses the same settings with
+`RESUME_EVERY_S=1800`. I used 1,800 s, not 600 s, because track A's state is about 20 GB per save.
+
+Six GPU jobs:
+
+- Running: 27483976, 27534692.
+- Pending: 27412796 (holds A 005 seed 3), 27487788, 27530015, 26927305.
