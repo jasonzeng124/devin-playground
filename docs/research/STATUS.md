@@ -69,8 +69,8 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - `h200` (9 + 2 running): r26 `d004rl_shape05_h200` seed 0 (preempted, held by 27412796; D 004's full RL with shaping 0.5; seeds 1 / 2 ended 0.148 / 0.183, so it cannot promote, and seed 0 runs as paired evidence); r18 `lr6e-6` seed 1 running, then `lr3e-6` seed 2, `lr6e-6` seed 2, `lr3e-6` seed 3, `lr6e-6` seed 3 (`lr3e-6` seed 1: dev 0.148, D 003's pair 0.125, LOG 10-31 19:50);
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_d_b200` (5 + 3 running, worker 27483976): r28 `d004rl_shape05_g16` seed 2 and r29 `d004rl_shape05_lr1e-5` seeds 1-2 running; then r31 `d004rl_shape05_lr6e-6_cos_s15k` seeds 0-2 interleaved with r30 `d004rl_shape05_lr6e-6_s15k` seeds 0-1 (15,000 steps, about 6.3 h each; LOG 11-01 17:45).
-  At step 6,000: r25 `shape05` 0.188 / 0.140 / 0.153, `shape02` 0.140 / 0.185 / 0.148; r27 `shape05_lr6e-6` 0.175 / 0.152 / 0.180; r28 `shape05_g16` 0.138 / 0.158; D 004's own dev 0.122 / 0.115 / 0.075 (seeds 0 / 1 / 2). `shape10` 0.123 / 0.118, closed.
+- `screens_d_b200` (5 + 3 running, worker 27483976): r29 `d004rl_shape05_lr1e-5` seeds 1-2 running (slot 1 exited: 27483976 is within its reserve and ends 21:05 EST; successor 27598456 waits on it with `afterany`); then r31 `d004rl_shape05_lr6e-6_cos_s15k` seeds 0-2 interleaved with r30 `d004rl_shape05_lr6e-6_s15k` seeds 0-1 (15,000 steps, about 6.3 h each; LOG 11-01 17:45).
+  At step 6,000: r25 `shape05` 0.188 / 0.140 / 0.153, `shape02` 0.140 / 0.185 / 0.148; r27 `shape05_lr6e-6` 0.175 / 0.152 / 0.180; r28 `shape05_g16` 0.138 / 0.158 / 0.168, closed (LOG 11-01 18:45); D 004's own dev 0.122 / 0.115 / 0.075 (seeds 0 / 1 / 2). `shape10` 0.123 / 0.118, closed.
 - `screens_b200` (1 + 1 running, worker 27585540): r29 seed 0 running, then r30 seed 2 (step-capped, so it compares with the packed seeds by step). r22 `ent05_t10_lr2e-6` closed: 0.360 / 0.387 / 0.440 / 0.357 / 0.470, mean 0.403 (LOG 11-01 11:50). r24 `ent05_lr3e-6` closed: 0.413, 0.065
   (collapse at step 430; LOG 10-31 06:50). r23 closed: `gc015` 0.392, 0.018, 0.005, 0.435 (LOG 10-30 17:55);
   `gc03` 0.378, 0.125 (LOG 10-31 01:50).

@@ -3673,3 +3673,16 @@ All of these runs end with one guess per answer: L1 near 0.6 and L6 near 0.2, wi
 - r31 `d004rl_shape05_lr6e-6_cos_s15k`: the same with a cosine lr decay to 0.1x over the 15,000 steps. Track D has used a constant lr so far.
 
 Seeds 0-2 of each are interleaved in `screens_d_b200`; r30 seed 2 is in `screens_b200`. The comparison is with r26's H200 finals. r30/r31 are step-capped, so the GPU type doesn't change them. r26 was time-capped, and its seeds reached 13,700-15,200 steps. If r29 shows that lr 1e-5 is clearly better, I'll swap the queued r30/r31 items for that lr.
+
+## 2026-11-01 18:45 EST: r28 complete (groups of 16 no better); worker 27598456 queued behind 27483976
+
+r28 `shape05_g16` seed 2 reached 0.168 at step 6,000. r28 is complete:
+
+| run, dev at step 6,000 | seed 0 | seed 1 | seed 2 | mean |
+|---|---|---|---|---|
+| r25 `shape05` (group 8 x 64 prompts) | 0.188 | 0.140 | 0.153 | 0.160 |
+| r28 `shape05_g16` (group 16 x 32 prompts) | 0.138 | 0.158 | 0.168 | 0.155 |
+
+Pairs are -0.050, +0.018 and +0.015: no gain from larger groups at the same rollouts per step. r28 is closed.
+
+Track D worker 27483976 has less than its 180-min reserve left (its 8:40 limit ends 21:05 EST), so slot 1 exited after r28 seed 2 instead of taking r31 seed 0. Its other two slots finish r29 seeds 1-2. I submitted 27598456, which has the same settings (PER_GPU 3, `screens_d_b200`), with `--dependency=afterany:27483976`. It can't run while 27483976 holds its GPU, so the cap stays at 6. Until then one B200 slot is idle.
