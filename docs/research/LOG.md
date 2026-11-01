@@ -3629,3 +3629,18 @@ Shaping at 0.2 or 0.5 beats the control on all six seed pairs, by 0.05 on averag
 r27 `shape05_lr6e-6` seed 0 reached 0.175 at step 6,000. At that step, r25 `shape05` (lr 3e-6) scored 0.188 and D 004 scored 0.122. It climbs faster early: 0.145 at step 1,500. Seeds 1-2 are running.
 
 The worker queues would empty within about 4 h, so I queued r29 `d004rl_shape05_lr1e-5`, seeds 0-2, to bound the lr sweep from above. Seed 0 goes to `screens_b200` and seeds 1-2 to `screens_d_b200`.
+
+## 2026-11-01 16:45 EST: r28 seed 0 0.138, r27 seed 1 0.152; new B200 worker 27585540
+
+Dev scores at step 6,000:
+
+| run | seed 0 | seed 1 |
+|---|---|---|
+| D 004 (control) | 0.122 | 0.115 |
+| r25 `shape05` (lr 3e-6) | 0.188 | 0.140 |
+| r27 `shape05_lr6e-6` | 0.175 | 0.152 |
+| r28 `shape05_g16` (group 16 x 32 prompts) | 0.138 | running |
+
+So far, doubling the lr is about even with r25 (0.164 against 0.164 over two seeds). Larger groups did worse on seed 0. r27 seed 2 and r28 seeds 1-2 are running.
+
+B200 worker 27534692 ended normally at 16:17. Its time limit left less than 240 min, so it exited after r28 seed 0. Its replacement is 27585540, with the same settings but RESUME_EVERY_S 600, because node5800-c1 preempts often (LOG 11:50). It runs `screens_b200`, starting with r29 seed 0.

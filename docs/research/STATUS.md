@@ -62,17 +62,17 @@ otherwise. `queue/b200.txt` (r15) is parked.
   adds 11 %.
 - Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; exited 10-31 03:36 after r24 seed 0, less than 240 min left). 27432002 (10-31 03:54-06:10) ran r24 seed 1 and exited the same way. 27441594 (10-31 06:48 to 11-01 05:45) kept resuming r22 seed 3 from its only save (step 224) and was cancelled. 27534692 (submitted 11-01 05:45 EST) uses the same settings plus `RESUME_EVERY_S=1800`.
 - Track D B200 worker 27483976 (submitted 10-31 18:50, replaces 27460856, whose eight preemptions on node5800-c1 each came before the first hourly save, LOG 18:50): `packed_worker.sbatch` with PER_GPU=3, RESERVE_MIN 180, `--time-min=08:00:00`, `RESUME_EVERY_S=600`, queue `screens_d_b200` (r25); running again since 11-01 00:17, resumed from the saves.
-- Cap: 3 running (27487788, 27483976, 27534692) + 3 pending that could run together (27412796, 26927305, 27530015). 27412796 was preempted about 10:30 EST and holds r26 seed 0 (resumes from its save). Both B200 workers on node5800-c1 were preempted and requeued four times 11:00-11:30 EST.
+- Cap: 3 running (27487788, 27483976, 27585540, which replaced 27534692 at 16:45 EST) + 3 pending that could run together (27412796, 26927305, 27530015). 27412796 was preempted about 10:30 EST and holds r26 seed 0 (resumes from its save). Both B200 workers on node5800-c1 were preempted and requeued four times 11:00-11:30 EST.
   I may update or cancel my own pending jobs without asking.
 
 ## Queues
 
 - `h200` (11 + 2 running): r26 `d004rl_shape05_h200` seeds 0 (preempted, held by 27412796) and 2 (running) (D 004's full RL with shaping 0.5; seed 1 ended 0.148 against the 0.189 line, so it cannot promote; seeds 0 and 2 still run as paired evidence); r18 `lr6e-6` seeds 1-3, `lr3e-6` seeds 2-3 (`lr3e-6` seed 1: dev 0.148, D 003's pair 0.125, LOG 19:50);
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_d_b200` (3 + 3 running, worker 27483976): r27 `d004rl_shape05_lr6e-6` seeds 1-2 and r28 `d004rl_shape05_g16` seed 1 running (r27 seed 0 0.175 at step 6,000); then r28 seed 2, r29 `d004rl_shape05_lr1e-5` seeds 1-2. r28 is group 16 x 32 prompts, the same rollouts per step.
+- `screens_d_b200` (3 + 3 running, worker 27483976): r27 `d004rl_shape05_lr6e-6` seeds 1-2 and r28 `d004rl_shape05_g16` seed 1 running (r27 0.175 / 0.152 at step 6,000); then r29 `d004rl_shape05_lr1e-5` seeds 1-2. r28 is group 16 x 32 prompts, the same rollouts per step.
   r25 complete at step 6,000: `shape05` 0.188 / 0.140 / 0.153, `shape02` 0.140 / 0.185 / 0.148 (seeds 0 / 1 / 2), against D 004's 0.122 / 0.115 / 0.075; r26 `shape10` 0.123 / 0.118 (closed) (LOG 11-01 14:45).
   own dev at step 6,000 (0.122 / 0.115 / 0.075, LOG 10-31 12:50).
-- `screens_b200` (1 + 1 running, worker 27534692): r28 `d004rl_shape05_g16` seed 0 (running), then r29 seed 0 (step-capped, so it compares with the packed seeds by step). r22 `ent05_t10_lr2e-6` closed: 0.360 / 0.387 / 0.440 / 0.357 / 0.470, mean 0.403 (LOG 11-01 11:50). r24 `ent05_lr3e-6` closed: 0.413, 0.065
+- `screens_b200` (1 + 1 running, worker 27534692): r29 seed 0 (worker 27585540; r28 seed 0 0.138) (step-capped, so it compares with the packed seeds by step). r22 `ent05_t10_lr2e-6` closed: 0.360 / 0.387 / 0.440 / 0.357 / 0.470, mean 0.403 (LOG 11-01 11:50). r24 `ent05_lr3e-6` closed: 0.413, 0.065
   (collapse at step 430; LOG 10-31 06:50). r23 closed: `gc015` 0.392, 0.018, 0.005, 0.435 (LOG 10-30 17:55);
   `gc03` 0.378, 0.125 (LOG 10-31 01:50).
   r22 closed: `ent01` 0.355 ± 0.157, `ent05` 0.396 ± 0.041. ent01-based runs: 3 collapses in 10. r21, r20, r17, r19 closed.
