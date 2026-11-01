@@ -3513,3 +3513,61 @@ Six GPU jobs:
 
 - Running: 27483976, 27534692.
 - Pending: 27412796 (holds A 005 seed 3), 27487788, 27530015, 26927305.
+
+## 2026-11-01 09:50 EST: A 005 complete, 0.3400 ± 0.0815, validated, but not a new record (Welch p = 0.072)
+
+A 005 seed 3's rerun (node4801, worker 27412796) finished at 09:35. Test ladder 0.2209, pass@16
+0.474, in-loop final dev 0.197, total_s 7,618 (within budget). Its first attempt is in
+`extra/interrupted_3_1` with a note.
+
+| seed | test ladder | in-loop final dev | mean tokens | truncated | within budget |
+|---|---|---|---|---|---|
+| 0 | 0.3995 | 0.375 | 709 | 0.53 | yes |
+| 1 | 0.4076 | 0.403 | 723 | 0.55 | yes |
+| 2 | 0.3821 | 0.342 | 756 | 0.54 | yes |
+| 3 | 0.2209 | 0.197 | 403 | 0.14 | yes |
+| 4 | 0.2899 | 0.248 | 554 | 0.23 | yes |
+
+- Mean of all five: 0.3400 ± 0.0815. `validate_record_v3.py` passes.
+- Against A 004 (0.2671 ± 0.0565), the one-sided Welch test gives t = 1.64, df 7.1, p = 0.072.
+  That is not significant, so **A 004 stays the track A (H200) holder**. A 005 is a valid record
+  attempt that falls short, and its README says so.
+- The r16 screen's five seeds were within 0.02 of each other on the dev ladder at step 400
+  (0.397 ± 0.011). The record's seeds spread far wider: in-loop dev 0.197-0.403.
+- Seeds that kept long outputs (about 54 % truncated) scored 0.38-0.41. Seeds 3 and 4 shortened
+  their outputs (14 % and 23 % truncated) and scored 0.22 and 0.29. The step-400 stop doesn't prevent
+  that drift; it just happens before step 400 on some seeds.
+
+Track A next: A 002 still runs as queued (INBOX 10-31). Track D stays the priority. The r26 H200
+gating screen is at the head of `h200`.
+
+Workers: H200 worker 27487788 started at about 09:00 on node4300 and took r26
+`d004rl_shape05_h200` seed 0. B200 worker 27483976 (r25) was preempted again and is pending. It
+resumes from its 10-minute saves.
+
+### r25 seed 0 finished (step 6,000): `shape05` 0.188 against 0.113 for the paired control
+
+All four seed-0 arms reached step 6,000 on the B200, three runs per GPU. Dev ladder:
+
+| step | `ctl` (D 004's RL, same packing) | `shape02` | `shape05` | `ent05_t10` |
+|---|---|---|---|---|
+| 1000 | 0.068 | 0.093 | 0.137 | 0.072 |
+| 2000 | 0.085 | 0.095 | 0.138 | 0.078 |
+| 3000 | 0.093 | 0.115 | 0.157 | 0.055 |
+| 4000 | 0.092 | 0.137 | 0.172 | 0.063 |
+| 5000 | 0.107 | 0.135 | 0.180 | 0.073 |
+| 6000 | 0.113 | 0.140 | 0.188 | 0.072 |
+
+- D 004 seed 0's own H200 run had 0.122 at step 6,000 and 0.182 at its end (about 15,000 steps).
+- `shape05` matches that final number by step 6,000, still rising, with 36 of 64 groups
+  informative and entropy 0.057.
+- `shape02` gains about half as much. `ent05_t10` is closed.
+- One seed per arm so far. `shape05` and `shape02` seeds 1-2 are running or queued, then
+  `shape10` seeds 0-1.
+- The r26 H200 gating screen (`d004rl_shape05_h200`) runs seeds 0 and 1 now, on 27412796 and
+  27487788. Seed 2 heads `h200`.
+
+### r22 `ent05_t10_lr2e-6`: four seeds 0.360 / 0.387 / 0.440 / 0.357 at step 500
+
+Mean 0.386. That doesn't reach the 0.43 a new track A arm needs. Seed 4 is running (27534692);
+after it, the arm closes and `screens_b200` is empty.
