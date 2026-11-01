@@ -3451,3 +3451,22 @@ preempted attempt (trained to dev 0.36, stopped in its test ladder on 10-31) is 
 preempted again around 01:40 EDT. r25 has saved every 10 minutes, so its runs resume where they
 stopped: `shape02` at step 2,033, `shape05` at 1,530 (dev 0.135 at 1,500 against D 004's 0.102),
 `ent05_t10` at 1,234.
+
+## 2026-11-01 03:45 EST: A 005 seed 2 test 0.3821 (within budget); new H200 worker
+
+A 005 seed 2's rerun (node4500, worker 27412797) finished at 03:40: test ladder 0.3821, pass@16
+0.625, in-loop final dev 0.342, total_s 8,775 of 18,000 (within budget). Mean tokens 756 and 54 % of
+outputs truncated, like seeds 0 and 1.
+
+| seed | test ladder | within budget |
+|---|---|---|
+| 0 | 0.3995 | yes |
+| 1 | 0.4076 | yes |
+| 2 | 0.3821 | yes |
+| 3 | waits for worker 27412796 | |
+| 4 | 0.2899 | yes |
+
+Four of five seeds: mean 0.370 ± 0.054, above A 004's 0.2671 ± 0.0565. Seed 3 is the last one.
+27412797 then exited (less than 380 min left). New H200 worker 27530015 (same settings, queue `h200`,
+head: r18 `lr6e-6` seed 1) keeps six GPU jobs: 27441594 running; 27483976, 27412796, 27487788,
+26927305 and 27530015 pending.
