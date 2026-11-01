@@ -35,7 +35,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each).
 
-Updated 2026-11-01 11:50 EST (r25 seed 1: `shape02` 0.185, `shape05` 0.140 at step 6,000; r22 `ent05_t10_lr2e-6` closed at 0.403; r26 H200 seed 1 dev 0.155 at step 9,000 of about 14,000; r27 `shape05_lr6e-6` queued).
+Updated 2026-11-01 13:50 EST (r26 H200 gating screen seed 1 ended at dev 0.148, below the 0.189 line, so r26 cannot promote; r25 `shape02` seed 2 0.148; `shape10` seed 0 0.123; r28 `shape05_g16` queued).
 
 ## AWS boxes: off
 
@@ -67,12 +67,12 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 ## Queues
 
-- `h200` (11 + 2 running): r26 `d004rl_shape05_h200` seeds 0-2 (0 and 1 running) (D 004's full RL with shaping 0.5; the track D gating screen, line 0.189 every seed); r18 `lr6e-6` seeds 1-3, `lr3e-6` seeds 2-3 (`lr3e-6` seed 1: dev 0.148, D 003's pair 0.125, LOG 19:50);
+- `h200` (11 + 2 running): r26 `d004rl_shape05_h200` seeds 0 (preempted, held by 27412796) and 2 (running) (D 004's full RL with shaping 0.5; seed 1 ended 0.148 against the 0.189 line, so it cannot promote; seeds 0 and 2 still run as paired evidence); r18 `lr6e-6` seeds 1-3, `lr3e-6` seeds 2-3 (`lr3e-6` seed 1: dev 0.148, D 003's pair 0.125, LOG 19:50);
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_d_b200` (3 + 2 running, worker 27483976): r25 `shape02` and `shape05` seed 2 running; then r27 `d004rl_shape05_lr6e-6` seeds 0-2 (r25 `shape05` at lr 6e-6).
-  r25 at step 6,000: `shape05` 0.188 / 0.140, `shape02` 0.140 / 0.185 (seeds 0 / 1), `ctl` 0.113 and `ent05_t10` 0.072 (closed) seed 0 only (LOG 11-01 11:50). Paired control: D 004's
+- `screens_d_b200` (3 + 3 running, worker 27483976): r25 `shape05` seed 2 and r27 `d004rl_shape05_lr6e-6` seeds 0-1 running; then r27 seed 2, r28 `d004rl_shape05_g16` seeds 1-2 (group 16 x 32 prompts, same rollouts per step).
+  r25 at step 6,000: `shape05` 0.188 / 0.140, `shape02` 0.140 / 0.185 / 0.148 (seeds 0 / 1 / 2), `ctl` 0.113 and `ent05_t10` 0.072 (closed) seed 0 only (LOG 11-01 13:50).
   own dev at step 6,000 (0.122 / 0.115 / 0.075, LOG 10-31 12:50).
-- `screens_b200` (1 + 1 running, worker 27534692): r26 `d004rl_shape10` seeds 0 (running) and 1 (step-capped, so one run per GPU compares with r25 by step). r22 `ent05_t10_lr2e-6` closed: 0.360 / 0.387 / 0.440 / 0.357 / 0.470, mean 0.403 (LOG 11-01 11:50). r24 `ent05_lr3e-6` closed: 0.413, 0.065
+- `screens_b200` (1 + 1 running, worker 27534692): r26 `d004rl_shape10` seed 1 (running; seed 0 0.123), then r28 `d004rl_shape05_g16` seed 0 (step-capped, so it compares with the packed seeds by step). r22 `ent05_t10_lr2e-6` closed: 0.360 / 0.387 / 0.440 / 0.357 / 0.470, mean 0.403 (LOG 11-01 11:50). r24 `ent05_lr3e-6` closed: 0.413, 0.065
   (collapse at step 430; LOG 10-31 06:50). r23 closed: `gc015` 0.392, 0.018, 0.005, 0.435 (LOG 10-30 17:55);
   `gc03` 0.378, 0.125 (LOG 10-31 01:50).
   r22 closed: `ent01` 0.355 ± 0.157, `ent05` 0.396 ± 0.041. ent01-based runs: 3 collapses in 10. r21, r20, r17, r19 closed.

@@ -3591,3 +3591,22 @@ r22 `ent05_t10_lr2e-6` seed 4 finished at 0.470. The five seeds are 0.360 / 0.38
 Both B200 workers on node5800-c1 (27483976 and 27534692) were preempted and requeued four times between 11:00 and 11:30 EST. r26 `shape10` seed 0 has no save yet: its worker saves every 1,800 s, and every attempt was stopped sooner. Slot 3 of the track D worker found its queue empty and exited. It comes back at the worker's next restart.
 
 Next, r27 `d004rl_shape05_lr6e-6`, seeds 0-2: r25 `shape05` at twice the lr, to see whether the denser reward can take a larger step. It is queued on `screens_d_b200`.
+
+## 2026-11-01 13:50 EST: r26 H200 seed 1 ends at 0.148, so shaping 0.5 does not promote; r28 queued
+
+r26 `shape05_h200` seed 1 ran D 004's full RL budget on the H200 (15,183 steps) with shaping 0.5. Its final dev score is 0.148, against 0.130 for D 004's seed 1. The 3-seed promotion form needs 0.189 on every seed, so r26 cannot promote. Seeds 0 and 2 still run, as paired evidence of how much shaping adds over the full budget.
+
+Seed 1's dev score held at 0.15-0.16 from step 8,500 on. At step 6,000, shaping led D 004 by 0.02-0.07 per seed. Over the full budget the lead shrank to 0.018, because D 004 keeps climbing to step 15,000 while the shaped run levels off.
+
+| run (B200 runs stop at step 6,000) | seed 0 | seed 1 | seed 2 |
+|---|---|---|---|
+| D 004's own run at step 6,000 (control) | 0.122 | 0.115 | 0.075 |
+| r25 `shape02` | 0.140 | 0.185 | 0.148 |
+| r25 `shape05` | 0.188 | 0.140 | running |
+| r26 `shape10` | 0.123 | | |
+| D 004 final (H200, full budget) | 0.182 | 0.130 | 0.137 |
+| r26 `shape05_h200` final (H200, full budget) | running | 0.148 | running |
+
+Shaping 1.0 is no better than the control on seed 0, so weights from 0.2 to 0.5 are the useful range. Shaping makes RL climb faster but levels off near 0.15-0.16; a record needs something that lifts that level.
+
+The shaped runs end with about 30 informative groups out of 64. Next, r28 `d004rl_shape05_g16`: group 16 with 32 prompts, the same rollouts per step. Larger groups should leave more groups with a nonzero advantage on hard puzzles. Seed 0 goes to `screens_b200`, which would otherwise empty after `shape10` seed 1, and seeds 1-2 to `screens_d_b200`, after r27 seed 2.
