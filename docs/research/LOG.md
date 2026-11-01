@@ -3610,3 +3610,16 @@ Seed 1's dev score held at 0.15-0.16 from step 8,500 on. At step 6,000, shaping 
 Shaping 1.0 is no better than the control on seed 0, so weights from 0.2 to 0.5 are the useful range. Shaping makes RL climb faster but levels off near 0.15-0.16; a record needs something that lifts that level.
 
 The shaped runs end with about 30 informative groups out of 64. Next, r28 `d004rl_shape05_g16`: group 16 with 32 prompts, the same rollouts per step. Larger groups should leave more groups with a nonzero advantage on hard puzzles. Seed 0 goes to `screens_b200`, which would otherwise empty after `shape10` seed 1, and seeds 1-2 to `screens_d_b200`, after r27 seed 2.
+
+## 2026-11-01 14:45 EST: r25 complete; `shape10` closed
+
+Dev scores at step 6,000. The control is D 004's own run at the same step.
+
+| run | seed 0 | seed 1 | seed 2 | mean |
+|---|---|---|---|---|
+| D 004 (control) | 0.122 | 0.115 | 0.075 | 0.104 |
+| `shape02` | 0.140 | 0.185 | 0.148 | 0.158 |
+| `shape05` | 0.188 | 0.140 | 0.153 | 0.160 |
+| `shape10` | 0.123 | 0.118 | | 0.121 |
+
+Shaping at 0.2 or 0.5 beats the control on all six seed pairs, by 0.05 on average. Shaping 1.0 matches the control on both of its seeds, so `shape10` is closed. Whether the faster climb lasts over the full budget is r26's question (seed 1 gained only 0.018; LOG 13:50).
