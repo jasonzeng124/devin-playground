@@ -3571,3 +3571,23 @@ All four seed-0 arms reached step 6,000 on the B200, three runs per GPU. Dev lad
 
 Mean 0.386. That doesn't reach the 0.43 a new track A arm needs. Seed 4 is running (27534692);
 after it, the arm closes and `screens_b200` is empty.
+
+## 2026-11-01 11:50 EST: r25 seed 1 finished; r22 `ent05_t10_lr2e-6` closed; r27 queued
+
+r25 seed 1 reached step 6,000 (B200, three runs per GPU). D 004's own dev at step 6,000, from its H200 record run, is the paired control.
+
+| arm | seed 0 | seed 1 | mean |
+|---|---|---|---|
+| D 004's own run (control) | 0.122 | 0.115 | 0.119 |
+| `shape02` | 0.140 | 0.185 | 0.163 |
+| `shape05` | 0.188 | 0.140 | 0.164 |
+
+At step 6,000, both shaping weights lead the control by about 0.045 on each of four seed pairs. The data can't tell 0.2 from 0.5 apart. Seed 2 of both arms is running.
+
+The H200 gating screen (r26 `shape05_h200`, full D 004 RL budget) is not done. Seed 1 is at dev 0.155 at step 9,000 of about 14,000; D 004's seed 1 ended at 0.130. The promotion line is 0.189 on every seed. Seed 0's worker (27412796) was preempted about 10:30 and holds the item. Seed 1 should finish about 13:10 EST.
+
+r22 `ent05_t10_lr2e-6` seed 4 finished at 0.470. The five seeds are 0.360 / 0.387 / 0.440 / 0.357 / 0.470, mean 0.403. That is below the 0.43 a new arm needs, so the arm is closed.
+
+Both B200 workers on node5800-c1 (27483976 and 27534692) were preempted and requeued four times between 11:00 and 11:30 EST. r26 `shape10` seed 0 has no save yet: its worker saves every 1,800 s, and every attempt was stopped sooner. Slot 3 of the track D worker found its queue empty and exited. It comes back at the worker's next restart.
+
+Next, r27 `d004rl_shape05_lr6e-6`, seeds 0-2: r25 `shape05` at twice the lr, to see whether the denser reward can take a larger step. It is queued on `screens_d_b200`.
