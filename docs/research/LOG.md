@@ -3623,3 +3623,9 @@ Dev scores at step 6,000. The control is D 004's own run at the same step.
 | `shape10` | 0.123 | 0.118 | | 0.121 |
 
 Shaping at 0.2 or 0.5 beats the control on all six seed pairs, by 0.05 on average. Shaping 1.0 matches the control on both of its seeds, so `shape10` is closed. Whether the faster climb lasts over the full budget is r26's question (seed 1 gained only 0.018; LOG 13:50).
+
+## 2026-11-01 15:45 EST: r27 seed 0 0.175; r29 queued
+
+r27 `shape05_lr6e-6` seed 0 reached 0.175 at step 6,000. At that step, r25 `shape05` (lr 3e-6) scored 0.188 and D 004 scored 0.122. It climbs faster early: 0.145 at step 1,500. Seeds 1-2 are running.
+
+The worker queues would empty within about 4 h, so I queued r29 `d004rl_shape05_lr1e-5`, seeds 0-2, to bound the lr sweep from above. Seed 0 goes to `screens_b200` and seeds 1-2 to `screens_d_b200`.
