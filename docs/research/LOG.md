@@ -3672,4 +3672,4 @@ All of these runs end with one guess per answer: L1 near 0.6 and L6 near 0.2, wi
 - r30 `d004rl_shape05_lr6e-6_s15k`: r27 at full length.
 - r31 `d004rl_shape05_lr6e-6_cos_s15k`: the same with a cosine lr decay to 0.1x over the 15,000 steps. Track D has used a constant lr so far.
 
-Seeds 0-2 of each are interleaved in `screens_d_b200`; r30 seed 2 is in `screens_b200`. The comparison is with r26's H200 finals (step-capped, not time-capped, so the GPU type doesn't matter). If r29 shows that lr 1e-5 is clearly better, I'll swap the queued r30/r31 items for that lr.
+Seeds 0-2 of each are interleaved in `screens_d_b200`; r30 seed 2 is in `screens_b200`. The comparison is with r26's H200 finals. r30/r31 are step-capped, so the GPU type doesn't change them. r26 was time-capped, and its seeds reached 13,700-15,200 steps. If r29 shows that lr 1e-5 is clearly better, I'll swap the queued r30/r31 items for that lr.
