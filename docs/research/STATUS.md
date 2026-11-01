@@ -70,10 +70,10 @@ otherwise. `queue/b200.txt` (r15) is parked.
 - `h200` (11 + 2 running): r26 `d004rl_shape05_h200` seeds 0-2 (0 and 1 running) (D 004's full RL with shaping 0.5; the track D gating screen, line 0.189 every seed); r18 `lr6e-6` seeds 1-3, `lr3e-6` seeds 2-3 (`lr3e-6` seed 1: dev 0.148, D 003's pair 0.125, LOG 19:50);
   A 002 seeds 0-4. Every H200 worker reads it.
 - `screens_d_b200` (7 + 3 running, worker 27483976): r25, track D RL from D 004's pretrained seeds 0-2, 6,000 steps:
-  `d004rl_shape02`, `d004rl_shape05` seeds 0-2, `d004rl_ent05_t10` seed 0 only (diverging), `d004rl_ctl` seed 0; then r26 `d004rl_shape10` seeds 0-1.
+  `d004rl_shape02`, `d004rl_shape05` seeds 0-2, `d004rl_ent05_t10` seed 0 only (diverging), `d004rl_ctl` seed 0.
   Seed 0 at step 6,000: `shape05` 0.188, `shape02` 0.140, `ctl` 0.113, `ent05_t10` 0.072 (closed) (LOG 11-01 09:50). Paired control: D 004's
   own dev at step 6,000 (0.122 / 0.115 / 0.075, LOG 10-31 12:50).
-- `screens_b200` (0 + 1 running, worker 27534692): r22 `ent05_t10_lr2e-6` seed 4; seeds 0-3 0.360 / 0.387 / 0.440 / 0.357 (does not reach 0.43; closes after seed 4). r24 `ent05_lr3e-6` closed: 0.413, 0.065
+- `screens_b200` (0 + 1 running, worker 27534692): r22 `ent05_t10_lr2e-6` seed 4; seeds 0-3 0.360 / 0.387 / 0.440 / 0.357 (does not reach 0.43; closes after seed 4). Then r26 `d004rl_shape10` seeds 0-1 (moved here so they start before r25 ends; step-capped, so one run per GPU compares with r25 by step). r24 `ent05_lr3e-6` closed: 0.413, 0.065
   (collapse at step 430; LOG 10-31 06:50). r23 closed: `gc015` 0.392, 0.018, 0.005, 0.435 (LOG 10-30 17:55);
   `gc03` 0.378, 0.125 (LOG 10-31 01:50).
   r22 closed: `ent01` 0.355 ± 0.157, `ent05` 0.396 ± 0.041. ent01-based runs: 3 collapses in 10. r21, r20, r17, r19 closed.
