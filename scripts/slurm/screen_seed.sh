@@ -36,7 +36,7 @@ sft=$($PYTHON -c "import json,sys; s=json.load(open(sys.argv[1])).get('screen_sf
 {
   echo "=== screen $dir seed $seed on $(hostname) $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1) $(date -u +%FT%TZ)"
   if [[ -n "$sft" ]]; then
-    [[ -e "$weights/sft/model.safetensors" ]] || $PYTHON scripts/research/sft_public.py --model "${model_flag[1]}" --out "$weights/sft" --seed "$seed" $sft
+    [[ -e "$weights/sft/model.safetensors" ]] || PYTHONPATH="$PWD" $PYTHON scripts/research/sft_public.py --model "${model_flag[1]}" --out "$weights/sft" --seed "$seed" $sft
     model_flag=(--model "$weights/sft")
   fi
   $PYTHON -m rlvr_speedrun.grpo --config "$dir/config.json" --device cuda --seed "$seed" --out-dir "$weights" ${model_flag[@]+"${model_flag[@]}"} ${resume[@]+"${resume[@]}"}
