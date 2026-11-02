@@ -3798,3 +3798,15 @@ r30 seed 0, r31 seeds 0-1 and r18 `lr3e-6` seed 3 finished. Final dev on the dev
 **r32 (GSM8K SFT, then r30's RL):** all three seeds started on 27598456 after the import fix. The SFT phase works. 7,471 rows, 300 steps of 64, about 60 s. Loss went from 2.3-2.45 at step 1 to 0.51-0.53 at step 300 (about 2.6 epochs). No dev evals have been written yet.
 
 r30 seed 1 and r31 seed 2 were preempted on 27627658, and both resumed (from steps 3,409 and 3,627).
+
+## 2026-11-02 05:00 EST: r31 seed 2 dev 0.197; r34 (lr 1e-5, 15,000 steps) queued on B200
+
+| pretrained seed | D 004 | r26 (lr 3e-6, H200) | r30 (lr 6e-6, constant) | r31 (lr 6e-6, cosine) |
+|---|---|---|---|---|
+| 0 | 0.182 | pending | 0.192 | 0.188 |
+| 1 | 0.130 | 0.148 | 0.175 at step 14,500 (running) | 0.217 |
+| 2 | 0.137 | 0.183 | 0.220 | 0.197 |
+
+r31 seed 2 rose from 0.150 at step 4,500 to 0.185 at step 9,500 and 0.197 at step 15,000. At the end, 22 of 64 groups were informative, with entropy 0.067. The 5 finished-or-nearly lr 6e-6 runs average about 0.194. Seed for seed, constant and cosine are within 0.03 of each other, in both directions. All five beat r26 on the same seed, but two are only just at the 0.189 line. r33 on the H200 decides.
+
+**Next:** r34 `d004rl_shape05_lr1e-5_s15k`, r30 at lr 1e-5, seeds 0-2, queued in `screens_d_b200`. At step 6,000, lr 1e-5 was 0.174 against 0.169 for lr 6e-6. It hasn't been run at full length, and full length is where lr 6e-6 pulled ahead. 27627658's second slot left on the empty queue. When r30 seed 1 finishes, that worker ends and I'll submit a B200 worker for r34. Submitting now would go past 6 GPUs.
