@@ -6,6 +6,9 @@
 # On mit_preemptable, training saves resumable state to $CKPT_DIR/<dir>/resume/<seed>/ every
 # RESUME_EVERY_S training seconds (default 3600, off the clock like evals; 0 turns it off), and a
 # requeued seed continues from it. The state is deleted once the seed finishes.
+# If the config has "screen_sft": {"data": ..., "steps": ..., "batch": ..., "lr": ...}, the starting model
+# first gets scripts/research/sft_public.py's SFT into $CKPT_DIR/<dir>/seeds/<seed>/sft (kept until the seed
+# finishes, so a resumed seed reuses it), and RL starts from that.
 #
 #   QUEUE=w42 RUNNER=scripts/slurm/screen_seed.sh sbatch ... scripts/slurm/queue_worker.sbatch
 set -euo pipefail
@@ -29,11 +32,17 @@ mkdir -p "$out" "$weights"
 pre=$($PYTHON -c "import json,sys; print(json.load(open(sys.argv[1])).get('screen_pretrained', ''))" "$dir/config.json")
 model_flag=()
 [[ -n "$pre" ]] && model_flag=(--model "${CKPT_DIR:-$HOME/orcd/pool/rlvr-ckpts}/$pre/seeds/$seed/pretrained")
+sft=$($PYTHON -c "import json,sys; s=json.load(open(sys.argv[1])).get('screen_sft'); print(' '.join(f'--{k} {v}' for k, v in s.items()) if s else '')" "$dir/config.json")
 {
   echo "=== screen $dir seed $seed on $(hostname) $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1) $(date -u +%FT%TZ)"
+  if [[ -n "$sft" ]]; then
+    [[ -e "$weights/sft/model.safetensors" ]] || $PYTHON scripts/research/sft_public.py --model "${model_flag[1]}" --out "$weights/sft" --seed "$seed" $sft
+    model_flag=(--model "$weights/sft")
+  fi
   $PYTHON -m rlvr_speedrun.grpo --config "$dir/config.json" --device cuda --seed "$seed" --out-dir "$weights" ${model_flag[@]+"${model_flag[@]}"} ${resume[@]+"${resume[@]}"}
   cp "$weights"/*.jsonl "$out/"
   echo "=== done $(date -u +%FT%TZ)"
 } 2>&1 | tee "$out/stdout.log"
+[[ -n "$sft" ]] && rm -rf "$weights/sft"
 rm -f "$resume_dir/state.pt" "$resume_dir/state.tmp" "$resume_dir"/*.jsonl "$resume_dir"/*.jsonl.tmp
 rmdir "$resume_dir" "${resume_dir%/*}" 2>/dev/null || true
