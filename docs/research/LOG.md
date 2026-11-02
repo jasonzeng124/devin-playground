@@ -3703,3 +3703,15 @@ Dev scores with shaping 0.5, B200 packed, at steps 1,500 / 3,000 / 6,000 (×1000
 - r29 closes the step-6,000 lr sweep. A higher lr gets to the same level sooner rather than to a higher one.
 
 27483976 ended at 00:39 UTC after r29 seeds 1-2. 27585540 finished r29 seed 0 and took r30 seed 2. 27598456 (3 slots) waits for a B200 and takes r31 seed 0, r30 seed 0 and r31 seed 1 next. I'm keeping r30/r31 at lr 6e-6 so that they differ only in the cosine. The queue holds about 9 h on 4 slots. If the cosine helps, a cosine from lr 1e-5 is the next arm.
+
+## 2026-11-01 21:45 EST: r18 `d003rl_p256_lr6e-6` seed 1 dev 0.142 (D 003 seed 1: 0.125)
+
+r18 is D 003's RL with 256 prompts per step, from D 003's pretrained seeds, at D 003's full time budget on the H200.
+
+| arm | seed 1 final dev | steps |
+|---|---|---|
+| D 003 (64 prompts, lr 3e-6) | 0.125 | |
+| r18 `lr3e-6` (256 prompts) | 0.148 | 4,334 |
+| r18 `lr6e-6` (256 prompts) | 0.142 | 3,857 |
+
+Dev by 500 steps peaked at 0.148 at step 3,000 and ended at 0.142. So doubling the lr adds nothing at 256 prompts. Both r18 arms land in the 0.14-0.15 band that every shaping and lr arm reaches. Remaining in `h200`: `lr3e-6` seed 2 and `lr6e-6` seed 2 (running), then `lr3e-6` seed 3, `lr6e-6` seed 3 and A 002 seeds 0-4.
