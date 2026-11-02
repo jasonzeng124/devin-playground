@@ -3715,3 +3715,12 @@ r18 is D 003's RL with 256 prompts per step, from D 003's pretrained seeds, at D
 | r18 `lr6e-6` (256 prompts) | 0.142 | 3,857 |
 
 Dev by 500 steps peaked at 0.148 at step 3,000 and ended at 0.142. So doubling the lr adds nothing at 256 prompts. Both r18 arms land in the 0.14-0.15 band that every shaping and lr arm reaches. Remaining in `h200`: `lr3e-6` seed 2 and `lr6e-6` seed 2 (running), then `lr3e-6` seed 3, `lr6e-6` seed 3 and A 002 seeds 0-4.
+
+## 2026-11-01 22:45 EST: r18 `d003rl_p256_lr3e-6` seed 2 dev 0.147 (D 003 seed 2: 0.173)
+
+| arm | seed 1 final dev | seed 2 final dev | steps (seed 2) |
+|---|---|---|---|
+| D 003 (64 prompts, lr 3e-6) | 0.125 | 0.173 | |
+| r18 `lr3e-6` (256 prompts) | 0.148 | 0.147 | 3,908 |
+
+Dev by 500 steps rose steadily to 0.158 at step 3,500 and ended at 0.147. On this seed, 256 prompts lands 0.026 below D 003, after landing 0.023 above it on seed 1. So far r18 sits in the same 0.14-0.16 band as every other arm, with no paired gain. 27530015 took `lr3e-6` seed 3. `lr6e-6` seed 2 is still running on 27487788.

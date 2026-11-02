@@ -35,7 +35,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each).
 
-Updated 2026-11-01 17:45 EST (r26 H200 seed 2 ended at dev 0.148 / 0.183 for seeds 1 / 2 against D 004's 0.130 / 0.137, still below the 0.189 line; r27 `shape05_lr6e-6` complete at step 6,000, mean 0.169; r30/r31 full-length lr 6e-6 runs queued).
+Updated 2026-11-01 22:45 EST (r26 H200 seed 2 ended at dev 0.148 / 0.183 for seeds 1 / 2 against D 004's 0.130 / 0.137, still below the 0.189 line; r27 `shape05_lr6e-6` complete at step 6,000, mean 0.169; r30/r31 full-length lr 6e-6 runs queued).
 
 ## AWS boxes: off
 
@@ -69,7 +69,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - `h200` (9 + 2 running): r26 `d004rl_shape05_h200` seed 0 (preempted, held by 27412796; D 004's full RL with shaping 0.5; seeds 1 / 2 ended 0.148 / 0.183, so it cannot promote, and seed 0 runs as paired evidence); r18 `lr3e-6` seed 2 and `lr6e-6` seed 2 running, then `lr3e-6` seed 3, `lr6e-6` seed 3 (seed 1: `lr3e-6` 0.148, `lr6e-6` 0.142, D 003's pair 0.125; LOG 11-01 21:45);
   A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_d_b200` (5 queued, none running; worker 27598456 pending): 27483976 ended 11-01 19:39 EST; its successor 27598456 (same settings) is pending; then r31 `d004rl_shape05_lr6e-6_cos_s15k` seeds 0-2 interleaved with r30 `d004rl_shape05_lr6e-6_s15k` seeds 0-1 (15,000 steps, about 6.3 h each; LOG 11-01 17:45).
+- `screens_d_b200` (2 queued, 3 running on 27598456 since 11-01 ~21:00 EST): r31 `d004rl_shape05_lr6e-6_cos_s15k` seeds 0-1 and r30 `d004rl_shape05_lr6e-6_s15k` seed 0 running; r30 seed 1 and r31 seed 2 queued (15,000 steps, about 6.3 h each; LOG 11-01 17:45). r30 seed 2 runs on 27585540.
   At step 6,000: r25 `shape05` 0.188 / 0.140 / 0.153, `shape02` 0.140 / 0.185 / 0.148; r27 `shape05_lr6e-6` 0.175 / 0.152 / 0.180; r28 `shape05_g16` 0.138 / 0.158 / 0.168, closed (LOG 11-01 18:45); r29 `shape05_lr1e-5` 0.170 / 0.172 / 0.182 (LOG 11-01 19:45); D 004's own dev 0.122 / 0.115 / 0.075 (seeds 0 / 1 / 2). `shape10` 0.123 / 0.118, closed.
 - `screens_b200` (1 + 1 running, worker 27585540): r30 seed 2 running (step-capped, so it compares with the packed seeds by step). r22 `ent05_t10_lr2e-6` closed: 0.360 / 0.387 / 0.440 / 0.357 / 0.470, mean 0.403 (LOG 11-01 11:50). r24 `ent05_lr3e-6` closed: 0.413, 0.065
   (collapse at step 430; LOG 10-31 06:50). r23 closed: `gc015` 0.392, 0.018, 0.005, 0.435 (LOG 10-30 17:55);
