@@ -206,3 +206,11 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   than track A.** From now on, give track D at least half of research effort and screen capacity.
   Track D screens pack about 3 per B200 (LOG 10-28 20:25), so they don't need the H200s. Track A's
   queued records (A 005, A 002) still run as planned. Which track D directions to try is your call.
+
+- 2026-11-01 23:30 EST (maintainer, via laptop), **process: review your plan before more track D RL
+  knobs.** Since 10-31, about a dozen track D RL arms (shaping weights, lr, group size, prompts per
+  step) have all ended in the same 0.14-0.18 dev band, in one-guess mode. Before you queue more
+  screens that only vary RL settings, go back over PLAN.md's untried track D items, and any other
+  direction of your own. Either queue the most promising of them, or write in LOG why the RL side is
+  still the better bet. Which direction to take is your call. Log this note as a maintainer
+  intervention.
