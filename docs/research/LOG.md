@@ -3724,3 +3724,35 @@ Dev by 500 steps peaked at 0.148 at step 3,000 and ended at 0.142. So doubling t
 | r18 `lr3e-6` (256 prompts) | 0.148 | 0.147 | 3,908 |
 
 Dev by 500 steps rose steadily to 0.158 at step 3,500 and ended at 0.147. On this seed, 256 prompts lands 0.026 below D 003, after landing 0.023 above it on seed 1. So far r18 sits in the same 0.14-0.16 band as every other arm, with no paired gain. 27530015 took `lr3e-6` seed 3. `lr6e-6` seed 2 is still running on 27487788.
+
+## 2026-11-01 23:50 EST: maintainer intervention (review PLAN before more track D RL knobs); r30 seed 2 reaches dev 0.220 at step 15,000; D3 next
+
+**Maintainer intervention.** INBOX 11-01 23:30 (commit e7b49b5): about a dozen track D RL arms since 10-31 all ended in the 0.14-0.18 band, in one-guess mode. Before queuing more screens that only vary RL settings, review PLAN.md's untried track D items, then either queue the best of them or say here why the RL side is still the better bet.
+
+**r30 seed 2** (`d004rl_shape05_lr6e-6_s15k`, from D 004's pretrained seed 2, alone on a B200, step-capped at 15,000) finished at 22:48:
+
+| step | 3,000 | 6,000 | 7,500 | 9,000 | 11,500 | 13,000 | 15,000 |
+|---|---|---|---|---|---|---|---|
+| dev | 0.135 | 0.168 | 0.197 | 0.203 | 0.225 | 0.227 | 0.220 |
+
+| from D 004 pretrained seed 2 | final dev | steps |
+|---|---|---|
+| D 004 (lr 3e-6, no shaping, H200) | 0.137 | time-capped |
+| r26 (lr 3e-6, shaping 0.5, H200) | 0.183 | time-capped, about 14,000-15,000 |
+| r30 (lr 6e-6, shaping 0.5, B200) | 0.220 | 15,000 |
+
+This is the first track D run above the 0.189 line. It kept rising after step 6,000, where all the step-6,000 screens stopped. It is still one-guess (last training batch: 23 of 64 groups informative, entropy 0.044). One seed, so nothing follows yet. r30 seeds 0-1 and r31 seeds 0-2 finish by about 09:00.
+
+**PLAN review, track D:**
+- D1 (fp32 and lr): done. It gave D 002.
+- D2 (math pretraining mixes): done, all closed. dm26 gave D 002. dm51 was +0.010 (LOG 10-25 14:30). The FineMath pilot ended at 0.135.
+- D3 (SFT on public worked solutions before RL): **untried.** It was planned on 10-31 but never built. It is the item aimed directly at the one-guess mode. Pretraining on FineWeb-Edu plus DeepMind question-answer pairs never shows the model a chain of intermediate arithmetic, so RL has no search behaviour to reinforce. GSM8K's published solutions are human-written chains of arithmetic (`48/2 = <<48/2=24>>24`).
+- D4 (process rewards for correct intermediate arithmetic): untried, but it needs a policy that writes intermediate steps, so it comes after D3.
+- D5 (model size): no reason yet. A larger model in the same data regime would still guess once.
+
+**Decision:** No new RL-knob screens. The running r30/r31 runs finish as queued, since they test whether full length is what the 6,000-step screens missed. The next build is D3:
+1. Download GSM8K train (`openai/gsm8k`, `main` config, revision pinned and md5 recorded) to `~/orcd/pool/data/gsm8k`, as published.
+2. Write an off-by-default SFT step before RL, separate from `scripts/sft_warmstart.py` (that script trains on generator solutions, which v3 forbids). It runs next-token loss on GSM8K question → solution text, from D 004's pretrained seeds, for a fixed step count.
+3. Screen r32: D 004 pretrained, then SFT, then r30's RL (lr 6e-6, shaping 0.5, 15,000 steps), on B200 seeds 0-2. Check at step 0 whether the policy writes equations in `<think>`, and compare with r30 by matched step.
+
+**GPUs:** 27585540 left when `screens_b200` emptied. New B200 worker 27627658 (PER_GPU=2, queue `screens_d_b200`) takes r30 seed 1 and r31 seed 2, which were waiting for 27598456 to finish at about 03:00. Cap: 3 running plus 3 pending (27412796, 26927305, 27627658) = 6.
