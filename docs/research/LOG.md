@@ -3767,3 +3767,13 @@ This is the first track D run above the 0.189 line. It kept rising after step 6,
 ## 2026-11-02 00:55 EST: r32 seed 0 failed at import; fixed and requeued
 
 r32 seed 0 started at 23:53 on worker 27598456 and stopped at once. `sft_public.py`, run as a file, could not import `rlvr_speedrun`, because only `-m` puts the checkout on `sys.path`. No GPU time was used. `screen_seed.sh` now runs it with `PYTHONPATH="$PWD"`, and `--help` works that way with the worker venv. The failed stdout is kept as `seeds/0/stdout.failed.importerror.log`. Seed 0 is back at the front of `screens_d_b200`, and it starts when a B200 slot frees.
+
+## 2026-11-02 01:55 EST: r18 `d003rl_p256_lr6e-6` seed 2 dev 0.158 (D 003 seed 2: 0.173)
+
+| arm | seed 1 final dev | seed 2 final dev | steps (seed 2) |
+|---|---|---|---|
+| D 003 (64 prompts, lr 3e-6) | 0.125 | 0.173 | |
+| r18 `lr3e-6` (256 prompts) | 0.148 | 0.147 | 3,908 |
+| r18 `lr6e-6` (256 prompts) | 0.142 | 0.158 | 4,342 |
+
+Dev by 500 steps: 0.078, 0.095, 0.122, 0.132, 0.137, 0.148, 0.160 (step 3,500), 0.157, then 0.158 at the end. 11 of 256 groups were informative at the end, with entropy 0.089. Over two seeds, 256 prompts gains on D 003's weak seed 1 and loses on its strong seed 2, for both lrs. That is no paired gain, and both arms stay in the 0.14-0.16 band. Seed 3 of each arm is running (27487788, 27530015). After that, r18 closes and the `h200` queue moves on to A 002 seeds 0-4.
