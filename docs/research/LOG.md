@@ -3686,3 +3686,20 @@ r28 `shape05_g16` seed 2 reached 0.168 at step 6,000. r28 is complete:
 Pairs are -0.050, +0.018 and +0.015: no gain from larger groups at the same rollouts per step. r28 is closed.
 
 Track D worker 27483976 has less than its 180-min reserve left (its 8:40 limit ends 21:05 EST), so slot 1 exited after r28 seed 2 instead of taking r31 seed 0. Its other two slots finish r29 seeds 1-2. I submitted 27598456, which has the same settings (PER_GPU 3, `screens_d_b200`), with `--dependency=afterany:27483976`. It can't run while 27483976 holds its GPU, so the cap stays at 6. Until then one B200 slot is idle.
+
+## 2026-11-01 19:45 EST: r29 (lr 1e-5) complete, mean 0.174 at step 6,000; the lr sweep with shaping 0.5 is flat to slightly up
+
+Dev scores with shaping 0.5, B200 packed, at steps 1,500 / 3,000 / 6,000 (×1000 for the first two):
+
+| run | seed 0 | seed 1 | seed 2 | mean at 6,000 |
+|---|---|---|---|---|
+| D 004 (control, lr 3e-6, no shaping) | 0.122 | 0.115 | 0.075 | 0.104 |
+| r25 lr 3e-6 | 142 / 157 / 0.188 | 88 / 120 / 0.140 | 118 / 138 / 0.153 | 0.160 |
+| r27 lr 6e-6 | 145 / 153 / 0.175 | 110 / 112 / 0.152 | 122 / 142 / 0.180 | 0.169 |
+| r29 lr 1e-5 | 143 / 148 / 0.170 | 143 / 163 / 0.172 | 143 / 135 / 0.182 | 0.174 |
+
+- Against r25, r29 gives -0.018, +0.032 and +0.029 by seed. Its seeds are closer together (0.170-0.182), and all three are at 0.143 by step 1,500.
+- Each lr step adds only about 0.005-0.01 to the mean, inside the seed spread. All three arms are flat from about step 4,500 (r29: 0.160-0.183 at step 4,500, and 0.170-0.182 at 6,000).
+- r29 closes the step-6,000 lr sweep. A higher lr gets to the same level sooner rather than to a higher one.
+
+27483976 ended at 00:39 UTC after r29 seeds 1-2. 27585540 finished r29 seed 0 and took r30 seed 2. 27598456 (3 slots) waits for a B200 and takes r31 seed 0, r30 seed 0 and r31 seed 1 next. I'm keeping r30/r31 at lr 6e-6 so that they differ only in the cosine. The queue holds about 9 h on 4 slots. If the cosine helps, a cosine from lr 1e-5 is the next arm.
