@@ -3777,3 +3777,24 @@ r32 seed 0 started at 23:53 on worker 27598456 and stopped at once. `sft_public.
 | r18 `lr6e-6` (256 prompts) | 0.142 | 0.158 | 4,342 |
 
 Dev by 500 steps: 0.078, 0.095, 0.122, 0.132, 0.137, 0.148, 0.160 (step 3,500), 0.157, then 0.158 at the end. 11 of 256 groups were informative at the end, with entropy 0.089. Over two seeds, 256 prompts gains on D 003's weak seed 1 and loses on its strong seed 2, for both lrs. That is no paired gain, and both arms stay in the 0.14-0.16 band. Seed 3 of each arm is running (27487788, 27530015). After that, r18 closes and the `h200` queue moves on to A 002 seeds 0-4.
+
+## 2026-11-02 03:05 EST: lr 6e-6 at full length clears the D line on 4 B200 seeds; r33 H200 promotion screen queued; r32 SFT runs
+
+r30 seed 0, r31 seeds 0-1 and r18 `lr3e-6` seed 3 finished. Final dev on the dev ladder. Every arm starts RL from the same D 004 pretrained seed.
+
+| pretrained seed | D 004 (lr 3e-6, no shaping, H200) | r26 (lr 3e-6, shaping 0.5, H200, time-capped) | r30 (lr 6e-6, shaping 0.5, constant, 15,000 steps, B200) | r31 (same, cosine) |
+|---|---|---|---|---|
+| 0 | 0.182 | pending | 0.192 | 0.188 |
+| 1 | 0.130 | 0.148 | running | 0.217 |
+| 2 | 0.137 | 0.183 | 0.220 | running |
+
+- Matched by seed, lr 6e-6 beats r26 by +0.069 (seed 1, r31) and +0.037 (seed 2, r30). The 4 finished lr 6e-6 runs average 0.204. The lowest, 0.188, is on D 004's best seed.
+- Constant and cosine are within 0.004 of each other on seed 0. Cosine's curves are a little lower until about step 9,000 and catch up by the end.
+- Dev by 1,000 steps keeps rising to the end, as on r30 seed 2. For example, r31 seed 1 goes 0.158 (step 4,500), 0.187 (7,500), 0.208 (10,500), 0.217 (15,000). The early-stopped screens (6,000 steps or fewer) missed this. That is why every shaping and lr arm looked like it sat at 0.14-0.18.
+- r18 `lr3e-6` seed 3: 0.177 at step 4,340. No D 003 pair for seed 3. r18 closes when `lr6e-6` seed 3 finishes.
+
+**Decision:** queue r33 `d004rl_shape05_lr6e-6_h200` on `h200`, seeds 0-4, ahead of A 002 seeds 1-4. It is r26's config with only lr changed to 6e-6 (constant, time-capped at 14,040 s, vllm memory 0.35). It is the H200 gating screen in the 5-seed form: mean ≥ 0.189, 4 of 5 seeds above 0.159, and at most one collapsed. The D 004 seeds 3-4 have no lr 6e-6 run yet, so I'm using the 5-seed form, not the 3-seed one. I'm using constant lr rather than cosine because it doesn't depend on how many steps the GPU fits into the time budget. Track D comes first per INBOX 10-31. A 002 seed 0 is running on 27530015, and seeds 1-4 follow r33.
+
+**r32 (GSM8K SFT, then r30's RL):** all three seeds started on 27598456 after the import fix. The SFT phase works. 7,471 rows, 300 steps of 64, about 60 s. Loss went from 2.3-2.45 at step 1 to 0.51-0.53 at step 300 (about 2.6 epochs). No dev evals have been written yet.
+
+r30 seed 1 and r31 seed 2 were preempted on 27627658, and both resumed (from steps 3,409 and 3,627).

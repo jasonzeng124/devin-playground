@@ -35,7 +35,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each).
 
-Updated 2026-11-02 00:30 EST (maintainer intervention 11-01 23:30: PLAN review before more track D RL knobs; r30 seed 2 reached dev 0.220 at step 15,000, the first track D run above 0.189; PLAN D3 (GSM8K SFT before RL) built and queued as r32).
+Updated 2026-11-02 03:05 EST (lr 6e-6 at full length: 4 B200 seeds of r30/r31 ended at 0.188-0.220 dev, against r26 lr 3e-6 at 0.148 / 0.183; r33 H200 promotion screen (5 seeds) queued ahead of A 002 seeds 1-4; r32 GSM8K SFT running).
 
 ## AWS boxes: off
 
@@ -67,9 +67,9 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 ## Queues
 
-- `h200` (9 + 2 running): r26 `d004rl_shape05_h200` seed 0 (preempted, held by 27412796; D 004's full RL with shaping 0.5; seeds 1 / 2 ended 0.148 / 0.183, so it cannot promote, and seed 0 runs as paired evidence); r18 `lr3e-6` seed 2 and `lr6e-6` seed 2 running, then `lr3e-6` seed 3, `lr6e-6` seed 3 (seed 1: `lr3e-6` 0.148, `lr6e-6` 0.142, D 003's pair 0.125; LOG 11-01 21:45);
-  A 002 seeds 0-4. Every H200 worker reads it.
-- `screens_d_b200` (5 queued; 3 running on 27598456; B200 worker 27627658 (PER_GPU=2) pending): running r31 `d004rl_shape05_lr6e-6_cos_s15k` seeds 0-1 and r30 `d004rl_shape05_lr6e-6_s15k` seed 0; queued r32 `d004rl_gsm8k300_shape05_lr6e-6_s15k` seed 0 (PLAN D3: GSM8K SFT, then r30's RL; LOG 11-02 00:30), r30 seed 1, r31 seed 2, r32 seeds 1-2. r30 seed 2 finished at dev 0.220 (step 15,000; LOG 11-01 23:50).
+- `h200` (9 queued + 3 held): r33 `d004rl_shape05_lr6e-6_h200` seeds 0-4 (the track D gating screen, 5-seed form: r26 with lr 6e-6; LOG 11-02 03:05), then A 002 seeds 1-4. Held: r26 seed 0 (27412796, pending; paired evidence), r18 `lr6e-6` seed 3 (27487788), A 002 seed 0 (27530015).
+  r18 closes after `lr6e-6` seed 3. Every H200 worker reads this queue.
+- `screens_d_b200` (empty; 3 running on 27598456, 2 on 27627658): r32 `d004rl_gsm8k300_shape05_lr6e-6_s15k` seeds 0-2 (PLAN D3: GSM8K SFT, then r30's RL; LOG 11-02 00:30) on 27598456; r30 seed 1 and r31 seed 2 (resumed after a preemption) on 27627658. Finished: r30 seeds 0 / 2 at 0.192 / 0.220, r31 seeds 0 / 1 at 0.188 / 0.217.
   At step 6,000: r25 `shape05` 0.188 / 0.140 / 0.153, `shape02` 0.140 / 0.185 / 0.148; r27 `shape05_lr6e-6` 0.175 / 0.152 / 0.180; r28 `shape05_g16` 0.138 / 0.158 / 0.168, closed (LOG 11-01 18:45); r29 `shape05_lr1e-5` 0.170 / 0.172 / 0.182 (LOG 11-01 19:45); D 004's own dev 0.122 / 0.115 / 0.075 (seeds 0 / 1 / 2). `shape10` 0.123 / 0.118, closed.
 - `screens_b200` (1 + 1 running, worker 27585540): r30 seed 2 running (step-capped, so it compares with the packed seeds by step). r22 `ent05_t10_lr2e-6` closed: 0.360 / 0.387 / 0.440 / 0.357 / 0.470, mean 0.403 (LOG 11-01 11:50). r24 `ent05_lr3e-6` closed: 0.413, 0.065
   (collapse at step 430; LOG 10-31 06:50). r23 closed: `gc015` 0.392, 0.018, 0.005, 0.435 (LOG 10-30 17:55);
