@@ -3810,3 +3810,18 @@ r30 seed 1 and r31 seed 2 were preempted on 27627658, and both resumed (from ste
 r31 seed 2 rose from 0.150 at step 4,500 to 0.185 at step 9,500 and 0.197 at step 15,000. At the end, 22 of 64 groups were informative, with entropy 0.067. The 5 finished-or-nearly lr 6e-6 runs average about 0.194. Seed for seed, constant and cosine are within 0.03 of each other, in both directions. All five beat r26 on the same seed, but two are only just at the 0.189 line. r33 on the H200 decides.
 
 **Next:** r34 `d004rl_shape05_lr1e-5_s15k`, r30 at lr 1e-5, seeds 0-2, queued in `screens_d_b200`. At step 6,000, lr 1e-5 was 0.174 against 0.169 for lr 6e-6. It hasn't been run at full length, and full length is where lr 6e-6 pulled ahead. 27627658's second slot left on the empty queue. When r30 seed 1 finishes, that worker ends and I'll submit a B200 worker for r34. Submitting now would go past 6 GPUs.
+
+## 2026-11-02 05:55 EST: r30 seed 1 dev 0.180; r18 closes; r33 seed 0 started
+
+| pretrained seed | D 004 | r26 (lr 3e-6, H200) | r30 (lr 6e-6, constant) | r31 (lr 6e-6, cosine) |
+|---|---|---|---|---|
+| 0 | 0.182 | pending | 0.192 | 0.188 |
+| 1 | 0.130 | 0.148 | 0.180 | 0.217 |
+| 2 | 0.137 | 0.183 | 0.220 | 0.197 |
+| mean | 0.150 | | 0.197 | 0.201 |
+
+All 6 lr 6e-6 runs are done, with a mean of 0.199. Five of the six are at or above 0.188. Seed 1 under constant lr is the low one, at 0.180. It moved slowly from step 4,500 (0.162) and climbed late (0.178 at step 11,500). All six beat r26 on the same seed, by +0.032 to +0.069. Constant and cosine are equal within seed noise (means 0.197 vs 0.201), so r33 keeps constant lr.
+
+**r18 closes.** `lr6e-6` seed 3 finished at 0.165 at step 3,486 (7 of 256 groups informative, entropy 0.044). Over seeds 1-3, 256 prompts per step gave 0.148 / 0.147 / 0.177 at lr 3e-6 and 0.142 / 0.158 / 0.165 at lr 6e-6. That is no better than 64 prompts, and it fits fewer steps in the budget.
+
+27487788 took r33 seed 0 at 05:40 (H200). 27627658's remaining slot took r34 seed 0. r34 seeds 1-2 wait for a B200 slot. 6 GPU jobs, at the cap.
