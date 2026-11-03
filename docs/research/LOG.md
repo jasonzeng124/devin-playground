@@ -3900,3 +3900,21 @@ This attempt resumed at step 7,115 from the screen's own resume checkpoint, whic
 | 2 | 0.220 | running (started 07:39) | |
 
 Both finished seeds beat r30 by a little, and r30's weakest seed (1) ends above the 0.189 line. At the end, 23-31 of 64 groups were informative, with entropy 0.055-0.062. That is about r30's level, so the hotter sampler's extra spread is gone by step 15,000. Seed 1 dipped to 0.165 at step 12,500 before ending at 0.195. Gains of +0.01 are within the seed noise seen in r31, r34 and r35, so seed 2 decides it. r37 (entropy floor) seeds 0 and 1 started at 09:25 and 09:39, and seed 2 is queued.
+
+## 2026-11-03 11:50 EST: A 002 seed 0 on test is 0.252; preemption on node4500
+
+Record A 002 `002_fp32_skip_cosine` seed 0 finished at 10:57 on the H200 (5,485 steps, 17,756 s wall).
+
+| seed | final dev | test ladder (T 0.5, 16 samples) | A 004 test mean | A promotion line |
+|---|---|---|---|---|
+| 0 | 0.243 | 0.252 | 0.267 | 0.285 |
+
+Test pass@1 by level: L1 0.764, L2 0.216, L3 0.162, L4 0.092, L5 0.034, L6 0.243. The seed sits 0.015 below A 004's mean. The seed's earlier preempted attempt is in `extra/interrupted_0_1`, as the INBOX rule says. Seeds 1-4 stay queued on `h200` behind r33. Every seed counts.
+
+At 11:02-11:04 both H200 workers on node4500 were preempted:
+- 27487788 was running r33 seed 1, at step 10,148 with dev 0.173 at step 10,000. It resumes from its own checkpoint when the job runs again.
+- 27530015 had started r33 seed 2 at 10:57 and ran for 7 minutes.
+
+Both are `--requeue` jobs and are pending again (Resources). B200 worker 27598456 (r36 seed 2, r37 seed 1) was also preempted and is pending. 27627658 (r37 seed 0) is still running.
+
+**Queued:** r30 `d004rl_shape05_lr6e-6_s15k` seeds 3-4 on `screens_d_b200`, behind r37 seed 2. r30 so far pairs only on D 004's pretrained seeds 0-2. With seeds 3-4, all five pretrained seeds pair against every later arm, including r36 and r37 if either needs more seeds. The GPU count stays at 6.
