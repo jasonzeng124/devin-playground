@@ -35,7 +35,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each).
 
-Updated 2026-11-02 20:05 EST (all 6 workers preempted about 07:00 and waiting for priority; r33 seed 0 had reached step 7,459 and is redone first. r32 GSM8K SFT + RL 0.187 / 0.203 / 0.220, about the same as r30; r34 lr 1e-5 seed 0 0.182; r35 group 16 queued).
+Updated 2026-11-03 03:50 EST (H200 workers still pending on priority; r33 seed 0 is redone first when 27487788 starts. r34 lr 1e-5 finished 0.182 / 0.173 / 0.245, a tie with r30, closed; r35 group 16 at about step 6,000; r36 training temperature 1.2 queued).
 
 ## AWS boxes: off
 
