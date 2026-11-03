@@ -214,3 +214,23 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   direction of your own. Either queue the most promising of them, or write in LOG why the RL side is
   still the better bet. Which direction to take is your call. Log this note as a maintainer
   intervention.
+
+- 2026-11-03 13:30 EST (maintainer, via laptop), **the 11-05 H100 box is back on; the others stay off.**
+  This lifts INBOX 10-25 22:00 for the **2026-11-05 block only** (8x H100, us-east-2b,
+  `zjason@16.58.142.215`, 11:30Z 11-05 to 11:30Z 11-06). Follow AGENT.md "AWS boxes" for it.
+  - Launch is scheduled again (start +1/+10/+25 min; the launch template was rebuilt today).
+    The +30 min fallback `aws ec2 run-instances` for this template is allowed. Make no other AWS
+    API calls and spend nothing on AWS; the $500 budget stays suspended. The 11-18 and 11-28
+    blocks stay off until a later note.
+  - **Screens only.** Records and test ladders stay on Engaging. The box's 8 GPUs don't count
+    toward the 6-GPU Engaging limit.
+  - **Split the box about 50/50 between track A and track D** (e.g. 4 GPUs each). Which screens is
+    your call.
+  - Have the box queue files ready before 11:30Z 11-05. An H100 has 80 GB, so B200 packing
+    settings don't carry over; check how many runs fit per GPU first.
+  - `agent/vllm-venv-freeze.txt` had a stray first line ("Using Python ... environment at"), so
+    the pinned install would have failed. It's fixed (the original is `.orig`). If the venv still
+    fails on the box, fix it there (sudo works); don't give up the block.
+  - The box's disk is deleted at the block end: `box_sync.sh from` every wake, and a last time
+    before 11:00Z 11-06. While the box is up, wake every 20-30 min (this overrides the 6-hour
+    full-wake rule for that day).
