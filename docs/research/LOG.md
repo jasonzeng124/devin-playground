@@ -3993,3 +3993,5 @@ r26 seed 0 (D 004's recipe at lr 3e-6, on H200) finished at 16:01 after two pree
 r26 is done. On these three seeds it beats D 004 by 0.021, but it is 0.026 below lr 6e-6 (r30). That backs the choice to gate record 005 with lr 6e-6 (r33). r26 tests nothing that is still open, so it gets no more seeds.
 
 Worker 27412796 exited, which freed one GPU slot. I submitted H200 worker 27814763 for `queue/h200`, which holds r33 seeds 3-4 and A 002 seeds 1-4. That brings the total back to 6 GPU jobs.
+
+**Next track D arm:** r38 = r30 with both exploration knobs (rollout temperature 1.2 from r36, entropy floor 0.05 below 0.1 from r37), seeds 0-2 queued in `screens_d_b200` (which was empty). If r36 and r37 hold up on seed 2, r38 tests whether their gains stack; it is also the candidate arm for the 11-05 box's track D half.

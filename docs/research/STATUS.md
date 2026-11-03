@@ -37,7 +37,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each).
 
-Updated 2026-11-03 11:50 EST (A 002 seed 0 test 0.252. Both H200 workers were preempted 11:02-11:04 and are pending again: r33 seed 1 was at step 10,148 and resumes; r33 seed 2 had run 7 min. r33 seed 0 0.205. r36 seeds 0-1 0.203 / 0.195, seed 2 held by 27598456, also preempted. r37 seed 0 running.)
+Updated 2026-11-03 16:50 EST (r26 closes: 0.183/0.148/0.183, mean 0.171, vs D 004 0.150 and r30 0.197. r37 seed 0 0.205 and r36 seeds 0-1 0.203/0.195, each about +0.012 over r30; seed 2 decides. r38 (temperature 1.2 plus entropy floor) queued. H200 worker 27814763 replaces 27412796. 11-05 H100 box back on: see the INBOX note above.)
 
 ## AWS boxes: off
 
@@ -49,7 +49,7 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 - mit_preemptable H200 (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900 excluded):
   - 26854533 and 26824150 exited 10-30 22:20 after A 004 seeds 3 and 2 (less than 380 min left).
-  - 27412796 (submitted 10-30 22:50, excludes node2500 and node4900): ran A 005 seed 3's rerun on node4801 (11-01 06:46-09:35, test 0.2209); now r26 seed 0.
+  - 27412796: finished r26 seed 0 (16:01 EST 11-03, 0.183) and exited (less than 380 min left). Replaced by 27814763 (submitted 16:50 EST 11-03, same settings, queue `h200`): pending.
   - 27412797 (same): ran A 005 seed 2's rerun (test 0.3821); exited 11-01 03:40 EST (less than 380 min left).
   - 27530015 (submitted 11-01 03:45 EST, same settings, queue `h200`): pending.
   - 26933254 exited 10-29 20:29 after D 004 seed 2.
@@ -64,14 +64,14 @@ otherwise. `queue/b200.txt` (r15) is parked.
   adds 11 %.
 - Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; exited 10-31 03:36 after r24 seed 0, less than 240 min left). 27432002 (10-31 03:54-06:10) ran r24 seed 1 and exited the same way. 27441594 (10-31 06:48 to 11-01 05:45) kept resuming r22 seed 3 from its only save (step 224) and was cancelled. 27534692 (submitted 11-01 05:45 EST) uses the same settings plus `RESUME_EVERY_S=1800`.
 - Track D B200 worker 27483976 (submitted 10-31 18:50, replaces 27460856, whose eight preemptions on node5800-c1 each came before the first hourly save, LOG 18:50): `packed_worker.sbatch` with PER_GPU=3, RESERVE_MIN 180, `--time-min=08:00:00`, `RESUME_EVERY_S=600`, queue `screens_d_b200` (r25); running again since 11-01 00:17, resumed from the saves.
-- Cap: 3 running (27487788, 27483976, 27585540, which replaced 27534692 at 16:45 EST) + 3 pending that could run together (27412796, 26927305, 27530015). 27412796 was preempted about 10:30 EST and holds r26 seed 0 (resumes from its save). Both B200 workers on node5800-c1 were preempted and requeued four times 11:00-11:30 EST.
+- Cap (16:50 EST 11-03): 2 running (B200 27598456 and 27800892) + 4 pending H200 that could run together (26927305, 27487788, 27530015, 27814763) = 6. 26927306 depends on 26927305 and does not count.
   I may update or cancel my own pending jobs without asking.
 
 ## Queues
 
-- `h200` (6 queued + 3 held): r33 `d004rl_shape05_lr6e-6_h200` seeds 3-4 (the track D gating screen, 5-seed form: r26 with lr 6e-6; LOG 11-02 03:05), then A 002 seeds 1-4. Held (all pending after preemption, each redoes its item): r33 seed 1 (27487788, resumes from step ~10,000), r33 seed 2 (27530015), r26 seed 0 (27412796; paired evidence). Done: r33 seed 0 0.205, A 002 seed 0 (test 0.252).
+- `h200` (6 queued + 2 held): r33 `d004rl_shape05_lr6e-6_h200` seeds 3-4 (the track D gating screen), then A 002 seeds 1-4. Held by pending workers: r33 seed 1 (27487788, resumes from its step-10,000 checkpoint) and r33 seed 2 (27530015).
   r18 is closed (LOG 11-02 05:55). Every H200 worker reads this queue.
-- `screens_d_b200` (3 queued): r37 `d004rl_shape05_lr6e-6_ent05_s15k` seed 2 (r30 with entropy floor 0.05 below 0.1; LOG 11-03 07:50), then r30 seeds 3-4 (baseline on all five pretrained seeds; LOG 11-03 11:50). Running or held: r37 seeds 0 (27627658) and 1 (27598456, pending after preemption), r36 `d004rl_shape05_lr6e-6_t12_s15k` seed 2 (27598456; seeds 0-1 0.203 / 0.195). Finished: r35 group 16 0.213 / 0.190 / 0.182 (ties r30, closed), r34 lr 1e-5 0.182 / 0.173 / 0.245 (ties r30, closed), r30 0.192 / 0.180 / 0.220, r31 0.188 / 0.217 / 0.197, r32 0.187 / 0.203 / 0.220, r34 seed 0 0.182.
+- `screens_d_b200` (3 queued): r38 `d004rl_shape05_lr6e-6_t12_ent05_s15k` seeds 0-2 (r36 temperature 1.2 plus r37 entropy floor; LOG 11-03 16:50). Running: 27598456 has r36 seed 2 and r37 seeds 1-2; 27800892 has r30 seeds 3 and 4 (seed 4 is the retry).
   At step 6,000: r25 `shape05` 0.188 / 0.140 / 0.153, `shape02` 0.140 / 0.185 / 0.148; r27 `shape05_lr6e-6` 0.175 / 0.152 / 0.180; r28 `shape05_g16` 0.138 / 0.158 / 0.168, closed (LOG 11-01 18:45); r29 `shape05_lr1e-5` 0.170 / 0.172 / 0.182 (LOG 11-01 19:45); D 004's own dev 0.122 / 0.115 / 0.075 (seeds 0 / 1 / 2). `shape10` 0.123 / 0.118, closed.
 - `screens_b200` (1 + 1 running, worker 27585540): r30 seed 2 running (step-capped, so it compares with the packed seeds by step). r22 `ent05_t10_lr2e-6` closed: 0.360 / 0.387 / 0.440 / 0.357 / 0.470, mean 0.403 (LOG 11-01 11:50). r24 `ent05_lr3e-6` closed: 0.413, 0.065
   (collapse at step 430; LOG 10-31 06:50). r23 closed: `gc015` 0.392, 0.018, 0.005, 0.435 (LOG 10-30 17:55);
