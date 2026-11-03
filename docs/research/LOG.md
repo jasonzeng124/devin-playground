@@ -3884,3 +3884,9 @@ r36 (training temperature 1.2) at step 8,000: 0.180 and 0.177 on seeds 0 and 1, 
 r33 seed 0 (the H200 gating screen) is running again on 27487788, at 0.215 at step 12,500 and 0.207 at step 13,000.
 
 **Next: r37 `d004rl_shape05_lr6e-6_ent05_s15k`.** This is r30 with the entropy floor from track A (coef 0.05 below entropy 0.1). It is a second way to keep the policy from settling, alongside r36's hotter sampler. Seeds 0-2 are queued on `screens_d_b200` and start as r36's seeds finish. 6 GPU jobs.
+
+## 2026-11-03 08:50 EST: r33 (H200 gating screen) seed 0 ends at 0.205
+
+r33 `d004rl_shape05_lr6e-6_h200` seed 0 finished at 07:49. It ran D 004's full RL time budget on the H200 (13,728 steps) and ended at 0.205 on the dev ladder (0.215 at step 12,500, 0.212 at step 13,500). At the end, 24 of 64 groups were informative, with entropy 0.047. On the same pretrained seed, D 004 got 0.182 and r30 on B200 got 0.192. 0.205 is above the 0.189 line and above the holder's dev mean of 0.159.
+
+This attempt resumed at step 7,115 from the screen's own resume checkpoint, which was written before the 11-02 preemption, with the time budget carried over. So the earlier note that seed 0 starts again from the beginning was wrong. The interrupted stdout is kept beside the seed. 27487788 took r33 seed 1 at 07:49. Seeds 2-4 are queued on `h200`, ahead of A 002 seeds 1-4. The record decision waits for all 5 seeds (5-seed form: mean ≥ 0.189, at least 4 of 5 above 0.159, at most 1 collapsed).
