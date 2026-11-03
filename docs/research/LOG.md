@@ -3970,3 +3970,11 @@ r37 seed 0 dev by 2,000 steps:
 - If both hold, temperature 1.2 combined with the floor is a candidate for the H100 box's track D half.
 
 **GPUs:** 27627658 finished its item with less than 180 min left in its 10.5-h allocation and exited. New B200 worker 27800892 (`packed_worker.sbatch`, PER_GPU=3, `screens_d_b200`, otherwise the same settings) takes r37 seed 2 and r30 seeds 3-4. GPU jobs: 6.
+
+## 2026-11-03 15:50 EST: r30 seed 4 failed at vLLM start-up and is requeued once
+
+B200 worker 27800892 started at 14:52 on node5800-c1 and launched r30 seeds 3 and 4 in two slots, two minutes apart. Seed 4 failed after 26 s with vLLM's "No available memory for the cache blocks" error. The seeds dir holds only `config.json`, so it hadn't trained.
+
+This is the first such failure in r30-r37, which all ran three per B200 at `vllm_gpu_memory` 0.35. It is a host-side start-up failure, so it is requeued once at the end of `screens_d_b200`, as AGENT.md allows. If it recurs, the D B200 workers go to PER_GPU=2.
+
+The slot's `stdout.log` stays in `calibration/.../seeds/4` until the retry moves it aside. Both B200 workers (27598456 with r36 seed 2 and r37 seeds 1-2; 27800892 with r30 seed 3) were preempted again on node5800-c1 and are pending. They redo their held items. r26 seed 0 (27412796) runs on node4301.

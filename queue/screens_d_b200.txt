@@ -1,3 +1,1 @@
-calibration/research_r37/d004rl_shape05_lr6e-6_ent05_s15k 2
-calibration/research_r30/d004rl_shape05_lr6e-6_s15k 3
 calibration/research_r30/d004rl_shape05_lr6e-6_s15k 4
