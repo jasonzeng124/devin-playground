@@ -3890,3 +3890,13 @@ r33 seed 0 (the H200 gating screen) is running again on 27487788, at 0.215 at st
 r33 `d004rl_shape05_lr6e-6_h200` seed 0 finished at 07:49. It ran D 004's full RL time budget on the H200 (13,728 steps) and ended at 0.205 on the dev ladder (0.215 at step 12,500, 0.212 at step 13,500). At the end, 24 of 64 groups were informative, with entropy 0.047. On the same pretrained seed, D 004 got 0.182 and r30 on B200 got 0.192. 0.205 is above the 0.189 line and above the holder's dev mean of 0.159.
 
 This attempt resumed at step 7,115 from the screen's own resume checkpoint, which was written before the 11-02 preemption, with the time budget carried over. So the earlier note that seed 0 starts again from the beginning was wrong. The interrupted stdout is kept beside the seed. 27487788 took r33 seed 1 at 07:49. Seeds 2-4 are queued on `h200`, ahead of A 002 seeds 1-4. The record decision waits for all 5 seeds (5-seed form: mean ≥ 0.189, at least 4 of 5 above 0.159, at most 1 collapsed).
+
+## 2026-11-03 09:50 EST: r36 (training temperature 1.2) seeds 0-1: 0.203 and 0.195
+
+| pretrained seed | r30 (temperature 1.0) | r36 (temperature 1.2) | difference |
+|---|---|---|---|
+| 0 | 0.192 | 0.203 | +0.011 |
+| 1 | 0.180 | 0.195 | +0.015 |
+| 2 | 0.220 | running (started 07:39) | |
+
+Both finished seeds beat r30 by a little, and r30's weakest seed (1) ends above the 0.189 line. At the end, 23-31 of 64 groups were informative, with entropy 0.055-0.062. That is about r30's level, so the hotter sampler's extra spread is gone by step 15,000. Seed 1 dipped to 0.165 at step 12,500 before ending at 0.195. Gains of +0.01 are within the seed noise seen in r31, r34 and r35, so seed 2 decides it. r37 (entropy floor) seeds 0 and 1 started at 09:25 and 09:39, and seed 2 is queued.
