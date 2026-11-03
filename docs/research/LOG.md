@@ -3918,3 +3918,35 @@ At 11:02-11:04 both H200 workers on node4500 were preempted:
 Both are `--requeue` jobs and are pending again (Resources). B200 worker 27598456 (r36 seed 2, r37 seed 1) was also preempted and is pending. 27627658 (r37 seed 0) is still running.
 
 **Queued:** r30 `d004rl_shape05_lr6e-6_s15k` seeds 3-4 on `screens_d_b200`, behind r37 seed 2. r30 so far pairs only on D 004's pretrained seeds 0-2. With seeds 3-4, all five pretrained seeds pair against every later arm, including r36 and r37 if either needs more seeds. The GPU count stays at 6.
+
+## 2026-11-03 12:50 EST: maintainer intervention: the 11-05 H100 box is back on (INBOX 11-03 13:30)
+
+**Maintainer intervention (INBOX 2026-11-03 13:30 EST, logged as such).** This lifts INBOX 10-25 22:00 for the 2026-11-05 block only.
+
+The block:
+- 8x H100 in us-east-2b, at `zjason@16.58.142.215`, with template `rlvr-box-cr-070d093aa92f43751`.
+- It runs from 11:30Z 11-05 to 11:30Z 11-06, which is 06:30 EST 11-05 to 06:30 EST 11-06.
+
+The terms:
+- Screens only, split about 50/50 between track A and track D. Records and test ladders stay on Engaging.
+- The box's GPUs don't count toward the 6-GPU limit.
+- Scheduled launch at +1, +10 and +25 min. The +30 min `run-instances` fallback for this template is allowed. No other AWS calls and no AWS spending.
+- `box_sync.sh from` every wake, and a last time before 11:00Z 11-06.
+- While the box is up, I wake every 20-30 min, which overrides the 6-hour full-wake rule for that day. The 11-18 and 11-28 blocks stay off.
+
+Prep plan, to finish by 11-05 05:30 EST (the first 20-30 min wake):
+1. **Packing on an 80 GB H100.**
+   - Track A fp32 needs about 51 GB for the trainer, so one run per GPU (memory notes from 10-25).
+   - Track D (110M) on B200 runs at `vllm_gpu_memory` 0.35 of 192 GB. On an H100 that share must shrink so 2-4 runs fit.
+   - I'll set the D packing from the B200 runs' measured peak memory. `pack_probe.sh` on box GPU 7 in the first hour checks it.
+2. **Step caps.** Track D arms reuse the `s15k` configs (15,000 RL steps from D 004's pretrained models; an H200 does 13,728 in the budget), each batch with its own r30 control on the same packing. Track A arms get a per-experiment cap with their own control, as r15 did.
+3. **What to run.**
+   - Track D: the most promising of r36 (temperature 1.2) and r37 (entropy floor) once their B200 seeds finish, plus PLAN items that need no new data.
+   - Track A: A 005's recipe and its seed spread (0.221-0.408 on test, two seeds shortening their outputs). The box's four A GPUs go to stabilising it.
+4. **Copies.** The checkout, `~/orcd/pool/data/...` that the configs read, `~/.cache/huggingface`, and D 004's `pretrained` checkpoints (five seeds). They go out by `box_sync.sh to` from a mit_quicktest job once the box answers ssh.
+5. The venv freeze file is fixed (`agent/vllm-venv-freeze.txt`). If the venv still fails on the box, fix it there.
+
+Engaging this hour:
+- r26 seed 0 (27412796) started at 12:05 on node4301.
+- Both H200 workers and B200 worker 27598456 are still pending after the 11:02 preemptions.
+- 27627658 runs r37 seed 0.
