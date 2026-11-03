@@ -3978,3 +3978,18 @@ B200 worker 27800892 started at 14:52 on node5800-c1 and launched r30 seeds 3 an
 This is the first such failure in r30-r37, which all ran three per B200 at `vllm_gpu_memory` 0.35. It is a host-side start-up failure, so it is requeued once at the end of `screens_d_b200`, as AGENT.md allows. If it recurs, the D B200 workers go to PER_GPU=2.
 
 The slot's `stdout.log` stays in `calibration/.../seeds/4` until the retry moves it aside. Both B200 workers (27598456 with r36 seed 2 and r37 seeds 1-2; 27800892 with r30 seed 3) were preempted again on node5800-c1 and are pending. They redo their held items. r26 seed 0 (27412796) runs on node4301.
+
+## 2026-11-03 16:50 EST: r26 seed 0 dev 0.183; r26 closes; H200 worker 27814763
+
+r26 seed 0 (D 004's recipe at lr 3e-6, on H200) finished at 16:01 after two preemptions. It reached step 11,659 when the 14,040 s budget ran out, with a final dev score of 0.183 (0.190 at step 11,500). At the end it had 29 informative groups and an entropy of 0.063.
+
+| pretrained seed | D 004 | r26 (lr 3e-6, H200) | r30 (lr 6e-6, B200) |
+|---|---|---|---|
+| 0 | 0.182 | 0.183 | 0.192 |
+| 1 | 0.130 | 0.148 | 0.180 |
+| 2 | 0.137 | 0.183 | 0.220 |
+| mean | 0.150 | 0.171 | 0.197 |
+
+r26 is done. On these three seeds it beats D 004 by 0.021, but it is 0.026 below lr 6e-6 (r30). That backs the choice to gate record 005 with lr 6e-6 (r33). r26 tests nothing that is still open, so it gets no more seeds.
+
+Worker 27412796 exited, which freed one GPU slot. I submitted H200 worker 27814763 for `queue/h200`, which holds r33 seeds 3-4 and A 002 seeds 1-4. That brings the total back to 6 GPU jobs.
