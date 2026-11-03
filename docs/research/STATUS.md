@@ -15,7 +15,7 @@ seeds now run `scripts/warm_start.sh` first and log its time to `<record>/warm_s
 | `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | done | **Complete: 0.2671 ± 0.0565, validated, track A (H200) holder (LOG 10-30 22:55)**. Seeds 0.3135 / 0.2358 / 0.3132 / 0.2895 / 0.1834 (seed 4 one-guess collapse); dev mean 0.255; five preempted attempts in `extra/` |
 | `records/v3/track_a/005_fp32_mal0_cos500_s400` | r16's, stopped at step 400 (`max_steps` 400), + `budget_steps_time_stop` | done | **Complete: 0.3400 ± 0.0815, validated, not a new record** (Welch vs A 004 p = 0.072; LOG 11-01 09:50). Seeds 0.3995 / 0.4076 / 0.3821 / 0.2209 / 0.2899; dev mean 0.313; seeds 3-4 shortened their outputs; four preempted attempts in `extra/` |
 | `records/v3/track_d/004_dm_math_fp32_h200_warm` | D 002's, unchanged | done | seed 1 done: test 0.1296, within budget; seed 0 done (third attempt; attempt 2 in `extra/interrupted_0_2`): test 0.1832, dev 0.182, within budget (20,816 s); seed 2 done: test 0.1384, dev 0.137, within budget (20,892 s); seed 3 done: test 0.1677, dev 0.183, within budget (20,941 s); seed 4 done: test 0.1572, dev 0.163, within budget (20,932 s). **Complete: 0.1552 ± 0.0217, validated, track D (H200) holder (LOG 10-30 18:55)** |
-| `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | any H200 worker | queued at the end of `h200` (LOG 13:05) |
+| `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | any H200 worker | seed 0 done: test 0.2518, dev 0.243, within budget (17,451 s; earlier attempt in `extra/interrupted_0_1`). Seeds 1-4 queued at the end of `h200` (LOG 11-03 11:50) |
 | `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | done | **failed**: seeds 0 and 2 over budget; README reports it (test mean of all five 0.1538) |
 
 - A preempted seed is an infrastructure stop: its partial attempt goes to `extra/` and the same seed
@@ -35,7 +35,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each).
 
-Updated 2026-11-03 07:50 EST (27487788 runs r33 seed 0, at 0.207 at step 13,000; 27530015 runs A 002 seed 0. r35 group 16 finished 0.213 / 0.190 / 0.182, a tie with r30, closed; r36 training temperature 1.2 running; r37 entropy floor queued).
+Updated 2026-11-03 11:50 EST (A 002 seed 0 test 0.252. Both H200 workers were preempted 11:02-11:04 and are pending again: r33 seed 1 was at step 10,148 and resumes; r33 seed 2 had run 7 min. r33 seed 0 0.205. r36 seeds 0-1 0.203 / 0.195, seed 2 held by 27598456, also preempted. r37 seed 0 running.)
 
 ## AWS boxes: off
 
@@ -67,9 +67,9 @@ otherwise. `queue/b200.txt` (r15) is parked.
 
 ## Queues
 
-- `h200` (8 queued + 3 held): r33 `d004rl_shape05_lr6e-6_h200` seeds 1-4 (the track D gating screen, 5-seed form: r26 with lr 6e-6; LOG 11-02 03:05), then A 002 seeds 1-4. Held (all pending after preemption, each redoes its item): r33 seed 0 (27487788), r26 seed 0 (27412796; paired evidence), A 002 seed 0 (27530015).
+- `h200` (6 queued + 3 held): r33 `d004rl_shape05_lr6e-6_h200` seeds 3-4 (the track D gating screen, 5-seed form: r26 with lr 6e-6; LOG 11-02 03:05), then A 002 seeds 1-4. Held (all pending after preemption, each redoes its item): r33 seed 1 (27487788, resumes from step ~10,000), r33 seed 2 (27530015), r26 seed 0 (27412796; paired evidence). Done: r33 seed 0 0.205, A 002 seed 0 (test 0.252).
   r18 is closed (LOG 11-02 05:55). Every H200 worker reads this queue.
-- `screens_d_b200` (3 queued): r37 `d004rl_shape05_lr6e-6_ent05_s15k` seeds 0-2 (r30 with entropy floor 0.05 below 0.1; LOG 11-03 07:50). Running: r36 `d004rl_shape05_lr6e-6_t12_s15k` seeds 0-1 (27598456, 27627658) and seed 2 (27598456). Finished: r35 group 16 0.213 / 0.190 / 0.182 (ties r30, closed), r34 lr 1e-5 0.182 / 0.173 / 0.245 (ties r30, closed), r30 0.192 / 0.180 / 0.220, r31 0.188 / 0.217 / 0.197, r32 0.187 / 0.203 / 0.220, r34 seed 0 0.182.
+- `screens_d_b200` (3 queued): r37 `d004rl_shape05_lr6e-6_ent05_s15k` seed 2 (r30 with entropy floor 0.05 below 0.1; LOG 11-03 07:50), then r30 seeds 3-4 (baseline on all five pretrained seeds; LOG 11-03 11:50). Running or held: r37 seeds 0 (27627658) and 1 (27598456, pending after preemption), r36 `d004rl_shape05_lr6e-6_t12_s15k` seed 2 (27598456; seeds 0-1 0.203 / 0.195). Finished: r35 group 16 0.213 / 0.190 / 0.182 (ties r30, closed), r34 lr 1e-5 0.182 / 0.173 / 0.245 (ties r30, closed), r30 0.192 / 0.180 / 0.220, r31 0.188 / 0.217 / 0.197, r32 0.187 / 0.203 / 0.220, r34 seed 0 0.182.
   At step 6,000: r25 `shape05` 0.188 / 0.140 / 0.153, `shape02` 0.140 / 0.185 / 0.148; r27 `shape05_lr6e-6` 0.175 / 0.152 / 0.180; r28 `shape05_g16` 0.138 / 0.158 / 0.168, closed (LOG 11-01 18:45); r29 `shape05_lr1e-5` 0.170 / 0.172 / 0.182 (LOG 11-01 19:45); D 004's own dev 0.122 / 0.115 / 0.075 (seeds 0 / 1 / 2). `shape10` 0.123 / 0.118, closed.
 - `screens_b200` (1 + 1 running, worker 27585540): r30 seed 2 running (step-capped, so it compares with the packed seeds by step). r22 `ent05_t10_lr2e-6` closed: 0.360 / 0.387 / 0.440 / 0.357 / 0.470, mean 0.403 (LOG 11-01 11:50). r24 `ent05_lr3e-6` closed: 0.413, 0.065
   (collapse at step 430; LOG 10-31 06:50). r23 closed: `gc015` 0.392, 0.018, 0.005, 0.435 (LOG 10-30 17:55);
