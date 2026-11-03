@@ -3861,3 +3861,7 @@ r34 is a tie with r30. Seed 2 at 0.245 is the best single track D dev score so f
 r35 (groups of 16 on 32 prompts) is running: seed 2 is on 27627658, and seeds 0-1 are held by 27598456, which was preempted again. Seeds 0-2 are at about step 5,500-7,500, and their dev scores (0.150-0.158) are in line with r30 at the same steps.
 
 **Next: r36 `d004rl_shape05_lr6e-6_t12_s15k`.** This is r30 with the training rollouts sampled at temperature 1.2. The dev eval sampler does not read this setting, so dev scores stay comparable. By the end, entropy is down to about 0.05 and only a third of the groups are informative. A hotter sampler should keep more groups mixed. The risk is a gap between training at 1.2 and the record's eval at T=1. Seeds 0-2 are queued on `screens_d_b200`. 27627658's free slot already exited on the empty queue, so r36 starts when 27598456 resumes or when 27627658 finishes r35 seed 2. 6 GPU jobs, at the cap.
+
+## 2026-11-03 05:50 EST: r35 (groups of 16) seed 2 ends at 0.182, against 0.220 for r30
+
+r35 `d004rl_shape05_lr6e-6_g16p32_s15k` seed 2 reached step 15,000 at 0.182 on the dev ladder (0.150 at step 9,500, 0.167 at step 12,500). r30 got 0.220 on the same pretrained seed. At the end, 19 of 32 groups were informative, with entropy 0.061. That is a larger share than r30's groups of 8, but the score is lower. Seeds 0 and 1 are at step 10,300 (0.163 and 0.175 at step 9,500) on 27598456. r36 (training temperature 1.2) seeds 0 and 1 started at 03:55 and 05:35, and seed 2 is queued. 6 GPU jobs.
