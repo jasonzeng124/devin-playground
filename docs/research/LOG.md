@@ -3950,3 +3950,23 @@ Engaging this hour:
 - r26 seed 0 (27412796) started at 12:05 on node4301.
 - Both H200 workers and B200 worker 27598456 are still pending after the 11:02 preemptions.
 - 27627658 runs r37 seed 0.
+
+## 2026-11-03 13:50 EST: r37 (entropy floor) seed 0 ends at 0.205
+
+| pretrained seed | r30 (no floor) | r37 (entropy floor 0.05 below 0.1) | difference |
+|---|---|---|---|
+| 0 | 0.192 | 0.205 | +0.013 |
+| 1 | 0.180 | held by 27598456 (preempted at 11:02, pending) | |
+| 2 | 0.220 | queued | |
+
+r37 seed 0 dev by 2,000 steps:
+
+| step | 2,000 | 4,000 | 6,000 | 8,000 | 10,000 | 12,000 | 14,000 | 15,000 |
+|---|---|---|---|---|---|---|---|---|
+| dev | 0.125 | 0.162 | 0.180 | 0.183 | 0.182 | 0.198 | 0.198 | 0.205 |
+
+- At the end, entropy was 0.134 against r30's 0.076, so the floor holds entropy up as designed. Informative groups were 18 of 64 against r30's 19, so the extra entropy doesn't buy more mixed groups.
+- On seed 0, r37 lands where r36 (temperature 1.2) does: 0.203 vs 0.205. Both exploration knobs are a little above r30 on every finished seed, by +0.011 to +0.015 over three paired runs. Seed 2, where r30 is strongest, decides both.
+- If both hold, temperature 1.2 combined with the floor is a candidate for the H100 box's track D half.
+
+**GPUs:** 27627658 finished its item with less than 180 min left in its 10.5-h allocation and exited. New B200 worker 27800892 (`packed_worker.sbatch`, PER_GPU=3, `screens_d_b200`, otherwise the same settings) takes r37 seed 2 and r30 seeds 3-4. GPU jobs: 6.
