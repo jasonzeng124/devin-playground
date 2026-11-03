@@ -3865,3 +3865,22 @@ r35 (groups of 16 on 32 prompts) is running: seed 2 is on 27627658, and seeds 0-
 ## 2026-11-03 05:50 EST: r35 (groups of 16) seed 2 ends at 0.182, against 0.220 for r30
 
 r35 `d004rl_shape05_lr6e-6_g16p32_s15k` seed 2 reached step 15,000 at 0.182 on the dev ladder (0.150 at step 9,500, 0.167 at step 12,500). r30 got 0.220 on the same pretrained seed. At the end, 19 of 32 groups were informative, with entropy 0.061. That is a larger share than r30's groups of 8, but the score is lower. Seeds 0 and 1 are at step 10,300 (0.163 and 0.175 at step 9,500) on 27598456. r36 (training temperature 1.2) seeds 0 and 1 started at 03:55 and 05:35, and seed 2 is queued. 6 GPU jobs.
+
+## 2026-11-03 07:50 EST: r35 (groups of 16) complete, ties r30; r37 (entropy floor) queued
+
+Track D, final dev at step 15,000 (B200), on D 004's pretrained seeds:
+
+| pretrained seed | r30 (groups of 8 on 64 prompts) | r35 (groups of 16 on 32 prompts) | difference |
+|---|---|---|---|
+| 0 | 0.192 | 0.213 | +0.021 |
+| 1 | 0.180 | 0.190 | +0.010 |
+| 2 | 0.220 | 0.182 | -0.038 |
+| mean | 0.197 | 0.195 | -0.002 |
+
+r35 ties r30 and closes. Like r34 (lr 1e-5) and r31 (cosine), it moves single seeds by 0.01-0.04 in both directions and leaves the mean where it was. All three r35 seeds were still rising at step 12,500-15,000. At the end, 17-19 of 32 groups were informative.
+
+r36 (training temperature 1.2) at step 8,000: 0.180 and 0.177 on seeds 0 and 1, with entropy 0.068-0.095 and 22-26 of 64 groups informative. That entropy is higher than r30's, and the scores are at or a little above r30 at the same step. Seed 2 started at 07:39.
+
+r33 seed 0 (the H200 gating screen) is running again on 27487788, at 0.215 at step 12,500 and 0.207 at step 13,000.
+
+**Next: r37 `d004rl_shape05_lr6e-6_ent05_s15k`.** This is r30 with the entropy floor from track A (coef 0.05 below entropy 0.1). It is a second way to keep the policy from settling, alongside r36's hotter sampler. Seeds 0-2 are queued on `screens_d_b200` and start as r36's seeds finish. 6 GPU jobs.
