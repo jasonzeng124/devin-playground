@@ -6,6 +6,8 @@
 
 **INBOX 10-31 12:15: track D matters more; it gets at least half of research effort and screen capacity. A 005 and A 002 still run.**
 
+**INBOX 11-03 13:30: the 11-05 H100 box (8x H100, 11:30Z 11-05 to 11:30Z 11-06) is back on for screens only, about 50/50 track A/D. Prep plan in LOG 11-03 12:50. The 11-18 and 11-28 blocks stay off.**
+
 **v3.1 (2026-10-25): the reference GPU is the H200 SXM (`NVIDIA H200`). The H100 records keep a
 separate board. v3.2 (2026-10-26): an untimed warm-up is allowed (RULES_v3, "Untimed warm-up"); record
 seeds now run `scripts/warm_start.sh` first and log its time to `<record>/warm_start.log`.**
