@@ -3844,3 +3844,20 @@ Track D, final dev at step 15,000 (B200), on D 004's pretrained seeds:
 - **Next: r35, groups of 16 on 32 prompts per step.** That is r30 with the same 512 rollouts per step. The question is whether bigger groups find more informative groups once most of a group of 8 agrees. 3 seeds are queued on `screens_d_b200`, step-capped at 15,000.
 
 Holding for r33. The track D record decision waits on its 5 seeds (H200, time-capped, 5-seed form).
+
+## 2026-11-03 03:50 EST: r34 (lr 1e-5) complete, ties r30; r36 (training temperature 1.2) queued
+
+Track D, final dev at step 15,000 (B200), on D 004's pretrained seeds:
+
+| pretrained seed | r30 (lr 6e-6) | r34 (lr 1e-5) | difference |
+|---|---|---|---|
+| 0 | 0.192 | 0.182 | -0.010 |
+| 1 | 0.180 | 0.173 | -0.007 |
+| 2 | 0.220 | 0.245 | +0.025 |
+| mean | 0.197 | 0.200 | +0.003 |
+
+r34 is a tie with r30. Seed 2 at 0.245 is the best single track D dev score so far, but seeds 0 and 1 are a little lower than r30, and seed 1 fell from 0.187 at step 12,000 to 0.173 at the end. At the end, 26-29 of 64 groups were informative, with entropy 0.046-0.056, about the same as r30. With shaping 0.5, lr from 6e-6 to 1e-5 gives the same result at full length. r33 keeps lr 6e-6, and r34 closes.
+
+r35 (groups of 16 on 32 prompts) is running: seed 2 is on 27627658, and seeds 0-1 are held by 27598456, which was preempted again. Seeds 0-2 are at about step 5,500-7,500, and their dev scores (0.150-0.158) are in line with r30 at the same steps.
+
+**Next: r36 `d004rl_shape05_lr6e-6_t12_s15k`.** This is r30 with the training rollouts sampled at temperature 1.2. The dev eval sampler does not read this setting, so dev scores stay comparable. By the end, entropy is down to about 0.05 and only a third of the groups are informative. A hotter sampler should keep more groups mixed. The risk is a gap between training at 1.2 and the record's eval at T=1. Seeds 0-2 are queued on `screens_d_b200`. 27627658's free slot already exited on the empty queue, so r36 starts when 27598456 resumes or when 27627658 finishes r35 seed 2. 6 GPU jobs, at the cap.
