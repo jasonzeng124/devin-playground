@@ -1,0 +1,5 @@
+=== screen calibration/research_r32/d004rl_gsm8k300_shape05_lr6e-6_s15k seed 0 on node5800-c1 NVIDIA B200 2026-11-02T04:53:15Z
+Traceback (most recent call last):
+  File "/orcd/home/002/zjason/rlvr-screens/scripts/research/sft_public.py", line 23, in <module>
+    from rlvr_speedrun.countdown import R1_TEMPLATE
+ModuleNotFoundError: No module named 'rlvr_speedrun'

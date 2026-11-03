@@ -3825,3 +3825,22 @@ All 6 lr 6e-6 runs are done, with a mean of 0.199. Five of the six are at or abo
 **r18 closes.** `lr6e-6` seed 3 finished at 0.165 at step 3,486 (7 of 256 groups informative, entropy 0.044). Over seeds 1-3, 256 prompts per step gave 0.148 / 0.147 / 0.177 at lr 3e-6 and 0.142 / 0.158 / 0.165 at lr 6e-6. That is no better than 64 prompts, and it fits fewer steps in the budget.
 
 27487788 took r33 seed 0 at 05:40 (H200). 27627658's remaining slot took r34 seed 0. r34 seeds 1-2 wait for a B200 slot. 6 GPU jobs, at the cap.
+
+## 2026-11-02 20:05 EST: r32 (GSM8K SFT first) ties r30; r34 lr 1e-5 seed 0 0.182; all workers preempted; r35 queued
+
+This loop was suspended from 06:51 to 19:50, so nothing was checked during that gap. All six workers (27412796, 27487788, 27530015, 27598456, 27627658, and 26927305) are back in the queue, pending on priority. The last line of r33 seed 0's log is at 06:57, at step 7,459 of its time-capped run (dev 0.180 at step 7,000). On restart, each H200 worker redoes the item it was running, so r33 seed 0 starts again from the beginning. Nothing needs to be requeued by hand.
+
+Track D, final dev at step 15,000 (B200), on D 004's pretrained seeds:
+
+| pretrained seed | r30 (lr 6e-6) | r32 (300 steps of GSM8K SFT, then r30's RL) | r34 (lr 1e-5) |
+|---|---|---|---|
+| 0 | 0.192 | 0.187 | 0.182 |
+| 1 | 0.180 | 0.203 | (preempted, waiting) |
+| 2 | 0.220 | 0.220 | (preempted, waiting) |
+| mean | 0.197 | 0.203 | |
+
+- **r32 (PLAN D3).** Paired differences against r30 are -0.005, +0.023 and 0.000, with a mean of +0.006. That is within seed noise. It kept more groups informative to the end (29-34 of 64, against about 20-25 for r30), at about the same entropy (0.048-0.058), but that did not turn into a higher score. GSM8K SFT is not worth its extra step for a record. Close it unless a later arm gives a reason to pair it.
+- **r34 seed 0.** 0.182, against 0.192 for r30 on the same seed. The curve looks like r30's (0.202 at step 12,500, then down). Seeds 1-2 resume when 27627658 runs again.
+- **Next: r35, groups of 16 on 32 prompts per step.** That is r30 with the same 512 rollouts per step. The question is whether bigger groups find more informative groups once most of a group of 8 agrees. 3 seeds are queued on `screens_d_b200`, step-capped at 15,000.
+
+Holding for r33. The track D record decision waits on its 5 seeds (H200, time-capped, 5-seed form).

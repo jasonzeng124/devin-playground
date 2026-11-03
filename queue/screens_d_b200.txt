@@ -1,5 +1,3 @@
-calibration/research_r32/d004rl_gsm8k300_shape05_lr6e-6_s15k 0
-calibration/research_r30/d004rl_shape05_lr6e-6_s15k 1
-calibration/research_r31/d004rl_shape05_lr6e-6_cos_s15k 2
-calibration/research_r32/d004rl_gsm8k300_shape05_lr6e-6_s15k 1
-calibration/research_r32/d004rl_gsm8k300_shape05_lr6e-6_s15k 2
+calibration/research_r35/d004rl_shape05_lr6e-6_g16p32_s15k 0
+calibration/research_r35/d004rl_shape05_lr6e-6_g16p32_s15k 1
+calibration/research_r35/d004rl_shape05_lr6e-6_g16p32_s15k 2
