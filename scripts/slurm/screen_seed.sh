@@ -5,7 +5,9 @@
 # pretrained model (same pretraining as the record, so only the RL changes are compared).
 # On mit_preemptable, training saves resumable state to $CKPT_DIR/<dir>/resume/<seed>/ every
 # RESUME_EVERY_S training seconds (default 3600, off the clock like evals; 0 turns it off), and a
-# requeued seed continues from it. The state is deleted once the seed finishes.
+# requeued seed continues from it. The state is deleted once the seed finishes. SCREEN_RESUME=1 saves it
+# outside mit_preemptable too (AWS box: scripts/aws/box_sync.sh's STATE=1 brings an unfinished seed's state
+# back, and the same item queued on Engaging resumes from it).
 # If the config has "screen_sft": {"data": ..., "steps": ..., "batch": ..., "lr": ...}, the starting model
 # first gets scripts/research/sft_public.py's SFT into $CKPT_DIR/<dir>/seeds/<seed>/sft (kept until the seed
 # finishes, so a resumed seed reuses it), and RL starts from that.
@@ -20,7 +22,7 @@ weights="${CKPT_DIR:-$HOME/orcd/pool/rlvr-ckpts}/$dir/seeds/$seed"
 resume_dir="${CKPT_DIR:-$HOME/orcd/pool/rlvr-ckpts}/$dir/resume/$seed"
 [[ -e "$out/train_log.jsonl" ]] && { echo "$out already holds a run" >&2; exit 1; }
 every=0
-[[ ${SLURM_JOB_PARTITION:-} == mit_preemptable ]] && every=${RESUME_EVERY_S:-3600}
+[[ ${SLURM_JOB_PARTITION:-} == mit_preemptable || ${SCREEN_RESUME:-0} == 1 ]] && every=${RESUME_EVERY_S:-3600}
 resume=()
 [[ $every != 0 || -e "$resume_dir/state.pt" ]] && resume=(--resume-dir "$resume_dir" --resume-every-s "$every")
 # a preempted, requeued seed without saved state starts over: keep the partial run's logs aside

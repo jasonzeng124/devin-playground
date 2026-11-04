@@ -13,6 +13,11 @@
 #     finished seeds into the checkout (<arm>/seeds/<i>/), running seeds' logs into $CKPT_DIR (so
 #     summarize_screens.py reads them as on Engaging), and the box's worker log, done list and worker
 #     outputs as queue/<tag>_worker.log, queue/<tag>_done.txt and slurm_logs/<tag>/. Small: logs only.
+#   STATE=1 BOX=... bash scripts/aws/box_sync.sh from box1 calibration/research_r15 [...]
+#     also each unfinished seed's resume state ($CKPT_DIR/<dir>/resume/<i>/state.pt, saved on the box with
+#     SCREEN_RESUME=1), so the same item queued on Engaging resumes from that step (scripts/slurm/screen_seed.sh).
+#     The state goes first and its logs after, so the logs are never behind it (the trainer truncates logs
+#     past the state's step). Big (track D ~1.3 GB, track A ~20 GB per seed): for the last sync, as CPU jobs.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 BOX=${BOX:?set BOX=zjason@<box ip>}
@@ -46,6 +51,9 @@ case $mode in
       rsync -a --include='*/' --include='*.json' --include='*.jsonl' --include='*.log' --exclude='*' \
         "$BOX:rlvr-screens/$dir/" "$dir/"
       mkdir -p "$CKPT/$dir"
+      if [[ ${STATE:-0} == 1 ]]; then
+        rsync -a --include='*/' --include='state.pt' --exclude='*' "$BOX:orcd/pool/rlvr-ckpts/$dir/" "$CKPT/$dir/"
+      fi
       rsync -a --include='*/' --include='*.json' --include='*.jsonl' --exclude='*' "$BOX:orcd/pool/rlvr-ckpts/$dir/" "$CKPT/$dir/"
     done
     mkdir -p "slurm_logs/$tag"

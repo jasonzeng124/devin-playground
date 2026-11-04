@@ -4049,3 +4049,30 @@ All five seeds are above the holder's dev mean of 0.159, and the mean is above t
 
 - r37 (entropy floor 0.05 below 0.1) is 0.005 under r30 on seed 1, after +0.011 on seed 0. That is noise-sized either way, so the entropy floor alone shows no clear gain so far. r36 is still +0.013 to +0.015 on both seeds.
 - The freed B200 slot took r45 seed 1 (no L1 in training). r45 seed 2 is still queued. r36 seed 2, r37 seed 2 and r38 seeds 0-2 are running. The 11-05 box covers r36, r37 and r38 seeds 3-4.
+
+## 2026-11-04 12:10 EST: r37 complete at three seeds (no gain); box runs can now finish on Engaging (INBOX 11-04)
+
+| dev at step 15,000 (B200, step cap) | seed 0 | seed 1 | seed 2 | mean |
+|---|---|---|---|---|
+| r30 (base) | 0.192 | 0.180 | 0.220 | 0.197 |
+| r37 (entropy floor 0.05 below 0.1) | 0.203 | 0.175 | 0.215 | 0.198 |
+
+- The entropy floor alone does nothing measurable: +0.011, -0.005, -0.005 against r30, seed by seed. Seeds 3-4 stay in the box queue, so the arm closes at five seeds at little cost. r36 (temperature 1.2) seed 2 and r38 (both) are still running.
+- 27598456 (B200) was preempted at 11:29 and requeued. Its seeds (r36 seed 2, r45 seed 1 and the item that followed r37 seed 2) resume from their saved state when it restarts.
+
+**INBOX 11-04 12:00 (5d1ab11): unfinished box runs finish on Engaging.** Two changes, both off by default:
+- `scripts/slurm/screen_seed.sh`: `SCREEN_RESUME=1` saves resume state outside `mit_preemptable` too. On the box there is no Slurm partition, so before this no state was saved. The file was replaced atomically; with the variable unset nothing changes for Engaging workers.
+- `scripts/aws/box_sync.sh from`: `STATE=1` also copies each unfinished seed's `$CKPT_DIR/<dir>/resume/<i>/state.pt`, before its logs. Logs copied after the state can only be ahead of it, and the trainer truncates logs past the state's step. I checked the rsync filter on a dummy tree: it picks only `state.pt`. Ruff passes, and pytest passes all 140 tests.
+- What carries over: the state holds the step, `wall_s`, `eval_s`, model, optimizer and RNG, so step caps, time budgets and log truncation work as for a preempted Engaging seed. The 15,000- and 500-step caps make a box-then-Engaging run comparable to single-GPU-type runs. I'll still mark resumed seeds in the tables. On Engaging, `screen_seed.sh` moves the box `stdout.log` aside, as `stdout.interrupted.<stamp>.log`, and keeps the box weights dir because a state exists.
+- Sizes: track D state 1.3 GB, track A about 20 GB (1.7B fp32 weights plus AdamW). The pool is at 51 %.
+
+Box start commands (replacing those in the 04:50 entry): resume saves every 20 min for A and 10 min for D, and items keep starting until 30 min before the worker deadline:
+```
+cd ~/rlvr-screens && SCREEN_RESUME=1 RESUME_EVERY_S=1200 RESERVE_MIN=30 QUEUE=box_a GPUS="0 1 2 3" PER_GPU=1 RUNNER=scripts/research/run_item.sh bash scripts/aws/box_workers.sh
+SCREEN_RESUME=1 RESUME_EVERY_S=600 RESERVE_MIN=30 QUEUE=box_d GPUS="4 5 6 7" PER_GPU=3 FIRST=1 RUNNER=scripts/research/run_item.sh bash scripts/aws/box_workers.sh
+```
+Last sync, about 10:30Z 11-06 (the deadline is 11:00Z). Run one `mit_quicktest` job per arm directory: quicktest's 15-minute limit fits one directory's states, and the jobs run in parallel.
+```
+for d in <arm dirs with unfinished seeds>; do sbatch -p mit_quicktest --time=00:15:00 -c 2 --mem=4G --chdir=/home/zjason/rlvr-screens --wrap "STATE=1 BOX=zjason@16.58.142.215 bash scripts/aws/box_sync.sh from box1105 $d"; done
+```
+Then queue each unfinished item on Engaging: track D on `screens_d_b200` (same `vllm_gpu_memory` 0.08), track A on an H200 worker queue. Check the first resumed seed's step count, cap and logs against its box logs.
