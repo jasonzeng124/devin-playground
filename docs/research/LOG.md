@@ -3995,3 +3995,19 @@ r26 is done. On these three seeds it beats D 004 by 0.021, but it is 0.026 below
 Worker 27412796 exited, which freed one GPU slot. I submitted H200 worker 27814763 for `queue/h200`, which holds r33 seeds 3-4 and A 002 seeds 1-4. That brings the total back to 6 GPU jobs.
 
 **Next track D arm:** r38 = r30 with both exploration knobs (rollout temperature 1.2 from r36, entropy floor 0.05 below 0.1 from r37), seeds 0-2 queued in `screens_d_b200` (which was empty). If r36 and r37 hold up on seed 2, r38 tests whether their gains stack; it is also the candidate arm for the 11-05 box's track D half.
+
+## 2026-11-03 22:45 EST: 11-05 H100 box queues ready (track A r39-r42, track D r36-r38 seeds 3-4, r43, r44)
+
+All Engaging jobs have been pending since about 19:45 (preempted, then waiting on priority). Nothing finished since 16:50.
+
+Box plan for 06:30 EST 11-05 to 06:30 EST 11-06: GPUs 0-3 run track A and GPUs 4-7 run track D (the 50/50 split from INBOX). All arms are step-capped, so the results compare with the Engaging seeds of the same configs. Each batch also has its own control on the box.
+
+| queue | GPUs, packing | arms | items |
+|---|---|---|---|
+| `box_a` | 0-3, 1 per GPU (fp32 trainer about 51 GB plus vLLM 28 GB, as r16 on the H100) | r39 `a005_ctl` (A 005's recipe as a dev screen, stop at 400 of a 500-step cosine); r40 `a005_ent05` (entropy floor 0.05 below 0.1); r41 `a005_t11` (rollout temperature 1.1); r42 `a005_lr7e-7` | 20: seeds 0-4, one seed of every arm per round |
+| `box_d` | 4-7, 3 per GPU (`vllm_gpu_memory` 0.08) | r44 (r30's config in its own directory, so it doesn't collide with r30's Engaging seeds 3-4); r36, r37 and r38 seeds 3-4; r43 (r30 with rollout temperature 1.4) seeds 0-4 | 13 |
+
+- **Track A goal:** stabilise A 005. Its seeds 3-4 shortened their outputs. Entropy on seed 3 fell to 0.049 by step 300, while seed 0 held at 0.115-0.13. Each arm targets that. On the H100, r16 reached step 400 in about 10,200 s, so one round is about 3 h, and five rounds fit in the block's roughly 22.5 usable hours.
+- **Track D:** the box completes r36, r37 and r38 to five seeds (Engaging has or will have seeds 0-2). The Engaging queues must not get these seeds 3-4. On a B200 at 3 per GPU, 15k steps took 21,558 s. If the H100 runs at 9-11 h, two rounds fit.
+- **Copies:** run `box_sync.sh to box_a:box_d` with extra paths: D 004's pretrained checkpoints (from `screen_pretrained` `records/v3/track_d/004_dm_math_fp32_h200_warm`, path in the pool still to check) and the D tokenizer, which is already in the default list. Use mit_quicktest once the box answers. Workers: `QUEUE=box_a GPUS="0 1 2 3" PER_GPU=1 RUNNER=scripts/research/run_item.sh`, then `QUEUE=box_d GPUS="4 5 6 7" PER_GPU=3 FIRST=1`.
+- **Still to do before the block:** find the checkpoint path, and dry-run that `run_item.sh` resolves `screen_pretrained` on a relative pool path on the box.

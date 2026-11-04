@@ -1,0 +1,13 @@
+calibration/research_r44/d004rl_shape05_lr6e-6_s15k_box 3
+calibration/research_r36/d004rl_shape05_lr6e-6_t12_s15k 3
+calibration/research_r37/d004rl_shape05_lr6e-6_ent05_s15k 3
+calibration/research_r38/d004rl_shape05_lr6e-6_t12_ent05_s15k 3
+calibration/research_r44/d004rl_shape05_lr6e-6_s15k_box 4
+calibration/research_r36/d004rl_shape05_lr6e-6_t12_s15k 4
+calibration/research_r37/d004rl_shape05_lr6e-6_ent05_s15k 4
+calibration/research_r38/d004rl_shape05_lr6e-6_t12_ent05_s15k 4
+calibration/research_r43/d004rl_shape05_lr6e-6_t14_s15k 0
+calibration/research_r43/d004rl_shape05_lr6e-6_t14_s15k 1
+calibration/research_r43/d004rl_shape05_lr6e-6_t14_s15k 2
+calibration/research_r43/d004rl_shape05_lr6e-6_t14_s15k 3
+calibration/research_r43/d004rl_shape05_lr6e-6_t14_s15k 4

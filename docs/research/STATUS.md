@@ -37,7 +37,7 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each).
 
-Updated 2026-11-03 16:50 EST (r26 closes: 0.183/0.148/0.183, mean 0.171, vs D 004 0.150 and r30 0.197. r37 seed 0 0.205 and r36 seeds 0-1 0.203/0.195, each about +0.012 over r30; seed 2 decides. r38 (temperature 1.2 plus entropy floor) queued. H200 worker 27814763 replaces 27412796. 11-05 H100 box back on: see the INBOX note above.)
+Updated 2026-11-03 22:45 EST (11-05 box queues `box_a` (r39-r42, track A) and `box_d` (r36-r38 seeds 3-4, r43, r44, track D) written, LOG 22:45; all Engaging jobs pending since about 19:45. Earlier: r26 closes: 0.183/0.148/0.183, mean 0.171, vs D 004 0.150 and r30 0.197. r37 seed 0 0.205 and r36 seeds 0-1 0.203/0.195, each about +0.012 over r30; seed 2 decides. r38 (temperature 1.2 plus entropy floor) queued. H200 worker 27814763 replaces 27412796. 11-05 H100 box back on: see the INBOX note above.)
 
 ## AWS boxes: off
 
