@@ -234,3 +234,12 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - The box's disk is deleted at the block end: `box_sync.sh from` every wake, and a last time
     before 11:00Z 11-06. While the box is up, wake every 20-30 min (this overrides the 6-hour
     full-wake rule for that day).
+
+- 2026-11-04 12:00 EST (maintainer, via laptop), **11-05 box: bring unfinished runs back to finish on
+  Engaging.** Before the last sync (by 11:00Z 11-06), copy each unfinished box run's resume state
+  (its latest `state.pt` and whatever else a resume needs) back to the same path under
+  Engaging's `$CKPT_DIR`, along with its logs, and queue it on Engaging so it resumes from that
+  step. `box_sync.sh from` copies only logs and JSON now; extend it (off by default, e.g. a flag)
+  or do it by hand. So you don't need to stop starting long runs late in the block: a run that
+  can't finish on the box finishes on Engaging. Check that a resumed run's step cap, step count
+  and logs carry over correctly. Don't keep the box's disk past the block (no AWS changes).
