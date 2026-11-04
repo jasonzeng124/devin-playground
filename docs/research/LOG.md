@@ -4040,3 +4040,12 @@ r30 seed 4 (the retry after the vLLM start-up failure) reached step 15,000 at 13
 | dev at step 15,000 (B200, step cap) | 0.192 | 0.180 | 0.220 | 0.233 | 0.193 | 0.204 |
 
 All five seeds are above the holder's dev mean of 0.159, and the mean is above the 0.189 line. This is B200 with a step cap, not the H200 gating screen; r33 (the same RL on H200, time-capped) is that screen and is still pending. The box's r44 seeds 3-4 repeat r30's config on the H100 as the control for its batch. r45 seed 0 took the freed slot on 27800892; seeds 1-2 are queued.
+
+## 2026-11-04 10:45 EST: r37 seed 1 dev 0.175; r45 seed 1 started
+
+| seed 1, dev at step 15,000 (B200, step cap) | r30 (base) | r36 (temp 1.2) | r37 (entropy floor) |
+|---|---|---|---|
+| dev | 0.180 | 0.195 | 0.175 |
+
+- r37 (entropy floor 0.05 below 0.1) is 0.005 under r30 on seed 1, after +0.011 on seed 0. That is noise-sized either way, so the entropy floor alone shows no clear gain so far. r36 is still +0.013 to +0.015 on both seeds.
+- The freed B200 slot took r45 seed 1 (no L1 in training). r45 seed 2 is still queued. r36 seed 2, r37 seed 2 and r38 seeds 0-2 are running. The 11-05 box covers r36, r37 and r38 seeds 3-4.
