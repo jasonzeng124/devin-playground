@@ -4133,3 +4133,19 @@ cosine length changes):
   schedule doesn't match. Seeds 2-4 only go ahead if one side beats r30 on both seeds.
 - ruff and pytest pass (140). Both scripts were replaced atomically, and running jobs keep their
   open copies.
+
+## 2026-11-04 14:55 EST: r33 seed 3 dev 0.215 (H200, the track D gating screen)
+
+Worker 26927305 finished r33 `d004rl_shape05_lr6e-6_h200` seed 3 at 13:57 EST. It ran 13,351 steps
+in the 14,040 s budget, then exited because less than 330 min were left in its job.
+
+| seed | dev | L1 | L2 | L3 | L4 | L5 | L6 |
+|---|---|---|---|---|---|---|---|
+| 0 | 0.205 | | | | | | |
+| 3 | 0.215 | 0.63 | 0.15 | 0.07 | 0.07 | 0.03 | 0.34 |
+
+- Both seeds are above the D line of 0.189 and above D 004's dev mean of 0.159. Two of five seeds
+  are in, mean 0.210.
+- Seeds 1 and 2 are held by pending H200 workers 27487788 and 27530015. Seed 4 is first in `h200`,
+  and the dependency worker 26927306 is now pending on Priority.
+- If all five pass the 5-seed form, the next step is track D record 005.
