@@ -1,2 +1,4 @@
-calibration/research_r45/d004rl_shape05_lr6e-6_noL1_s15k 1
-calibration/research_r45/d004rl_shape05_lr6e-6_noL1_s15k 2
+calibration/research_r46/pt150 0
+calibration/research_r46/pt80 0
+calibration/research_r46/pt150 1
+calibration/research_r46/pt80 1

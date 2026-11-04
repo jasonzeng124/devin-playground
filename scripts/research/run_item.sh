@@ -8,6 +8,8 @@
 #   - a track D screen with its own pretraining if <dir>/config.json has a v3 "pretrain" block and no
 #     "screen_pretrained": STAGE=train scripts/run_seed_v3.sh (pretraining + GRPO with in-loop dev
 #     evals; the test-ladder stage never runs), with the token file copied to node-local disk;
+#     with "pretrain_only": true it runs STAGE=pretrain instead (pretraining only; GRPO screens start
+#     from its weights with "screen_pretrained": "<dir>");
 #   - else a GRPO screen (scripts/slurm/screen_seed.sh, unchanged).
 #
 # eval.json: {"model": "<checkpoint dir; {seed} is replaced by the item's seed>", "temperature": 1.0,
@@ -82,6 +84,8 @@ if [[ $dir == records/v3/* ]]; then
 fi
 if [[ ! -f "$dir/eval.json" ]]; then
   pretrain=$($PYTHON -c "import json,sys; c=json.load(open(sys.argv[1])); print(int('pretrain' in c.get('v3', {}) and not c.get('screen_pretrained')))" "$dir/config.json")
+  only=$($PYTHON -c "import json,sys; print(int(bool(json.load(open(sys.argv[1])).get('pretrain_only'))))" "$dir/config.json")
+  [[ $pretrain == 1 && $only == 1 ]] && STAGE=pretrain LOCAL_DATA_DIR=${LOCAL_DATA_DIR:-/tmp} exec bash scripts/run_seed_v3.sh "$dir" "$seed"
   [[ $pretrain == 1 ]] && STAGE=train LOCAL_DATA_DIR=${LOCAL_DATA_DIR:-/tmp} exec bash scripts/run_seed_v3.sh "$dir" "$seed"
   exec bash scripts/slurm/screen_seed.sh "$dir" "$seed"
 fi

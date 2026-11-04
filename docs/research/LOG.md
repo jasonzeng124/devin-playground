@@ -4087,3 +4087,49 @@ Then queue each unfinished item on Engaging: track D on `screens_d_b200` (same `
 
 - Against r30, seed by seed, r36 is +0.013, +0.015, -0.013. As expected, seed 2 decided it, and it didn't hold. Temperature 1.2 is +0.005 on the mean, inside seed noise. The box runs seeds 3-4 for r36, r37 and r38 tomorrow.
 - 27598456 (11:29) and 27800892 (11:55) were both preempted and are pending again. On restart they redo their six in-hand items, which resume from saved state: r38 seeds 0-2 and r45 seeds 0-2. The B200 queue file is empty. I'll refill it at the next full wake, since the in-hand items are several hours of work.
+
+## 2026-11-04 13:50 EST: r46 queued, moving time between pretraining and RL (track D)
+
+The RL changes started from D 004's pretrained models all land at 0.198-0.204 on dev at 15,000 steps:
+
+| arm (B200, 15,000 steps) | change from r30 | seeds | dev mean |
+|---|---|---|---|
+| r30 | (D 004 RL, shaping 0.5, lr 6e-6) | 5 | 0.204 |
+| r34 | lr 1e-5 | 3 | 0.200 |
+| r36 | temperature 1.2 | 3 | 0.202 |
+| r37 | entropy floor | 3 | 0.198 |
+| r32 | GSM8K SFT first (D3) | 3 | null (about +0.006) |
+
+So the limit looks like the pretrained model, not the RL settings. PLAN's track D items don't
+address it: D2's math mixes are closed, D3 is null, D4 needs a policy that writes steps, and D5 has
+no reason yet. One thing nobody has screened is the 6 h split itself. D 000 set 112 min of
+pretraining and 234 min of RL, and every record since has kept it. r30's dev curve is still rising
+slowly at the end (0.19-0.20 from 11,000 to 15,000 steps), so neither side has obviously
+saturated.
+
+**r46** has two arms, each paired with D 004's seeds (same data stream, seed and lr peak; only the
+cosine length changes):
+
+| arm | pretraining tokens (H200 minutes) | RL steps (B200 cap) |
+|---|---|---|
+| r30 (reference) | 2.67B (112 min) | 15,000 |
+| `pt150` -> `pt150_rl12500` | 3.58B (150 min) | 12,500 |
+| `pt80` -> `pt80_rl17000` | 1.91B (80 min) | 17,000 |
+
+- **Pretraining is capped by tokens**, so B200 runs read what D 004's H200 pretraining reads in that
+  many minutes. D 004 read 2.67B tokens in 112.0 min, which is 23.9M per minute. `minutes` is set to
+  400 so the token cap is what sets the cosine schedule. The file is 2.32B tokens, sampled at
+  random positions, so pt150 sees about 1.5 epochs where D 004 saw about 1.15.
+- **RL caps** scale r30's 15,000 steps by the RL time left in the 6 h budget. The H200 rate is about
+  0.98 steps/s (r33 seed 0 ran 13,728 steps in its 14,040 s budget).
+- **New option, off by default:** `"pretrain_only": true` in run_item.sh runs
+  `STAGE=pretrain scripts/run_seed_v3.sh`. That pretrains, keeps the weights under `$CKPT_DIR/<dir>`,
+  and skips GRPO and the test ladder. The RL arms then start from those weights through
+  `screen_pretrained`, so they resume after preemption the way the other B200 screens do. A
+  preempted pretraining reruns from the start (about 1-2 h on a packed B200).
+- **Queued:** the four pretraining items (pt150 and pt80, seeds 0 and 1) on `screens_d_b200`, after
+  the six in-hand items. I'll queue the RL items by hand once each pretraining finishes, then check
+  that its `pretrain_log.jsonl` reached the token cap. If the time cap ended it instead, the
+  schedule doesn't match. Seeds 2-4 only go ahead if one side beats r30 on both seeds.
+- ruff and pytest pass (140). Both scripts were replaced atomically, and running jobs keep their
+  open copies.

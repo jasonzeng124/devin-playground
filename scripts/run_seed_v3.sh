@@ -17,8 +17,11 @@
 # vLLM initialisation and the final save all count.
 #
 # STAGE=train runs only the timed part, STAGE=confirm only the (untimed) test-ladder scoring, so the
-# two can be separate Slurm jobs; the default runs both. A seed directory that already holds a run
-# is never overwritten: move it to <record>/extra/ first (RULES_v3: every run is reported).
+# two can be separate Slurm jobs; the default runs both. STAGE=pretrain (research screens, track D)
+# runs only the pretraining and keeps its weights, for GRPO screens that start from them
+# ("screen_pretrained": "<this dir>"); a stopped pretraining reruns from the start. A seed directory
+# that already holds a run is never overwritten: move it to <record>/extra/ first (RULES_v3: every
+# run is reported).
 # LOCAL_DATA_DIR=<node-local dir> copies the track D token file there first (untimed data
 # preparation): random reads from a network filesystem made pretraining ~9x slower on Engaging.
 set -euo pipefail
@@ -58,6 +61,7 @@ if [[ $STAGE != confirm ]]; then {
     [[ -n "${local_dir:-}" ]] && rm -rf "$local_dir"
     model_flag=(--model "$weights/pretrained")
   fi
+  if [[ $STAGE == pretrain ]]; then echo "=== STAGE=pretrain: done"; else
   echo "=== GRPO (timed)"
   t0=$(now)
   $PYTHON -m rlvr_speedrun.grpo --config "$record/config.json" --device cuda --seed "$seed" --out-dir "$out" ${model_flag[@]+"${model_flag[@]}"}
@@ -76,9 +80,10 @@ open(f"{out}/clock.json", "w").write(json.dumps(clock, indent=1) + "\n")
 print("clock", clock)
 EOF
   rm -rf "${weights:?}/final" && mv "$out/final" "$weights/final"
+  fi
 } 2>&1 | tee "$out/stdout.log"; fi
 
-if [[ $STAGE != train ]]; then {
+if [[ $STAGE != train && $STAGE != pretrain ]]; then {
   echo "=== test ladder (untimed) on $(hostname) $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1) $(date -u +%FT%TZ)"
   sampler=(--temperature "$(cfg "sampler.get('temperature', 1.0)")")
   [[ "$(cfg "sampler.get('constrain', False)")" == true ]] && sampler+=(--constrain --think-budget "$(cfg "sampler.get('think_budget', 0)")")
