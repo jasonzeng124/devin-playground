@@ -4030,3 +4030,13 @@ r30 `d004rl_shape05_lr6e-6_s15k` seed 3 (from D 004's pretrained seed 3, B200 pa
 So far no other arm has a seed 3 to pair with this one; the box's r44, r36, r37 and r38 seeds 3-4 will. r30 seed 4 is running on 27800892, and r38 seeds 1-2 started there at 11:34Z and 12:27Z.
 
 **Next: r45 `d004rl_shape05_lr6e-6_noL1_s15k`** is r30 with training prompts drawn from ladder levels L2-L6 only (new option `train_ladder_levels`, off by default; `uv run ruff check . && uv run pytest -q` pass, 140 tests). L1 (`+-` only) is solved about three times in four by the end, so many of its groups are all-correct and `skip_zero_advantage` drops them. Dropping L1 should leave more informative groups per step at the same step cost. The risk is L1 regressing; the dev ladder still scores every level. Seeds 0-2 are queued on `screens_d_b200`, which had emptied once r38 seed 2 started. The GPU count stays at 6.
+
+## 2026-11-04 08:45 EST: r30 seed 4 dev 0.193; r30 complete at five seeds; r45 seed 0 started
+
+r30 seed 4 (the retry after the vLLM start-up failure) reached step 15,000 at 13:14Z with 0.193 on the dev ladder (L1 0.64, L2 0.16, L3 0.09, L4 0.07, L5 0.03, L6 0.17).
+
+| r30 seed (D 004 pretrained seed) | 0 | 1 | 2 | 3 | 4 | mean |
+|---|---|---|---|---|---|---|
+| dev at step 15,000 (B200, step cap) | 0.192 | 0.180 | 0.220 | 0.233 | 0.193 | 0.204 |
+
+All five seeds are above the holder's dev mean of 0.159, and the mean is above the 0.189 line. This is B200 with a step cap, not the H200 gating screen; r33 (the same RL on H200, time-capped) is that screen and is still pending. The box's r44 seeds 3-4 repeat r30's config on the H100 as the control for its batch. r45 seed 0 took the freed slot on 27800892; seeds 1-2 are queued.
