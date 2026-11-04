@@ -4076,3 +4076,14 @@ Last sync, about 10:30Z 11-06 (the deadline is 11:00Z). Run one `mit_quicktest` 
 for d in <arm dirs with unfinished seeds>; do sbatch -p mit_quicktest --time=00:15:00 -c 2 --mem=4G --chdir=/home/zjason/rlvr-screens --wrap "STATE=1 BOX=zjason@16.58.142.215 bash scripts/aws/box_sync.sh from box1105 $d"; done
 ```
 Then queue each unfinished item on Engaging: track D on `screens_d_b200` (same `vllm_gpu_memory` 0.08), track A on an H200 worker queue. Check the first resumed seed's step count, cap and logs against its box logs.
+
+## 2026-11-04 12:50 EST: r36 seed 2 dev 0.207; both B200 workers preempted
+
+| dev at step 15,000 (B200, step cap) | seed 0 | seed 1 | seed 2 | mean |
+|---|---|---|---|---|
+| r30 (base) | 0.192 | 0.180 | 0.220 | 0.197 |
+| r36 (temperature 1.2) | 0.205 | 0.195 | 0.207 | 0.202 |
+| r37 (entropy floor) | 0.203 | 0.175 | 0.215 | 0.198 |
+
+- Against r30, seed by seed, r36 is +0.013, +0.015, -0.013. As expected, seed 2 decided it, and it didn't hold. Temperature 1.2 is +0.005 on the mean, inside seed noise. The box runs seeds 3-4 for r36, r37 and r38 tomorrow.
+- 27598456 (11:29) and 27800892 (11:55) were both preempted and are pending again. On restart they redo their six in-hand items, which resume from saved state: r38 seeds 0-2 and r45 seeds 0-2. The B200 queue file is empty. I'll refill it at the next full wake, since the in-hand items are several hours of work.
