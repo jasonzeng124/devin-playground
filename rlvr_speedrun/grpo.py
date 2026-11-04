@@ -118,6 +118,7 @@ class GRPOConfig:
     eval_samples: int = 0  # 0 = greedy; k > 0 = mean pass rate of k samples at T=1 per puzzle (vLLM backend)
     train_mix: str = ""  # "" = the generator's 4-number mix; "ladder" = uniform over the ladder levels
     train_levels: str = ""  # comma-separated countdown.LEVELS to train on (e.g. "+-*,+-*/"); empty = the generator's full mix
+    train_ladder_levels: str = ""  # with train_mix "ladder": comma-separated ladder levels to train on (e.g. "L2,L3,L4,L5,L6"); empty = all
     save_every: int = 0
     # resumable state (weights, optimizer, RNG, logs) in resume_dir every resume_every_s training
     # seconds; a run started with the same resume_dir continues from it (e.g. after preemption)
@@ -845,7 +846,9 @@ def _load_eval_set(config: GRPOConfig):
 def _train_streams(config: GRPOConfig, offset: int = 0):
     """The main training stream (filtered to `train_levels`) and the two easy curriculum streams."""
     if config.train_mix == "ladder":
-        stream = ladder_stream(config.seed + offset * 10_000_000, exclude=ladder_keys())
+        names = tuple(config.train_ladder_levels.split(",")) if config.train_ladder_levels else LADDER_LEVELS
+        assert set(names) <= set(LADDER_LEVELS), f"train_ladder_levels must be a subset of {LADDER_LEVELS}"
+        stream = ladder_stream(config.seed + offset * 10_000_000, names, exclude=ladder_keys())
     elif config.train_mix:
         raise ValueError(f"unknown train_mix {config.train_mix!r} (expected '' or 'ladder')")
     else:

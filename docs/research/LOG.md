@@ -4018,3 +4018,15 @@ Box plan for 06:30 EST 11-05 to 06:30 EST 11-06: GPUs 0-3 run track A and GPUs 4
 - **Copy** (from mit_quicktest once the box answers ssh; about 5-6 GB):
   `sbatch -p mit_quicktest --time=00:15:00 -c 4 --mem=8G --chdir=/home/zjason/rlvr-screens --wrap 'BOX=zjason@16.58.142.215 bash scripts/aws/box_sync.sh to box_a:box_d $(for s in 0 1 2 3 4; do echo orcd/pool/rlvr-ckpts/records/v3/track_d/004_dm_math_fp32_h200_warm/seeds/$s/pretrained; done)'`
 - **Engaging:** 7 jobs (6 counted) are pending on Priority. B200 27598456 ran from 03:40 to about 04:30 and was then preempted again. No runs have finished since 16:01 EST 11-03.
+
+## 2026-11-04 07:55 EST: r30 seed 3 dev 0.233; r45 (no L1 in training) queued
+
+r30 `d004rl_shape05_lr6e-6_s15k` seed 3 (from D 004's pretrained seed 3, B200 packed 3 per GPU) reached step 15,000 at 12:27Z with 0.233 on the dev ladder. That is its best seed so far. By level it scored L1 0.73, L2 0.12, L3 0.07, L4 0.13, L5 0.04 and L6 0.31.
+
+| r30 seed (D 004 pretrained seed) | 0 | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|---|
+| dev at step 15,000 | 0.192 | 0.180 | 0.220 | 0.233 | running |
+
+So far no other arm has a seed 3 to pair with this one; the box's r44, r36, r37 and r38 seeds 3-4 will. r30 seed 4 is running on 27800892, and r38 seeds 1-2 started there at 11:34Z and 12:27Z.
+
+**Next: r45 `d004rl_shape05_lr6e-6_noL1_s15k`** is r30 with training prompts drawn from ladder levels L2-L6 only (new option `train_ladder_levels`, off by default; `uv run ruff check . && uv run pytest -q` pass, 140 tests). L1 (`+-` only) is solved about three times in four by the end, so many of its groups are all-correct and `skip_zero_advantage` drops them. Dropping L1 should leave more informative groups per step at the same step cost. The risk is L1 regressing; the dev ladder still scores every level. Seeds 0-2 are queued on `screens_d_b200`, which had emptied once r38 seed 2 started. The GPU count stays at 6.

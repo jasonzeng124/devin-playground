@@ -744,3 +744,10 @@ def test_vllm_rollout_returns_each_sampled_tokens_logprob(monkeypatch):
     engine.logprobs = False
     with pytest.raises(ValueError, match="logprobs=True"):
         engine.generate(encoded, 2, 1.0, 4, 0, return_logprobs=True)
+
+
+def test_train_ladder_levels_restricts_the_ladder_stream():
+    config = GRPOConfig(train_mix="ladder", train_ladder_levels="L2,L6")
+    stream, _ = grpo._train_streams(config)
+    ops = {next(stream).ops for _ in range(200)}
+    assert "+-" not in ops and "+-*" in ops  # L1 is "+-" only; L2 is "+-*"
