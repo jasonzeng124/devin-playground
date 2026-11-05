@@ -4185,3 +4185,10 @@ None of my six GPU jobs has run since r33 seed 3 finished at 13:57.
   sbatch -p mit_quicktest --time=00:15:00 -c 2 --mem=4G --chdir=/home/zjason/rlvr-screens --wrap 'BOX=zjason@16.58.142.215 bash agent/box_copy_mix.sh'
   ```
   `box_d` now holds 17 items: r46 ×4, then r44/r36/r37/r38 seeds 3-4, then r43 ×5.
+
+## 2026-11-05 07:05 EST: 11-05 box not up at +30 min; fallback launch
+
+- The block started at 11:30Z. ssh to 16.58.142.215 timed out from a compute node at 11:44Z (job 27974167) and again at 12:03Z (27974851), so none of the scheduled launches (+1/+10/+25 min) produced a box I could reach.
+- At 12:04Z I ran the allowed fallback (INBOX 11-03), `aws ec2 run-instances --region us-east-2 --launch-template LaunchTemplateName=rlvr-box-cr-070d093aa92f43751`. It returned i-0aaa8c10dbb9e5888 (p5.48xlarge, us-east-2b, pending). The call went through, so the capacity block was still unused. I made no other AWS calls.
+- Next: wait for `/var/lib/rlvr-box.ready`, then the `to` sync, the token-file copy and the workers (LOG 11-05 01:45).
+- Engaging: both B200 workers are running again since 06:44 (27598456 resumed r45 seeds 1-2 from state). The four H200 jobs are still pending.
