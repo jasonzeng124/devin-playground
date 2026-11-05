@@ -1,0 +1,3 @@
+cd ~/rlvr-screens; date -u
+for d in calibration/research_r39/a005_ctl calibration/research_r40/a005_ent05 calibration/research_r41/a005_t11 calibration/research_r42/a005_lr7e-7 calibration/research_r44/d004rl_shape05_lr6e-6_s15k_box calibration/research_r36/d004rl_shape05_lr6e-6_t12_s15k calibration/research_r37/d004rl_shape05_lr6e-6_ent05_s15k calibration/research_r38/d004rl_shape05_lr6e-6_t12_ent05_s15k calibration/research_r43/d004rl_shape05_lr6e-6_t14_s15k calibration/research_r46/pt150 calibration/research_r46/pt80; do for s in $d/seeds/*/; do [ -d "$s" ] || continue; printf '%s %s\n' "$s" "$(ls $s | tr '\n' ' ')"; done; done 2>/dev/null | head -40
+ls ~/orcd/pool/rlvr-ckpts/calibration/research_r39/a005_ctl/ 2>/dev/null

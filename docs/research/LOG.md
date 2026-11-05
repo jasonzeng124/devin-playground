@@ -4210,3 +4210,21 @@ None of my six GPU jobs has run since r33 seed 3 finished at 13:57.
 
 - At these rates pt80 (1.91B tokens) ends at about 15:00Z and pt150 (3.58B) at about 16:30Z. Both are well inside the 900-min wall cap. When each finishes, its RL item (`pt80_rl17000` / `pt150_rl12500`) goes to the head of `box_d`.
 - Helper scripts for this block are `agent/box_start_1105.sh`, `agent/box_health_1105.sh`, `agent/box_q_1105.sh` and `agent/box_requeue_1105.sh`. They run through `box_ssh.sh` inside mit_quicktest jobs, because the box accepts ssh only from Engaging compute nodes.
+
+## 2026-11-05 08:40 EST: box: two dead D runs restarted
+
+- At step ~435, r37 s4 (GPU 6) and r38 s3 (GPU 5) had entropy 0.0, grad norm 0, loss 0 and 100 % malformed outputs. They had been like that since step 1, so the policy never produced a usable completion.
+- The other box D runs from the same `004/seeds/3/pretrained` model are healthy: r44 s3 is at reward 0.46 (step 563) and r37 s3 at 0.44 (step 609). So the model files are fine. The cause isn't known. Both bad runs were on the GPUs that share with the pt80 pretraining runs, which may be coincidence.
+- I killed the two trainers by PID at 13:34Z and deleted their resume state by exact path, so neither resumes from the garbage weights. I put both items back at the head of `box_d`, and they restarted at once. I'll check their step-1 entropy on the next wake.
+- Progress at 13:30Z:
+
+  | run | step | reward |
+  |---|---|---|
+  | A r39 ctl s0 | 150 | |
+  | A r40 ent05 s0 | 168 | |
+  | A r41 t11 s0 | 224 | |
+  | A r42 lr7e-7 s0 | 176 | |
+  | D r44 s3 | 563 | 0.46 |
+  | D r37 s3 | 609 | 0.44 |
+
+  pt80 is at about 0.76B of 1.91B tokens, and pt150 at about 0.83B of 3.58B. The RL train/eval logs are written under `$CKPT_DIR/<arm>/seeds/<s>/`, and `box_sync.sh from` picks them up there.
