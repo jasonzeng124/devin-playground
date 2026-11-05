@@ -37,13 +37,22 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each).
 
-Updated 2026-11-05 01:45 EST (r46 moved to the head of the 11-05 box queue box_d (LOG 11-05 01:45); Engaging jobs pending. Earlier: r33 seed 3 0.215, seeds 0+3 mean 0.210; all six Engaging GPU jobs pending since about 14:00 on a congested cluster (LOG 11-04 19:50). Earlier: r46 queued: pretraining/RL time split, `pretrain_only` pretraining items pt150/pt80 seeds 0-1, RL items queued by hand after (LOG 11-04 13:50); r30/r34/r36/r37 all 0.198-0.204, RL knobs plateaued; box runs finish on Engaging via `SCREEN_RESUME=1` and `STATE=1 box_sync.sh` (LOG 11-04 12:10). Earlier: r30 seed 3 0.233; r45 (r30 without L1 training prompts, new `train_ladder_levels`) seeds 0-2 queued on `screens_d_b200`; box copy command and checkpoint path in LOG 11-04 04:50. Earlier: 11-05 box queues `box_a` (r39-r42, track A) and `box_d` (r36-r38 seeds 3-4, r43, r44, track D) written, LOG 22:45; all Engaging jobs pending since about 19:45. Earlier: r26 closes: 0.183/0.148/0.183, mean 0.171, vs D 004 0.150 and r30 0.197. r37 seed 0 0.205 and r36 seeds 0-1 0.203/0.195, each about +0.012 over r30; seed 2 decides. r38 (temperature 1.2 plus entropy floor) queued. H200 worker 27814763 replaces 27412796. 11-05 H100 box back on: see the INBOX note above.)
+Updated 2026-11-05 11:25 EST (11-05 box running, see below; r46 pt80 and pt150 seed 0 pretrained, RL follow-ups on the box; r38 moved off the box (LOG 11-05 10:55). Earlier: r46 moved to the head of the 11-05 box queue box_d (LOG 11-05 01:45); Engaging jobs pending. Earlier: r33 seed 3 0.215, seeds 0+3 mean 0.210; all six Engaging GPU jobs pending since about 14:00 on a congested cluster (LOG 11-04 19:50). Earlier: r46 queued: pretraining/RL time split, `pretrain_only` pretraining items pt150/pt80 seeds 0-1, RL items queued by hand after (LOG 11-04 13:50); r30/r34/r36/r37 all 0.198-0.204, RL knobs plateaued; box runs finish on Engaging via `SCREEN_RESUME=1` and `STATE=1 box_sync.sh` (LOG 11-04 12:10). Earlier: r30 seed 3 0.233; r45 (r30 without L1 training prompts, new `train_ladder_levels`) seeds 0-2 queued on `screens_d_b200`; box copy command and checkpoint path in LOG 11-04 04:50. Earlier: 11-05 box queues `box_a` (r39-r42, track A) and `box_d` (r36-r38 seeds 3-4, r43, r44, track D) written, LOG 22:45; all Engaging jobs pending since about 19:45. Earlier: r26 closes: 0.183/0.148/0.183, mean 0.171, vs D 004 0.150 and r30 0.197. r37 seed 0 0.205 and r36 seeds 0-1 0.203/0.195, each about +0.012 over r30; seed 2 decides. r38 (temperature 1.2 plus entropy floor) queued. H200 worker 27814763 replaces 27412796. 11-05 H100 box back on: see the INBOX note above.)
 
-## AWS boxes: off
+## AWS box 11-05 (8x H100, until 11:30Z 11-06): running
 
-INBOX 10-25 22:00: the capacity blocks are under a refund review and must stay unused. No box
-launches and no AWS spending, including the $500 emergency budget, until a later INBOX note says
-otherwise. `queue/b200.txt` (r15) is parked.
+Screens only, dev ladder, step caps, about 50/50 track A/D (INBOX 11-03). Box access is ssh from a
+mit_quicktest job (`scripts/aws/box_ssh.sh`); sync with `box_sync.sh from box1105 $(cat agent/box_dirs_1105.txt)`
+each wake. The last sync, by 11:00Z 11-06, uses `STATE=1` and brings each unfinished run's resume state back
+to finish on Engaging (INBOX 11-04).
+- `box_a` (GPUs 0-3, one run each): r39 ctl / r40 ent05 / r41 t11 / r42 lr7e-7. Seed 0 at step 400:
+  0.380 / 0.338 (step 350) / 0.332 / 0.293 (LOG 11-05 10:55). Seeds 1 running.
+- `box_d` (GPUs 4-7, two runs each): r46 pt150 seed 0 pretrained (3.582B tokens, val 2.796, 223 min); seed 1
+  still pretraining. r46 pt80 seeds 0-1 pretrained (1.911B tokens, val 2.907 / 2.927); `pt80_rl17000` seeds 0-1
+  running. `pt150_rl12500` seed 0 at the head of `box_d`, then r36 s3, r43 seeds 0-4. Also running: r37 s3-4,
+  r44 s3-4, r36 s4.
+- r38 (t1.2 + entropy floor) went dead three times on the box (entropy 0 from the first steps); taken off the
+  box and out of the sync list; seeds 3-4 moved to `screens_d_b200` (LOG 11-05 10:55).
 
 ## Running
 
@@ -64,14 +73,15 @@ otherwise. `queue/b200.txt` (r15) is parked.
   adds 11 %.
 - Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; exited 10-31 03:36 after r24 seed 0, less than 240 min left). 27432002 (10-31 03:54-06:10) ran r24 seed 1 and exited the same way. 27441594 (10-31 06:48 to 11-01 05:45) kept resuming r22 seed 3 from its only save (step 224) and was cancelled. 27534692 (submitted 11-01 05:45 EST) uses the same settings plus `RESUME_EVERY_S=1800`.
 - Track D B200 worker 27483976 (submitted 10-31 18:50, replaces 27460856, whose eight preemptions on node5800-c1 each came before the first hourly save, LOG 18:50): `packed_worker.sbatch` with PER_GPU=3, RESERVE_MIN 180, `--time-min=08:00:00`, `RESUME_EVERY_S=600`, queue `screens_d_b200` (r25); running again since 11-01 00:17, resumed from the saves.
-- Cap (16:50 EST 11-03): 2 running (B200 27598456 and 27800892) + 4 pending H200 that could run together (26927305, 27487788, 27530015, 27814763) = 6. 26927306 depends on 26927305 and does not count.
+- Track D B200 worker 27987194 (submitted 11-05 10:44 EST, PER_GPU=2, otherwise as 27483976): running r38 seeds 3-4.
+- Cap (11:25 EST 11-05): B200 27987194 running + B200 27598456 (preempted 10:30, pending) + 4 pending H200 (26927306, 27487788, 27530015, 27814763) = 6. 27800892 exited 09:23 (queue empty).
   I may update or cancel my own pending jobs without asking.
 
 ## Queues
 
 - `h200` (6 queued + 2 held): r33 `d004rl_shape05_lr6e-6_h200` seeds 3-4 (the track D gating screen), then A 002 seeds 1-4. Held by pending workers: r33 seed 1 (27487788, resumes from its step-10,000 checkpoint) and r33 seed 2 (27530015).
   r18 is closed (LOG 11-02 05:55). Every H200 worker reads this queue.
-- `screens_d_b200` (empty; r46 moved to the box queue `box_d`, LOG 11-05 01:45): both workers (27598456, 27800892) preempted and pending; in hand: r38 seeds 0-2, r45 seeds 0-2 (resume from saved state). r30 five-seed mean 0.204; r36 0.202, r37 0.198 (3 seeds).
+- `screens_d_b200` (empty; r38 seeds 3-4 taken by 27987194): r38 seeds 0 and 2 and r45 seed 0 done; 27598456 (pending) holds the rest of r38/r45 seeds 0-2. r30 five-seed mean 0.204; r36 0.202, r37 0.198 (3 seeds).
   At step 6,000: r25 `shape05` 0.188 / 0.140 / 0.153, `shape02` 0.140 / 0.185 / 0.148; r27 `shape05_lr6e-6` 0.175 / 0.152 / 0.180; r28 `shape05_g16` 0.138 / 0.158 / 0.168, closed (LOG 11-01 18:45); r29 `shape05_lr1e-5` 0.170 / 0.172 / 0.182 (LOG 11-01 19:45); D 004's own dev 0.122 / 0.115 / 0.075 (seeds 0 / 1 / 2). `shape10` 0.123 / 0.118, closed.
 - `screens_b200` (1 + 1 running, worker 27585540): r30 seed 2 running (step-capped, so it compares with the packed seeds by step). r22 `ent05_t10_lr2e-6` closed: 0.360 / 0.387 / 0.440 / 0.357 / 0.470, mean 0.403 (LOG 11-01 11:50). r24 `ent05_lr3e-6` closed: 0.413, 0.065
   (collapse at step 430; LOG 10-31 06:50). r23 closed: `gc015` 0.392, 0.018, 0.005, 0.435 (LOG 10-30 17:55);
