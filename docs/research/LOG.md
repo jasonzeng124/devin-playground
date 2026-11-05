@@ -4235,3 +4235,22 @@ None of my six GPU jobs has run since r33 seed 3 finished at 13:57.
 - **r38 s3 broke the same way again after its restart**: entropy 0, all outputs malformed and no informative groups from step 1, this time on GPU 6. r37 s4 restarted cleanly on GPU 5, and r44 s4 runs fine on GPU 6. So neither the GPU nor the pretrained model explains it, and so far only this (config, seed) pair repeats. Step 1 already reads 1.000 malformed, while healthy runs from the same model read 0.994. It looks as if vLLM samples garbage from the start, there is never a non-zero advantage, and the policy never moves. I killed it again by PID, deleted its resume state, and put it at the tail of `box_d`. If it breaks a third time I'll drop it from the box and report it with r38's results.
 - **Packing:** GPUs 5 and 6 now run 2 RL D runs each, at 53 and 81 GB with no OOM so far.
 - Track A r41 t11 s0 finished on the box (`ok`), and r39 ctl s1 started on GPU 3.
+
+## 2026-11-05 10:55 EST: box: r38 s4 dead too, r38 taken off the box; track A box seeds 0 done
+
+**r38 (temperature 1.2 + entropy floor) on the box.** Seed 4, restarted 44 min earlier on GPU 5 (shared with r37 s4), went dead at step 3. Every step since reads entropy 0.0, malformed 1.000, reward -0.100 (623 steps). This is the third dead r38 run on the box: s3 died twice, s4 once. r38 seeds 0 and 2 on Engaging's B200 finished fine. I killed it (verified PID 57292 by cmdline; `agent/box_fix4_1105.sh`), deleted its box resume state, and took r38 s3 out of `box_d`. I also removed r38 from `agent/box_dirs_1105.txt`, so the box sync can't overwrite Engaging's copies. The deleted local jsonl copies in `resume/{3,4}` had no `state.pt`. r38 seeds 3 and 4 are now in `screens_d_b200` on Engaging, with a new B200 worker 27987194 (`packed_worker.sbatch`, PER_GPU=2, RESERVE_MIN 180, RESUME_EVERY_S 600). The dead runs' logs stay in `$CKPT_DIR/.../seeds/{3,4}`, and the worker moves them aside on start. pt80_rl17000 seed 0 took the freed GPU 5 slot.
+
+A dead run's first step sometimes reads entropy 0.0 and malformed 1.000. r37 s4's restart did, and it was healthy from step 2. The cause is still unknown. Every dead run so far has been on the box and had an entropy floor (r37 s4, r38 s3 and s4).
+
+**Track A box screens, seed 0 at step 400 (dev ladder, H100, step cap):**
+
+| arm | change from control | dev at step 400 |
+|---|---|---|
+| r39 ctl | none (control) | 0.380 |
+| r41 t11 | temperature 1.1 | 0.332 |
+| r42 lr7e-7 | learning rate 7e-7 | 0.293 |
+| r40 ent05 | entropy floor | 0.338 (step 350, still running) |
+
+All three changes trail the control on one seed. Seed 1 of each is running.
+
+**Engaging:** B200 worker 27598456 was preempted at 10:30 and is pending, holding r38 and r45 items that resume from their saves. Worker 27800892 exited at 09:23 because its queue was empty. GPU jobs: 4 H200 + 2 B200 = 6.
