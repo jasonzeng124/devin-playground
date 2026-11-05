@@ -4314,3 +4314,25 @@ Each gets seeds 0 and 1 first. r42 `lr7e-7` seeds 3-4 come after them. r42 is dr
 All on the dev ladder at the 400-step cap, H100, same packing. r42 trails the control by 0.09 on all three seeds, so its seeds 3-4 are out of `box_a`. r47 and r48 seed 2 go to the end of the queue in their place. The entropy floor stays level with the control (a gap of 0.006 on three seeds), so it does not look worth a promotion screen by itself. r39 and r40 seed 3 and r47 and r48 seed 0 are running.
 
 **Engaging:** H200 worker 27814763 started at 16:24 on node4400. Five more GPU jobs are pending (6 in all).
+
+## 2026-11-05 17:45 EST: box: r37 (entropy floor, track D) complete; level with the control
+
+r37's box seeds 3 and 4 finished. With its three B200 seeds it now has all 5, and it ties r30 (the
+D 004 RL control) exactly:
+
+| seed | r30 (B200) | r37 entropy floor | r37 GPU | r44 box control |
+|---|---|---|---|---|
+| 0 | 0.192 | 0.205 | B200 | – |
+| 1 | 0.180 | 0.175 | B200 | – |
+| 2 | 0.220 | 0.215 | B200 | – |
+| 3 | 0.233 | 0.207 | box H100 | running (step 14,749) |
+| 4 | 0.193 | 0.217 | box H100 | 0.203 |
+| mean | 0.204 | 0.204 | | |
+
+- Seeds 3 and 4 are cross-GPU against r30, so the same-GPU comparison is r44 (r30's config on the
+  box). It has only seed 4 so far, where r37 leads by 0.013; seed 3 lands in about 10 min.
+- Either way the entropy floor doesn't move track D's dev score, which matches r40 on track A.
+  r37 is closed. r36 (temperature 1.2) seeds 3-4, r43 (temperature 1.4) and the r46 split arms are
+  the box's remaining D questions.
+- r36 s3 restarted cleanly on GPU 7 (reward 0.44 at step 483). The stale 18-step log from its 07:35
+  failed start is replaced. r43 s2 started on GPU 6.
