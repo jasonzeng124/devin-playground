@@ -4336,3 +4336,33 @@ D 004 RL control) exactly:
   the box's remaining D questions.
 - r36 s3 restarted cleanly on GPU 7 (reward 0.44 at step 483). The stale 18-step log from its 07:35
   failed start is replaced. r43 s2 started on GPU 6.
+
+## 2026-11-05 18:50 EST: box: first r46 RL result, the box D control, and a late drop in r39 seed 3
+
+**Track D, all at their step caps on the box (H100, packed 2 per GPU):**
+
+| arm | seed | dev | same-seed reference |
+|---|---|---|---|
+| r44 box control (r30 config) | 3 | 0.227 | r30 B200 0.233 |
+| r44 box control | 4 | 0.203 | r30 B200 0.193 |
+| r36 temperature 1.2 | 4 | 0.240 | r44 box 0.203 |
+| r46 pt150_rl12500 (150 min pretrain, 12,500 RL steps) | 0 | 0.183 | r30 B200 0.192 (no box s0 yet) |
+
+- The box control matches r30's B200 seeds to within 0.01, so box and B200 D results line up at the
+  same step caps.
+- r36 s4 is r36's best seed by 0.03 (its B200 seeds were 0.195-0.207). r36 s3 (step 2,195) finishes
+  around 02:30 EST. One seed isn't a signal yet.
+- r46's longer pretraining starts below the control on seed 0. pt150 seed 1 (step 3,616) and
+  pt80_rl17000 seeds 0-1 (steps 15,751 and 14,697 of 17,000) are still running.
+- **Queued:** `box_d` was down to r43 s4. I appended r44 seeds 0-2 (`agent/box_r44more_1105.sh`), so
+  r43 and r46 get same-GPU control seeds. Any that can't finish before the block ends come back
+  with their state and finish on Engaging (INBOX 11-04).
+
+**Track A, r39 (the control) seed 3: 0.253**, against 0.380-0.395 for seeds 0-2. This wasn't a bad
+start. Its dev score climbed normally to 0.352 at step 350, then fell to 0.253 at step 400. The
+batch reward fell with it, from 0.45 at step 360 to 0.27 at step 400, while entropy stayed around
+0.06 and malformed answers rose only from 0.23 to 0.25. Scores fell at every level (L1 0.97 to 0.89,
+L3 0.26 to 0.12). The cosine schedule (budget 500 over 400 steps) still leaves about 10 % of the
+peak lr at step 400, so this is a late instability, not the end of a decayed run. r48 (cosine over
+400, so lr reaches 0 at the end) tests exactly that. Its seed 0 finishes in about 1 h. I'll judge
+r40/r47/r48 against the control by seed pairs, not only by the mean.
