@@ -4271,3 +4271,20 @@ Both pt150 seeds hit the token cap exactly. Each ran beside an RL run on the sam
 **Track A box screens:** r40 `ent05` seed 0 finished at 0.375 at step 400 (control r39 0.380). All four arms' seed 1 runs are running.
 
 **Engaging:** B200 worker 27598456 is running again (since 12:08 on node5802), resuming its r38/r45 items. 27987194 (r38 seeds 3-4) was preempted and is pending.
+
+## 2026-11-05 13:58 EST: box: track A seed 1 done; control still leads
+
+All four track A box arms finished seed 1 at the step cap (400 steps, dev ladder, H100, same packing as the control):
+
+| arm | change from control | seed 0 | seed 1 | mean |
+|---|---|---|---|---|
+| r39 ctl | none (control) | 0.380 | 0.383 | 0.382 |
+| r40 ent05 | entropy floor | 0.375 | 0.380 | 0.378 |
+| r41 t11 | temperature 1.1 | 0.332 | 0.328 | 0.330 |
+| r42 lr7e-7 | learning rate 7e-7 | 0.293 | 0.295 | 0.294 |
+
+The seeds agree closely. The entropy floor is level with the control. Temperature 1.1 and the lower learning rate are clearly worse. Seed 2 of all four is running. If they hold, r41 and r42 are dropped after seed 2 and their box slots go to other arms.
+
+**Box track D:** all runs are healthy. r44 s3 is at step 7012 (reward 0.59), r37 s3 at 8041, and `pt150_rl12500` s0 at 3762 (reward 0.51). `pt150_rl12500` s1 is first in `box_d`.
+
+**Engaging:** 6 GPU jobs (4 H200, 2 B200), all pending. B200 27598456 ran briefly from 13:24 and is pending again.
