@@ -4301,3 +4301,16 @@ Two new arms (dev ladder, box, step cap 400, control r39 on the same GPU type an
 | r48 `a005_cos400` | cosine over 400 steps instead of 500 | the run stops at 400 steps, so the lr now reaches its floor at the stop |
 
 Each gets seeds 0 and 1 first. r42 `lr7e-7` seeds 3-4 come after them. r42 is dropped too if its seed 2 also trails.
+
+## 2026-11-05 16:40 EST: box: track A seed 2 done; r42 (lr 7e-7) dropped
+
+| arm | change from control | seed 0 | seed 1 | seed 2 | mean |
+|---|---|---|---|---|---|
+| r39 ctl | none (control) | 0.380 | 0.383 | 0.395 | 0.386 |
+| r40 ent05 | entropy floor | 0.375 | 0.380 | 0.385 | 0.380 |
+| r41 t11 | temperature 1.1 | 0.332 | 0.328 | 0.267 | 0.309 (dropped 16:10) |
+| r42 lr7e-7 | learning rate 7e-7 | 0.293 | 0.295 | 0.303 | 0.297 |
+
+All on the dev ladder at the 400-step cap, H100, same packing. r42 trails the control by 0.09 on all three seeds, so its seeds 3-4 are out of `box_a`. r47 and r48 seed 2 go to the end of the queue in their place. The entropy floor stays level with the control (a gap of 0.006 on three seeds), so it does not look worth a promotion screen by itself. r39 and r40 seed 3 and r47 and r48 seed 0 are running.
+
+**Engaging:** H200 worker 27814763 started at 16:24 on node4400. Five more GPU jobs are pending (6 in all).
