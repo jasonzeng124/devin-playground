@@ -4288,3 +4288,16 @@ The seeds agree closely. The entropy floor is level with the control. Temperatur
 **Box track D:** all runs are healthy. r44 s3 is at step 7012 (reward 0.59), r37 s3 at 8041, and `pt150_rl12500` s0 at 3762 (reward 0.51). `pt150_rl12500` s1 is first in `box_d`.
 
 **Engaging:** 6 GPU jobs (4 H200, 2 B200), all pending. B200 27598456 ran briefly from 13:24 and is pending again.
+
+## 2026-11-05 16:10 EST: box: r41 (temperature 1.1) dropped; two new track A arms, r47 and r48
+
+r41 `t11` seed 2 finished at 0.267 at step 400. Its three seeds are 0.332 / 0.328 / 0.267, against the control's 0.380 / 0.383 (r39 seed 2 is still running). It is dropped: seeds 3 and 4 are out of `box_a`.
+
+Two new arms (dev ladder, box, step cap 400, control r39 on the same GPU type and packing) take the slots, at the head of `box_a`:
+
+| arm | change from control (A 005's recipe) | why |
+|---|---|---|
+| r47 `a005_lr1.5e-6` | learning rate 1.5e-6 instead of 1e-6 | lr 7e-7 (r42) trailed the control by 0.09 on two seeds, so test the other direction |
+| r48 `a005_cos400` | cosine over 400 steps instead of 500 | the run stops at 400 steps, so the lr now reaches its floor at the stop |
+
+Each gets seeds 0 and 1 first. r42 `lr7e-7` seeds 3-4 come after them. r42 is dropped too if its seed 2 also trails.
