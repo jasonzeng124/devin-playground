@@ -4254,3 +4254,20 @@ A dead run's first step sometimes reads entropy 0.0 and malformed 1.000. r37 s4'
 All three changes trail the control on one seed. Seed 1 of each is running.
 
 **Engaging:** B200 worker 27598456 was preempted at 10:30 and is pending, holding r38 and r45 items that resume from their saves. Worker 27800892 exited at 09:23 because its queue was empty. GPU jobs: 4 H200 + 2 B200 = 6.
+
+## 2026-11-05 12:25 EST: box: r46 pt150 pretraining done; its RL follow-ups queued
+
+On the box, r46 `pt150` pretraining (track D, pretraining-only, token cap 3.582B) finished on both seeds:
+
+| run | tokens | minutes | val loss |
+|---|---|---|---|
+| pt150 s0 | 3.5819B | 223 | 2.796 |
+| pt150 s1 | 3.5819B | 262 | 2.824 |
+| pt80 s0 / s1 (for reference) | 1.9105B | 136 / 143 | 2.907 / 2.927 |
+| D 004 s0 (112 min on H200, for reference) | 2.67B | 112 | 2.891 |
+
+Both pt150 seeds hit the token cap exactly. Each ran beside an RL run on the same H100, so its minutes are not timed results. `pt150_rl12500` seed 0 started at 16:48Z and was healthy at step 701 (reward 0.48, malformed 0.00, 30 informative groups). Seed 1 is now at the head of `box_d`. `pt80_rl17000` seeds 0-1 are running.
+
+**Track A box screens:** r40 `ent05` seed 0 finished at 0.375 at step 400 (control r39 0.380). All four arms' seed 1 runs are running.
+
+**Engaging:** B200 worker 27598456 is running again (since 12:08 on node5802), resuming its r38/r45 items. 27987194 (r38 seeds 3-4) was preempted and is pending.
