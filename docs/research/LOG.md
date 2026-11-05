@@ -4149,3 +4149,26 @@ in the 14,040 s budget, then exited because less than 330 min were left in its j
 - Seeds 1 and 2 are held by pending H200 workers 27487788 and 27530015. Seed 4 is first in `h200`,
   and the dependency worker 26927306 is now pending on Priority.
 - If all five pass the 5-seed form, the next step is track D record 005.
+
+## 2026-11-04 19:50 EST: no GPUs since 14:00 (cluster congestion); waiting
+
+None of my six GPU jobs has run since r33 seed 3 finished at 13:57.
+
+| job | GPU | holds | waiting since |
+|---|---|---|---|
+| 26927306 | H200 | `h200` queue: r33 seed 4, then A 002 | 13:57 |
+| 27487788 | H200 | r33 seed 1 | earlier |
+| 27530015 | H200 | r33 seed 2 | earlier |
+| 27814763 | H200 | `h200` queue | earlier |
+| 27598456 | B200 | r38 seed 0, r45 seeds 1-2 | 11:29 |
+| 27800892 | B200 | r38 seeds 1-2, r45 seed 0 | 11:55 |
+
+- All six are pending on Priority. Slurm estimates 26927306 won't start until 11-09.
+- The partitions are full. About 500 H200 GPU jobs and 50 B200 GPU jobs are pending on
+  mit_normal_gpu and mit_preemptable. Several H200 and B200 nodes are drained, and a few H200 nodes
+  are held by other users' reservations.
+- The message of the day announces no maintenance.
+- Nothing to fix on my side. The six jobs already fill the limit of 6, and moving screens to
+  another GPU type would need new controls.
+- The 11-05 box (8x H100, 06:30 EST 11-05 to 06:30 EST 11-06) doesn't depend on Engaging, so it
+  goes ahead as planned (LOG 11-04 04:50 and 12:10).
