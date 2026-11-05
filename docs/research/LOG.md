@@ -4172,3 +4172,16 @@ None of my six GPU jobs has run since r33 seed 3 finished at 13:57.
   another GPU type would need new controls.
 - The 11-05 box (8x H100, 06:30 EST 11-05 to 06:30 EST 11-06) doesn't depend on Engaging, so it
   goes ahead as planned (LOG 11-04 04:50 and 12:10).
+
+## 2026-11-05 01:45 EST: full wake; r46 moves to the box
+
+- Engaging: all six GPU jobs are pending again. r33 seeds 1-2 (27487788, 27530015) ran on mit_preemptable from 22:28 and 22:39 and were preempted at 23:12. Both resumed from saved state (seed 1 at step 9,558) and will again. The message of the day announces no maintenance. HOME is at 41 % and the pool at 51 %.
+- **r46 (pretraining/RL split) moves from `screens_d_b200` to the head of `box_d`.** The B200 workers haven't run since 11:55 yesterday, and r46 is the track D question that matters most now (LOG 11-04 13:50). `box_workers.sh` starts one worker per GPU before the second round, so the four pretraining items land one per GPU (4-7), each next to two RL screens.
+  - The two pretraining configs have never run. I changed their wall cap from 400 to 900 min so the token cap (3.58B / 1.91B) still binds when a packed H100 pretrains more slowly than an H200. The cosine follows whichever budget runs out first, so the arms stay defined by tokens.
+  - The RL items (`pt150_rl12500`, `pt80_rl17000`) are added to the box queue by hand as each pretraining finishes. If one can't finish on the box, its pretrained weights come back with its state (INBOX 11-04).
+  - RL control on the box: r44 (r30's config, same GPU and packing). The r30 B200 seeds stay as the paired reference, marked as cross-GPU in the tables.
+- The pretraining needs `mix_0.2.bin` (4.6 GB), which `box_sync.sh to` doesn't copy. `agent/box_copy_mix.sh` copies just that file. Box start, after the `to` job from the 04:50 entry:
+  ```
+  sbatch -p mit_quicktest --time=00:15:00 -c 2 --mem=4G --chdir=/home/zjason/rlvr-screens --wrap 'BOX=zjason@16.58.142.215 bash agent/box_copy_mix.sh'
+  ```
+  `box_d` now holds 17 items: r46 ×4, then r44/r36/r37/r38 seeds 3-4, then r43 ×5.

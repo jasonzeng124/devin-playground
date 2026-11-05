@@ -32,7 +32,7 @@
   "v3": {
     "track": "D",
     "pretrain": {
-      "minutes": 400,
+      "minutes": 900,
       "tokens": "/home/zjason/orcd/pool/data/dm_math/mix_0.2.bin",
       "tokenizer": "/home/zjason/orcd/pool/data/tinyllama-tokenizer",
       "args": "--micro-batch 32 --max-tokens 3582000000"
