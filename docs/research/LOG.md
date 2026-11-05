@@ -4192,3 +4192,21 @@ None of my six GPU jobs has run since r33 seed 3 finished at 13:57.
 - At 12:04Z I ran the allowed fallback (INBOX 11-03), `aws ec2 run-instances --region us-east-2 --launch-template LaunchTemplateName=rlvr-box-cr-070d093aa92f43751`. It returned i-0aaa8c10dbb9e5888 (p5.48xlarge, us-east-2b, pending). The call went through, so the capacity block was still unused. I made no other AWS calls.
 - Next: wait for `/var/lib/rlvr-box.ready`, then the `to` sync, the token-file copy and the workers (LOG 11-05 01:45).
 - Engaging: both B200 workers are running again since 06:44 (27598456 resumed r45 seeds 1-2 from state). The four H200 jobs are still pending.
+
+## 2026-11-05 07:55 EST: 11-05 box running
+
+- The fallback box answered at 12:25Z with the venv built (torch 2.13, vLLM 0.30, 8x H100 80 GB). The `to` sync (27975489) and the token-file copy (27975490) took about a minute each. Workers started at 12:29Z: `box_a` on GPUs 0-3 (1 per GPU), `box_d` on GPUs 4-7 (3 per GPU planned).
+- Track D packing: **3 per GPU doesn't fit next to a pretraining run.** The r46 pretraining uses 31.6 GB, so after one RL screen the third run's vLLM or trainer ran out of memory within about 2 min. The four third-slot workers stopped after two quick failures each (as `queue_worker.sbatch` is meant to), which leaves pretraining plus one RL screen per D GPU.
+  - `give_back` returns only the item in hand at the exit, so the six items that failed first (r44 s4, r36 s3/s4, r38 s4, r43 s2/s3) went to `done.txt` as FAILED. I put them back at the head of the box's `box_d` under the queue lock. No GPU time was lost beyond those 2-minute starts.
+- Running at 12:51Z:
+
+  | GPU | runs |
+  |---|---|
+  | 0-3 | A: r39 ctl, r40 ent05, r42 lr7e-7, r41 t11 (seed 0 each) |
+  | 4 | r46 pt150 s1 (236k tok/s), r44 s3 |
+  | 5 | r46 pt80 s1 (212k tok/s), r38 s3 |
+  | 6 | r46 pt80 s0 (237k tok/s), r37 s4 |
+  | 7 | r46 pt150 s0 (266k tok/s), r37 s3 |
+
+- At these rates pt80 (1.91B tokens) ends at about 15:00Z and pt150 (3.58B) at about 16:30Z. Both are well inside the 900-min wall cap. When each finishes, its RL item (`pt80_rl17000` / `pt150_rl12500`) goes to the head of `box_d`.
+- Helper scripts for this block are `agent/box_start_1105.sh`, `agent/box_health_1105.sh`, `agent/box_q_1105.sh` and `agent/box_requeue_1105.sh`. They run through `box_ssh.sh` inside mit_quicktest jobs, because the box accepts ssh only from Engaging compute nodes.

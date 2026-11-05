@@ -1,0 +1,1 @@
+cd ~/rlvr-screens; cat queue/box_d.txt; echo ---; for f in slurm_logs/box-*-g[4-7]-*.out; do echo "$f: $(grep -E 'start calibration|FAILED' $f | sed 's/.*(box_d): //' | cut -c1-90 | tr '\n' '|')"; done; pgrep -u zjason -fc queue_worker.sbatch
