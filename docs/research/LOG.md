@@ -4228,3 +4228,10 @@ None of my six GPU jobs has run since r33 seed 3 finished at 13:57.
   | D r37 s3 | 609 | 0.44 |
 
   pt80 is at about 0.76B of 1.91B tokens, and pt150 at about 0.83B of 3.58B. The RL train/eval logs are written under `$CKPT_DIR/<arm>/seeds/<s>/`, and `box_sync.sh from` picks them up there.
+
+## 2026-11-05 10:05 EST: box: r46 pt80 pretraining done; r38 s3 dead again
+
+- r46 pt80 seeds 0 and 1 both stopped at the token cap, 1.9105B tokens at step 3644. They took 136 and 143 min on a shared H100, and val loss is 2.907 and 2.927. For comparison, D 004 seed 0 reached 2.891 after 2.67B tokens in 112 min on an H200. I queued `r46/pt80_rl17000` seeds 0 and 1 at the head of `box_d`. They will take the slots pt150 frees around 16:30-17:00Z.
+- **r38 s3 broke the same way again after its restart**: entropy 0, all outputs malformed and no informative groups from step 1, this time on GPU 6. r37 s4 restarted cleanly on GPU 5, and r44 s4 runs fine on GPU 6. So neither the GPU nor the pretrained model explains it, and so far only this (config, seed) pair repeats. Step 1 already reads 1.000 malformed, while healthy runs from the same model read 0.994. It looks as if vLLM samples garbage from the start, there is never a non-zero advantage, and the policy never moves. I killed it again by PID, deleted its resume state, and put it at the tail of `box_d`. If it breaks a third time I'll drop it from the box and report it with r38's results.
+- **Packing:** GPUs 5 and 6 now run 2 RL D runs each, at 53 and 81 GB with no OOM so far.
+- Track A r41 t11 s0 finished on the box (`ok`), and r39 ctl s1 started on GPU 3.
