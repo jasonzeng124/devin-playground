@@ -4366,3 +4366,27 @@ L3 0.26 to 0.12). The cosine schedule (budget 500 over 400 steps) still leaves a
 peak lr at step 400, so this is a late instability, not the end of a decayed run. r48 (cosine over
 400, so lr reaches 0 at the end) tests exactly that. Its seed 0 finishes in about 1 h. I'll judge
 r40/r47/r48 against the control by seed pairs, not only by the mean.
+
+## 2026-11-05 19:20 EST: box: r47 (lr 1.5e-6) seed 0 collapsed; r40 holds up on seed 3
+
+**Track A, box seeds at 400 steps (dev):**
+
+| arm | s0 | s1 | s2 | s3 | mean over s0-s3 |
+|---|---|---|---|---|---|
+| r39 control | 0.380 | 0.383 | 0.395 | 0.253 | 0.353 |
+| r40 entropy floor 0.5 | 0.375 | 0.380 | 0.385 | 0.378 | 0.380 |
+| r47 lr 1.5e-6 | 0.007 | running | – | – | |
+
+- **r47 s0 collapsed.** Its dev score peaked at 0.373 at step 250, then fell to 0.307 at 300, 0.017
+  at 350 and 0.007 at 400. Malformed answers went from 0.60 to 0.96, and the batch reward fell from
+  0.37 to 0.02 between steps 300 and 350. Even before the collapse it was below the control's
+  curve. A higher peak lr makes the late instability that hit r39 s3 worse, so I took r47 s2 out
+  of `box_a` (`agent/box_r47drop_1105.sh`). s1 is already 36 min in and keeps running, to see
+  whether the collapse repeats.
+- **r40 s3 didn't drop where r39 s3 did.** It climbed steadily to 0.398 at step 350 and ended at
+  0.378. So r40 now leads the control by 0.027 over four seeds. All of that comes from one seed
+  pair, and r40 and r39 are level on the other three. Seed 4 of both (r39 s4 started, r40 s4
+  queued) and r48 (cosine to 0 at step 400) tell whether the entropy floor is protecting against the
+  late instability.
+- Engaging: the two B200 workers (27987194 for r38 s3-4, 27598456 for r38/r45) started at 18:56 on
+  mit_preemptable. There are still 6 GPU jobs.
