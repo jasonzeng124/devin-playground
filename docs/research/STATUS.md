@@ -37,22 +37,19 @@ H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 
 
 Promoted, not yet recorded: A 002 and A 003 (H100 dev 0.324 each).
 
-Updated 2026-11-05 20:05 EST (r46 pt80 beats r30 on seeds 0-1 (0.213/0.222 vs 0.192/0.180), pt80 seeds 2-4 pretraining queued on `screens_d_b200`; track A: r40 entropy floor leads the control 0.380 vs 0.353 on 4 seeds, paired seeds 5-7 on the box; r41, r42, r47, r48 dropped; r37 closed level with r30 (LOG 11-05 17:45 to 20:05). Earlier: 11-05 box running, see below; r46 pt80 and pt150 seed 0 pretrained, RL follow-ups on the box; r38 moved off the box (LOG 11-05 10:55). Earlier: r46 moved to the head of the 11-05 box queue box_d (LOG 11-05 01:45); Engaging jobs pending. Earlier: r33 seed 3 0.215, seeds 0+3 mean 0.210; all six Engaging GPU jobs pending since about 14:00 on a congested cluster (LOG 11-04 19:50). Earlier: r46 queued: pretraining/RL time split, `pretrain_only` pretraining items pt150/pt80 seeds 0-1, RL items queued by hand after (LOG 11-04 13:50); r30/r34/r36/r37 all 0.198-0.204, RL knobs plateaued; box runs finish on Engaging via `SCREEN_RESUME=1` and `STATE=1 box_sync.sh` (LOG 11-04 12:10). Earlier: r30 seed 3 0.233; r45 (r30 without L1 training prompts, new `train_ladder_levels`) seeds 0-2 queued on `screens_d_b200`; box copy command and checkpoint path in LOG 11-04 04:50. Earlier: 11-05 box queues `box_a` (r39-r42, track A) and `box_d` (r36-r38 seeds 3-4, r43, r44, track D) written, LOG 22:45; all Engaging jobs pending since about 19:45. Earlier: r26 closes: 0.183/0.148/0.183, mean 0.171, vs D 004 0.150 and r30 0.197. r37 seed 0 0.205 and r36 seeds 0-1 0.203/0.195, each about +0.012 over r30; seed 2 decides. r38 (temperature 1.2 plus entropy floor) queued. H200 worker 27814763 replaces 27412796. 11-05 H100 box back on: see the INBOX note above.)
+Updated 2026-11-06 05:20 EST (box block done: r40 closed, null on the mean over 10 seeds; r43 t1.4 0.222 and r36 t1.2 0.214 over 5 seeds, against r44 control seeds 0/3/4 0.216; r44 seeds 1-2 pulled back and queued on `screens_d_b200` (LOG 11-06 05:20). Earlier: r46 pt80 beats r30 on seeds 0-1 (0.213/0.222 vs 0.192/0.180), pt80 seeds 2-4 pretraining queued on `screens_d_b200`; track A: r40 entropy floor leads the control 0.380 vs 0.353 on 4 seeds, paired seeds 5-7 on the box; r41, r42, r47, r48 dropped; r37 closed level with r30 (LOG 11-05 17:45 to 20:05). Earlier: 11-05 box running, see below; r46 pt80 and pt150 seed 0 pretrained, RL follow-ups on the box; r38 moved off the box (LOG 11-05 10:55). Earlier: r46 moved to the head of the 11-05 box queue box_d (LOG 11-05 01:45); Engaging jobs pending. Earlier: r33 seed 3 0.215, seeds 0+3 mean 0.210; all six Engaging GPU jobs pending since about 14:00 on a congested cluster (LOG 11-04 19:50). Earlier: r46 queued: pretraining/RL time split, `pretrain_only` pretraining items pt150/pt80 seeds 0-1, RL items queued by hand after (LOG 11-04 13:50); r30/r34/r36/r37 all 0.198-0.204, RL knobs plateaued; box runs finish on Engaging via `SCREEN_RESUME=1` and `STATE=1 box_sync.sh` (LOG 11-04 12:10). Earlier: r30 seed 3 0.233; r45 (r30 without L1 training prompts, new `train_ladder_levels`) seeds 0-2 queued on `screens_d_b200`; box copy command and checkpoint path in LOG 11-04 04:50. Earlier: 11-05 box queues `box_a` (r39-r42, track A) and `box_d` (r36-r38 seeds 3-4, r43, r44, track D) written, LOG 22:45; all Engaging jobs pending since about 19:45. Earlier: r26 closes: 0.183/0.148/0.183, mean 0.171, vs D 004 0.150 and r30 0.197. r37 seed 0 0.205 and r36 seeds 0-1 0.203/0.195, each about +0.012 over r30; seed 2 decides. r38 (temperature 1.2 plus entropy floor) queued. H200 worker 27814763 replaces 27412796. 11-05 H100 box back on: see the INBOX note above.)
 
-## AWS box 11-05 (8x H100, until 11:30Z 11-06): running
+## AWS box 11-05 (8x H100, 11:30Z 11-05 to 11:30Z 11-06): done
 
-Screens only, dev ladder, step caps, about 50/50 track A/D (INBOX 11-03). Box access is ssh from a
-mit_quicktest job (`scripts/aws/box_ssh.sh`); sync with `box_sync.sh from box1105 $(cat agent/box_dirs_1105.txt)`
-each wake. The last sync, by 11:00Z 11-06, uses `STATE=1` and brings each unfinished run's resume state back
-to finish on Engaging (INBOX 11-04).
-- `box_a` (GPUs 0-3, one run each): r39 control seeds 0-3 0.380 / 0.383 / 0.395 / 0.253 (mean 0.353);
-  r40 entropy floor 0.375 / 0.380 / 0.385 / 0.378 (mean 0.380). Seed 4 of each running, then paired seeds 5-7.
-  Dropped: r41 (t1.1), r42 (lr 7e-7), r47 (lr 1.5e-6, seed 0 collapsed), r48 (cosine over 400, s0 0.300).
-- `box_d` (GPUs 4-7, two runs each): r37 closed (mean 0.204, same as r30). r44 box control s3-4 0.227 / 0.203,
-  seeds 0-2 running or queued. r46 pt80_rl17000 s0-1 0.213 / 0.222 (r30 0.192 / 0.180); pt150_rl12500 s0 0.183,
-  s1 running. r36 s3 and r43 seeds 0-4 running.
-- r38 (t1.2 + entropy floor) went dead three times on the box (entropy 0 from the first steps); taken off the
-  box and out of the sync list; seeds 3-4 moved to `screens_d_b200` (LOG 11-05 10:55).
+Screens only, dev ladder, step caps (INBOX 11-03). The last sync ran at 10:16Z 11-06 with `STATE=1`. No
+more syncs; the 11-18 and 11-28 blocks stay off. Results (LOG 11-06 05:20):
+- Track A, step 400, ten paired seeds: r39 control mean 0.366 (0.379 without seed 3 at 0.253), r40 entropy
+  floor 0.377 (0.376). r40 loses 7 of 10 and only narrows the spread (sd 0.015 against 0.046). Closed.
+  Dropped earlier: r41 (t1.1), r42 (lr 7e-7), r47 (lr 1.5e-6), r48 (cosine over 400).
+- Track D, 15k steps, 5 seeds each: r36 (t1.2) 0.214, r43 (t1.4) 0.222, r37 (entropy floor) 0.204. r44
+  control seeds 0, 3, 4 give 0.218 / 0.227 / 0.203. Seeds 1-2 were pulled back with their state and are
+  queued on `screens_d_b200` to resume (box-then-B200 seeds). D 004-based arms only have seeds 0-4.
+- r38 (t1.2 + entropy floor) went dead three times on the box and moved to `screens_d_b200`.
 
 ## Running
 

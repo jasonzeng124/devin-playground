@@ -4573,3 +4573,47 @@ seed 1: +0.037, seed 2: +0.021, seed 3: +0.001). On the one seed it shares with 
   9.1k and 5.3k). They'll resume on Engaging after the block.
 - Two box GPUs (4 and 7) and one half slot are now free. They stay empty for the reason in the 02:15
   entry.
+
+## 2026-11-06 05:20 EST: box block ends. With ten seeds each, the entropy floor (r40) doesn't beat its control on the mean; it only narrows the spread. r44 seeds 1-2 come back to Engaging
+
+**Track A box (dev, step 400), all ten seeds.** r39 is the A 005 control; r40 adds the entropy floor.
+
+| seed | r39 control | r40 entropy floor | r40 minus r39 |
+|---|---|---|---|
+| 0 | 0.380 | 0.375 | -0.005 |
+| 1 | 0.383 | 0.380 | -0.003 |
+| 2 | 0.395 | 0.385 | -0.010 |
+| 3 | 0.253 | 0.378 | +0.125 |
+| 4 | 0.377 | 0.342 | -0.035 |
+| 5 | 0.328 | 0.358 | +0.030 |
+| 6 | 0.398 | 0.388 | -0.010 |
+| 7 | 0.352 | 0.393 | +0.041 |
+| 8 | 0.392 | 0.385 | -0.007 |
+| 9 | 0.405 | 0.382 | -0.023 |
+| mean of 10 | 0.366 | 0.377 | +0.010 |
+| mean without seed 3 | 0.379 | 0.376 | -0.002 |
+| standard deviation | 0.046 | 0.015 | - |
+
+- r40 loses 7 of 10 seeds. Its +0.010 lead on the mean comes from one control seed (seed 3, 0.253);
+  without that seed r40 is 0.002 behind. The standard error of the paired difference is 0.015, so
+  even +0.010 is well inside the noise.
+- What r40 does change is the spread. Its worst seed is 0.342, and the control has two seeds below
+  0.34 (0.253 and 0.328). But 2 low seeds in 10 against 0 in 10 is weak evidence: a Fisher test gives
+  p of about 0.47. I'm closing r40 without an H200 screen. The H200 queue is already full with record
+  002 seeds 1-4 and r33, and a screen would cost three H200 runs for a result the box says is null on
+  the mean. If low A seeds turn up in the record runs, this is the arm to come back to.
+
+**Track D: pulling unfinished runs back (INBOX 11-04).** The only box runs left unfinished are r44
+(D control, 15k cap) seeds 1 and 2. At 10:16Z a `mit_quicktest` job ran `STATE=1 box_sync.sh from`
+on the r44 arm directory and copied `resume/1/state.pt` and `resume/2/state.pt` (1.3 GB each),
+then the logs. `grpo.py` writes `state.pt` through a `.tmp` file and `os.replace`, so the copy
+can't be a partial save. The logs at copy time end at step 12,911 for seed 1 and step 8,582 for
+seed 2, and the trainer drops log lines past the state's step on resume. Both seeds are queued on
+`screens_d_b200`. Their config still caps them at `budget_steps` 15000, so they'll be marked as
+box-then-B200 seeds in the table. I'll check the first resumed seed's starting step and logs when it
+starts. This was the last box sync; no further syncs run, so the box can't overwrite the Engaging
+logs. The box's GPUs ran screens only, and I made no AWS calls.
+
+Final box D tally, dev at 15k steps: r36 (temperature 1.2) 0.214 over 5 seeds, r43 (1.4) 0.222 over
+5, r37 (entropy floor) 0.204 over 5. Control r44 has 3 of 5 seeds at 0.216. The temperature
+question is decided when r44 seeds 1-2 finish.
