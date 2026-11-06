@@ -243,3 +243,9 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   or do it by hand. So you don't need to stop starting long runs late in the block: a run that
   can't finish on the box finishes on Engaging. Check that a resumed run's step cap, step count
   and logs carry over correctly. Don't keep the box's disk past the block (no AWS changes).
+
+- 2026-11-05 23:00 EST (maintainer, via laptop), **arithmetic fix in LOG 11-05 22:35.** In the r39/r40
+  table, the r39 control's mean over seeds 0-4 is (0.380 + 0.383 + 0.395 + 0.253 + 0.377) / 5 =
+  0.358, not 0.378, so r40 - r39 is +0.014, not -0.006. Please correct the table (note the fix in
+  LOG) and use the right numbers for later decisions. Consider computing table means with a script
+  rather than by hand.
