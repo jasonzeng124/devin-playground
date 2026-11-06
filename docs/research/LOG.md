@@ -4485,3 +4485,34 @@ Track D, box, dev ladder (r46: token-capped pretraining, then RL to the 6 h budg
   (0.205, 0.215, 0.190; mean 0.203 by script, above the 0.189 line). Seeds 1 and 2 wait for H200
   workers.
 - B200 worker 27598456 was preempted at 23:07 and is pending. 27987194 is running.
+
+## 2026-11-06 01:45 EST: control seeds 6-7 hold up, so r40's lead stays one seed; r36 seed 3 ties its control
+
+Track A, box, dev ladder, step 400 (means by script):
+
+| seed | r39 control | r40 entropy floor | r40 - r39 |
+|---|---|---|---|
+| 6 | 0.398 | 0.388 | -0.010 |
+| 7 | 0.352 | running (step 344) | |
+| mean, seeds 0-6 | 0.359 | 0.372 | +0.013 |
+
+- Neither control seed collapsed late: seed 6 rose to 0.398, and seed 7 held about 0.35 from step 300
+  on. r40 wins 2 seeds of 7. Its lead of +0.013 still comes almost all from the control's seed 3.
+  Unless r40's seeds 7-9 show something new, an H200 screen of r40 isn't worth it. Seeds 8-9 of both
+  arms started on the box at 01:20-01:35 (the last should finish around 05:00).
+
+Track D, box, dev ladder (15k-step cap):
+
+| seed | r44 control | r36 temperature 1.2 | r43 temperature 1.4 |
+|---|---|---|---|
+| 2 | running | 0.207 | 0.228 |
+| 3 | 0.227 | 0.227 | running |
+| 4 | 0.203 | 0.240 | running |
+
+- r36 seed 3 ties its control. On the two seeds paired so far, r36 leads 0.233 to 0.215. Its
+  five-seed mean is 0.214. r44 seeds 0-2 give the other three pairs: seed 0 should finish on the box,
+  and seeds 1-2 will resume on Engaging after the block.
+- I queued seed 5 of r36 and r44 at 01:15, but it can't run. These arms start from record D 004's
+  pretrained seeds, and only 0-4 exist, so r36 seed 5 failed after 6 s, and I took r44 seed 5 off
+  `box_d` before it started. Neither left any files. GPU 7's second slot stays empty, so r44
+  seed 0 runs alone there and is more likely to finish before the block ends.
