@@ -4620,10 +4620,11 @@ question is decided when r44 seeds 1-2 finish.
 
 ## 2026-11-06 10:40 EST: the pretraining/RL split (r46) ties the control; r49 screens PLAN D4, a reward for legal moves written in the reasoning
 
-**r46 (80 % of the budget on dm_math pretraining, then RL to 17,000 steps, read at the 15k cap) is done.**
-Dev pass rate at 15,000 RL steps:
+**r46 (80 minutes of dm_math pretraining, 1.91B tokens, then RL to 17,000 steps) is done.** Dev
+pass rate; the r46 column is at step 17,000, the arm's full budget, and the controls are at their
+15,000-step cap (label corrected at 12:40, INBOX 11-06 11:30; step-15,000 values in the 12:40 entry):
 
-| seed | r46 pt80 | r30 control (Engaging) | r44 control (box) |
+| seed | r46 pt80, step 17,000 | r30 control (Engaging) | r44 control (box) |
 |---|---|---|---|
 | 0 | 0.213 | 0.192 | 0.218 |
 | 1 | 0.222 | 0.180 | 0.212 (box, then B200 from step 12,505) |
@@ -4632,8 +4633,8 @@ Dev pass rate at 15,000 RL steps:
 | 4 | 0.208 | 0.193 | 0.203 |
 | mean | 0.216 | 0.204 | 0.215 (4 seeds) |
 
-- Against r30, r46 is +0.012 on the mean with a standard error of 0.0095, and it wins 3 of 5 seeds.
-- Against the box control on the four seeds both have, r46 is +0.003. The box control runs about
+- Against r30, r46 at step 17,000 is +0.012 on the mean with a standard error of 0.0095, and it wins 3 of 5 seeds.
+- Against the box control on the four seeds both have, r46 at step 17,000 is +0.003. The box control runs about
   0.016 above r30 on the same seeds, which accounts for r46's lead over r30. I'm closing r46 as a
   tie with no H200 screen.
 - r44 seed 1 resumed from the pulled-back state at step 12,505 and seed 2 at step 8,582, as the
@@ -4652,3 +4653,44 @@ keeps a wrong answer with full process credit below a correct one (0.25 + 0.99 x
 option is off by default, and the solved count now counts rewards >= 1, which is the same for
 every existing config. The train log gets a `process_credit` mean so I can see whether the credit
 moves. Seeds 0-4 are queued on `screens_d_b200`, with r32 and r30 as the per-seed comparison.
+
+## 2026-11-06 12:40 EST: r33 passes the promotion rule; track D record 005 starts. Label fix for r46
+
+**r33 (D 004 RL at lr 6e-6 with shaping 0.5, H200, gating screen) has all 5 seeds.** In-loop final dev:
+
+| seed | r33 | D 004 holder |
+|---|---|---|
+| 0 | 0.205 | 0.182 |
+| 1 | 0.183 | 0.130 |
+| 2 | 0.212 | 0.137 |
+| 3 | 0.215 | 0.183 |
+| 4 | 0.190 | 0.163 |
+| mean | 0.201 | 0.159 |
+
+- The 5-seed form needs a mean of at least 0.189 (D line), at least 4 of 5 seeds above 0.159 (the
+  holder's dev mean) and at most 1 collapsed seed. r33 has a mean of 0.201, all 5 seeds above 0.159,
+  and no collapsed seed: none is below 0.159, and the highest malformed rate is 0.003. It passes.
+- It beats the holder on every seed, by +0.042 on the mean.
+- The record is `records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6`. It's D 004's config with RL
+  at lr 6e-6 and shaping 0.5, which is r33's config without `screen_pretrained` and `no_save`. So
+  each seed pretrains from scratch, as D 004 did. N = 5 (seeds 0-4), fixed now. The seeds are
+  queued on `h200` after A 002 seed 4, with `scripts/run_seed_v3.sh` through the record path of
+  `run_item.sh` and the untimed warm-up. Track D records may run on `mit_preemptable` (AGENT.md).
+  A preempted seed's partial run goes to `extra/`, and the same seed reruns.
+
+**Label fix (INBOX 11-06 11:30).** The 10:40 entry called r46's `pt80` "80 % of the budget". It is
+80 minutes of pretraining (1.91B tokens). Its column was also labelled as step 15,000, but it is the
+final dev at step 17,000, the arm's full budget. I corrected the labels in place. At the matched step,
+15,000, r46 reads:
+
+| seed | r46 pt80, step 15,000 | r30 control |
+|---|---|---|
+| 0 | 0.210 | 0.192 |
+| 1 | 0.212 | 0.180 |
+| 2 | 0.195 | 0.220 |
+| 3 | 0.207 | 0.233 |
+| 4 | 0.198 | 0.193 |
+| mean | 0.204 | 0.204 |
+
+That is +0.001 against r30 (standard error 0.012), and -0.008 against the box control on seeds
+0, 1, 3, 4. The tie holds, and at matched steps there's no lead left to explain. r46 stays closed.
