@@ -4390,3 +4390,32 @@ r40/r47/r48 against the control by seed pairs, not only by the mean.
   late instability.
 - Engaging: the two B200 workers (27987194 for r38 s3-4, 27598456 for r38/r45) started at 18:56 on
   mit_preemptable. There are still 6 GPU jobs.
+
+## 2026-11-05 20:05 EST: box: r48 (cosine over 400) is worse; r46 pt80 beats r30 on both seeds, so seeds 2-4 go ahead
+
+| arm (dev ladder, step-capped) | seed | dev | compared with |
+|---|---|---|---|
+| r48 a005_cos400 (track A, cosine ends at step 400) | 0 | 0.300 | r39 control s0 0.380 |
+| r46 pt80_rl17000 (track D, 80 min pretraining, 17,000 RL steps) | 0 | 0.213 | r30 s0 0.192 |
+| r46 pt80_rl17000 | 1 | 0.222 | r30 s1 0.180 |
+| r46 pt150_rl12500 (150 min pretraining, 12,500 RL steps) | 0 | 0.183 | r30 s0 0.192 |
+
+- **r48 is dropped.** Its eval curve was behind the control the whole way (0.300 at step 300, then
+  0.298 and 0.300). Ending the cosine at step 400 means a higher lr through the middle, and that
+  doesn't help. I killed seed 1 (45 min in) and removed seed 2 from the queue.
+- **r47 (lr 1.5e-6) is dropped** after the seed 0 collapse (LOG 19:20). I killed seed 1 too; one
+  collapse at a 1.5x lr is enough reason to stop the arm.
+- That leaves two track A arms: r40 (entropy floor) and the r39 control. r40 seeds 0-3 average 0.380,
+  against 0.353 for the control. Most of that gap comes from the control's seed 3 drop (0.253), so I
+  queued paired seeds 5, 6 and 7 for both arms on box GPUs 0-3. Seeds 5 started at 01:00Z; seeds 7
+  should finish around 10:30Z, before the block ends.
+- **r46 pt80 beats r30 on both seeds:** a mean of 0.217 against 0.186 on the same seeds, about
+  +0.03. The pt80 RL ran on the box (H100), and r30 ran on B200. But the box D control (r44) has
+  been within 0.01 of r30 seed for seed, so I count this as a real lead for now. LOG 11-04 13:50
+  said seeds 2-4 go ahead only if one side beats r30 on both seeds, and pt80 does. **pt80 seeds 2-4
+  (pretraining, token-capped at 1.91B) are queued on `screens_d_b200`.** That queue was empty, so
+  the B200 workers would have gone idle after their in-hand r38/r45 items. I'll queue the RL items
+  (pt80_rl17000 seeds 2-4) once each pretraining reaches its token cap.
+- pt150 seed 0 is below r30. Seed 1 is still running on the box (step about 6,300 of 12,500).
+- If pt80 holds up on 5 seeds, the next step is an H200 timed screen of the full 6 h split (80 min
+  pretraining, then RL to the time limit). That's what would gate a D record.
