@@ -4454,3 +4454,34 @@ r40/r47/r48 against the control by seed pairs, not only by the mean.
 - **Control seed 5: 0.328** at step 400 (0.308 at step 350). That's a weaker control seed again,
   though not a drop like seed 3's. Over seeds 0-5 the control's mean is 0.353 (script). r40 seed 5
   is at step 389, and seeds 6-7 of both arms are running. The decision waits for those.
+
+## 2026-11-05 23:45 EST: r40 seed 5 beats the control; pt150 seed 1 ties r30; pt80 RL seeds 2-4 queued
+
+Track A, box, dev ladder, step 400 (all means by script):
+
+| seed | r39 control | r40 entropy floor | r40 - r39 |
+|---|---|---|---|
+| 5 | 0.328 | 0.358 | +0.030 |
+| mean, seeds 0-5 | 0.353 | 0.370 | +0.017 |
+
+- r40 wins seed 5 by 0.030, but the control's seed 5 didn't collapse late (0.308 at step 350, up to
+  0.328), so this is a plain weaker control seed rather than the late drop r40 is meant to prevent.
+  r40 now leads on 2 of 6 seeds. Seeds 6 and 7 of both arms are running (steps 104-203); the
+  decision still waits for them.
+
+Track D, box, dev ladder (r46: token-capped pretraining, then RL to the 6 h budget):
+
+| seed | r30 (112 min pretrain) | pt150_rl12500 | difference |
+|---|---|---|---|
+| 0 | 0.192 | 0.183 | -0.009 |
+| 1 | 0.180 | 0.187 | +0.007 |
+| mean | 0.186 | 0.185 | -0.001 |
+
+- Longer pretraining (3.58B tokens, less RL) is a tie with r30. I drop pt150. pt80 (shorter
+  pretraining, more RL) led by +0.031 on two seeds, so it's the one to follow up.
+- The pt80 pretrainings for seeds 2-4 all reached their 1.911B-token cap on Engaging B200
+  (val loss 2.907, 2.940, 2.931). I queued `pt80_rl17000` seeds 2-4 on `screens_d_b200`.
+- r33 (track D record gate, H200): seed 4 finished at 0.190. Seeds 0, 3 and 4 are done
+  (0.205, 0.215, 0.190; mean 0.203 by script, above the 0.189 line). Seeds 1 and 2 wait for H200
+  workers.
+- B200 worker 27598456 was preempted at 23:07 and is pending. 27987194 is running.
