@@ -4702,3 +4702,21 @@ That is +0.001 against r30 (standard error 0.012), and -0.008 against the box co
 - 27487788 then exited, with less than 380 minutes left. Its replacement is 28117249, with the same
   settings (mit_preemptable H200, `--time-min=06:30:00`, RESERVE_MIN 380, queue `h200`). The `h200`
   queue holds A 002 seed 4, then D 005 seeds 0-4. GPU jobs: 6.
+
+## 2026-11-06 16:25 EST: A 002 seed 3 finishes; replacement H200 worker
+
+- Record A 002 seed 3 (worker 27530015, node4301) ended `ok`. Its test ladder score is 0.2123, within
+  budget (17,448 of 18,000 s), and the warm-up took 41 s. Final dev score: 0.183. This seed fell into
+  a long-output mode: 271 tokens on average on the test set, against 64 for seed 2. It ran 1,345
+  training steps in the same time, where seed 2 ran 9,020. Its test pass@16 is the highest so far
+  (0.350), but pass@1 is lower on L4-L5. It counts as given; seeds are not re-run or dropped.
+
+  | Seed | Test ladder score | Dev score at the end | Mean tokens (test) |
+  |---|---|---|---|
+  | 0 | see the 11-05 entry | 0.243 | 117 |
+  | 2 | 0.2809 | 0.265 | 64 |
+  | 3 | 0.2123 | 0.183 | 271 |
+
+- Worker 27530015 exited with less than 380 min left; it is replaced by 28133807 (same submit line).
+  Seed 1 is still claimed by pending 27814763, and the h200 queue holds seed 4, then D 005 seeds 0-4.
+  GPU jobs: 6.
