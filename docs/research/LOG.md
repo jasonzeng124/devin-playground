@@ -4550,3 +4550,26 @@ seed 1: +0.037, seed 2: +0.021, seed 3: +0.001). On the one seed it shares with 
   start from D 004's pretrained seeds, and only seeds 0-4 exist; each of those seeds is either
   finished or running for every open arm. A new arm would also be a new decision. It couldn't
   finish in the four hours left, so it would only add resumes on Engaging.
+
+## 2026-11-06 03:45 EST: r43 (temperature 1.4) finishes 5 seeds at 0.222; the box control is level with both temperature arms so far
+
+**Track D box (dev, 15k-step cap).** r44 is the D 004 RL control (temperature 1.0), r36 uses 1.2, and r43 uses 1.4.
+
+| seed | r44 control | r36 (1.2) | r43 (1.4) |
+|---|---|---|---|
+| 0 | 0.218 | 0.203 | 0.197 |
+| 1 | running | 0.195 | 0.232 |
+| 2 | running | 0.207 | 0.228 |
+| 3 | 0.227 | 0.227 | 0.228 |
+| 4 | 0.203 | 0.240 | 0.225 |
+| mean of seeds 0-4 | - | 0.214 | 0.222 |
+| mean of seeds 0, 3, 4 | 0.216 | 0.223 | 0.217 |
+
+- r43's 5-seed mean is 0.008 above r36's. Seed by seed it is ahead on 2, level on 2 and behind on 1,
+  so the two temperatures aren't distinguishable yet.
+- On the three seeds the control has finished, neither temperature beats it. The control's mean
+  is 0.216, r43's is 0.217 and r36's is 0.223. Seed 0 favours the control, seed 4 favours the
+  temperature arms, and seed 3 ties. The comparison waits on control seeds 1 and 2 (now at steps
+  9.1k and 5.3k). They'll resume on Engaging after the block.
+- Two box GPUs (4 and 7) and one half slot are now free. They stay empty for the reason in the 02:15
+  entry.
