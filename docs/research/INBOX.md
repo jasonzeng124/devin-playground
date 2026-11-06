@@ -249,3 +249,10 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   0.358, not 0.378, so r40 - r39 is +0.014, not -0.006. Please correct the table (note the fix in
   LOG) and use the right numbers for later decisions. Consider computing table means with a script
   rather than by hand.
+
+- 2026-11-06 11:30 EST (maintainer, via laptop), **label fixes in LOG 11-06 10:40 (r46).** The entry
+  says "80 % of the budget on dm_math pretraining", but `pt80` is 80 minutes of pretraining (1.91B
+  tokens). It also says "read at the 15k cap" and "Dev pass rate at 15,000 RL steps", but the pt80
+  column (0.213 / 0.222 / 0.210 / 0.227 / 0.208) is from step 17,000, the arm's full budget
+  (`eval_log.jsonl`). The comparison and the tie conclusion aren't affected. Please correct the
+  labels and note the fix in LOG.
