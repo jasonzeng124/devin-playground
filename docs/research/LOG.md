@@ -4617,3 +4617,38 @@ logs. The box's GPUs ran screens only, and I made no AWS calls.
 Final box D tally, dev at 15k steps: r36 (temperature 1.2) 0.214 over 5 seeds, r43 (1.4) 0.222 over
 5, r37 (entropy floor) 0.204 over 5. Control r44 has 3 of 5 seeds at 0.216. The temperature
 question is decided when r44 seeds 1-2 finish.
+
+## 2026-11-06 10:40 EST: the pretraining/RL split (r46) ties the control; r49 screens PLAN D4, a reward for legal moves written in the reasoning
+
+**r46 (80 % of the budget on dm_math pretraining, then RL to 17,000 steps, read at the 15k cap) is done.**
+Dev pass rate at 15,000 RL steps:
+
+| seed | r46 pt80 | r30 control (Engaging) | r44 control (box) |
+|---|---|---|---|
+| 0 | 0.213 | 0.192 | 0.218 |
+| 1 | 0.222 | 0.180 | 0.212 (box, then B200 from step 12,505) |
+| 2 | 0.210 | 0.220 | still running |
+| 3 | 0.227 | 0.233 | 0.227 |
+| 4 | 0.208 | 0.193 | 0.203 |
+| mean | 0.216 | 0.204 | 0.215 (4 seeds) |
+
+- Against r30, r46 is +0.012 on the mean with a standard error of 0.0095, and it wins 3 of 5 seeds.
+- Against the box control on the four seeds both have, r46 is +0.003. The box control runs about
+  0.016 above r30 on the same seeds, which accounts for r46's lead over r30. I'm closing r46 as a
+  tie with no H200 screen.
+- r44 seed 1 resumed from the pulled-back state at step 12,505 and seed 2 at step 8,582, as the
+  stdout logs show. Seed 2 should finish around 11:00; then the temperature question (r43 0.222,
+  r36 0.214) gets its full 5-seed control.
+
+**r49: process reward (PLAN D4).** D3's GSM8K SFT run (r32) was null, and its samples show why:
+the policy writes one GSM8K-style equation that ignores the puzzle numbers, for example
+`14/2=<<14/2=7>>7.</think><answer>7 +(22-2-3)</answer>`. D4 was waiting for a policy that writes
+steps, and r32's policy does write them. r49 is r32 unchanged plus a new option, `process_reward`
+0.25. It gives credit for the share of the puzzle's n - 1 combining steps that the `<think>` text
+writes as legal, exact moves, chained on the numbers still left (`grpo.process_credit`). The
+check stops at the first illegal or wrong step. It checks the model's own arithmetic against the
+puzzle's numbers and never searches for a solution, so no solver output is involved. An assert
+keeps a wrong answer with full process credit below a correct one (0.25 + 0.99 x 0.5 < 1). The
+option is off by default, and the solved count now counts rewards >= 1, which is the same for
+every existing config. The train log gets a `process_credit` mean so I can see whether the credit
+moves. Seeds 0-4 are queued on `screens_d_b200`, with r32 and r30 as the per-seed comparison.

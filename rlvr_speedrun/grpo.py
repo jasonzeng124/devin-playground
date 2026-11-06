@@ -8,6 +8,7 @@ import math
 import os
 import platform
 import random
+import re
 import shutil
 import subprocess
 import time
@@ -59,6 +60,8 @@ class GRPOConfig:
     kl_coef: float = 0.02
     # partial credit for well-formed wrong answers, up to this weight (see `partial_credit`); never searches for a solution
     shaping: float = 0.0
+    # credit, up to this weight, for legal and correct Countdown moves written in <think> (see `process_credit`; PLAN D4)
+    process_reward: float = 0.0
     # after "<answer>", sample only well-formed uses of the puzzle's numbers and operators (rlvr_speedrun/constrained.py; vLLM backend)
     constrain_answer: bool = False
     think_budget: int = 0  # with constrain_answer: force "<answer>" after this many free tokens (0 = never)
@@ -422,6 +425,9 @@ def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.d
         values = [config.malformed_reward_solved if r.malformed and s else v for v, r, s in zip(values, results, solved)]
     if config.shaping:
         values = [v + config.shaping * partial_credit(r, p) for v, r, p in zip(values, results, expanded)]
+    if config.process_reward:
+        assert config.process_reward + 0.99 * config.shaping < 1.0, "a wrong answer must stay below a correct one"
+        values = [v + config.process_reward * process_credit(t, p) for v, t, p in zip(values, completions, expanded)]
     rewards = torch.tensor(values, dtype=torch.float32, device=device)
     prompt_attention = encoded["attention_mask"].repeat_interleave(config.group_size, dim=0)
     completion = generated[:, prompt_width:]
@@ -664,7 +670,7 @@ def grpo_step(
         torch.stack(
             [
                 all_rewards.sum(),
-                (all_rewards == 1.0).float().sum(),
+                (all_rewards >= 1.0).float().sum(),  # correct answers can add process credit
                 malformed.float().sum(),
                 torch.tensor(float(all_rewards.numel()), device=device),
                 torch.tensor(float(informative_groups), device=device),
@@ -692,6 +698,8 @@ def grpo_step(
         "rewards": rewards.detach().cpu().tolist(),
         "puzzles": expanded,
     }
+    if config.process_reward:
+        info["process_credit"] = sum(process_credit(t, p) for t, p in zip(completions, expanded)) / len(completions)
     if grad_norm is not None:
         info["grad_norm"] = grad_norm.item()  # before clipping; the same on every rank (grads are all-reduced)
     if mismatch is not None:
@@ -824,6 +832,33 @@ def partial_credit(result, puzzle) -> float:
         return 0.0
     common = sum((Counter(leaves) & Counter(puzzle.numbers)).values())
     return 0.25 * common / max(len(leaves), len(puzzle.numbers))
+
+
+_STEP_RE = re.compile(r"(\d+)\s*([-+*/])\s*(\d+)\s*=\s*(?:<<[^>]*>>\s*)?(-?\d+)")
+
+
+def process_credit(text: str, puzzle) -> float:
+    """In [0, 1]: the share of the puzzle's n - 1 combining steps that the <think> text writes as legal
+    moves. A step `a op b = c` (GSM8K's `a op b = <<a op b = c>>c` also counts once) is legal when a and b
+    are still in the pool (the puzzle's numbers, then earlier results, each used once), op is allowed and
+    c is exact; c joins the pool. The first illegal step ends the chain, so restating or inventing
+    numbers earns nothing. It checks the model's own arithmetic and never searches for a solution."""
+    think = text.split("</think>")[0].split("<answer>")[0]
+    think = think.replace("×", "*").replace("÷", "/").replace("−", "-")
+    pool = Counter(puzzle.numbers)
+    legal = 0
+    for a, op, b, c in _STEP_RE.findall(think):
+        a, b, c = int(a), int(b), int(c)
+        need = Counter([a, b])
+        if op not in puzzle.ops or need & pool != need:
+            break
+        exact = {"+": a + b, "-": a - b, "*": a * b, "/": a // b if b and a % b == 0 else None}[op]
+        if exact != c:
+            break
+        pool -= need
+        pool[c] += 1
+        legal += 1
+    return min(1.0, legal / max(1, len(puzzle.numbers) - 1))
 
 
 _RESUME_LOGS = ("train_log.jsonl", "eval_log.jsonl", "samples.jsonl")

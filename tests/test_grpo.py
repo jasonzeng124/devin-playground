@@ -496,6 +496,20 @@ def test_partial_credit_rewards_right_numbers_and_closeness_only_for_wrong_answe
     assert credit("<answer>8 * 3 + 7</answer>") < 0.5 <= credit("<answer>8 + 3 + 7 + 2</answer>")  # using every number pays most
 
 
+def test_process_credit_counts_legal_chained_moves_in_think_only():
+    puzzle = Puzzle((3, 7, 8, 2), 26)
+    credit = lambda text: grpo.process_credit(text, puzzle)  # noqa: E731
+    assert credit("<answer>8 * 2 + 7 + 3</answer>") == 0.0  # no steps written
+    assert credit("8*2=16. 16+7=23. 23+3=26.</think><answer>8*2+7+3</answer>") == 1.0
+    assert credit("8*2=<<8*2=16>>16 then 16+7=<<16+7=23>>23</think>") == 2 / 3  # GSM8K annotations count once
+    assert credit("14/2=<<14/2=7>>7.</think>") == 0.0  # 14 is not a puzzle number
+    assert credit("8*2=17. 16+7=23.</think>") == 0.0  # wrong arithmetic ends the chain
+    assert credit("8*2=16. 8+3=11.</think>") == 1 / 3  # the 8 is used up
+    assert credit("3-7=-4. 8/3=2.</think>") == 1 / 3  # inexact division is illegal
+    assert credit("</think><answer>x</answer> 8*2=16 16+7=23 23+3=26") == 0.0  # only <think> counts
+    assert grpo.process_credit("3+8=11.", Puzzle((3, 7, 8, 2), 26, ops="-*")) == 0.0  # operator not allowed
+
+
 def test_cov_clip_stops_gradient_only_through_the_highest_covariance_tokens():
     lp = torch.tensor([-0.1, -3.0, -0.2, -2.0], requires_grad=True)
     adv = torch.tensor([1.0, 1.0, -1.0, -1.0])
