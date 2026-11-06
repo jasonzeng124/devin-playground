@@ -4694,3 +4694,11 @@ final dev at step 17,000, the arm's full budget. I corrected the labels in place
 
 That is +0.001 against r30 (standard error 0.012), and -0.008 against the box control on seeds
 0, 1, 3, 4. The tie holds, and at matched steps there's no lead left to explain. r46 stays closed.
+
+## 2026-11-06 13:25 EST: A 002 seed 2 finishes; replacement H200 worker
+
+- Record A 002 seed 2 (worker 27487788, node4301) ended `ok`: test ladder score 0.2809, within
+  budget (`clock.json`: 17,448 s of 18,000 s, NVIDIA H200).
+- 27487788 then exited, with less than 380 minutes left. Its replacement is 28117249, with the same
+  settings (mit_preemptable H200, `--time-min=06:30:00`, RESERVE_MIN 380, queue `h200`). The `h200`
+  queue holds A 002 seed 4, then D 005 seeds 0-4. GPU jobs: 6.

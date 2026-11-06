@@ -72,7 +72,7 @@ more syncs; the 11-18 and 11-28 blocks stay off. Results (LOG 11-06 05:20):
 - Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; exited 10-31 03:36 after r24 seed 0, less than 240 min left). 27432002 (10-31 03:54-06:10) ran r24 seed 1 and exited the same way. 27441594 (10-31 06:48 to 11-01 05:45) kept resuming r22 seed 3 from its only save (step 224) and was cancelled. 27534692 (submitted 11-01 05:45 EST) uses the same settings plus `RESUME_EVERY_S=1800`.
 - Track D B200 worker 27483976 (submitted 10-31 18:50, replaces 27460856, whose eight preemptions on node5800-c1 each came before the first hourly save, LOG 18:50): `packed_worker.sbatch` with PER_GPU=3, RESERVE_MIN 180, `--time-min=08:00:00`, `RESUME_EVERY_S=600`, queue `screens_d_b200` (r25); running again since 11-01 00:17, resumed from the saves.
 - Track D B200 worker 27987194 (submitted 11-05 10:44 EST, PER_GPU=2, otherwise as 27483976): running r38 seeds 3-4.
-- Cap (12:40 EST 11-06): H200 27487788 and 27530015 running; H200 26927306 and 27814763 and B200 27598456 and 27987194 pending = 6.
+- Cap (13:25 EST 11-06): H200 27530015 running; H200 26927306, 27814763 and 28117249 (replaces 27487788, which exited after A 002 seed 2, test 0.2809) and B200 27598456 and 27987194 pending = 6.
 - Old cap (11:25 EST 11-05): B200 27987194 running + B200 27598456 (preempted 10:30, pending) + 4 pending H200 (26927306, 27487788, 27530015, 27814763) = 6. 27800892 exited 09:23 (queue empty).
   I may update or cancel my own pending jobs without asking.
 
