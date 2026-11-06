@@ -4420,7 +4420,7 @@ r40/r47/r48 against the control by seed pairs, not only by the mean.
 - If pt80 holds up on 5 seeds, the next step is an H200 timed screen of the full 6 h split (80 min
   pretraining, then RL to the time limit). That's what would gate a D record.
 
-## 2026-11-05 22:35 EST: box: seed 4 closes most of r40's lead over the control (track A)
+## 2026-11-05 22:35 EST: box: seed 4 halves r40's lead over the control (track A)
 
 | seed | r39 control | r40 entropy floor | r40 - r39 |
 |---|---|---|---|
@@ -4429,8 +4429,10 @@ r40/r47/r48 against the control by seed pairs, not only by the mean.
 | 2 | 0.395 | 0.385 | -0.010 |
 | 3 | 0.253 | 0.378 | +0.125 |
 | 4 | 0.377 | 0.342 | -0.035 |
-| mean | 0.378 | 0.372 | -0.006 |
+| mean | 0.358 | 0.372 | +0.014 |
 
+- (Corrected 23:05 at the maintainer's request, INBOX 11-05 23:00: the control's mean was first
+  written as 0.378 and the difference as -0.006. Computed by script, they are 0.358 and +0.014.)
 - On four seeds of five, the entropy floor is a little below the control. On seed 3 it avoided the
   control's late drop (0.352 at step 350 down to 0.253 at step 400). So it doesn't raise the
   typical run, but it may guard against the late collapses that cost A 005 its seeds 3 and 4 on
@@ -4441,3 +4443,14 @@ r40/r47/r48 against the control by seed pairs, not only by the mean.
 - B200 worker 27987194 was preempted again at about 22:20 and is pending. Its in-hand items resume
   from saved state when it restarts. The pt80 seed 2 pretraining reruns from the start if that was
   one of them.
+
+## 2026-11-05 23:05 EST: correction to 22:35; r39 control seed 5 at 0.328
+
+- The maintainer pointed out an arithmetic error in the 22:35 table (INBOX 11-05 23:00). The r39
+  control's mean over seeds 0-4 is 0.358, not 0.378, so r40 leads by +0.014, not -0.006. I fixed
+  the table and marked the fix there. From now on I compute table means with a script.
+- That changes the reading: r40 is still ahead on the mean, and all of the lead comes from the
+  control's seed 3 drop. On the other four seeds r40 is 0.003-0.035 lower.
+- **Control seed 5: 0.328** at step 400 (0.308 at step 350). That's a weaker control seed again,
+  though not a drop like seed 3's. Over seeds 0-5 the control's mean is 0.353 (script). r40 seed 5
+  is at step 389, and seeds 6-7 of both arms are running. The decision waits for those.
