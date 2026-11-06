@@ -4516,3 +4516,37 @@ Track D, box, dev ladder (15k-step cap):
   pretrained seeds, and only 0-4 exist, so r36 seed 5 failed after 6 s, and I took r44 seed 5 off
   `box_d` before it started. Neither left any files. GPU 7's second slot stays empty, so r44
   seed 0 runs alone there and is more likely to finish before the block ends.
+
+## 2026-11-06 02:15 EST: r40 seed 7 beats its control by 0.041; r43 (temperature 1.4) finishes three more seeds
+
+**Track A box (dev, step 400).** r40 adds an entropy floor to A 005; r39 is the plain A 005 control.
+
+| seed | r39 control | r40 entropy floor | r40 minus r39 |
+|---|---|---|---|
+| 7 | 0.352 | 0.393 | +0.041 |
+| mean of seeds 0-7 | 0.358 | 0.375 | +0.017 |
+| mean of seeds 0-7 without seed 3 | 0.373 | 0.374 | +0.001 |
+
+r40 now wins 3 of 8 seeds. Most of its lead still comes from r39's seed 3 drop (0.253); without
+that seed the two arms tie. Seeds 8-9 of both arms are running and should all be done by about
+05:30. I'll decide on an H200 screen of r40 after those.
+
+**Track D box.** r43 runs D 004's RL with sampling temperature 1.4; r36 uses 1.2.
+
+| seed | r43 (1.4) | r36 (1.2) | r44 control |
+|---|---|---|---|
+| 0 | 0.197 | 0.203 | running |
+| 1 | 0.232 | 0.195 | running |
+| 2 | 0.228 | 0.207 | running |
+| 3 | 0.228 | 0.227 | 0.227 |
+| 4 | running | 0.240 | 0.203 |
+| mean of seeds 0-3 | 0.221 | 0.208 | - |
+
+On the seeds that both have finished, r43 is ahead of r36 by 0.013 on average (seed 0: -0.006,
+seed 1: +0.037, seed 2: +0.021, seed 3: +0.001). On the one seed it shares with the control
+(seed 3), r43 ties it (+0.001). Seed 4 is at step 12.2k of 15k.
+
+- One box GPU is idle, and so are two half slots. I'm leaving them empty. The D arms on the box
+  start from D 004's pretrained seeds, and only seeds 0-4 exist; each of those seeds is either
+  finished or running for every open arm. A new arm would also be a new decision. It couldn't
+  finish in the four hours left, so it would only add resumes on Engaging.
