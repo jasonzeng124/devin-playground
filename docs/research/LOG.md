@@ -4419,3 +4419,25 @@ r40/r47/r48 against the control by seed pairs, not only by the mean.
 - pt150 seed 0 is below r30. Seed 1 is still running on the box (step about 6,300 of 12,500).
 - If pt80 holds up on 5 seeds, the next step is an H200 timed screen of the full 6 h split (80 min
   pretraining, then RL to the time limit). That's what would gate a D record.
+
+## 2026-11-05 22:35 EST: box: seed 4 closes most of r40's lead over the control (track A)
+
+| seed | r39 control | r40 entropy floor | r40 - r39 |
+|---|---|---|---|
+| 0 | 0.380 | 0.375 | -0.005 |
+| 1 | 0.383 | 0.380 | -0.003 |
+| 2 | 0.395 | 0.385 | -0.010 |
+| 3 | 0.253 | 0.378 | +0.125 |
+| 4 | 0.377 | 0.342 | -0.035 |
+| mean | 0.378 | 0.372 | -0.006 |
+
+- On four seeds of five, the entropy floor is a little below the control. On seed 3 it avoided the
+  control's late drop (0.352 at step 350 down to 0.253 at step 400). So it doesn't raise the
+  typical run, but it may guard against the late collapses that cost A 005 its seeds 3 and 4 on
+  test. Seeds 5-7 of both arms are running on the box and should tell whether that holds. If the
+  control drops again and r40 doesn't, an H200 3-seed screen of r40 is the next step. If not, r40 is
+  null.
+- r40 seed 4 rose slowly to 0.342 at step 400 (0.305 at step 250). The control's seed 4 got to 0.377.
+- B200 worker 27987194 was preempted again at about 22:20 and is pending. Its in-hand items resume
+  from saved state when it restarts. The pt80 seed 2 pretraining reruns from the start if that was
+  one of them.
