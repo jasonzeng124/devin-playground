@@ -4738,3 +4738,22 @@ That is +0.001 against r30 (standard error 0.012), and -0.008 against the box co
   0.1677, 0.1572). Seed 0 alone is above every D 004 seed; seeds 1-4 decide.
 - The same worker started D 005 seed 1 at 02:34, with a 10 s warm-up. A 002 seed 1 is running on
   27814763. GPU jobs: 6 (2 running, 4 pending).
+
+## 2026-11-07 05:15 EST: A 002 seed 1 finishes (test 0.215); D 005 seed 2 starts
+
+- Record A 002 seed 1 (worker 27814763, node4802) ended `ok` at 05:00. It was within budget: 17,554 of
+  18,000 s. The warm-up took 52 s. The two earlier partial runs are in `extra/interrupted_1_1` and `_1_2`.
+- A 002 so far (test is the test ladder score, dev the final dev score, tokens the mean test output length):
+
+  | Seed | Test | Dev | Tokens |
+  |---|---|---|---|
+  | 0 | 0.2518 | 0.243 | 117 |
+  | 1 | 0.2149 | 0.210 | 190 |
+  | 2 | 0.2809 | 0.265 | 64 |
+  | 3 | 0.2123 | 0.183 | 271 |
+  | Mean of 4 | 0.2400 | 0.225 | |
+
+  The holder A 004 has a test mean of 0.2671. Seed 4 can't lift A 002 above that mean: it would need a test
+  score of 0.375 or more, above every A 002 seed so far. Seed 4 still runs (every seed counts).
+- The same worker started D 005 seed 2 at 05:00, with a 13 s warm-up. D 005 seed 1 is running on 28133807.
+  The `h200` queue holds D 005 seeds 3-4. GPU jobs: 6 (2 running, 4 pending).
