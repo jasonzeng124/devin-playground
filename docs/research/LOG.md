@@ -4720,3 +4720,11 @@ That is +0.001 against r30 (standard error 0.012), and -0.008 against the box co
 - Worker 27530015 exited with less than 380 min left; it is replaced by 28133807 (same submit line).
   Seed 1 is still claimed by pending 27814763, and the h200 queue holds seed 4, then D 005 seeds 0-4.
   GPU jobs: 6.
+
+## 2026-11-06 21:20 EST: A 002 seed 4 preempted; D 005 seed 0 starts
+
+- Record A 002 seed 4 (worker 28117249, node4800) started at 19:30, with a 64 s warm-up. It was preempted
+  after about an hour and is pending again. The worker keeps its claim on seed 4, so the same seed reruns
+  when the job restarts and the partial run goes to `extra/`, as for seeds 0 and 1.
+- Record D 005 seed 0 started on worker 28133807 (node4300) at 20:39, with a 53 s warm-up.
+- GPU jobs: 6 (1 running, 5 pending).
