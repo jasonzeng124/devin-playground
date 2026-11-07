@@ -4775,3 +4775,29 @@ That is +0.001 against r30 (standard error 0.012), and -0.008 against the box co
   05:00); seed 4 is the last item in `h200`. A 002 seed 4 is still claimed by pending 28117249.
 - B200 workers 27598456 and 27987194 are pending on unavailable nodes (`ReqNodeNotAvail`); no maintenance
   notice in the motd. GPU jobs: 6 (2 running, 4 pending).
+
+## 2026-11-07 11:15 EST: D 005 seed 2 finishes (test 0.218); A 002 seed 4 restarts; r49 moves to H200
+
+- Record D 005 seed 2 (worker 27814763, node4802) ended `ok` at 10:51. It was within budget: 20,875 of
+  21,600 s (pretraining 6,728 s). The warm-up took 13 s. Test ladder score 0.2183, final dev score 0.210,
+  mean test output length 27 tokens.
+
+  | Seed | Test | Dev |
+  |---|---|---|
+  | 0 | 0.2150 | 0.193 |
+  | 1 | 0.1711 | 0.187 |
+  | 2 | 0.2183 | 0.210 |
+  | Mean of 3 | 0.2015 | 0.197 |
+
+  D 004 (holder) has a test mean of 0.1553. The same worker started D 005 seed 4 at 10:51 (6 s warm-up);
+  seed 3 is running on 28133807 since 08:25.
+- Worker 28117249 restarted on node4803 at 10:27 and reran A 002 seed 4 (46 s warm-up). The partial run
+  from 11-06 19:30 is in `extra/interrupted_4_1`.
+- **r49 moves from `screens_d_b200` to `h200`.** The B200 workers 27598456 and 27987194 have been pending
+  on `ReqNodeNotAvail` since about 08:00, and the `h200` queue was empty after D 005 seed 4. r49 uses
+  `budget_steps` 15000, which stops a run at step 15,000 and reads the lr schedule by step, so its
+  step-15,000 result doesn't depend on the GPU type and stays comparable with r32 and r30. On H200 it
+  should take about 4.7 h per seed (r33 ran about 12,400 steps in 14,040 s there). The H200 workers
+  take seeds 0-4 as they free up, from about 14:25. The B200 workers keep their claimed items
+  (r38 seeds 3-4, r44 seed 2).
+- GPU jobs: 6 (3 H200 running; 26927306 and 2 B200 pending).
