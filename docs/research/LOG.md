@@ -4801,3 +4801,27 @@ That is +0.001 against r30 (standard error 0.012), and -0.008 against the box co
   take seeds 0-4 as they free up, from about 14:25. The B200 workers keep their claimed items
   (r38 seeds 3-4, r44 seed 2).
 - GPU jobs: 6 (3 H200 running; 26927306 and 2 B200 pending).
+
+## 2026-11-07 15:10 EST: D 005 seed 3 finishes (test 0.252); A 002 seed 4 preempted again
+
+- Record D 005 seed 3 (worker 28133807, node4300) ended `ok` at 14:17. It was within budget: 20,874 of
+  21,600 s (pretraining 6,729 s). The warm-up took 6 s. Test ladder score 0.2516, final dev score 0.217,
+  mean test output length 29 tokens.
+
+  | Seed | Test | Dev |
+  |---|---|---|
+  | 0 | 0.2150 | 0.193 |
+  | 1 | 0.1711 | 0.187 |
+  | 2 | 0.2183 | 0.210 |
+  | 3 | 0.2516 | 0.217 |
+  | Mean of 4 | 0.2140 | 0.202 |
+
+  All four dev scores are above D 004's dev mean (0.159), and none collapsed. Seed 4 (running on
+  27814763 since 10:51, due about 16:50) needs a test score of 0.089 or more for the 5-seed mean to
+  reach the 0.189 promotion line.
+- Worker 28133807 then exited with less than 380 min left. I submitted a replacement H200 worker,
+  28232037, which will take r49 from the `h200` queue.
+- A 002 seed 4 was preempted again about 12:16 (its stdout stops at 12:15:58). Worker 28117249 is
+  pending on Priority; when it restarts, the partial run should move to `extra/interrupted_4_2` and the
+  same seed reruns.
+- GPU jobs: 6 (27814763 running; 28117249, 28232037, 26927306 and B200 27598456, 27987194 pending).
