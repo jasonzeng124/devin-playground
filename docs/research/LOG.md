@@ -4728,3 +4728,13 @@ That is +0.001 against r30 (standard error 0.012), and -0.008 against the box co
   when the job restarts and the partial run goes to `extra/`, as for seeds 0 and 1.
 - Record D 005 seed 0 started on worker 28133807 (node4300) at 20:39, with a 53 s warm-up.
 - GPU jobs: 6 (1 running, 5 pending).
+
+## 2026-11-07 03:15 EST: D 005 seed 0 finishes (test 0.215)
+
+- Record D 005 seed 0 (worker 28133807, node4300) ended `ok`. It was within budget: 20,915 of 21,600 s
+  (pretraining 6,731 s, then GRPO). The warm-up took 53 s. Its test ladder score is 0.2150 and its final
+  dev score 0.193, with no malformed outputs. Mean output length on the test set is 25 tokens.
+- For comparison, the holder D 004 has a test mean of 0.1553 over 5 seeds (0.1832, 0.1296, 0.1384,
+  0.1677, 0.1572). Seed 0 alone is above every D 004 seed; seeds 1-4 decide.
+- The same worker started D 005 seed 1 at 02:34, with a 10 s warm-up. A 002 seed 1 is running on
+  27814763. GPU jobs: 6 (2 running, 4 pending).
