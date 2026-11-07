@@ -4754,6 +4754,6 @@ That is +0.001 against r30 (standard error 0.012), and -0.008 against the box co
   | Mean of 4 | 0.2400 | 0.225 | |
 
   The holder A 004 has a test mean of 0.2671. Seed 4 can't lift A 002 above that mean: it would need a test
-  score of 0.375 or more, above every A 002 seed so far. Seed 4 still runs (every seed counts).
+  score of 0.376 or more, above every A 002 seed so far. Seed 4 still runs (every seed counts).
 - The same worker started D 005 seed 2 at 05:00, with a 13 s warm-up. D 005 seed 1 is running on 28133807.
   The `h200` queue holds D 005 seeds 3-4. GPU jobs: 6 (2 running, 4 pending).
