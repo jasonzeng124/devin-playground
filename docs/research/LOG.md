@@ -4825,3 +4825,33 @@ That is +0.001 against r30 (standard error 0.012), and -0.008 against the box co
   pending on Priority; when it restarts, the partial run should move to `extra/interrupted_4_2` and the
   same seed reruns.
 - GPU jobs: 6 (27814763 running; 28117249, 28232037, 26927306 and B200 27598456, 27987194 pending).
+
+## 2026-11-07 17:05 EST: D 005 seed 4 finishes (test 0.219); D 005 is the new track D record (0.2150)
+
+- Record D 005 seed 4 (worker 27814763, node4802) ended `ok` at 16:43. It was within budget: 20,883 of
+  21,600 s (pretraining 6,729 s). The warm-up took 6 s. Test ladder score 0.2191, final dev score 0.200,
+  mean test output length 25 tokens.
+
+  | Seed | Test | pass@16 | Dev | Total s |
+  |---|---|---|---|---|
+  | 0 | 0.2150 | 0.2700 | 0.193 | 20,915 |
+  | 1 | 0.1711 | 0.2408 | 0.187 | 20,876 |
+  | 2 | 0.2183 | 0.2892 | 0.210 | 20,875 |
+  | 3 | 0.2516 | 0.3125 | 0.217 | 20,874 |
+  | 4 | 0.2191 | 0.2742 | 0.200 | 20,883 |
+  | Mean | 0.2150 (sd 0.0287) | 0.2773 | 0.201 | |
+
+- I wrote the README. `validate_record_v3.py --compare-to records/v3/track_d/004_dm_math_fp32_h200_warm`
+  passes: 0.2150 against 0.1552, Welch t = 3.72, df = 7.4, one-sided p = 0.0034, "new record".
+  **D 005 is the track D (H200) holder**, +0.060 over D 004. The leaderboard in `README.md` is
+  updated. No attempt was preempted, so there is no `extra/`.
+- What it shows: on top of D 004's pretraining, doubling the RL lr to 6e-6 and giving well-formed
+  wrong answers partial credit 0.5 raised the test score by about 2 sd of D 004's seeds. The gating
+  screen r33 predicted it: dev mean 0.201 there, 0.201 here.
+- New D line: D 005's dev mean 0.201 + 0.03 = **0.231** (STATUS, PLAN). In the 5-seed form, at least
+  4 of 5 seeds must also be above 0.201.
+- Next for track D: r49 (D 005's RL plus 300 steps of GSM8K SFT and process reward 0.25, step-capped at
+  15,000) is first in the `h200` queue. Its comparators are r32 (the same without process reward) and
+  r30, at step 15,000. Ideas from PLAN still untried for D: D5 (model size).
+- Worker 27814763 then exited with less than 380 min left. I submitted a replacement H200 worker,
+  28239994. GPU jobs: 6, all pending (3 H200 workers, 26927306, 2 B200 on ReqNodeNotAvail).

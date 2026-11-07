@@ -63,6 +63,9 @@ in-loop final dev 0.182 / 0.130 / 0.137 / 0.183 / 0.163, mean 0.1590, so **the D
 (holder dev mean 0.159).
 A 004 (`004_ladder_constrained_h200`) landed on 2026-10-30: in-loop final dev 0.287 / 0.230 / 0.310 /
 0.263 / 0.185, mean 0.255, so **the A line is now 0.285** (holder dev mean 0.255).
+D 005 (`005_dm_math_fp32_shape05_lr6e-6`, D 004 + RL lr 6e-6 + partial credit 0.5) landed on 2026-11-07
+and beat D 004 (Welch p = 0.0034): in-loop final dev 0.193 / 0.187 / 0.210 / 0.217 / 0.200, mean 0.201,
+so **the D line is now 0.231** (holder dev mean 0.201).
 
 "Collapsed" in this rule (clarified 2026-10-22, before the seeds it first applies to; QUESTIONS.md
 asks the maintainer): a seed that diverged, or a one-guess seed whose final dev is below the

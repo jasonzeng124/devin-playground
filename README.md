@@ -46,7 +46,11 @@ one seed collapsed into single guesses and still scored 0.183 (see its README).
 
 | # | record | test ladder score (mean ± sd) | N | sampler | clock (measured) | author |
 |---|---|---:|--:|---|---|---|
-| 004 | **[004_dm_math_fp32_h200_warm](records/v3/track_d/004_dm_math_fp32_h200_warm)** (holder) | **0.1552 ± 0.0217** | 5 | constrained | 112 min pretraining + 234 min GRPO (347-350 min in all) | Claude / @jasonzeng124 |
+| 005 | **[005_dm_math_fp32_shape05_lr6e-6](records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6)** (holder) | **0.2150 ± 0.0287** | 5 | constrained | 112 min pretraining + 234 min GRPO (348-349 min in all) | Claude / @jasonzeng124 |
+| 004 | [004_dm_math_fp32_h200_warm](records/v3/track_d/004_dm_math_fp32_h200_warm) | 0.1552 ± 0.0217 | 5 | constrained | 112 min pretraining + 234 min GRPO (347-350 min in all) | Claude / @jasonzeng124 |
+
+005 is 004 with RL at lr 6e-6 and partial credit 0.5 for well-formed wrong answers. It beats 004 by
++0.060 (one-sided Welch p = 0.0034).
 
 004 reruns D 002's config unchanged on the H200, after the untimed warm-up (v3.2). The first H200
 rerun, [003](records/v3/track_d/003_dm_math_fp32_h200), failed: two seeds ran over the 6-h budget.
