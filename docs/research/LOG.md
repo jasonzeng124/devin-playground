@@ -4757,3 +4757,21 @@ That is +0.001 against r30 (standard error 0.012), and -0.008 against the box co
   score of 0.376 or more, above every A 002 seed so far. Seed 4 still runs (every seed counts).
 - The same worker started D 005 seed 2 at 05:00, with a 13 s warm-up. D 005 seed 1 is running on 28133807.
   The `h200` queue holds D 005 seeds 3-4. GPU jobs: 6 (2 running, 4 pending).
+
+## 2026-11-07 09:15 EST: D 005 seed 1 finishes (test 0.171); seed 3 starts
+
+- Record D 005 seed 1 (worker 28133807, node4300) ended `ok` at 08:25. It was within budget: 20,876 of
+  21,600 s (pretraining 6,732 s). The warm-up took 10 s. Test ladder score 0.1711, final dev score 0.187,
+  mean test output length 24 tokens.
+- D 005 so far, against the holder D 004 (test mean 0.1553):
+
+  | Seed | Test | Dev |
+  |---|---|---|
+  | 0 | 0.2150 | 0.193 |
+  | 1 | 0.1711 | 0.187 |
+  | Mean of 2 | 0.1931 | 0.190 |
+
+- The same worker started D 005 seed 3 at 08:25, with a 6 s warm-up. Seed 2 is running on 27814763 (since
+  05:00); seed 4 is the last item in `h200`. A 002 seed 4 is still claimed by pending 28117249.
+- B200 workers 27598456 and 27987194 are pending on unavailable nodes (`ReqNodeNotAvail`); no maintenance
+  notice in the motd. GPU jobs: 6 (2 running, 4 pending).

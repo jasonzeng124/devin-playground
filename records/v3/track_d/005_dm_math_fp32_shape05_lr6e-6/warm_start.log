@@ -1,0 +1,4 @@
+2026-11-07T01:40:32Z worker 28133807: warm start: 53 s on node4300 before records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6 0
+2026-11-07T07:34:30Z worker 28133807: warm start: 10 s on node4300 before records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6 1
+2026-11-07T10:00:17Z worker 27814763: warm start: 13 s on node4802 before records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6 2
+2026-11-07T13:25:48Z worker 28133807: warm start: 6 s on node4300 before records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6 3
