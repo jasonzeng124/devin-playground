@@ -4855,3 +4855,16 @@ That is +0.001 against r30 (standard error 0.012), and -0.008 against the box co
   r30, at step 15,000. Ideas from PLAN still untried for D: D5 (model size).
 - Worker 27814763 then exited with less than 380 min left. I submitted a replacement H200 worker,
   28239994. GPU jobs: 6, all pending (3 H200 workers, 26927306, 2 B200 on ReqNodeNotAvail).
+
+## 2026-11-07 23:05 EST: r49 starts on H200; A 002 seed 4 preempted a third time
+
+- A 002 seed 4 (worker 28117249) restarted at 19:43 EST on node4301. It was preempted within a minute.
+  The earlier partial run moved to `extra/interrupted_4_2` as it should. The new partial (under a
+  minute) is in `seeds/4/` and will move to `extra/interrupted_4_3` when the seed reruns.
+  The job is pending again on preemptable (Resources) and still holds the claim.
+- r49 seeds 0 and 1 started at about 22:10 EST on node4602 (workers 28232037 and 28239994).
+  The GSM8K SFT finished and RL is running. Seed 0 at step 1130 logs `process_credit` 0.81 and
+  mean reward 0.64, so the process-reward term is active. The comparison with r32 and r30 waits
+  for step 15,000 (about 4.7 h per seed). The `h200` queue holds r49 seeds 2-4, about 9 h of work
+  for 2 workers.
+- GPU jobs: 6 (r49 running on 2 H200; pending: 28117249, 26927306, and 2 B200 on ReqNodeNotAvail).
