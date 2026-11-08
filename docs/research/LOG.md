@@ -4950,3 +4950,21 @@ track A seed on the H200 board. A 002's five seeds:
   Two seeds: ahead of r32 on both, but seed 0 adds nothing. No call until seeds 2-4 land (seed 2 is at
   step 6,928 on node4300).
 - Worker 28232037 exited (less than 380 min left). H200 worker 28334442 replaces it. GPU jobs: 6.
+
+## 2026-11-08 18:05 EST: r49 seeds 2-3 land at 0.205 and 0.233; r49 is level with r32 and r30 so far
+
+- r49 seed 2 (worker 28312159, node4300) dev 0.205 and seed 3 (worker 28316532, node4601) dev 0.233, both at
+  step 15,000.
+
+  | seed | r49 | r32 | r30 | r49 - r32 | r49 - r30 |
+  |---|---|---|---|---|---|
+  | 0 | 0.190 | 0.187 | 0.192 | +0.003 | -0.002 |
+  | 1 | 0.217 | 0.203 | 0.180 | +0.014 | +0.037 |
+  | 2 | 0.205 | 0.220 | 0.220 | -0.015 | -0.015 |
+  | 3 | 0.233 | - | 0.233 | - | +0.000 |
+
+  Means over shared seeds: r49 0.204 vs r32 0.203 (seeds 0-2); r49 0.211 vs r30 0.206 (seeds 0-3).
+  GSM8K SFT plus process reward 0.25 does not move the step-15,000 dev; the seed-1 lead was noise.
+  Seed 4 (started 17:37 on node4601) finishes the arm; unless it is far above 0.193 (r30 seed 4), r49 closes
+  as no gain.
+- r50 w640 seed 0 started 17:41 on node4300 (worker 28312159). Both workers kept going (2-day limit).
