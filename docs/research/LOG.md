@@ -4877,3 +4877,11 @@ That is +0.001 against r30 (standard error 0.012), and -0.008 against the box co
   again and holds the claim.
 - I am keeping it on preemptable. `mit_normal_gpu` (6 h, enough for a ~5 h seed) is no real
   alternative: 26927306 has been pending there on Priority since 10-31.
+
+## 2026-11-08 02:56 EST: r49 seeds 0 and 1 preempted; A 002 seed 4 running again
+
+- node4602 was taken back at about 02:00 EST. r49 seed 1 (worker 28239994, step 6099 of 15,000) was
+  preempted at 01:57 and seed 0 (worker 28232037, step 5603) at 02:04. Both workers are pending and
+  keep their claims, so the seeds rerun from the start when the workers get a GPU.
+- A 002 seed 4 (worker 28117249) restarted at 01:57 EST on node4301, warm-up 77 s. The 80-min
+  partial moved to `extra/interrupted_4_4`. If it is not preempted it finishes at about 07:00 EST.
