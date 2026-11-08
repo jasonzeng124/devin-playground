@@ -4935,3 +4935,18 @@ track A seed on the H200 board. A 002's five seeds:
   Seeds 0-2 of both arms are in `h200` after r49 seeds 3-4, about 6 h per item.
 - GPU jobs: 6 (2 H200 running r49 seeds 0 and 2; pending: H200 28316532, 26927306, and 2 B200 on
   ReqNodeNotAvail). The `h200` queue holds about 36 h of work.
+
+## 2026-11-08 12:25 EST: r49 seed 0 at step 15,000 is 0.190, level with its comparators
+
+- r49 seed 0 (worker 28232037, node5000, restarted after a preemption) finished: dev 0.190 at step 15,000,
+  against r32 seed 0 0.187 (+0.003) and r30 seed 0 0.192 (-0.002).
+
+  | seed | r49 | r32 | r30 | r49 - r32 | r49 - r30 |
+  |---|---|---|---|---|---|
+  | 0 | 0.190 | 0.187 | 0.192 | +0.003 | -0.002 |
+  | 1 | 0.217 | 0.203 | 0.180 | +0.014 | +0.037 |
+  | mean of 2 | 0.203 | 0.195 | 0.186 | | |
+
+  Two seeds: ahead of r32 on both, but seed 0 adds nothing. No call until seeds 2-4 land (seed 2 is at
+  step 6,928 on node4300).
+- Worker 28232037 exited (less than 380 min left). H200 worker 28334442 replaces it. GPU jobs: 6.
