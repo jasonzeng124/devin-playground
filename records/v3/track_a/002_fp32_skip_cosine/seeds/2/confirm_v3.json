@@ -1,0 +1,25 @@
+{
+ "benchmark_version": 3,
+ "model": "/home/zjason/orcd/pool/rlvr-ckpts/records/v3/track_a/002_fp32_skip_cosine/seeds/2/final",
+ "test_set": "data/ladder_v3_test.jsonl",
+ "n_puzzles": 2400,
+ "samples_per_puzzle": 16,
+ "sampler": {
+  "temperature": 0.5,
+  "constrain": true,
+  "think_budget": 0,
+  "max_new_tokens": 1024
+ },
+ "ladder_score": 0.28091145833333336,
+ "pass@1_by_level": {
+  "L1": 0.83359375,
+  "L2": 0.255,
+  "L3": 0.17234375,
+  "L4": 0.0990625,
+  "L5": 0.039375,
+  "L6": 0.28609375
+ },
+ "pass@16": 0.30833333333333335,
+ "truncated": 0.0,
+ "mean_tokens": 64.100546875
+}

@@ -1,0 +1,5 @@
+Seed 4, attempt 1: started 2026-11-07T00:31:19Z on node4800 (worker 28117249, mit_preemptable,
+NVIDIA H200), after a 64 s warm start. Preempted at about 2026-11-07T01:22Z (stdout.log's last write), at
+step 1182 with 2,924 s of the budget used (17 %), before the final eval and the test ladder.
+An infrastructure interruption (preemption), so seed 4 is rerun under the same seed (RULES_v3, "Seeds
+and statistics"), and this attempt doesn't count. The rerun started 2026-11-07T15:28:01Z on node4803.

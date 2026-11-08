@@ -4885,3 +4885,30 @@ That is +0.001 against r30 (standard error 0.012), and -0.008 against the box co
   keep their claims, so the seeds rerun from the start when the workers get a GPU.
 - A 002 seed 4 (worker 28117249) restarted at 01:57 EST on node4301, warm-up 77 s. The 80-min
   partial moved to `extra/interrupted_4_4`. If it is not preempted it finishes at about 07:00 EST.
+
+## 2026-11-08 07:40 EST: A 002 lands at 0.2784 ± 0.0904, short of A 004 (Welch p = 0.41)
+
+Seed 4's fifth attempt finished at 07:10 EST on node4301 (77-s warm start). It scored 0.4320 on test, the best
+track A seed on the H200 board. A 002's five seeds:
+
+| seed | test ladder | in-loop final dev | pass@16 | mean tokens | within budget |
+|---|---|---|---|---|---|
+| 0 | 0.2518 | 0.243 | 0.28 | 117 | yes |
+| 1 | 0.2149 | 0.210 | 0.29 | 190 | yes |
+| 2 | 0.2809 | 0.265 | 0.31 | 64 | yes |
+| 3 | 0.2123 | 0.183 | 0.35 | 271 | yes |
+| 4 | 0.4320 | 0.417 | 0.58 | 509 | yes |
+
+- Mean of all five: 0.2784 ± 0.0904. `validate_record_v3.py` passes. Against A 004 (0.2671 ± 0.0565), the
+  one-sided Welch test gives t = 0.24, df 6.7, p = 0.41. Not significant, so **A 004 stays the track A (H200)
+  holder**. A 002 is a valid attempt that falls short; its README says so, and it is not on the leaderboard.
+- As in A 004 and A 005, answer length decides the seed. Seeds 0-3 shortened their answers (64-271 tokens) and
+  scored 0.21-0.28. Seed 4 kept 509-token answers and scored 0.43.
+- Seven preempted attempts are in `extra/` (seed 0 once, seed 1 twice, seed 4 four times), each with a `note.txt`.
+  All stopped before the test ladder.
+- Worker 28117249 exited (less than 380 min left). H200 worker 28312159 replaces it, reading `h200` (r49 seeds
+  2-4).
+- **A 003 is not started.** The INBOX hold lifts now that A 002 has landed, but A 003 was promoted on the H100
+  (dev 0.324), and a record now needs an H200 promotion screen (AGENT.md). A 005's screen was better (dev 0.397
+  at step 400) and its record still fell short (p = 0.072). A 003 shares the collapse that costs these recipes
+  their seeds, so its H200 GPU-hours go to track D instead. The maintainer can overrule this in INBOX.

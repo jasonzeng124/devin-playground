@@ -7,3 +7,6 @@
 2026-11-07T00:31:19Z worker 28117249: warm start: 64 s on node4800 before records/v3/track_a/002_fp32_skip_cosine 4
 2026-11-07T04:55:27Z worker 27814763: warm start: 52 s on node4802 before records/v3/track_a/002_fp32_skip_cosine 1
 2026-11-07T15:28:01Z worker 28117249: warm start: 46 s on node4803 before records/v3/track_a/002_fp32_skip_cosine 4
+2026-11-08T00:43:14Z worker 28117249: warm start: 9 s on node4301 before records/v3/track_a/002_fp32_skip_cosine 4
+2026-11-08T05:28:24Z worker 28117249: warm start: 14 s on node4602 before records/v3/track_a/002_fp32_skip_cosine 4
+2026-11-08T06:58:27Z worker 28117249: warm start: 77 s on node4301 before records/v3/track_a/002_fp32_skip_cosine 4
