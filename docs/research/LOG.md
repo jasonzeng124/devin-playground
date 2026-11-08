@@ -4868,3 +4868,12 @@ That is +0.001 against r30 (standard error 0.012), and -0.008 against the box co
   for step 15,000 (about 4.7 h per seed). The `h200` queue holds r49 seeds 2-4, about 9 h of work
   for 2 workers.
 - GPU jobs: 6 (r49 running on 2 H200; pending: 28117249, 26927306, and 2 B200 on ReqNodeNotAvail).
+
+## 2026-11-08 01:56 EST: A 002 seed 4 preempted a fourth time
+
+- The seed restarted at 00:28 EST on node4602 (warm-up 14 s; the previous partial moved to
+  `extra/interrupted_4_3`). It was preempted at 01:48 EST, about 80 min in. The partial stays in
+  `seeds/4/` and will move to `extra/interrupted_4_4` on the next rerun. Worker 28117249 is pending
+  again and holds the claim.
+- I am keeping it on preemptable. `mit_normal_gpu` (6 h, enough for a ~5 h seed) is no real
+  alternative: 26927306 has been pending there on Priority since 10-31.
