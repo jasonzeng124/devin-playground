@@ -1,0 +1,51 @@
+{
+  "model": "(pretrained by run_seed_v3.sh)",
+  "few_shot": 0,
+  "eval_limit": 600,
+  "curriculum_steps": 0,
+  "group_size": 8,
+  "prompts_per_step": 64,
+  "temperature": 1.0,
+  "lr": 6e-06,
+  "kl_coef": 0.0,
+  "eval_batch_size": 2000,
+  "max_new_tokens": 256,
+  "micro_batch_size": 8,
+  "compile": false,
+  "pad_to_multiple": 64,
+  "max_steps": 1000000,
+  "eval_start_step": 0,
+  "eval_every": 500,
+  "cache_len": 0,
+  "rollout_backend": "vllm",
+  "vllm_gpu_memory": 0.35,
+  "time_budget_s": 14040,
+  "sample_every": 0,
+  "oversample": 1,
+  "prompt_style": "r1",
+  "shaping": 0.5,
+  "eval_set": "data/ladder_v3_dev.jsonl",
+  "micro_batch_tokens": 32768,
+  "constrain_answer": true,
+  "train_mix": "ladder",
+  "adv_norm": "none",
+  "v3": {
+    "track": "D",
+    "pretrain": {
+      "minutes": 112,
+      "tokens": "/home/zjason/orcd/pool/data/dm_math/mix_0.2.bin",
+      "tokenizer": "/home/zjason/orcd/pool/data/tinyllama-tokenizer",
+      "args": "--micro-batch 32 --max-tokens 20000000000 --width 1024 --layers 12"
+    },
+    "sampler": {
+      "temperature": 1.0,
+      "constrain": true,
+      "think_budget": 0
+    },
+    "data_prep": "python scripts/prepare_track_d_data.py; python scripts/research/prepare_dm_math.py --out ~/orcd/pool/data/dm_math --tokenizer <pinned TinyLlama> --base ~/orcd/pool/data/fineweb-edu-tinyllama.bin --fracs 0.2,0.5"
+  },
+  "master_fp32": true,
+  "skip_zero_advantage": true,
+  "description": "Research r50 (PLAN D5, model size; dev only, H200): D 005's recipe in full (112 min of DM-math-mix pretraining, then 14,040 s of RL: shaping 0.5, lr 6e-6, fp32, zero-advantage rows skipped), with the pretrained model at width 1024 and 12 layers (about 184M parameters) instead of 768 x 12 (110M). D 005's 110M model reads 2.67B tokens in 112 min (24 per parameter), so the time-fixed budget may favour another size. No step cap: pretraining and RL use the record's time budgets, so the final in-loop dev compares by seed with D 005's seeds (dev 0.201 mean) on the same GPU type.",
+  "no_save": true
+}

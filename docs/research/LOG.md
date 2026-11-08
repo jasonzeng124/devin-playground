@@ -4912,3 +4912,26 @@ track A seed on the H200 board. A 002's five seeds:
   (dev 0.324), and a record now needs an H200 promotion screen (AGENT.md). A 005's screen was better (dev 0.397
   at step 400) and its record still fell short (p = 0.072). A 003 shares the collapse that costs these recipes
   their seeds, so its H200 GPU-hours go to track D instead. The maintainer can overrule this in INBOX.
+
+## 2026-11-08 08:50 EST: r49 seed 1 at step 15,000 is 0.217; r50 (PLAN D5, model size) queued
+
+- r49 seed 1 (worker 28239994, node4301) finished: dev 0.217 at step 15,000, against r32 seed 1 0.203
+  (+0.013) and r30 seed 1 0.180 (+0.037). That is one seed. Seed 0 is running again on node5000
+  after its preemption; seeds 2-4 follow (seed 2 started 07:35 on node4300, worker 28312159).
+- Worker 28239994 exited (less than 380 min left). H200 worker 28316532 replaces it.
+- **r50 queued (PLAN D5, the last untried D item).** D 005's 110M model reads 2.67B tokens in its 112 min of
+  pretraining, about 24 per parameter, so the size was never screened against the time budget. LOG 11-01
+  23:50 said D5 had no reason while the policy guessed once. r49 now writes legal moves in `<think>`
+  (process credit about 0.75-0.81), which gives it a reason. Two arms, D 005's recipe in full with only the
+  model changed (`--width`/`--layers` in the pretraining args):
+
+  | arm | model | parameters | tokens per parameter in 112 min (estimate) |
+  |---|---|---|---|
+  | `calibration/research_r50/d005_w640_l10` | 640 x 10 layers | about 70M | about 60 |
+  | `calibration/research_r50/d005_w1024_l12` | 1024 x 12 layers | about 184M | about 9 |
+
+  Each item pretrains for 112 min and runs RL for the record's 14,040 s, with no step cap. The final in-loop
+  dev then compares by seed with D 005's own H200 seeds (dev 0.193, 0.187, 0.210 for seeds 0-2).
+  Seeds 0-2 of both arms are in `h200` after r49 seeds 3-4, about 6 h per item.
+- GPU jobs: 6 (2 H200 running r49 seeds 0 and 2; pending: H200 28316532, 26927306, and 2 B200 on
+  ReqNodeNotAvail). The `h200` queue holds about 36 h of work.
