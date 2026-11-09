@@ -5073,3 +5073,41 @@ track A seed on the H200 board. A 002's five seeds:
   Every arm since D 005 has landed between 0.18 and 0.22. The two free GPU slots stay empty until w1024 seed 0
   or 1 lands (about 11:30). If the larger model helps, the next screen follows from that. If not, I'll
   write a new direction into PLAN before queuing anything.
+
+## 2026-11-09 11:55 EST: r49 closes level with r30; r50 w1024 (182M) seed 1 is 0.215, ahead of D 005 seed 1 (0.187)
+
+- r49 seed 4 (worker 28316532, node4300, resumed at step 9,601) finished at about 11:30: dev 0.215 at step
+  15,000. The arm is complete. Dev at step 15,000:
+
+  | seed | r49 GSM8K SFT + process reward | r30 control | r49 - r30 |
+  |---|---|---|---|
+  | 0 | 0.190 | 0.192 | -0.002 |
+  | 1 | 0.217 | 0.180 | +0.037 |
+  | 2 | 0.205 | 0.220 | -0.015 |
+  | 3 | 0.233 | 0.233 | +0.000 |
+  | 4 | 0.215 | 0.193 | +0.022 |
+  | mean | 0.212 | 0.204 | +0.008 (SE 0.009) |
+
+  r49 (PLAN D4) is closed as no gain: +0.008 is inside one standard error, and the dev ladder can't show a
+  gain that small.
+- r50 `d005_w1024_l12` seed 1 (mit_normal_gpu 26927306, node2434, NVIDIA H200) finished at 11:37. Total clock
+  20,929 s, within the 21,600 s budget. Logged FAILED, harmless, as before (no `final/` under `no_save`).
+
+  | seed 1 | r50 w1024 (182M) | D 005 (110M) | r50 w640 (69M) |
+  |---|---|---|---|
+  | pretraining tokens | 1.90B | 2.68B | 3.71B |
+  | final pretraining val loss | 2.840 | 2.858 | 2.916 |
+  | RL steps | 14,027 | 13,427 | 13,060 |
+  | final in-loop dev | 0.215 | 0.187 | 0.170 |
+
+  The 182M model reads 29 % fewer tokens but reaches a lower val loss, and its dev is 0.028 above D 005 on
+  this seed. It's one seed, and the spread between seeds is about 0.02, so this is a lead to check, not a
+  result. Per level against D 005 seed 1 (in-loop dev): L1 0.69 / 0.64, L6 0.32 / 0.22, L2-L5 within 0.01.
+  Seeds 0 and 2 are running (28334442 and 28439655, node4301), and w640 seed 2 is running on 28316532.
+  To finish five seeds for the promotion rule (at least 4 of 5 above 0.201, on H200), I queued w1024
+  seeds 3 and 4 on `h200` and submitted two H200 workers: 28473022 (mit_normal_gpu, 6 h, RESERVE_MIN 330, as
+  the 26927306 chain) and 28473023 (mit_preemptable, the usual settings).
+- 26927306 exited after this item (less than 330 min left), which ends that mit_normal_gpu chain.
+- GPU jobs: 5 (3 running: 28316532 r50 w640 seed 2, 28334442 w1024 seed 0, 28439655 w1024 seed 2;
+  pending: 28473022, 28473023). Track A has no screen running; I'll review PLAN's track A items for the
+  sixth slot at the next full wake.
