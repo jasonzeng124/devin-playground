@@ -4968,3 +4968,24 @@ track A seed on the H200 board. A 002's five seeds:
   Seed 4 (started 17:37 on node4601) finishes the arm; unless it is far above 0.193 (r30 seed 4), r49 closes
   as no gain.
 - r50 w640 seed 0 started 17:41 on node4300 (worker 28312159). Both workers kept going (2-day limit).
+
+## 2026-11-08 22:10 EST: the box control r44 is complete (0.219 over 5 seeds); neither sampling temperature beats it
+
+- r44 seed 2 (box until step 8,582, then B200 packed job 27987194 slot 2 on node5600-c1) finished at
+  21:58: dev 0.235 at step 15,000. Seed 1 (box, then B200) had already finished at 0.212 and wasn't
+  logged; it's in the table now. Dev at step 15,000:
+
+  | seed | r44 control | r36 temp 1.2 | r43 temp 1.4 | r36 - r44 | r43 - r44 |
+  |---|---|---|---|---|---|
+  | 0 | 0.218 | 0.203 | 0.197 | -0.015 | -0.022 |
+  | 1 | 0.212 | 0.195 | 0.232 | -0.017 | +0.020 |
+  | 2 | 0.235 | 0.207 | 0.228 | -0.028 | -0.007 |
+  | 3 | 0.227 | 0.227 | 0.228 | +0.000 | +0.002 |
+  | 4 | 0.203 | 0.240 | 0.225 | +0.037 | +0.022 |
+  | mean | 0.219 | 0.214 | 0.222 | -0.005 (SE 0.011) | +0.003 (SE 0.008) |
+
+  The temperature question is closed: 1.2 is -0.005 and 1.4 is +0.003 against the control, both well
+  inside one standard error. Temperature stays at 1.0 for track D.
+- Preemptions this hour: B200 27598456 (r38 seed 4) at 21:17 and H200 28334442 (r50 w1024 seed 0, started
+  21:04 on node4800) at 21:54. Both are requeued and pending; each keeps its claimed item and reruns it when it starts.
+  B200 27987194 is running r38 seed 3 on node5600-c1. GPU jobs: 6 (3 running).
