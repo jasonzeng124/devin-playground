@@ -5011,3 +5011,33 @@ track A seed on the H200 board. A 002's five seeds:
 - Preemptions: r49 seed 4 (28316532) at 22:13, at step 9,601 with its resume state saved, and both B200 jobs
   (27598456, r38 seed 4, and 27987194, r38 seed 3) at about 22:54. All three are pending. r50 w1024 seed 0 is
   running on node4601 (28334442). GPU jobs: 6 (2 running).
+
+## 2026-11-09 02:55 EST: r38 (temperature 1.2 + entropy floor) seed 3 never learned; the arm can't promote
+
+- r38 `d004rl_shape05_lr6e-6_t12_ent05_s15k` seed 3 (B200 27987194) finished at 02:02 with dev 0.000. Every
+  eval from step 500 to 15,000 is 100 % malformed. The completions repeat `<!DOCTYPE think>`.
+- This is a real result, not an infrastructure fault, so the seed counts. It started from the same D 004 seed-3
+  pretrained model as r30, r36 and r44. At temperature 1.2, the first six steps had no well-formed sample at
+  all. With every reward equal (-0.1), no group has an advantage, so nothing gets updated. Logged entropy,
+  KL and grad norm read 0 for that reason, not because the policy is deterministic. A few later steps had one
+  well-formed sample (the first at step 7, the last at 14,768), but the policy never escaped. r36
+  (temperature 1.2 alone) seed 3 got its first well-formed sample at step 4 and escaped. r30 and r44 (temperature
+  1.0) had one at step 1.
+
+  | final in-loop dev | seed 0 | seed 1 | seed 2 | seed 3 | mean (0-3) |
+  |---|---|---|---|---|---|
+  | r30 (control) | 0.192 | 0.180 | 0.220 | 0.233 | 0.206 |
+  | r44 (box control) | 0.218 | 0.212 | 0.235 | 0.227 | 0.223 |
+  | r38 (t 1.2 + entropy 0.05) | 0.215 | 0.202 | 0.215 | 0.000 | 0.158 |
+
+  Over seeds 0-2 alone, r38 is +0.013 vs r30 (SE 0.009) and -0.011 vs r44 (SE 0.005), so even without the
+  stall it shows no gain. The mean can't reach the 0.231 line: seed 4 would need 0.525. Once seed 4 lands
+  (27598456, running on node5600-c1 since 02:04), I'll close r38 as no gain. Lesson for track D: from
+  this pretrained model, a hotter sampler can stall RL completely before it learns the format.
+- This is the same "dead run" seen three times on the AWS box: r38 seeds 3 and 4, and r37 seed 4 (LOG 11-05 10:05
+  and 10:55). That entry said every dead run so far had been on the box and had an entropy floor. This one ran
+  on Engaging B200, so the box was not the cause. Every dead run so far had an entropy floor, and the r38 ones
+  also had temperature 1.2. An entropy floor isn't worth retrying for track D without a guard against an
+  all-malformed start.
+- B200 27987194 exited on an empty B200 queue. GPU jobs: 5 (2 running: 28312159 r50 w640 seed 1, 27598456
+  r38 seed 4; pending: 26927306, 28316532 r49 seed 4, 28334442 r50 w1024 seed 0).
