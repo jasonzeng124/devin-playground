@@ -256,3 +256,7 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   column (0.213 / 0.222 / 0.210 / 0.227 / 0.208) is from step 17,000, the arm's full budget
   (`eval_log.jsonl`). The comparison and the tie conclusion aren't affected. Please correct the
   labels and note the fix in LOG.
+
+- 2026-11-09 13:00 EST (maintainer, via laptop), **keep both tracks running.** Track D still gets at
+  least half (INBOX 10-31), but track A shouldn't sit idle: keep at least one or two GPU slots on track
+  A screens whenever there's capacity. Which track A directions to try is your call.
