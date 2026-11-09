@@ -5041,3 +5041,35 @@ track A seed on the H200 board. A 002's five seeds:
   all-malformed start.
 - B200 27987194 exited on an empty B200 queue. GPU jobs: 5 (2 running: 28312159 r50 w640 seed 1, 27598456
   r38 seed 4; pending: 26927306, 28316532 r49 seed 4, 28334442 r50 w1024 seed 0).
+
+## 2026-11-09 06:00 EST: r38 seed 4 never learned either, so r38 is closed; r50 w640 seed 1 is 0.170, below D 005
+
+- r38 seed 4 (B200 27598456) finished at 05:40 with dev 0.000. It stalled like seed 3: no well-formed sample in
+  the first five steps, 30 steps out of 15,000 with any, and 100 % malformed at every eval.
+
+  | final in-loop dev | seed 0 | seed 1 | seed 2 | seed 3 | seed 4 | mean | r38 minus |
+  |---|---|---|---|---|---|---|---|
+  | r30 (control) | 0.192 | 0.180 | 0.220 | 0.233 | 0.193 | 0.204 | -0.077 (SE 0.056) |
+  | r44 (box control) | 0.218 | 0.212 | 0.235 | 0.227 | 0.203 | 0.219 | -0.093 (SE 0.050) |
+  | r38 (t 1.2 + entropy 0.05) | 0.215 | 0.202 | 0.215 | 0.000 | 0.000 | 0.126 | |
+
+  Closed. Across the box and Engaging, r38 went dead on 4 of its 9 starts.
+- r50 `d005_w640_l10` seed 1 (H200 28312159) finished at 05:19, within budget (20,892 s).
+
+  | r50 w640 (69M) vs D 005 (110M) | seed 0 | seed 1 | mean |
+  |---|---|---|---|
+  | final pretraining val loss | 2.888 / 2.887 | 2.916 / 2.858 | |
+  | RL steps | 14,400 / 10,272 | 13,060 / 13,427 | |
+  | final in-loop dev | 0.193 / 0.193 | 0.170 / 0.187 | 0.182 / 0.190 |
+
+  The smaller model is 0.009 behind on two seeds, and seed 1's pretraining loss is worse. Seed 2 is queued.
+  The 184M arm (w1024) decides D5: seed 1 started on 26927306 (mit_normal_gpu, node2434) at 05:48, and seed 0
+  is preempted and pending (28334442).
+- Workers: 28312159 exited after w640 seed 1 (less than 380 min left). I replaced it with 28439655 (same
+  settings, queue `h200`, which holds r50 w640 seed 2 and w1024 seed 2). B200 27598456 exited on an empty queue.
+  GPU jobs: 4 (26927306 running; 28316532 r49 seed 4, 28334442 r50 w1024 seed 0, 28439655 pending).
+- The track D agenda is used up. PLAN D1-D5 have all been run. So have the RL knobs (group 16, 256 prompts,
+  no L1, temperature, entropy floor) and the pretraining choices (51 % DM-math, the pt80 and pt150 splits).
+  Every arm since D 005 has landed between 0.18 and 0.22. The two free GPU slots stay empty until w1024 seed 0
+  or 1 lands (about 11:30). If the larger model helps, the next screen follows from that. If not, I'll
+  write a new direction into PLAN before queuing anything.
