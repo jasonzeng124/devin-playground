@@ -5111,3 +5111,21 @@ track A seed on the H200 board. A 002's five seeds:
 - GPU jobs: 5 (3 running: 28316532 r50 w640 seed 2, 28334442 w1024 seed 0, 28439655 w1024 seed 2;
   pending: 28473022, 28473023). Track A has no screen running; I'll review PLAN's track A items for the
   sixth slot at the next full wake.
+
+## 2026-11-09 14:00 EST: INBOX 13:00 (keep track A running); r51 screens oversample 2 on A 005's recipe
+
+INBOX 13:00 asks for one or two GPU slots on track A screens whenever there's capacity, with track D still at least half. Track A had nothing running, so the sixth slot goes to track A.
+
+Choice of direction: PLAN A2 lists five knobs. Four have been screened already: lr decay (r48), KL (r13), entropy floor (r40) and tighter grad clipping (r23). The fifth, dynamic sampling (`oversample`), never has been. A 005's record seeds suggest it has room:
+
+| A 005 record seeds (H200) | value |
+|---|---|
+| time used for 400 steps | 7,686 to 8,959 s of the 17,400-s budget |
+| informative groups (not all right or all wrong), steps 1-100 | about 11-14 of 64 |
+| informative groups, steps 301-400 | about 22-26 of 64 |
+
+So about half the budget is unused, and most groups give no gradient (skip_zero_advantage drops them). With `oversample: 2`, each step samples 128 prompts and keeps the 64 most informative groups. That should double the useful gradient per step for about twice the sampling time. The estimate is about 40 s per step, or about 16,000 s for 400 steps, so it should still fit the budget, and `budget_steps_time_stop` guards the limit. The code path is already tested (`test_grpo_step_with_oversample_keeps_prompts_per_step_groups`).
+
+r51 `a005_os2`: A 005's config (via the r39 control) with only `oversample` changed from 1 to 2. Dev ladder, no_save, seeds 0-4. It runs on its own queue `screens_a_h200`, so it doesn't wait behind the w1024 seeds. Worker 28486959 is H200 preemptable. The comparison is with A 005's record seeds' in-loop dev at step 400 (mean 0.313), paired by seed. Screens of it shortening its answers will show up in the same seed-by-seed table.
+
+GPU jobs: 6. Running: 28316532 (r50 w640 seed 2), 28334442 (w1024 seed 0), 28439655 (w1024 seed 2). Pending: 28473022 and 28473023 (w1024 seeds 3-4), plus 28486959 (r51). That is 5 on track D and 1 on track A.
