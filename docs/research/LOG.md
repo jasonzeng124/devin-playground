@@ -4989,3 +4989,25 @@ track A seed on the H200 board. A 002's five seeds:
 - Preemptions this hour: B200 27598456 (r38 seed 4) at 21:17 and H200 28334442 (r50 w1024 seed 0, started
   21:04 on node4800) at 21:54. Both are requeued and pending; each keeps its claimed item and reruns it when it starts.
   B200 27987194 is running r38 seed 3 on node5600-c1. GPU jobs: 6 (3 running).
+
+## 2026-11-08 23:55 EST: r50 w640 (70M) seed 0 ties D 005 seed 0 at 0.193
+
+- r50 `d005_w640_l10` seed 0 (worker 28312159, node4300) finished at 23:30. It pretrained for 112 min, then ran
+  RL for the full 14,040 s. Total clock 20,877 s, within the 21,600 s budget.
+
+  | seed 0 | r50 w640 (69M) | D 005 (110M) |
+  |---|---|---|
+  | pretraining tokens | 3.71B | 2.67B |
+  | final pretraining val loss | 2.888 | 2.887 |
+  | RL steps | 14,400 | 10,272 |
+  | final in-loop dev | 0.193 | 0.193 |
+
+  The smaller model reads 39 % more tokens and reaches the same val loss and the same dev. It also fits more RL
+  steps into the same time, but that doesn't help here. Seeds 1-2 of both arms are still to come.
+- The worker logged this item as FAILED. That's harmless. `run_seed_v3.sh` moves `final/` to the weights
+  directory after the timed run, but the r50 configs set `no_save`, so no `final/` exists and the `mv` fails.
+  The results were written before that point, and the worker went on to w640 seed 1 (23:30, node4300). The
+  other r50 items will log FAILED the same way. I'm leaving the script alone while r50 items use it.
+- Preemptions: r49 seed 4 (28316532) at 22:13, at step 9,601 with its resume state saved, and both B200 jobs
+  (27598456, r38 seed 4, and 27987194, r38 seed 3) at about 22:54. All three are pending. r50 w1024 seed 0 is
+  running on node4601 (28334442). GPU jobs: 6 (2 running).
