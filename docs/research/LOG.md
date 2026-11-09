@@ -5129,3 +5129,27 @@ So about half the budget is unused, and most groups give no gradient (skip_zero_
 r51 `a005_os2`: A 005's config (via the r39 control) with only `oversample` changed from 1 to 2. Dev ladder, no_save, seeds 0-4. It runs on its own queue `screens_a_h200`, so it doesn't wait behind the w1024 seeds. Worker 28486959 is H200 preemptable. The comparison is with A 005's record seeds' in-loop dev at step 400 (mean 0.313), paired by seed. Screens of it shortening its answers will show up in the same seed-by-seed table.
 
 GPU jobs: 6. Running: 28316532 (r50 w640 seed 2), 28334442 (w1024 seed 0), 28439655 (w1024 seed 2). Pending: 28473022 and 28473023 (w1024 seeds 3-4), plus 28486959 (r51). That is 5 on track D and 1 on track A.
+
+## 2026-11-09 18:00 EST: r50 w640 closes 0.008 behind D 005; w1024 is +0.011 over seeds 0-2; r52 tries 270M
+
+- Three r50 seeds finished between 16:46 and 17:45, each with the full 14,040 s of RL: w1024 seed 0 (28334442), w640 seed 2 (28316532) and w1024 seed 2 (28439655). All three log FAILED for the usual harmless reason (`mv final` under no_save). Workers 28316532 and 28334442 went on to w1024 seeds 4 and 3. 28439655 exited after its item.
+
+  | final in-loop dev | seed 0 | seed 1 | seed 2 | mean | vs D 005 |
+  |---|---|---|---|---|---|
+  | r50 w640 (69M) | 0.193 | 0.170 | 0.202 | 0.188 | -0.008 (SE 0.005) |
+  | D 005 (110M) | 0.193 | 0.187 | 0.210 | 0.197 | |
+  | r50 w1024 (182M) | 0.212 | 0.215 | 0.197 | 0.208 | +0.011 (SE 0.012) |
+
+  | w1024 / D 005 | seed 0 | seed 2 |
+  |---|---|---|
+  | pretraining tokens | 1.91B / 2.67B | 1.94B / 2.66B |
+  | final pretraining val loss | 2.842 / 2.887 | 2.822 / 2.872 |
+  | RL steps | 11,692 / 10,272 | 11,050 / 14,463 |
+
+  The larger model reaches a lower pretraining val loss on every seed, by 0.02-0.05, even though it reads 28 % fewer tokens. Its dev is higher on two of three seeds. Seed 2 is behind on L6 (0.16 vs 0.28) but level or ahead on L1-L4.
+- w640 is closed: three seeds, 0.008 behind D 005, with a worse val loss on two of three seeds.
+- w1024 can't promote by the rule: the D line is 0.231 and its mean is 0.208. Seeds 3-4 are running. They decide whether the size gain holds over five seeds, which would make 184M the base for the next track D arms.
+- r52 `d005_w1280_l12` takes size one step further, to width 1280 and 12 layers (about 270M parameters, tied embeddings). At 112 min it should read about 1.3B tokens. The question is whether the val loss and dev trend keeps going or turns over. Seeds 0-4 are on queue `h200` and go to the two pending track D workers (28473022, 28473023), and then to 28316532 and 28334442 after w1024 seeds 3-4.
+- Track A: a second worker for r51 (28523219, H200 preemptable, queue `screens_a_h200`), so track A has two slots, per INBOX 13:00.
+- The array job 28518521 (`eng-board1`, CPU only, `~/pokerbot26`) is the maintainer's, not this loop's. It uses no GPUs and I'm leaving it alone.
+- GPU jobs: 6, 4 track D and 2 track A. Running: 28316532 (w1024 seed 4), 28334442 (w1024 seed 3). Pending: 28473022, 28473023 (r52), 28486959, 28523219 (r51).
