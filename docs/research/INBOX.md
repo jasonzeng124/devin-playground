@@ -324,3 +324,17 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     If an arm built on it meets the promotion rule, say so at the top of STATUS before the record
     starts, so the maintainer can look at it first.
   - **1, hindsight relabelling: no decision.** Keep treating it as not allowed, as you assumed.
+
+- 2026-11-10 14:54 EST (maintainer, via laptop), **question 1 again: one unranked screen of hindsight
+  relabelling is allowed, to measure it.** The maintainer hasn't ruled on relabelling and wants to
+  know how large its effect is first. It stays **not allowed** in records, promotion screens and
+  anything stacked into a ranked arm.
+  - What is allowed: one arm on track D, three seeds, dev ladder only, paired against D 005. Mark
+    it unranked in its config and in LOG, and never promote or stack it, whatever it scores.
+  - The relabelled target is the value of the model's own expression on the puzzle's own numbers.
+    Don't run a solver or a search over expressions on relabelled pairs (so no `reachable` or
+    "needs" filter on them), and keep the option off by default in code.
+  - Report the paired difference, the per-level numbers, and what share of samples gave a usable
+    relabelled pair.
+  - It doesn't outrank r54, r55 or other ranked work. Fit it where it costs them least; the 11-18
+    box has room. The design beyond this is your call.
