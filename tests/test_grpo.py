@@ -778,3 +778,77 @@ def test_train_ladder_levels_accepts_the_mini_levels():
     assert {p.level for p in itertools.islice(default, 300)} == {"L1", "L2", "L3", "L4", "L5", "L6"}
     with pytest.raises(AssertionError, match="train_ladder_levels"):
         grpo._train_streams(GRPOConfig(train_mix="ladder", train_ladder_levels="L1,M9"))
+
+
+def _scripted_evals(monkeypatch, scores, seen, pause=0.0):
+    """In-loop evals that return `scores` in turn and record the model's weights at each one."""
+    turn = iter(scores)
+
+    def evaluate(model, *_args, **_kwargs):
+        import time
+
+        time.sleep(pause)
+        seen.append({name: tensor.clone() for name, tensor in model.state_dict().items()})
+        return {"pass_rate": next(turn)}
+
+    monkeypatch.setattr(grpo, "_evaluate", evaluate)
+
+
+def _same_weights(model, state) -> bool:
+    return all(torch.equal(tensor, state[name]) for name, tensor in model.state_dict().items())
+
+
+def test_keep_best_dev_ends_on_the_best_evals_weights_with_the_evals_on_the_clock(monkeypatch, tmp_path):
+    common = dict(model="tiny", group_size=2, prompts_per_step=1, max_new_tokens=4, max_steps=4, eval_every=1,
+                  eval_limit=1, kl_coef=0.0, lr=1e-2, no_save=True)
+    # off (the default): the run ends on its last step's weights, and eval time is off the clock
+    model, _, _ = _patch_tiny_training(monkeypatch, tmp_path)
+    seen = []
+    _scripted_evals(monkeypatch, [0.2, 0.5, 0.5, 0.1], seen, pause=0.01)
+    result = run(GRPOConfig(**common, out_dir=str(tmp_path / "off")))
+    rows = [json.loads(line) for line in (tmp_path / "off" / "eval_log.jsonl").read_text().splitlines()]
+    assert not _same_weights(model, seen[2])  # the steps do move the weights
+    assert _same_weights(model, seen[3]) and result["final_pass_rate"] == 0.1
+    assert "kept_step" not in result and "last_pass_rate" not in result and all("kept_step" not in row for row in rows)
+    assert rows[-1]["wall_s"] - rows[-1]["train_s"] >= 0.04
+    # on: the weights of the best eval (the later of the two 0.5s), and train_s counts the evals
+    model, _, _ = _patch_tiny_training(monkeypatch, tmp_path)
+    seen = []
+    _scripted_evals(monkeypatch, [0.2, 0.5, 0.5, 0.1], seen, pause=0.01)
+    result = run(GRPOConfig(**common, keep_best_dev=True, out_dir=str(tmp_path / "on")))
+    rows = [json.loads(line) for line in (tmp_path / "on" / "eval_log.jsonl").read_text().splitlines()]
+    assert _same_weights(model, seen[2]) and not _same_weights(model, seen[3])
+    assert result["final_pass_rate"] == result["pass_rate"] == 0.5
+    assert result["kept_step"] == 3 and result["last_pass_rate"] == 0.1 and result["total_steps"] == 4
+    assert [row["kept_step"] for row in rows] == [1, 2, 3, 3]
+    assert all(row["train_s"] == row["wall_s"] for row in rows) and rows[-1]["wall_s"] >= 0.04
+    # the choice may not be made on the test ladder
+    with pytest.raises(ValueError, match="keep_best_dev"):
+        run(GRPOConfig(**common, keep_best_dev=True, eval_set="data/ladder_v3_test.jsonl", out_dir=str(tmp_path / "bad")))
+
+
+def test_keep_best_dev_carries_the_kept_weights_through_a_resume(monkeypatch, tmp_path):
+    model, _, _ = _patch_tiny_training(monkeypatch, tmp_path)
+    config = GRPOConfig(model="tiny", group_size=2, prompts_per_step=1, max_new_tokens=4, max_steps=4, eval_every=1,
+                        eval_limit=1, kl_coef=0.0, lr=1e-2, no_save=True, keep_best_dev=True,
+                        resume_dir=str(tmp_path / "resume"), resume_every_s=1e-9, out_dir=str(tmp_path / "run"))
+    seen = []
+    _scripted_evals(monkeypatch, [0.5, 0.1, 0.2, 0.3], seen)  # the best eval comes before the interruption
+    real_step = grpo.grpo_step
+    calls = []
+
+    def preempted_step(*args, **kwargs):
+        calls.append(True)
+        if len(calls) == 3:
+            raise KeyboardInterrupt("preempted")
+        return real_step(*args, **kwargs)
+
+    monkeypatch.setattr(grpo, "grpo_step", preempted_step)
+    with pytest.raises(KeyboardInterrupt):
+        run(config)
+    monkeypatch.setattr(grpo, "grpo_step", real_step)
+    result = run(config)
+    rows = [json.loads(line) for line in (tmp_path / "run" / "eval_log.jsonl").read_text().splitlines()]
+    assert len(seen) == 4 and [row["kept_step"] for row in rows] == [1, 1, 1, 1]
+    assert result["kept_step"] == 1 and result["final_pass_rate"] == 0.5 and result["last_pass_rate"] == 0.3
+    assert _same_weights(model, seen[0]) and not _same_weights(model, seen[3])

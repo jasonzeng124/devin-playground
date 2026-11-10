@@ -60,7 +60,9 @@ def seed_summary(arm: Path, seed: str) -> dict | None:
         c = [x for e, x in zip(evals, score) if _clock(e) <= m * 60]
         return c[-1] if c else float("nan")
 
-    return {"seed": seed, "done": done, "min": minutes, "final": score[-1], "best": max(score), "t10": t10, "spm": spm,
+    kept = evals[-1].get("kept_step")  # grpo keep_best_dev: the run ends on this eval's weights, so that is its final
+    final = next((x for e, x in zip(evals, score) if e["step"] == kept), score[-1])
+    return {"seed": seed, "done": done, "min": minutes, "final": final, "last": score[-1], "kept": kept, "best": max(score), "t10": t10, "spm": spm,
             "ent": ent, "inf": inf, "mal": mal, "mode": mode, "at": [at(m) for m in (30, 60, 120, 180, 240)]}
 
 
@@ -96,7 +98,8 @@ def main(args: list[str]) -> None:
             t10 = f"{r['t10']:.0f}" if r["t10"] is not None else "-"
             at = " ".join("  -  " if x != x else f"{x:.3f}" for x in r["at"])
             print(f"  {arm.name[:34]:34} s{r['seed']} {'done' if r['done'] else 'RUN '} {r['min']:4.0f}m final {r['final']:.3f} "
-                  f"best {r['best']:.3f} t.10 {t10:>4} spm {r['spm']:5.1f} ent {r['ent']:.2f} inf {r['inf']:4.1f} {r['mode']:9} | {at}")
+                  f"best {r['best']:.3f} t.10 {t10:>4} spm {r['spm']:5.1f} ent {r['ent']:.2f} inf {r['inf']:4.1f} {r['mode']:9} | {at}"
+                  + (f" | kept step {r['kept']}, last {r['last']:.3f}" if r["kept"] is not None else ""))
         done = [r for r in rows if r["done"]]
         if done:
             finals = [r["final"] for r in done]

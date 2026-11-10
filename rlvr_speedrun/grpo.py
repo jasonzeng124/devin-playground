@@ -138,6 +138,12 @@ class GRPOConfig:
     master_fp32: bool = False
     out_dir: str = "runs/grpo"
     no_save: bool = False
+    # RULES v3.4: end the run on the weights of its best in-loop eval (a tie goes to the later eval) instead of the
+    # last step's. After each eval at least as good as the best so far the run copies its weights to CPU memory, and
+    # it restores the kept copy before the final save. The evals and the copies then count toward the clock (train_s
+    # includes them, so run_seed_v3.sh excludes nothing), and a time-budgeted run's final eval comes after the time
+    # stop, so time_budget_s has to leave room for it. One process only, and the eval set may not be the test ladder
+    keep_best_dev: bool = False
 
 
 def lr_at(config: GRPOConfig, train_s: float) -> float:
@@ -916,6 +922,15 @@ def _set_rng_state(state: dict, mix_rng: random.Random, device: torch.device) ->
         torch.cuda.set_rng_state(state["cuda"].cpu(), device)
 
 
+def _cpu_weights(model, into: dict | None = None) -> dict:
+    """A detached copy of the model's weights in CPU memory (keep_best_dev), written over `into` when given."""
+    if into is None:
+        return {name: tensor.detach().to("cpu", copy=True) for name, tensor in model.state_dict().items()}
+    for name, tensor in model.state_dict().items():
+        into[name].copy_(tensor)
+    return into
+
+
 def _save_state(state_path: Path, out_dir: Path, model, optimizer, mix_rng, device, progress: dict) -> None:
     """Write logs then state.pt, each atomically; on resume, log lines past the state's step are dropped."""
     state_path.parent.mkdir(parents=True, exist_ok=True)
@@ -950,6 +965,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError(f"entropy_coef and entropy_target must be >= 0, got {config.entropy_coef} and {config.entropy_target}")
     if config.eval_max_new_tokens < 0 or (config.eval_max_new_tokens and config.cache_len):
         raise ValueError(f"eval_max_new_tokens must be >= 0 and needs cache_len 0, got {config.eval_max_new_tokens}")
+    if config.keep_best_dev and (dist.world_size > 1 or Path(config.eval_set).name == Path(benchmark.LADDER_TEST_PATH).name):
+        raise ValueError("keep_best_dev needs one process and an in-loop eval set that is not the test ladder (RULES v3.4)")
     late_config = replace(config, malformed_reward=None) if config.malformed_reward_until > 0 else config
     scheduled = config.lr_schedule != "constant" or config.lr_warmup_s > 0
     lr_at(config, config.lr_warmup_s)  # fail on a bad schedule before loading anything
@@ -986,6 +1003,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         resumed = torch.load(state_path, map_location=device, weights_only=False)
         model.load_state_dict(resumed.pop("model"))  # pop: free the loaded copies (a second fp32 model would not fit)
         optimizer.load_state_dict(resumed.pop("optimizer"))
+        if resumed.get("kept"):  # keep_best_dev's copy lives in CPU memory
+            resumed["kept"]["state"] = {name: tensor.cpu() for name, tensor in resumed["kept"]["state"].items()}
         _set_rng_state(resumed["rng"], mix_rng, device)
         # fresh puzzle streams rather than replaying every draw consumed so far
         stream, easy_streams = _train_streams(config, offset=1_000 + resumed["step"])
@@ -1014,10 +1033,12 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
     final_pass_rate = 0.0
     eval_s = 0.0  # wall-clock time spent in evals (and resume saves); train_s = wall_s - eval_s
     first_step = 1
+    kept = None  # keep_best_dev: {"step", "pass_rate", "state"} of the best in-loop eval so far
     if resumed:
         start -= resumed["wall_s"]
         eval_s, total_steps, final_pass_rate = resumed["eval_s"], resumed["step"], resumed["final_pass_rate"]
         first_step = resumed["step"] + 1
+        kept = resumed.pop("kept", None) if config.keep_best_dev else None
         if engine is not None:
             engine.sync(model)
     last_save = time.perf_counter() - start - eval_s
@@ -1079,8 +1100,14 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
             if (step >= config.eval_start_step and step % config.eval_every == 0) or step == config.max_steps or out_of_time:
                 eval_start = time.perf_counter()
                 result = _evaluate(model, tokenizer, eval_puzzles, config, device, caches, dist)
-                eval_s += time.perf_counter() - eval_start
-                result.update({"step": step, "wall_s": time.perf_counter() - start, "train_s": time.perf_counter() - start - eval_s})
+                if config.keep_best_dev:  # the eval and the copy stay on the clock (RULES v3.4)
+                    if kept is None or result["pass_rate"] >= kept["pass_rate"]:
+                        kept = {"step": step, "pass_rate": result["pass_rate"], "state": _cpu_weights(model, kept and kept["state"])}
+                    result["kept_step"] = kept["step"]
+                else:
+                    eval_s += time.perf_counter() - eval_start
+                now = time.perf_counter() - start
+                result.update({"step": step, "wall_s": now, "train_s": now - eval_s})
                 if config.budget_steps:
                     result["clock_s"] = info["clock_s"]
                 final_pass_rate = result["pass_rate"]
@@ -1097,7 +1124,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
                 train_log.flush()
                 eval_log.flush()
                 _save_state(state_path, out_dir, model, optimizer, mix_rng, device, {
-                    "step": step, "wall_s": save_start - start, "eval_s": eval_s, "final_pass_rate": final_pass_rate})
+                    "step": step, "wall_s": save_start - start, "eval_s": eval_s, "final_pass_rate": final_pass_rate,
+                    **({"kept": kept} if config.keep_best_dev else {})})
                 eval_s += time.perf_counter() - save_start  # off the clock, like evals
                 last_save = train_s
             if out_of_time:
@@ -1107,6 +1135,11 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
             train_log.close()
         if eval_log is not None:
             eval_log.close()
+    last_pass_rate = final_pass_rate
+    if kept is not None:  # keep_best_dev: back to the best eval's weights, before the clock stops
+        if kept["step"] != total_steps:
+            model.load_state_dict(kept["state"])
+        final_pass_rate = kept["pass_rate"]
     total_wall = time.perf_counter() - start
     if not config.no_save and dist.is_main:
         model.save_pretrained(out_dir / "final")
@@ -1122,6 +1155,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         "benchmark_version": benchmark.BENCHMARK_VERSION,
         "environment": environment_info(device, dist.world_size, model),
     }
+    if config.keep_best_dev:
+        result.update({"kept_step": kept["step"] if kept else None, "last_pass_rate": last_pass_rate})
     if dist.is_main:
         (out_dir / "result.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     dist.barrier()
