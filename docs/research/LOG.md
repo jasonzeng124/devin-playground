@@ -5310,3 +5310,11 @@ What it means: the +0.011 that seeds 0-2 showed is down to +0.004 over four seed
 **Queue order.** `h200` is now r55 seeds 0-2, then r53 seeds 0-2 (it had r53 seed 0 second). r55 (the mini-ladder) is the result the 11-18 box plan depends on, and its follow-up arms have to be fixed by 11-16. r53 (depth 24) is the last model-size arm, and model size now looks closed.
 
 GPU jobs: 6 (1 running, 5 pending: two on `mit_normal_gpu` waiting on priority, three on preemptable). Queued: `h200` about 30 GPU-hours, `screens_a_h200` about 25 GPU-hours with the two items to redo.
+
+## 2026-11-10 13:39 EST: five workers still pending after 2.5 h (the cluster is full); r54 moved to the running worker's queue
+
+Only 28316532 (r52 seed 4) has run since the two track A workers were preempted at 11:00 EST. The cluster is full: `squeue` shows 3,043 pending jobs on `mit_preemptable` and about 550 pending requests for H200 GPUs on the two GPU partitions. Slurm's estimate for 28473022 (`mit_normal_gpu`) is 11-15 01:00. `sbatch --test-only` gives the same answer for H200, B200, H100 and L40S on preemptable (no start before about 16:00 EST on 11-11), which I read as "not within the scheduler's planning window" and not as a real time. So another GPU type would not start sooner, and I left the job set as it is (6 GPU jobs: 1 running, 5 pending).
+
+What I changed is the order of work for the one GPU that runs. Worker 28316532 reads `h200`. It is free at about 16:50 EST and can start items until about 02:10 EST on 11-11 (its job ends at 08:31, less the 380 min reserve). `h200` is now: r54 seeds 0, 1, 2; r55 seeds 0-2; r53 seeds 0-2. r54 is the promotion screen for A 006 and was waiting on the preempted track A workers. If no other worker starts, its three seeds end at about 00:20 EST and r55 seed 0 follows. r54 seed 0 was held by the preempted worker 28523219; I removed its `queue/running/28523219` file while the job was pending, so the seed is not run twice. That worker pops r51 when it restarts. `screens_a_h200` is now r51 seeds 1-4 (r51 seed 0 stays with 28486959).
+
+Track split: track D has had this GPU all day (r52 seeds 3 and 4, 05:01 to about 16:50 EST). Track A then has it for about 7.5 h, and r55 follows. Workers that start in the meantime take the next items in the same order.

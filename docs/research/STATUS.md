@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-10 11:37 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). Since 11-10 the agent runs on
+Updated 2026-11-10 13:39 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). Since 11-10 the agent runs on
 Fable 5.2. The handover entry (holders, open arms, queues, the plan for the extra month) is LOG
 2026-11-10 10:33.
 
@@ -28,9 +28,9 @@ runs on the H200. A 006 needs a test mean of about 0.33 to pass Welch against A 
 
 | job | partition | queue | state |
 |---|---|---|---|
-| 28316532 | preemptable | `h200` | running r52 seed 4 on node4300 since 10:50 EST; ends about 16:50 EST |
+| 28316532 | preemptable | `h200` | running r52 seed 4 on node4300 since 10:50 EST; ends about 16:50 EST. Then r54 seeds 0-2. The job ends 11-11 08:31; last item start about 02:10 |
 | 28486959 | preemptable | `screens_a_h200` | preempted at 11:00 EST, requeued, pending; redoes r51 seed 0 from its resume state (step 118) |
-| 28523219 | preemptable | `screens_a_h200` | preempted at 11:00 EST, requeued, pending; redoes r54 seed 0 from the start |
+| 28523219 | preemptable | `screens_a_h200` | preempted at 11:00 EST, requeued, pending; pops r51 next (r54 seed 0 was moved to `h200`) |
 | 28473022 | mit_normal_gpu | `h200` | pending (priority) |
 | 28595678 | preemptable | `h200` | pending |
 | 28595679 | mit_normal_gpu | `screens_a_h200` | pending (priority) |
@@ -39,17 +39,19 @@ Not mine, left alone: the `eng-board1` array, 28597816, 28597977, 28600134 (`tc`
 
 ## Queues
 
-- `h200` (track D, about 30 GPU-hours): r55 seeds 0-2, then r53 seeds 0-2.
-- `screens_a_h200` (track A, about 25 GPU-hours): r54 seeds 1-2; r51 seeds 1-4. The two preempted
-  workers hold r54 seed 0 and r51 seed 0 in `queue/running` and redo them first.
+- `h200` (about 37 GPU-hours): r54 seeds 0-2 (track A, the A 006 gate, moved here 11-10 13:38 because
+  only this queue has a running worker); then r55 seeds 0-2; then r53 seeds 0-2.
+- `screens_a_h200` (track A, about 18 GPU-hours): r51 seeds 1-4. The preempted worker 28486959 holds
+  r51 seed 0 in `queue/running` and redoes it first.
+- The cluster is full (LOG 11-10 13:38): five workers have been pending since 11:00 EST.
 
 ## Open arms
 
 | arm | track | what | so far | decision |
 |---|---|---|---|---|
-| r54 `a005_ent05_h200` | A | A 005 + entropy floor (`entropy_coef` 0.05 below `entropy_target` 0.1); the H200 promotion screen for A 006 | seed 0 preempted 8 min in, redone when its worker restarts; seeds 1-2 queued | seeds 0-2 all at 0.285 or above and none collapsed: start record A 006 (5 fixed seeds). Otherwise seeds 3-4 and the five-seed form |
+| r54 `a005_ent05_h200` | A | A 005 + entropy floor (`entropy_coef` 0.05 below `entropy_target` 0.1); the H200 promotion screen for A 006 | seed 0 preempted 8 min in; seeds 0-2 are first in `h200` and start at about 16:50 EST on 28316532 | seeds 0-2 all at 0.285 or above and none collapsed: start record A 006 (5 fixed seeds). Otherwise seeds 3-4 and the five-seed form |
 | r51 `a005_os2` | A | A 005 + oversample 2 | seed 0 preempted at step 118 (dev 0.138 at step 100), resumes; seeds 1-4 queued | compare with A 005's in-loop dev 0.313 |
-| r55 `d005rl_mini3` | D | RL from D 005's checkpoints with the 3-number mini levels M2, M3, M6 in the training mix | queued, first in `h200` | paired with D 005's seeds 0-2 (0.193 / 0.187 / 0.210) |
+| r55 `d005rl_mini3` | D | RL from D 005's checkpoints with the 3-number mini levels M2, M3, M6 in the training mix | queued in `h200` after r54 | paired with D 005's seeds 0-2 (0.193 / 0.187 / 0.210) |
 | r52 `d005_w1280_l12` | D | width 1280 (276M) | seeds 0-3: 0.203 / 0.198 / 0.222 / 0.200, mean 0.206, +0.004 paired with D 005 (SD 0.014); seed 4 running | cannot reach 0.231 (seed 4 would need 0.332); close on five seeds; width stays out of the stack |
 | r53 `d005_w768_l24` | D | depth 24 at width 768 | queued after r55 | three seeds, then decide on seeds 3-4 |
 
@@ -72,10 +74,13 @@ Not mine, left alone: the `eng-board1` array, 28597816, 28597977, 28600134 (`tc`
 ## Next
 
 - r52 seed 4 ends about 16:50 EST: log the five-seed table and close the width arms.
-- When the pending workers start: r55 seeds 0-2 (about 3.9 h each), then r53. On r55 seed 0, check
-  the first train log for M2/M3/M6 puzzles in the mix.
-- r54 seeds 0-2 need about 2.5 h each once the track A workers restart (A 005's seeds took
-  2.1-2.5 h): apply the rule above.
+- r54 seeds 0-2 on 28316532 from about 16:50 EST, about 2.5 h each: all three done by about
+  00:20 EST on 11-11 if no other worker starts. Apply the rule above; on a pass, create and commit
+  the A 006 record config and queue its 5 seeds on H200 record workers.
+- Then r55 seeds 0-2 (about 3.9 h each) and r53. On r55 seed 0, check the first train log for
+  M2/M3/M6 puzzles in the mix.
+- 28316532 exits after its last item (job end 11-11 08:31): submit a replacement so 6 GPU jobs stay
+  queued.
 - Next full wake (about 16:50 EST): add track D arms behind r53 (D8 level weights) and the D7
   sampling profile, so the queues hold a day of work when all six workers run.
 - QUESTIONS 11-10 (waiting for INBOX): hindsight relabelling (assumed not allowed), self-imitation
