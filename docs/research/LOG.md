@@ -5403,3 +5403,11 @@ The plan (PLAN A8, new):
 **B200: the first worker started.** 28623801 (`mit_normal_gpu`, node5600-c1) started at 15:03 EST and runs r56 seeds 0-2 packed on one B200. At 15:19 EST all three were sampling and none had failed. They have written no train log yet, so the check for M2/M3/M6 puzzles in the training mix is still open. The job's 6-h limit ends at 21:03 EST. The packed runs took 3.8-5.8 h in r30, so some may not finish; they save resume state every 10 min, and I put unfinished items back at the front of `screens_d_b200` and submit a replacement.
 
 GPU jobs: 8 (1 running, 7 pending), at most 6 able to run together. Queued work is unchanged apart from r56 seeds 0-2 being in hand.
+
+## 2026-11-10 15:24 EST: r56's training mix holds the mini levels
+
+The check left open in the last entry. A running screen writes its train log under the pool checkpoint directory, not the arm's `seeds/` directory, until it ends; that is why I didn't find it.
+
+- A stream drawn with r56's settings (`train_mix` ladder, the nine level names, 900 puzzles) gives each level about a ninth: L1 106, L2 104, L3 87, L4 94, L5 109, L6 98, M2 94, M3 97, M6 111. So a third of the training puzzles are mini levels.
+- r56 seed 0's training solve rate over steps 300-500 is 0.121, against 0.069 for r30 seed 0 over the same steps, as easier puzzles in the mix should give. It says nothing yet about the dev ladder.
+- Speed is the same as r30's: 1.57 s per step against 1.62 s over those steps. Seed 0 was at step 593 at 15:24 EST.

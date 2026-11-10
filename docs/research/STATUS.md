@@ -99,8 +99,8 @@ and is not rerun. Width stays out of the stack.
 ## Next
 
 - When a B200 worker starts: check its first minutes for quick failures (requeue a FAILED item
-  once). 28623801 passed that check. Still open: r56 seed 0's first train log, for M2/M3/M6
-  puzzles. 28623801 ends at 21:03 EST at the latest.
+  once). 28623801 passed that check, and r56's training mix holds the mini levels (LOG 15:24 EST).
+  28623801 ends at 21:03 EST at the latest.
 - A `mit_normal_gpu` worker that ends at its 6-h limit is not requeued: put its
   `queue/running/<job>-k` items back at the front of their queue and submit a replacement, keeping
   at most 6 GPUs able to run together.
