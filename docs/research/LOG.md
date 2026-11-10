@@ -5290,3 +5290,23 @@ Code (off unless a config names the levels): `ladder.MINI_LEVELS`, `level_by_nam
 STATUS.md is rewritten as a short page (it had grown to 138 lines of history that the LOG already holds).
 
 GPU jobs: 6. Queues: `h200` has r52 seed 4, r55 seeds 0-2 and r53 seeds 0-2 (about 36 GPU-hours). `screens_a_h200` has r54 seeds 0-2 and r51 seeds 1-4 (about 23 GPU-hours).
+
+## 2026-11-10 11:37 EST: r52 seed 3 ends at 0.200 (four-seed paired difference +0.004); both track A workers preempted; r55 moved ahead of r53
+
+**r52 (track D, width 1280, 276M), seed 3.** Final in-loop dev, paired with D 005's same seeds:
+
+| seed | r52 w1280 | D 005 | difference | r52 RL steps | D 005 RL steps |
+|---|---|---|---|---|---|
+| 0 | 0.203 | 0.193 | +0.010 | 12,017 | 10,272 |
+| 1 | 0.198 | 0.187 | +0.012 | 8,118 | 13,427 |
+| 2 | 0.222 | 0.210 | +0.012 | 12,003 | 14,463 |
+| 3 | 0.200 | 0.217 | -0.017 | 10,265 | 14,058 |
+| mean | 0.206 ± 0.011 | 0.202 | +0.004 (SD 0.014) | 10,601 | 13,055 |
+
+What it means: the +0.011 that seeds 0-2 showed is down to +0.004 over four seeds, and the SD of the difference (0.014) is three times that. This is the same pattern as width 1024 (r50: +0.011 over three seeds, +0.002 over five). The wider model does about 19 % fewer RL steps in the same budget on average, and what it gains per step does not make up for more than that. So model size is not what holds track D at 0.20. Seed 4 has been running since 10:50 EST (job 28316532, node4300) and ends at about 16:50 EST. It would need 0.332 for the five-seed mean to reach the line (0.231), so r52 cannot promote on its own. I let it finish so the arm closes on five seeds. Width stays out of the D10 stack unless seed 4 changes this.
+
+**Both track A workers were preempted at about 11:00 EST** (node4301): 28486959 with r51 seed 0 and 28523219 with r54 seed 0. Slurm requeued both jobs (Restarts=1, pending), and a requeued worker first redoes the item it held (`queue/running`), so nothing needs requeueing by hand. r51 seed 0 has resume state at step 118 (dev 0.138 at step 100) and continues from there. r54 seed 0 was 8 minutes in and starts again.
+
+**Queue order.** `h200` is now r55 seeds 0-2, then r53 seeds 0-2 (it had r53 seed 0 second). r55 (the mini-ladder) is the result the 11-18 box plan depends on, and its follow-up arms have to be fixed by 11-16. r53 (depth 24) is the last model-size arm, and model size now looks closed.
+
+GPU jobs: 6 (1 running, 5 pending: two on `mit_normal_gpu` waiting on priority, three on preemptable). Queued: `h200` about 30 GPU-hours, `screens_a_h200` about 25 GPU-hours with the two items to redo.
