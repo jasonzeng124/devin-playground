@@ -9,7 +9,8 @@ Checks: the record path and `v3` config block, consecutive seeds 0..N-1 with N >
   seed's own pretrained model;
 - `clock.json`: the ranked GPU (`NVIDIA H200` since v3.1; the H100-era records in `H100_RECORDS`
   keep `NVIDIA H100 80GB HBM3`), the track's budget and within it, and total_s = pretrain_s +
-  grpo_wall_s - grpo_eval_s, with grpo_eval_s matching the in-loop evals in `eval_log.jsonl`;
+  grpo_wall_s - grpo_eval_s, with grpo_eval_s matching the in-loop evals in `eval_log.jsonl`; a run
+  that chose a checkpoint (grpo's `keep_best_dev` logs `kept_step`) takes no eval time off (v3.4);
 - `result.json`: one GPU, the same GPU as the clock, and the pinned revision for track A;
 - `confirm_v3.json`: a full test-ladder run of the seed's own final weights, scored with the
   record's sampler, whose score is the mean of its six levels;
@@ -122,6 +123,9 @@ def _check_clock(seed: Path, name: str, clock: dict, budget: float, errors: list
         logged = (last.get("wall_s") or 0.0) - (last.get("train_s") or 0.0)
         if abs(logged - eval_s) > CLOCK_TOLERANCE_S:
             errors.append(f"{label}: grpo_eval_s {eval_s:.0f} != the in-loop eval time in eval_log.jsonl ({logged:.0f})")
+        if last.get("kept_step") is not None and max(logged, eval_s) > CLOCK_TOLERANCE_S:
+            errors.append(f"{label}: the run chose a checkpoint (kept_step in eval_log.jsonl), so its in-loop evals count "
+                          f"toward the clock (RULES v3.4), but {max(logged, eval_s):.0f} s of eval time is taken off")
 
 
 def _check_confirm(name: str, confirm: dict, errors: list[str]) -> None:

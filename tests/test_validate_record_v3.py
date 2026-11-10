@@ -119,6 +119,21 @@ def test_rule_checks_catch_a_fabricated_record(tmp_path):
         assert expected in message, expected
 
 
+def test_a_run_that_chose_a_checkpoint_keeps_its_evals_on_the_clock(tmp_path):
+    """RULES v3.4: grpo's keep_best_dev logs kept_step and train_s == wall_s, so run_seed_v3.sh takes nothing off."""
+    record = make_record(tmp_path, "a")
+    budget = benchmark.V3_TIME_BUDGET_S["A"]
+    for i in range(5):
+        (record / "seeds" / str(i) / "eval_log.jsonl").write_text(json.dumps({"wall_s": 110.0, "train_s": 110.0, "kept_step": 350}) + "\n")
+        edit_json(record / "seeds" / str(i) / "clock.json", grpo_wall_s=budget - 60, grpo_eval_s=0.0)
+    ok, message = validate(record)
+    assert ok, message
+    (record / "seeds" / "2" / "eval_log.jsonl").write_text(json.dumps({"wall_s": 110.0, "train_s": 100.0, "kept_step": 350}) + "\n")
+    edit_json(record / "seeds" / "2" / "clock.json", grpo_wall_s=budget - 50, grpo_eval_s=10.0)
+    ok, message = validate(record)
+    assert not ok and "seed 2: the run chose a checkpoint" in message and "10 s of eval time is taken off" in message
+
+
 def test_compare(tmp_path):
     old = make_record(tmp_path, scores=(0.15, 0.16, 0.17, 0.15, 0.16))
     better = make_record(tmp_path, scores=(0.20, 0.21, 0.19, 0.20, 0.22), name="001_better")
