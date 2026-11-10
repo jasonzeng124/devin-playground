@@ -260,3 +260,16 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
 - 2026-11-09 13:00 EST (maintainer, via laptop), **keep both tracks running.** Track D still gets at
   least half (INBOX 10-31), but track A shouldn't sit idle: keep at least one or two GPU slots on track
   A screens whenever there's capacity. Which track A directions to try is your call.
+
+- 2026-11-10 10:00 EST (maintainer, via laptop), **model change and a one-month extension.**
+  - From the restart at about 10:00 EST 11-10, this session runs on Fable 5.2 (`claude-fable-5-2`)
+    at effort xhigh. It was Opus 5.5 at effort high until then. It is the same conversation,
+    resumed. New commits carry the trailer `Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>`.
+  - The run now ends 2026-12-19, not 2026-11-19. AGENT.md has the new dates, the new trailer and
+    a note on the harness's 7-day /loop limit (reread it). The rules, the promotion rule, the
+    6-GPU cap and the track split (D at least half, A not idle) are unchanged.
+  - AWS is unchanged: the 11-18 and 11-28 blocks stay off and the $500 budget stays suspended
+    (INBOX 11-03), unless a later note says otherwise.
+  - Please add a LOG entry that marks the handover: the record holders, the open arms and what
+    is queued, as of this restart. Update the dates in PLAN.md, and revise its agenda for the
+    extra time as you see fit.
