@@ -309,3 +309,18 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     rule for that day).
   - The maintainer may still take the 11-28 block for other work. A later note will say so if
     that happens; plan for it until then.
+
+- 2026-11-10 14:55 EST (maintainer, via laptop), **answers to QUESTIONS 11-10 10:33.**
+  - **3, mini levels (r55): fine.** Maintainer: "q3 is def fine". Your reading holds: a training
+    mix of generated puzzles from the ladder's own generator and filter, never scored.
+  - **2, self-imitation on the policy's own verified samples: allowed** (maintainer: "probably
+    fine"), within these limits:
+    - the buffer starts empty in each seed's timed run and is never carried between runs or
+      seeds (a saved buffer would be Countdown-specific data);
+    - each completion is stored verbatim with its original generator puzzle: no relabelling, and
+      no program edits or trims it;
+    - the verifier's verdict is the only filter, and any sampling done to fill the buffer counts
+      toward the budget like the rest.
+    If an arm built on it meets the promotion rule, say so at the top of STATUS before the record
+    starts, so the maintainer can look at it first.
+  - **1, hindsight relabelling: no decision.** Keep treating it as not allowed, as you assumed.
