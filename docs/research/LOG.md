@@ -5153,3 +5153,39 @@ GPU jobs: 6. Running: 28316532 (r50 w640 seed 2), 28334442 (w1024 seed 0), 28439
 - Track A: a second worker for r51 (28523219, H200 preemptable, queue `screens_a_h200`), so track A has two slots, per INBOX 13:00.
 - The array job 28518521 (`eng-board1`, CPU only, `~/pokerbot26`) is the maintainer's, not this loop's. It uses no GPUs and I'm leaving it alone.
 - GPU jobs: 6, 4 track D and 2 track A. Running: 28316532 (w1024 seed 4), 28334442 (w1024 seed 3). Pending: 28473022, 28473023 (r52), 28486959, 28523219 (r51).
+
+## 2026-11-10 10:20 EST: r50 closes level with D 005 over five seeds; r52 (276M) is +0.011 over seeds 0-2; r53 tests depth
+
+The loop restarted at 09:40 EST after it reached its maximum duration at 20:44 EST 11-09. AGENT.md is unchanged, there is nothing new in INBOX (last b789aeb), and the pool is at 53.5 %.
+
+**r50 w1024 (182M), all five seeds** (in-loop final dev; D 005 = the record's own seeds; computed with python):
+
+| seed | tokens | val loss | RL steps | w1024 dev | D 005 dev | diff |
+|---|---|---|---|---|---|---|
+| 0 | 1.91B | 2.842 | 11,692 | 0.212 | 0.193 | +0.019 |
+| 1 | 1.90B | 2.840 | 14,027 | 0.215 | 0.187 | +0.028 |
+| 2 | 1.94B | 2.822 | 11,050 | 0.197 | 0.210 | -0.013 |
+| 3 | 1.92B | 2.848 | 12,599 | 0.188 | 0.217 | -0.029 |
+| 4 | 1.91B | 2.826 | 12,753 | 0.207 | 0.200 | +0.007 |
+| mean | | | | 0.204 | 0.201 | +0.002 (SE 0.010) |
+
+Seeds 3 and 4 took back most of the early lead: three seeds of five are above D 005's 0.201 and the mean is 0.027 short of the D line 0.231. A 182M model trained on fewer tokens (1.9B against 2.7B) reaches the same val loss and the same dev score. r50 is closed: neither 69M nor 182M beats 110M.
+
+**r52 w1280 x 12 (276M), seeds 0-2.** All three are within the 21,600 s budget (20,894 / 20,952 / 20,892 s).
+
+| seed | tokens | val loss | RL steps | w1280 dev | D 005 dev | diff |
+|---|---|---|---|---|---|---|
+| 0 | 1.42B | 2.845 | 12,017 | 0.203 | 0.193 | +0.010 |
+| 1 | 1.42B | 2.859 | 8,118 | 0.198 | 0.187 | +0.011 |
+| 2 | 1.44B | 2.856 | 12,003 | 0.222 | 0.210 | +0.012 |
+| mean | | | | 0.208 | 0.197 | +0.011 (SE 0.001) |
+
+Every seed is about 0.011 ahead of its D 005 partner, which is very steady, but w1024 looked the same after three seeds (+0.011) and ended at +0.002. No seed is near 0.231, so the 3-seed form of the rule is not met. Seed 3 is running and seed 4 is queued. The val loss is flat across sizes (2.82-2.89): at a fixed 112 min of pretraining, a bigger model sees fewer tokens and ends at about the same loss. Per level, the 276M seeds are not better at L1 (0.60-0.72) but are slightly better at L3-L4.
+
+**Next for track D: r53 `d005_w768_l24`**, PLAN D5 by depth instead of width. It is D 005's recipe with 24 layers at width 768 (about 195M parameters). Countdown needs several dependent arithmetic steps, and depth is the usual lever for that, while widening has not helped. Seeds 0-2 are queued on `h200` after r52 seed 4. PLAN's other track D items have each been tried (D2 data mixes closed, D3 GSM8K SFT null in r32, D4 process reward null in r49), so size and shape are what's left on the agenda.
+
+**Workers.** Two workers had exited (less than 380 min left), so there were only 4 GPU jobs. New jobs:
+- 28595678: H200 preemptable, queue `h200` (track D).
+- 28595679: H200 mit_normal_gpu (6 h), queue `screens_a_h200` (r51, track A). r51's two preemptable workers (28486959, 28523219) have been pending on Resources since 11-09, and nothing from r51 has started.
+
+GPU jobs: 6. Track D: 28316532 (running, r52 seed 3), 28473022 and 28595678. Track A: 28486959, 28523219 and 28595679. Track D gets half the slots, per INBOX 10-31 and 11-09.
