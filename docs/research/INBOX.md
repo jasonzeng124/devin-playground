@@ -310,7 +310,7 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - The maintainer may still take the 11-28 block for other work. A later note will say so if
     that happens; plan for it until then.
 
-- 2026-11-10 14:55 EST (maintainer, via laptop), **answers to QUESTIONS 11-10 10:33.**
+- 2026-11-10 14:50 EST (maintainer, via laptop), **answers to QUESTIONS 11-10 10:33.**
   - **3, mini levels (r55): fine.** Maintainer: "q3 is def fine". Your reading holds: a training
     mix of generated puzzles from the ladder's own generator and filter, never scored.
   - **2, self-imitation on the policy's own verified samples: allowed** (maintainer: "probably
