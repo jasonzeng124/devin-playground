@@ -191,8 +191,11 @@ Track D (from scratch, 6 h):
   limits: the buffer starts empty in each seed's timed run and is never saved or carried between
   runs or seeds; completions are stored verbatim (no relabelling, no edits or trims); the
   verifier's verdict is the only filter; sampling done to fill the buffer counts toward the
-  budget. Off by default in code. First arm: step-capped on B200 from D 004's checkpoints, paired
-  with r30. Track A may use it too. If an arm built on it meets the promotion rule, say so at the
+  budget. Coded 11-10 (`sil_rows`, `sil_coef`, `sil_buffer`, `sil_by_level`; off by default; LOG
+  2026-11-10 16:16 EST). First arm r59: r30's config with 64 replayed rows per step at
+  coefficient 0.5, drawn evenly over levels, step-capped on B200 from D 004's checkpoints, paired
+  with r30. A clear gain: seeds 3-4, a coefficient and row-count sweep on the 11-18 box, and a
+  time-budgeted H200 gate (the step cap hides the replay's update time). Track A may use it too. If an arm built on it meets the promotion rule, say so at the
   top of STATUS before the record starts.
 - D12. **Hindsight relabelling: one unranked screen, to measure its effect** (INBOX 2026-11-10
   14:54). It stays not allowed in records, promotion screens and anything stacked into a ranked
@@ -216,9 +219,9 @@ each batch carries its own control arm:
   fixed by 11-26.
 
 Rough timeline for the extension:
-- 11-10 to 11-14: code in this order: the checkpoint option (A8), self-imitation (D11), the
-  unranked relabelling screen (D12). r58, then A 006's five record seeds if the rule is
-  met. r55, r53. On B200: r51, r56, r57, then the first self-imitation arm (D11).
+- 11-10 to 11-14: code in this order: the checkpoint option (A8, done), self-imitation (D11,
+  done), the unranked relabelling screen (D12). r58, then A 006's five record seeds if the rule is
+  met. r55, r53. On B200: r51, r56, r59 (the first self-imitation arm, D11), r57.
   The D7 sampling profile.
 - 11-15 to 11-16: prepare the 11-18 box (above). 11-17: Engaging maintenance.
 - 11-18 to 11-25: the H100 box day, then its results. D6 follow-ups, D7 and D8 on Engaging.

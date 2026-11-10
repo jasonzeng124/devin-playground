@@ -5434,3 +5434,34 @@ The rule for r58, fixed before any seed runs: the kept eval is the best of eight
 **r51 started on B200.** 28623802 (`mit_normal_gpu`, node5801-c1) started at 15:41 EST with r51 seed 0, which continues from its H200 resume state at step 118. Its 6-h limit ends at 21:41 EST. Both `mit_normal_gpu` slots now hold B200 jobs, so my two normal H200 jobs wait behind them; the three preemptable H200 jobs are still pending.
 
 GPU jobs: 8 (2 running, 6 pending), at most 6 able to run together. Next in the code order: self-imitation (D11), the unranked relabelling screen (D12), then rollback and train on (A8 (c), by 11-16 for the 11-18 box).
+
+## 2026-11-10 16:16 EST: self-imitation is in (`sil_rows`, PLAN D11); r59 is its first arm, first in the track D B200 queue
+
+**The option (commit 08fe4a3).** Four settings in `grpo.py`, off by default (`sil_rows` 0). With `sil_rows` above 0:
+
+- **What goes in.** Every sample of the run's own rollouts that the verifier marks correct is stored: its completion tokens as sampled, with the generator puzzle it answered. That includes the groups an oversampled step doesn't keep for its update. Nothing else is stored.
+- **The buffer** lives in memory only. `run` starts it empty, it is not in the resume state and it is never written to disk, so a resumed screen starts it empty again and refills it. It keeps the newest `sil_buffer` entries (4,096) per pool and overwrites the oldest.
+- **The replay.** Each step draws up to `sil_rows` entries and adds their negative log-likelihood to the same optimizer step, scaled so a replayed row weighs like a policy-gradient row with advantage `sil_coef`: the term is `sil_coef` times the replayed tokens' summed negative log-prob, divided by the step's RL token count. The log-probs are the constrained policy's at the sampling temperature, as in the RL term. Replayed rows get no entropy bonus, KL term or importance weight.
+- A step's own samples go in after its update, so a step never replays what it just sampled. No entry is replayed twice in one step, so a step replays fewer rows while a pool is small.
+- **`sil_by_level`** (on by default): one pool per puzzle level label, and each draw picks a pool evenly among those that hold anything. With one pool for everything, the replay would be mostly L1 solutions, which the policy already produces nine times in ten; drawn by level, five sixths of the replayed rows are L2-L6 solutions, which are rare in the rollouts. Off gives the single pool.
+- It samples nothing extra: the RL rollouts already on the clock fill the buffer. The replay's forward and backward pass is on the clock like the rest of the update.
+- One process only. The log gains `sil_rows`, `sil_nll` (mean negative log-prob per replayed token, before the step), `sil_added` and `sil_buffer`.
+- Tests (150 pass): the buffer keeps the newest entries per level and spreads draws over levels; a replay batch is each stored puzzle's prompt followed by its stored tokens; the replay's gradient equals that of the same rows as policy-gradient rows with advantage `sil_coef`, on top of an unchanged RL term, also on a step with no informative group; a step stores every verified sample and replays only earlier ones; a run with the option off logs nothing about it; a resumed run starts with an empty buffer and its resume state holds none of it. I also built a replay batch with the real track D tokenizer and `constrain_answer` on the login node (no model): the allowed-token sets line up with the stored tokens.
+
+**How it meets the limits of INBOX 11-10 14:50.**
+
+- The buffer starts empty in each seed's run and is never carried over: it exists only in the process's memory.
+- Each completion is stored verbatim with its original puzzle: the stored tokens are the ones the RL update trains on, and no code edits, trims or relabels them.
+- The verifier's verdict is the only filter on what goes in. Entries leave by age only.
+- No sampling is done to fill it beyond the RL rollouts.
+- One reading of mine: drawing evenly over levels uses the generator's level label of each stored puzzle. I take that as a training mix over generated puzzles, which RULES_v3 allows and `train_ladder_levels` already does for the rollouts. `sil_by_level` false is the plain buffer if the maintainer reads it differently.
+
+**r59 `calibration/research_r59/d004rl_shape05_lr6e-6_sil64c05_s15k`** is r30's config with `sil_rows` 64, `sil_coef` 0.5, 4,096 entries per level, drawn by level: 15,000 steps on B200 packed 3 per GPU, from D 004's checkpoints, paired per seed with r30 (0.192 / 0.180 / 0.220 / 0.233 / 0.193). Seeds 0-2 are first in `screens_d_b200`, ahead of r57.
+
+- **Why 64 rows at 0.5.** r30 has no advantage normalisation and shaping 0.5, so a lone success in a group of 8 has an advantage of about 0.6; a replayed row at 0.5 weighs a little less than that. r30's seed 0 updates on 46 informative groups of 8 early (steps 300-500) and 23 late (the last 1,000 steps), so 64 replayed rows are between a sixth and a third of an update's rows.
+- **The risk.** r30's entropy is already low (0.10 nats per token at steps 300-500, 0.07 at the end). A likelihood term on solutions sharpens the policy further and could cut the number of informative groups. r59's `entropy` and `informative_groups` are read against r30's for that.
+- **The cost.** A step cap hides the extra update time. r30's seed 0 spent 0.69 s sampling and 0.61-0.86 s updating per step; r59's `t_update` is reported against that, and a gain here still has to hold in a time-budgeted H200 gate before it counts.
+- **A caveat of the B200 setup.** 15,000 steps take about 6.5 h packed (r56 runs at 1.56 s per step), longer than a 6-h `mit_normal_gpu` job, so a seed can continue in a second job, where its buffer starts empty again. A record run doesn't resume.
+- **What follows.** A clear paired gain over three seeds leads to seeds 3-4, a coefficient and row-count sweep on the 11-18 box, and a time-budgeted H200 gate from D 005's checkpoints against 0.231. If an arm built on self-imitation meets the promotion rule, that goes to the top of STATUS before any record starts (INBOX 11-10 14:50).
+
+r56 seeds 0-2 and r51 seed 0 are still running on B200 (28623801 to 21:03 EST, 28623802 to 21:41 EST). No H200 worker has started. GPU jobs: 8 (2 running, 6 pending), at most 6 able to run together. Next in the code order: the unranked relabelling screen (D12), then rollback and train on (A8 (c), by 11-16 for the 11-18 box).

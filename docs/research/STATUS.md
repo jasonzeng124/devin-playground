@@ -2,14 +2,15 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-10 15:46 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). Since 11-10 the agent runs on
+Updated 2026-11-10 16:16 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). Since 11-10 the agent runs on
 Fable 5.2. The handover entry (holders, open arms, queues, the plan for the extra month) is LOG
 2026-11-10 10:33.
 
 INBOX 11-10 14:50 and 14:54: self-imitation on the policy's own verified samples is allowed within
 limits (PLAN D11). If an arm built on it meets the promotion rule, that is flagged here, at the
-top, before the record starts. One unranked screen of hindsight relabelling is allowed (PLAN D12).
-Neither has started: the code comes first.
+top, before the record starts. It is coded and tested (`sil_rows`, off by default), and its first
+arm, r59, is first in the track D B200 queue (LOG 16:16 EST EST). One unranked screen of hindsight
+relabelling is allowed (PLAN D12); its code is next.
 
 INBOX 11-10 14:58 and 15:04: the maintainer's own ideas are judged in `~/rlvr-ideas/STATUS.md`
 (private, outside this checkout; the first pass is done). RULES v3.4 lets a run choose among its
@@ -60,8 +61,9 @@ Not mine, left alone: the `eng-board1` array, 28597816, 28597977, 28600134 (`tc`
 
 ## Queues
 
-- `screens_d_b200` (track D, B200, 7 runs waiting, about 12 GPU-hours packed 3 per GPU): r57 seeds
-  0-2, r56 seeds 3-4, r57 seeds 3-4. r56 seeds 0-2 are running.
+- `screens_d_b200` (track D, B200, 10 runs waiting, about 22 GPU-hours packed 3 per GPU at r56's
+  1.56 s per step): r59 seeds 0-2, r57 seeds 0-2, r56 seeds 3-4, r57 seeds 3-4. r56 seeds 0-2 are
+  running.
 - `screens_b200` (track A, B200, about 16 GPU-hours waiting): r51 seeds 1-4. Seed 0 is running, from
   its H200 resume state at step 118.
 - `h200` (H200 only, about 31 GPU-hours): r58 seeds 0-1, r55 seeds 0-1, r53 seeds 0-2.
@@ -73,7 +75,8 @@ Not mine, left alone: the `eng-board1` array, 28597816, 28597977, 28600134 (`tc`
 |---|---|---|---|---|
 | r58 `a005_ent05_keepbest_h200` | A | A 005 + entropy floor (`entropy_coef` 0.05 below `entropy_target` 0.1) + `keep_best_dev` (the run ends on its best in-loop dev eval's weights, RULES v3.4); the H200 promotion screen for A 006. It took r54's place before r54 ran | not started; first on both H200 queues | the kept dev reads about 0.01-0.02 high (best of eight evals), so it is read against 0.305: seeds 0-2 all at 0.305 or above and none collapsed start record A 006 with the option on (5 fixed seeds). Otherwise seeds 3-4 and the five-seed form. The last eval is reported beside the kept one |
 | r51 `a005_os2` | A | A 005 + oversample 2, 400 steps on the 500-step schedule, now on B200 | seed 0 running on B200 since 15:41 EST, from step 118 (dev 0.138 at step 100); seeds 1-4 queued | compare with A 005's in-loop dev 0.313 |
-| r56 `d004rl_shape05_lr6e-6_mini3_s15k` | D | r30 + the mini levels M2, M3, M6 in the training mix (PLAN D6), 15,000 steps, B200 packed | seeds 0-2 running since 15:03 EST; seeds 3-4 queued | paired with r30 (0.192 / 0.180 / 0.220 / 0.233 / 0.193). A clear gain: H200 gate against 0.231. Clearly negative: drop r55 |
+| r56 `d004rl_shape05_lr6e-6_mini3_s15k` | D | r30 + the mini levels M2, M3, M6 in the training mix (PLAN D6), 15,000 steps, B200 packed | seeds 0-2 running since 15:03 EST at 1.56 s per step (15,000 steps take about 6.5 h, so each seed continues in a second job); seeds 3-4 queued | paired with r30 (0.192 / 0.180 / 0.220 / 0.233 / 0.193). A clear gain: H200 gate against 0.231. Clearly negative: drop r55 |
+| r59 `d004rl_shape05_lr6e-6_sil64c05_s15k` | D | r30 + self-imitation (PLAN D11): each step replays up to 64 of the run's earlier verifier-correct samples, drawn evenly over levels, each weighing like a policy-gradient row with advantage 0.5; 15,000 steps, B200 packed | seeds 0-2 first in `screens_d_b200` (LOG 16:16 EST EST) | paired with r30. Read `entropy`, `informative_groups` and `t_update` against r30's. A clear gain: seeds 3-4, a sweep on the 11-18 box, an H200 gate against 0.231 |
 | r57 `d004rl_shape05_lr6e-6_noL5_s15k` | D | r30 with no L5 prompts in training (PLAN D8), 15,000 steps, B200 packed | queued | paired with r30 |
 | r55 `d005rl_mini3` | D | RL from D 005's checkpoints with the mini levels, time-budgeted on H200 | queued in both H200 queues after r54 | paired with D 005's seeds 0-2 (0.193 / 0.187 / 0.210) |
 | r53 `d005_w768_l24` | D | depth 24 at width 768 | last in `h200` | three seeds, then decide on seeds 3-4 |
@@ -106,9 +109,11 @@ and is not rerun. Width stays out of the stack.
   `queue/running/<job>-k` items back at the front of their queue and submit a replacement, keeping
   at most 6 GPUs able to run together.
 - Code, each option off by default and tested. Done: keeping the best in-loop dev checkpoint
-  (`keep_best_dev`, with the validator check). Next, in this order: self-imitation (PLAN D11), the
-  unranked relabelling screen (D12), rollback and train on (A8 (c), needed by 11-16 for the box).
-  The first self-imitation arm is step-capped on B200, paired with r30.
+  (`keep_best_dev`, with the validator check) and self-imitation (`sil_rows`). Next, in this
+  order: the unranked relabelling screen (D12), rollback and train on (A8 (c), needed by 11-16 for
+  the box).
+- r59 (self-imitation): when its seeds start, check the first minutes (the replay runs on a GPU for
+  the first time) and that `sil_rows` reaches 64 within the first few hundred steps.
 - `~/rlvr-ideas/STATUS.md`: update it whenever a verdict or a result changes.
 - r58 seeds 0-2 (about 2.5 h each on H200): apply the rule in its row; on a pass, create and commit
   the A 006 record config (with `keep_best_dev`; the README says the run chose a checkpoint) and
