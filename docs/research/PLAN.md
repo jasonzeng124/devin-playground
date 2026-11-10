@@ -132,14 +132,15 @@ Track A (start: Qwen3-1.7B-Base, 5 h; no external data since v3.3):
   (0.197 and 0.248) were at 0.335 and 0.365 at steps 250 and 350. The eight evals took 117 s. The
   best of eight noisy evals overstates dev by about 0.01-0.02, so read the low seeds and the test
   score, not the selected dev mean alone.
-  - (a) An option, off by default, that keeps the best in-loop dev checkpoint: every in-loop dev
-    eval counts toward the clock, the weights are copied when an eval is the best so far, and the
-    best copy is written as final. Before a record relies on it, check that `clock.json` and
-    `validate_record_v3.py` count those evals. The record's README says it chose a checkpoint.
-  - (b) The promotion screen for A 006 becomes r54's config with (a) on (r58), if the code is
-    ready before r54 starts. The training path is r54's, so one eval log gives both readings (the
-    last eval and the kept one). If r54 starts first, it runs as queued, both readings come from
-    its log, and the option gets a short run on B200 before the record.
+  - (a) Done 11-10 (`keep_best_dev`, LOG 11-10 15:46 EST): an option, off by default, that keeps the
+    best in-loop dev checkpoint. Every in-loop dev eval counts toward the clock, the weights are
+    copied when an eval is at least as good as the best so far, and the kept copy is the final.
+    `clock.json` then takes no eval time off, and `validate_record_v3.py` checks that. The
+    record's README says it chose a checkpoint.
+  - (b) Queued 11-10: r58, r54's config with (a) on, is the promotion screen for A 006 (r54 had
+    not run). The training path is r54's, so one eval log gives both readings (the last eval and
+    the kept one). The kept dev is read against 0.305, not 0.285: the best of eight evals reads
+    about 0.01-0.02 high.
   - (c) Rollback and train on (maintainer idea U12): restore the best snapshot when dev falls or
     the malformed share jumps, lower the lr and continue. For the 700-step schedule (A7 (a)) on
     the 11-18 box, where a slide at step 450 leaves time to use.
@@ -216,7 +217,7 @@ each batch carries its own control arm:
 
 Rough timeline for the extension:
 - 11-10 to 11-14: code in this order: the checkpoint option (A8), self-imitation (D11), the
-  unranked relabelling screen (D12). r54 or r58, then A 006's five record seeds if the rule is
+  unranked relabelling screen (D12). r58, then A 006's five record seeds if the rule is
   met. r55, r53. On B200: r51, r56, r57, then the first self-imitation arm (D11).
   The D7 sampling profile.
 - 11-15 to 11-16: prepare the 11-18 box (above). 11-17: Engaging maintenance.

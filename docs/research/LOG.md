@@ -5411,3 +5411,26 @@ The check left open in the last entry. A running screen writes its train log und
 - A stream drawn with r56's settings (`train_mix` ladder, the nine level names, 900 puzzles) gives each level about a ninth: L1 106, L2 104, L3 87, L4 94, L5 109, L6 98, M2 94, M3 97, M6 111. So a third of the training puzzles are mini levels.
 - r56 seed 0's training solve rate over steps 300-500 is 0.121, against 0.069 for r30 seed 0 over the same steps, as easier puzzles in the mix should give. It says nothing yet about the dev ladder.
 - Speed is the same as r30's: 1.57 s per step against 1.62 s over those steps. Seed 0 was at step 593 at 15:24 EST.
+
+## 2026-11-10 15:46 EST: the checkpoint option is in (`keep_best_dev`); r58 replaces r54 as A 006's promotion screen; r51 started on B200
+
+**The option (PLAN A8 (a); commits adbb18d and 73c8b2b).** `keep_best_dev` in `grpo.py`, off by default. With it on:
+
+- After each in-loop dev eval that is at least as good as the best so far (a tie goes to the later eval), the run copies its weights to CPU memory. Before the clock stops it restores the kept copy, so the final weights and `final_pass_rate` are the best eval's. `kept_step` and `last_pass_rate` (the last eval's score) are logged beside them.
+- The evals and the copies stay on the clock. The trainer counts no eval time as excluded, so `train_s` equals `wall_s` in every eval row, `run_seed_v3.sh` writes `grpo_eval_s` 0 and `total_s` is the whole run. Neither the script nor the existing validator checks needed a change. `validate_record_v3.py` now also fails a record whose eval log has `kept_step` while eval time is taken off.
+- It refuses an eval set named like the test ladder, and more than one process.
+- A time-budgeted run's last eval comes after the time stop, so `time_budget_s` has to leave room for it. An eval takes about 15 s; track A's margin is 600 s and track D's about 840 s.
+- The kept copy rides in the resume state, so a preempted screen keeps it. Records don't resume.
+- Host memory: A 005's seed 3 peaked at 11.6 GB (`sacct` MaxRSS) in a 64 GB job, and the copy adds 6.8 GB.
+- `summarize_screens.py` reports the kept eval as such a run's final and prints the last eval beside it.
+- Tests (145 pass): with the option off, a run ends on its last weights and its eval time is excluded as before; with it on, the run ends on the right eval's weights with the evals on the clock; the kept copy survives a resume; the validator case.
+
+For configs without the option, the one change is that an eval row's `wall_s` and `train_s` come from one clock reading instead of two.
+
+**r58 `calibration/research_r58/a005_ent05_keepbest_h200` replaces r54 as the H200 promotion screen for A 006 (PLAN A8 (b)).** r54 never got past its first minutes (seed 0 ran 8 minutes on 28523219 this morning before the preemption), so nothing is lost. r58 is r54's config with `keep_best_dev` on. The option doesn't touch the training path, so each seed gives both readings: the kept eval, which is what a record with the option is scored from, and the last eval, which is what r54 would have reported. Seeds 0-1 are first in `h200` and seed 2 is first in `screens_a_h200`.
+
+The rule for r58, fixed before any seed runs: the kept eval is the best of eight noisy evals and reads about 0.01-0.02 high, so both forms of the promotion rule read the kept dev against 0.305 (the line 0.285 plus 0.02). Three seeds all at 0.305 or above and none collapsed start record A 006 with the option on; otherwise seeds 3-4 and the five-seed form. On A 005's logs the kept evals were 0.335 to 0.403. A 006's README will say that the run chose a checkpoint (RULES v3.4).
+
+**r51 started on B200.** 28623802 (`mit_normal_gpu`, node5801-c1) started at 15:41 EST with r51 seed 0, which continues from its H200 resume state at step 118. Its 6-h limit ends at 21:41 EST. Both `mit_normal_gpu` slots now hold B200 jobs, so my two normal H200 jobs wait behind them; the three preemptable H200 jobs are still pending.
+
+GPU jobs: 8 (2 running, 6 pending), at most 6 able to run together. Next in the code order: rollback and train on (A8 (c), for the 11-18 box), self-imitation (D11), the unranked relabelling screen (D12).
