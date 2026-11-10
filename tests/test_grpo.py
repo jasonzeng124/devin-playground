@@ -1,9 +1,12 @@
 import copy
+import itertools
 import json
 import math
 import sys
 import types
+from collections import Counter
 
+import numpy as np
 import pytest
 import torch
 from transformers import BatchEncoding, GPT2Config, GPT2LMHeadModel
@@ -768,8 +771,6 @@ def test_train_ladder_levels_restricts_the_ladder_stream():
 
 
 def test_train_ladder_levels_accepts_the_mini_levels():
-    import itertools
-
     stream, _ = grpo._train_streams(GRPOConfig(train_mix="ladder", train_ladder_levels="L1,M2,M3,M6"))
     puzzles = list(itertools.islice(stream, 200))
     assert {p.level for p in puzzles} == {"L1", "M2", "M3", "M6"}
@@ -852,3 +853,144 @@ def test_keep_best_dev_carries_the_kept_weights_through_a_resume(monkeypatch, tm
     assert len(seen) == 4 and [row["kept_step"] for row in rows] == [1, 1, 1, 1]
     assert result["kept_step"] == 1 and result["final_pass_rate"] == 0.5 and result["last_pass_rate"] == 0.3
     assert _same_weights(model, seen[0]) and not _same_weights(model, seen[3])
+
+
+def test_replay_buffer_keeps_the_newest_entries_per_level_and_spreads_draws_over_levels():
+    replay = grpo._Replay(capacity=3, by_level=True, seed=0)
+    assert len(replay) == 0 and replay.draw(4) == []
+    for i in range(5):
+        replay.add(Puzzle((1, 2), 3, level="L1"), np.array([i], dtype=np.int32))
+    replay.add(Puzzle((1, 2, 3), 6, level="L4"), np.array([9], dtype=np.int32))
+    assert len(replay) == 4
+    assert sorted(int(tokens[0]) for _, tokens in replay.pools["L1"]) == [2, 3, 4]  # the two oldest were overwritten
+    assert sorted(int(tokens[0]) for _, tokens in replay.draw(400)) == [2, 3, 4, 9]  # no entry twice in one draw
+    levels = Counter(puzzle.level for _ in range(400) for puzzle, _ in replay.draw(1))
+    assert 150 < levels["L4"] < 250  # half the draws go to the level that holds a single entry
+    flat = grpo._Replay(capacity=3, by_level=False, seed=0)
+    for i in range(5):
+        flat.add(Puzzle((1, 2), 3, level="L1" if i % 2 else "L4"), np.array([i], dtype=np.int32))
+    assert list(flat.pools) == [""] and sorted(int(tokens[0]) for _, tokens in flat.draw(9)) == [2, 3, 4]
+
+
+def test_replay_batch_is_each_stored_puzzles_prompt_followed_by_its_stored_tokens(monkeypatch):
+    tokenizer, config, device = TinyTokenizer(), GRPOConfig(model="tiny", sil_rows=64), torch.device("cpu")
+    replay = grpo._Replay(8, True)
+    assert grpo._replay_batch(replay, tokenizer, config, device) is None  # nothing to replay yet
+    stored = {"L1": np.array([5, 6, 7], dtype=np.int32), "L4": np.array([9], dtype=np.int32)}
+    replay.add(Puzzle((1, 2), 3, level="L1"), stored["L1"])
+    replay.add(Puzzle((4, 5, 6), 15, level="L4"), stored["L4"])
+    asked, real = [], grpo._encode_prompts
+    monkeypatch.setattr(grpo, "_encode_prompts", lambda tok, puzzles, *args: asked.append(list(puzzles)) or real(tok, puzzles, *args))
+    batch = grpo._replay_batch(replay, tokenizer, config, device)
+    encoded, prefix_len = real(tokenizer, asked[0], config, device)
+    assert sorted(puzzle.level for puzzle in asked[0]) == ["L1", "L4"] and batch.allowed is None
+    assert (batch.prompt_width, batch.prefix_len) == (encoded["input_ids"].shape[1], prefix_len)
+    assert torch.equal(batch.ids[:, : batch.prompt_width], encoded["input_ids"])
+    assert torch.equal(batch.attention[:, : batch.prompt_width], encoded["attention_mask"])
+    for row, puzzle in enumerate(asked[0]):
+        tokens = stored[puzzle.level].tolist()
+        assert batch.attention[row, batch.prompt_width :].tolist() == [1] * len(tokens) + [0] * (3 - len(tokens))
+        assert batch.ids[row, batch.prompt_width : batch.prompt_width + len(tokens)].tolist() == tokens
+
+
+def test_replayed_rows_weigh_like_policy_gradient_rows_with_advantage_sil_coef():
+    """The imitation term is -sil_coef * (the replayed rows' log-probs) / the batch's token count, added to an unchanged RL term."""
+    lengths, replay_lengths = [7, 2, 5, 3], [6, 1, 4]
+    generated, attention, prompt_width = _ragged_batch(3, lengths)
+    advantages = torch.tensor([1.0, -1.0, 0.5, -0.5])
+    replay_ids, replay_attention, replay_width = _ragged_batch(4, replay_lengths, prompt_width=6)
+    base = _tiny_model().eval()
+
+    def grads(ids, mask, adv, width, replayed=None, **extra):
+        model = copy.deepcopy(base)
+        config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, micro_batch_size=2, **extra)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+        sums = grpo._update(model, None, ids, mask, adv, width, 0, config, optimizer, torch.device("cpu"), grpo.SINGLE, None, None, replayed)
+        return [p.grad.clone() for p in model.parameters()], sums
+
+    plain, plain_sums = grads(generated, attention, advantages, prompt_width)
+    replayed = grpo._ReplayBatch(replay_ids, replay_attention, replay_width, 0)
+    both, both_sums = grads(generated, attention, advantages, prompt_width, replayed, sil_coef=0.7)
+    alone, _ = grads(replay_ids, replay_attention, torch.full((3,), 0.7), replay_width)  # the replayed rows as an RL batch of their own
+    scale = sum(replay_lengths) / sum(lengths)  # which divides by its own token count
+    for rl, mixed, imitation in zip(plain, both, alone):
+        assert torch.allclose(mixed - rl, scale * imitation, atol=1e-6)
+    assert any(imitation.abs().max() > 1e-4 for imitation in alone)
+    assert all(torch.equal(a, b) for a, b in zip(plain_sums[:4], both_sums[:4]))  # loss, kl, entropy and tokens leave the replay out
+    with torch.no_grad():
+        token_lp, mask, _ = grpo._completion_logprobs(base, replay_ids, replay_attention, replay_width)
+    assert replayed.nll == pytest.approx(-token_lp[mask].mean().item(), abs=1e-5)
+    # a step whose own rows are all skipped (no informative group) still replays
+    idle, _ = grads(generated, attention, torch.zeros(4), prompt_width, grpo._ReplayBatch(replay_ids, replay_attention, replay_width, 0),
+                    sil_coef=0.7, skip_zero_advantage=True)
+    for mixed, imitation in zip(idle, alone):
+        assert torch.allclose(mixed, scale * imitation, atol=1e-6)
+
+
+def test_grpo_step_replays_earlier_solutions_and_stores_every_verified_sample(monkeypatch):
+    torch.manual_seed(5)
+    model, tokenizer, device = _tiny_model(), TinyTokenizer(), torch.device("cpu")
+    config = GRPOConfig(group_size=2, prompts_per_step=1, max_new_tokens=4, kl_coef=0.0, sil_rows=64, sil_coef=0.5)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    puzzles = [Puzzle((1, 2), 3, level="L1"), Puzzle((1, 2), 3, level="L4")]  # two groups sampled, one kept for the update
+    sampled, replayed = [], []
+    real_sample, real_update = grpo._sample_batch, grpo._update
+    monkeypatch.setattr(grpo, "_sample_batch", lambda *args: sampled.append(real_sample(*args)) or sampled[-1])
+    monkeypatch.setattr(grpo, "_update", lambda *args: replayed.append(args[-1]) or real_update(*args))
+    plain = grpo_step(model, None, tokenizer, puzzles, config, optimizer, device)
+    assert not any(key.startswith("sil_") for key in plain) and replayed == [None]  # no buffer, no replay
+    replay = grpo._Replay(config.sil_buffer, config.sil_by_level)
+    first = grpo_step(model, None, tokenizer, puzzles, config, optimizer, device, None, grpo.SINGLE, replay)
+    assert first["kept_groups"] == 1 and replayed[-1] is None  # the buffer was empty when the step drew from it
+    assert (first["sil_rows"], first["sil_nll"], first["sil_added"], first["sil_buffer"]) == (0, 0.0, 2, 2)
+    generated, attention, _, expanded, _, prompt_width, *_, correct = sampled[-1]
+    assert correct.tolist() == [True, False, True, False]  # the tiny tokenizer decodes even rows to the right answer
+    for row, key in ((0, "L1"), (2, "L4")):  # the solved row of each group, whichever group the update kept
+        ((puzzle, tokens),) = replay.pools[key]
+        assert puzzle is puzzles[row // 2] and puzzle is expanded[row]
+        assert tokens.tolist() == generated[row, prompt_width:][attention[row, prompt_width:].bool()].tolist()
+    second = grpo_step(model, None, tokenizer, puzzles, config, optimizer, device, None, grpo.SINGLE, replay)
+    assert (second["sil_rows"], second["sil_added"], second["sil_buffer"]) == (2, 2, 4) and second["sil_nll"] > 0
+    assert replayed[-1].ids.shape[0] == 2  # one earlier solution per level, none of this step's own
+
+
+def test_run_with_self_imitation_fills_an_empty_buffer_in_every_run(monkeypatch, tmp_path):
+    """The buffer holds the run's own solutions only: it is not in the resume state, so a resumed run starts it empty."""
+    _patch_tiny_training(monkeypatch, tmp_path)
+    puzzle = Puzzle((1, 2), 3, level="L1")  # the first sample of each group solves it (TinyTokenizer.batch_decode)
+    monkeypatch.setattr(grpo, "_train_streams", lambda config, offset=0: (itertools.repeat(puzzle), [itertools.repeat(puzzle)] * 2))
+    common = dict(model="tiny", group_size=2, prompts_per_step=1, max_new_tokens=4, max_steps=4, eval_every=1, eval_limit=1,
+                  kl_coef=0.0, no_save=True)
+
+    def train_rows(name):
+        return [json.loads(line) for line in (tmp_path / name / "train_log.jsonl").read_text().splitlines()]
+
+    run(GRPOConfig(**common, out_dir=str(tmp_path / "off")))  # off by default: nothing about it in the log
+    assert len(train_rows("off")) == 4 and not any(key.startswith("sil_") for row in train_rows("off") for key in row)
+    config = GRPOConfig(**common, sil_rows=4, sil_coef=0.5, resume_dir=str(tmp_path / "resume"), resume_every_s=1e-9,
+                        out_dir=str(tmp_path / "on"))
+    real_step = grpo.grpo_step
+    calls = []
+
+    def preempted_step(*args, **kwargs):
+        calls.append(True)
+        if len(calls) == 3:
+            raise KeyboardInterrupt("preempted")
+        return real_step(*args, **kwargs)
+
+    monkeypatch.setattr(grpo, "grpo_step", preempted_step)
+    with pytest.raises(KeyboardInterrupt):
+        run(config)
+    state = torch.load(tmp_path / "resume" / "state.pt", weights_only=False)
+    assert state["step"] == 2 and not any("sil" in key or "replay" in key for key in state)
+    monkeypatch.setattr(grpo, "grpo_step", real_step)
+    run(config)
+    rows = train_rows("on")
+    assert [row["step"] for row in rows] == [1, 2, 3, 4] and [row["sil_added"] for row in rows] == [1, 1, 1, 1]
+    assert [row["sil_buffer"] for row in rows] == [1, 2, 1, 2]  # steps 3 and 4 ran after the resume
+    assert [row["sil_rows"] for row in rows] == [0, 1, 0, 1]
+    assert rows[0]["sil_nll"] == rows[2]["sil_nll"] == 0.0 and rows[1]["sil_nll"] > 0 and rows[3]["sil_nll"] > 0
+    with pytest.raises(ValueError, match="self-imitation"):
+        run(GRPOConfig(**{**common, "prompts_per_step": 2}, sil_rows=4, out_dir=str(tmp_path / "ranks")), grpo.Dist(0, 2, 0))
+    with pytest.raises(ValueError, match="sil_rows"):
+        run(GRPOConfig(**common, sil_rows=-1, out_dir=str(tmp_path / "bad")))

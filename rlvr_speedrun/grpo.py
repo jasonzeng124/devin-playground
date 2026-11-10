@@ -144,6 +144,18 @@ class GRPOConfig:
     # includes them, so run_seed_v3.sh excludes nothing), and a time-budgeted run's final eval comes after the time
     # stop, so time_budget_s has to leave room for it. One process only, and the eval set may not be the test ladder
     keep_best_dev: bool = False
+    # self-imitation (allowed with limits, docs/research/INBOX.md 2026-11-10): every verifier-correct sample of the
+    # run's own rollouts goes into a buffer, as sampled and with the generator puzzle it answered, and each step
+    # replays up to sil_rows of them (0 = off) as extra rows of the same optimizer step, each weighing like a
+    # policy-gradient row with advantage sil_coef (plain log-likelihood: no entropy bonus, KL or importance weight).
+    # The buffer starts empty in every run, is never saved (a resumed run refills it) and keeps the newest sil_buffer
+    # entries per pool. sil_by_level: one pool per puzzle level label and draws spread evenly over the pools that
+    # hold anything (a training mix over the generator's levels); off = one pool. No entry is replayed twice in a
+    # step, so a step replays fewer rows while a pool is small. One process only
+    sil_rows: int = 0
+    sil_coef: float = 1.0
+    sil_buffer: int = 4096
+    sil_by_level: bool = True
 
 
 def lr_at(config: GRPOConfig, train_s: float) -> float:
@@ -454,7 +466,74 @@ def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.d
     completion_attention = valid.to(prompt_attention.dtype)
     attention = torch.cat([prompt_attention, completion_attention], dim=1)
     malformed = torch.tensor([r.malformed for r in results], dtype=torch.bool, device=device)
-    return generated, attention, completions, expanded, rewards, prompt_width, prefix_len, malformed, sampler_lp
+    correct = torch.tensor([r.correct for r in results], dtype=torch.bool, device=device)  # the verifier's verdict per sample
+    return generated, attention, completions, expanded, rewards, prompt_width, prefix_len, malformed, sampler_lp, correct
+
+
+class _Replay:
+    """The self-imitation buffer (`GRPOConfig.sil_rows`): (puzzle, completion tokens) of the run's own
+    verifier-correct samples, the newest `capacity` per pool. It lives in memory only: `run` starts it empty and
+    `_save_state` never sees it."""
+
+    def __init__(self, capacity: int, by_level: bool, seed: int = 0):
+        self.capacity, self.by_level = capacity, by_level
+        self.pools: dict[str, list] = {}
+        self.added: Counter = Counter()  # per pool, entries ever added (the next slot to overwrite once it is full)
+        self.rng = random.Random(seed)  # its own stream, so the puzzle mix draws as it does without replay
+
+    def __len__(self) -> int:
+        return sum(len(pool) for pool in self.pools.values())
+
+    def add(self, puzzle, tokens: np.ndarray) -> None:
+        key = (puzzle.level or "") if self.by_level else ""
+        pool = self.pools.setdefault(key, [])
+        if len(pool) < self.capacity:
+            pool.append((puzzle, tokens))
+        else:
+            pool[self.added[key] % self.capacity] = (puzzle, tokens)  # the oldest entry
+        self.added[key] += 1
+
+    def draw(self, n: int) -> list:
+        """Up to `n` entries: each draw picks a pool uniformly among those holding anything, then the pool gives
+        that many distinct entries (all of them if it holds fewer)."""
+        keys = sorted(self.pools)
+        if not keys:
+            return []
+        wanted = Counter(self.rng.choice(keys) for _ in range(n))
+        return [self.pools[key][i] for key in keys for i in self.rng.sample(range(len(self.pools[key])), min(wanted[key], len(self.pools[key])))]
+
+
+@dataclass
+class _ReplayBatch:
+    """Replayed rows laid out like a rollout batch (`[prompt][completion, right-padded]`), for `_update`."""
+
+    ids: torch.Tensor
+    attention: torch.Tensor
+    prompt_width: int
+    prefix_len: int
+    allowed: list | None = None  # as `_allowed_tokens` gives it, with constrain_answer
+    nll: float = 0.0  # set by `_update`: mean negative log-prob per replayed token, before the step
+
+
+def _replay_batch(replay: _Replay, tokenizer, config: GRPOConfig, device: torch.device) -> _ReplayBatch | None:
+    """This step's draws from the buffer (None while it is empty). Each row is the stored puzzle's prompt followed
+    by the stored completion tokens, unchanged."""
+    drawn = replay.draw(config.sil_rows)
+    if not drawn:
+        return None
+    puzzles = [puzzle for puzzle, _ in drawn]
+    encoded, prefix_len = _encode_prompts(tokenizer, puzzles, config, device)
+    width = max(1, max(len(tokens) for _, tokens in drawn))
+    completion = torch.full((len(drawn), width), tokenizer.pad_token_id or 0, dtype=torch.long)
+    mask = torch.zeros((len(drawn), width), dtype=encoded["attention_mask"].dtype)
+    for row, (_, tokens) in enumerate(drawn):
+        completion[row, : len(tokens)] = torch.as_tensor(tokens, dtype=torch.long)
+        mask[row, : len(tokens)] = 1
+    ids = torch.cat([encoded["input_ids"], completion.to(device)], dim=1)
+    attention = torch.cat([encoded["attention_mask"], mask.to(device)], dim=1)
+    prompt_width = encoded["input_ids"].shape[1]
+    allowed = _allowed_tokens(tokenizer, ids, attention, prompt_width, puzzles, config.think_budget) if config.constrain_answer else None
+    return _ReplayBatch(ids, attention, prompt_width, prefix_len, allowed)
 
 
 def _micro_batches(completion_valid: torch.Tensor, prompt_width: int, config: GRPOConfig) -> list[torch.Tensor]:
@@ -549,11 +628,16 @@ def _update(
     dist: Dist,
     allowed=None,
     sampler_lp: torch.Tensor | None = None,
+    replayed: _ReplayBatch | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
     """One optimizer step on this rank's rows; returns (loss, kl, entropy_sum, token_count) sums,
     with `sampler_lp` (the sampler's per-token log-probs, [rows, completion width]) the
     `_sampler_mismatch_` sums (else None), and the gradient norm before clipping (None without
     `grad_clip`).
+
+    `replayed` (self-imitation) adds -sil_coef * (the replayed rows' summed log-probs) / token_count to the
+    step's loss, so a replayed row weighs like one of the batch's rows with advantage sil_coef. The returned
+    sums leave it out; its mean per token is written to `replayed.nll`.
 
     Under data parallelism the loss is normalised by the global completion-token
     count and gradients are summed across ranks, so the step equals the
@@ -616,6 +700,24 @@ def _update(
                 parameter.grad = torch.zeros_like(parameter) if parameter.requires_grad else None
         # the logged entropy (entropy_total / token_count) becomes the mean over the updated rows
         entropy_total = entropy_total * token_count / completion_valid[active].sum().clamp_min(1)
+    if replayed is not None:
+        replay_valid = replayed.attention[:, replayed.prompt_width :].bool()
+        nll_total = torch.zeros((), device=device)
+        for rows in _micro_batches(replay_valid, replayed.prompt_width, config):
+            width = replayed.prompt_width + max(1, int(replay_valid[rows].sum(1).max().item()))  # completions are right-padded
+            if config.grad_checkpoint:
+                model.train()
+            rows_allowed = None if replayed.allowed is None else [replayed.allowed[r] for r in rows.tolist()]
+            with torch.autocast(device.type, dtype=torch.bfloat16, enabled=config.master_fp32):
+                token_lp, completion_mask, _ = _completion_logprobs(
+                    model, replayed.ids[rows, :width], replayed.attention[rows, :width], replayed.prompt_width, config.temperature,
+                    0 if config.grad_checkpoint else replayed.prefix_len, rows_allowed,
+                )
+            model.eval()
+            nll = -token_lp[completion_mask].sum()
+            (config.sil_coef * nll / token_count).backward()
+            nll_total += nll.detach()
+        replayed.nll = (nll_total / replay_valid.sum().clamp_min(1)).item()
     dist.all_reduce_grads_(model.parameters())
     grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip) if config.grad_clip > 0 else None
     optimizer.step()
@@ -646,13 +748,19 @@ def grpo_step(
     device: torch.device,
     caches: StaticCachePool | None = None,
     dist: Dist = SINGLE,
+    replay: _Replay | None = None,
 ) -> dict:
-    """One GRPO step on `puzzles` (this rank's shard of the global prompt batch)."""
+    """One GRPO step on `puzzles` (this rank's shard of the global prompt batch). With `replay` (self-imitation)
+    the step also replays rows drawn from it, then adds this step's verifier-correct samples to it."""
     t0 = _now(device)
-    generated, attention, completions, expanded, rewards, prompt_width, prefix_len, malformed, sampler_lp = _sample_batch(
+    generated, attention, completions, expanded, rewards, prompt_width, prefix_len, malformed, sampler_lp, correct = _sample_batch(
         model, tokenizer, puzzles, config, device, caches
     )
     t_sample = _now(device) - t0
+    solved_samples = []  # every verifier-correct sample (kept group or not): its puzzle and its tokens as the update sees them
+    if replay is not None and bool(correct.any()):
+        sampled, sampled_valid = generated[:, prompt_width:].cpu().numpy(), attention[:, prompt_width:].bool().cpu().numpy()
+        solved_samples = [(expanded[row], sampled[row][sampled_valid[row]].astype(np.int32)) for row in correct.nonzero().squeeze(1).tolist()]
     all_rewards = rewards
     all_groups = all_rewards.reshape(len(puzzles), config.group_size)
     informative_groups = int((all_groups.std(dim=1, unbiased=False) > 0).sum().item())
@@ -669,9 +777,13 @@ def grpo_step(
     advantages = group_advantages(groups, config.adv_norm, config.pos_adv_scale).reshape(-1)
 
     allowed = _allowed_tokens(tokenizer, generated, attention, prompt_width, expanded, config.think_budget) if config.constrain_answer else None
+    replayed = _replay_batch(replay, tokenizer, config, device) if replay is not None else None
     loss, kl, entropy_total, token_count, mismatch, grad_norm = _update(
-        model, ref_model, generated, attention, advantages, prompt_width, prefix_len, config, optimizer, device, dist, allowed, sampler_lp
+        model, ref_model, generated, attention, advantages, prompt_width, prefix_len, config, optimizer, device, dist, allowed, sampler_lp,
+        replayed,
     )
+    for puzzle, tokens in solved_samples:  # after the update: a step never replays its own samples
+        replay.add(puzzle, tokens)
     t_update = _now(device) - t0 - t_sample
     # global batch statistics: sums over ranks of [reward, solved, malformed, samples, informative, kept, entropy, kl, loss]
     stats = dist.all_reduce_sum_(
@@ -712,6 +824,9 @@ def grpo_step(
         info["grad_norm"] = grad_norm.item()  # before clipping; the same on every rank (grads are all-reduced)
     if mismatch is not None:
         info.update(_mismatch_stats(mismatch, dist, config.tis_cap))
+    if replay is not None:
+        info.update({"sil_rows": 0 if replayed is None else replayed.ids.shape[0], "sil_nll": 0.0 if replayed is None else replayed.nll,
+                     "sil_added": len(solved_samples), "sil_buffer": len(replay)})
     return info
 
 
@@ -967,6 +1082,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError(f"eval_max_new_tokens must be >= 0 and needs cache_len 0, got {config.eval_max_new_tokens}")
     if config.keep_best_dev and (dist.world_size > 1 or Path(config.eval_set).name == Path(benchmark.LADDER_TEST_PATH).name):
         raise ValueError("keep_best_dev needs one process and an in-loop eval set that is not the test ladder (RULES v3.4)")
+    if config.sil_rows < 0 or config.sil_coef < 0 or (config.sil_rows > 0 and (config.sil_buffer < 1 or dist.world_size > 1)):
+        raise ValueError(f"sil_rows and sil_coef must be >= 0, and self-imitation needs sil_buffer >= 1 and one process, got {config.sil_rows}, {config.sil_coef}, {config.sil_buffer}")
     late_config = replace(config, malformed_reward=None) if config.malformed_reward_until > 0 else config
     scheduled = config.lr_schedule != "constant" or config.lr_warmup_s > 0
     lr_at(config, config.lr_warmup_s)  # fail on a bad schedule before loading anything
@@ -997,6 +1114,7 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr)
     stream, easy_streams = _train_streams(config)
     mix_rng = random.Random(config.seed)
+    replay = _Replay(config.sil_buffer, config.sil_by_level, config.seed) if config.sil_rows > 0 else None  # empty, also after a resume
     state_path = Path(config.resume_dir) / "state.pt" if config.resume_dir else None
     resumed = None
     if state_path is not None and state_path.exists():
@@ -1059,7 +1177,7 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
             step_config = late_config if 0 < config.malformed_reward_until <= step else config
             if config.entropy_coef > 0 and config.entropy_target > 0 and not (last_entropy is not None and last_entropy < config.entropy_target):
                 step_config = replace(step_config, entropy_coef=0.0)
-            info = grpo_step(model, ref_model, tokenizer, dist.shard(puzzles), step_config, optimizer, device, caches, dist)
+            info = grpo_step(model, ref_model, tokenizer, dist.shard(puzzles), step_config, optimizer, device, caches, dist, replay)
             last_entropy = info["entropy"]
             if config.entropy_coef > 0:
                 info["entropy_coef"] = step_config.entropy_coef
