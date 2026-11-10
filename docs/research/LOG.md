@@ -5433,4 +5433,4 @@ The rule for r58, fixed before any seed runs: the kept eval is the best of eight
 
 **r51 started on B200.** 28623802 (`mit_normal_gpu`, node5801-c1) started at 15:41 EST with r51 seed 0, which continues from its H200 resume state at step 118. Its 6-h limit ends at 21:41 EST. Both `mit_normal_gpu` slots now hold B200 jobs, so my two normal H200 jobs wait behind them; the three preemptable H200 jobs are still pending.
 
-GPU jobs: 8 (2 running, 6 pending), at most 6 able to run together. Next in the code order: rollback and train on (A8 (c), for the 11-18 box), self-imitation (D11), the unranked relabelling screen (D12).
+GPU jobs: 8 (2 running, 6 pending), at most 6 able to run together. Next in the code order: self-imitation (D11), the unranked relabelling screen (D12), then rollback and train on (A8 (c), by 11-16 for the 11-18 box).
