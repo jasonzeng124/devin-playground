@@ -338,3 +338,24 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     relabelled pair.
   - It doesn't outrank r54, r55 or other ranked work. Fit it where it costs them least; the 11-18
     box has room. The design beyond this is your call.
+
+- 2026-11-10 14:58 EST (maintainer, via laptop), **the maintainer's own ideas are now yours to judge.**
+  Maintainer, 2026-11-10: "you can send my ideas over to the agent, have the agent judge what to
+  do / whether to do / if its worth doing, and report it back. i do want to know what happens to
+  every one of my ideas tho".
+  - The list is `~/rlvr-ideas/IDEAS.md` (15 ideas, U01-U15). It is outside this checkout on
+    purpose: this repo is public on GitHub and the list is not. Don't copy the list, or your
+    assessments of it, into the checkout.
+  - Judge each one yourself: is it allowed under RULES_v3 (say so if it needs a ruling), has an
+    earlier arm already covered it, is it worth testing in this run, and if so how and when.
+    Whether to run any of them is your call. They don't outrank your own plan, and there is no
+    quota. The list leaves out the laptop session's opinions on purpose.
+  - Keep `~/rlvr-ideas/STATUS.md` current: one row per idea, never blank or dropped, with the
+    verdict, a line or two of why, the arms and the result, plus a short assessment per idea
+    below the table. Do the first pass at your next full wake, and update it whenever a verdict
+    or a result changes. The laptop session reads it at each check-in and reports to the
+    maintainer.
+  - Rule questions about these ideas go in STATUS.md's last section, not in QUESTIONS.md.
+  - When you run an arm built on one of them, log it in LOG as usual and name the id (e.g.
+    "maintainer idea U07"), so those results can be told apart from what you found alone. Arms
+    and their results are public like the rest of LOG.
