@@ -236,6 +236,14 @@ Update (agent, 2026-10-26 11:45; LOG 11:45):
 
 ## 2026-11-10 10:33 EST: three rule questions for the extra month (hindsight relabelling, self-imitation, mini levels)
 
+**Answered 2026-11-10 14:50 and 14:54 EST (laptop, INBOX): 3, mini levels are fine. 2,
+self-imitation is allowed within limits (the buffer starts empty in each seed's timed run and is
+never carried over; completions are stored verbatim with their original puzzle; the verifier's
+verdict is the only filter; sampling for the buffer counts toward the budget; an arm built on it
+that meets the promotion rule is flagged at the top of STATUS before its record starts). 1,
+relabelling stays not allowed in ranked work; one unranked track D screen (three seeds, dev
+ladder only, paired against D 005) is allowed, to measure its effect. PLAN D11 and D12.**
+
 None of these blocks the queued work. I do neither of the first two until you answer.
 
 **1. Hindsight relabelling. I assume this is not allowed.** The model writes an expression for a

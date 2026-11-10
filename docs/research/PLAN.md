@@ -130,7 +130,8 @@ Track D (from scratch, 6 h):
 - D4. Process rewards for correct intermediate arithmetic. **Closed:** +0.008 over five seeds
   (r49), inside the noise.
 - D5. Model size. **Nearly closed:** widths 640 and 1024 ended level with 110M (r50); width 1280 is
-  +0.011 over three seeds, with seeds 3-4 to come (r52); 24 layers is r53 (queued).
+  +0.004 paired over four seeds (r52, closed 11-10: seed 4 was preempted and is not rerun); 24
+  layers is r53 (queued, last in the H200 line).
 - RL knobs (not on the original list): lr 1e-5, temperature 1.2 and 1.4, an entropy floor, groups
   of 16 and the pretrain/RL split all ended at 0.198-0.222 against the 0.231 line. No more
   RL-knob-only screens (INBOX 2026-10-31).
@@ -139,8 +140,9 @@ Track D (from scratch, 6 h):
   size or data. A policy that guesses once is right on 3-13 % of L2-L5 prompts, so most groups give
   no gradient. Dev is still rising at the end of the budget (about +0.03 from step 6,000 to 12,000).
 - D6. **Mini-ladder curriculum.** Training-only 3-number levels with the operator rules of L2, L3
-  and L6 (`ladder.MINI_LEVELS`), as a third of the training mix (r55). If it helps: vary the share,
-  fade the mini levels out over the run, and try 2-number or other intermediate levels.
+  and L6 (`ladder.MINI_LEVELS`), as a third of the training mix (r55 on H200 from D 005's checkpoints;
+  r56 step-capped on B200 from D 004's checkpoints, paired with r30). If it helps: vary the
+  share, fade the mini levels out over the run, and try 2-number or other intermediate levels.
 - D7. **More steps per budget.** Sampling 512 short completions through vLLM is about 70 % of a
   step (0.67 of 0.96 s); the update is 0.25 s. First profile the sampling path (tokens per
   completion, the answer constraint's cost, the weight sync), then try the cheapest fix that
@@ -149,14 +151,31 @@ Track D (from scratch, 6 h):
   informative groups (now 26-29 of 64).
 - D8. **Level weights in the training mix.** For example no L5 prompts (dev 0.03, the longest
   completions), or more weight on the levels that give informative groups. r45 (no L1) was -0.020
-  over three seeds, so the easy levels stay in.
+  over three seeds, so the easy levels stay in. r57 is the mix without L5, step-capped on B200 and
+  paired with r30. Weights need no code: a level named twice in `train_ladder_levels` is drawn
+  twice as often.
 - D9. **dm_math during RL** (lower priority): an interleaved LM loss on the published dm_math text
   during RL, so the arithmetic learned in pretraining does not drift.
-- D10. **Stack and promote.** Combine what holds up (width 1280 if r52's seeds 3-4 hold, the
-  mini-ladder, more steps) into one arm, run the 5-seed promotion screen on H200 against 0.231,
-  and run record D 006 if it passes.
-- Waiting on QUESTIONS.md (2026-11-10), not started: self-imitation on the policy's own verified
-  samples kept in a buffer, and hindsight relabelling.
+- D10. **Stack and promote.** Combine what holds up (the mini-ladder, level weights, more steps,
+  self-imitation; not width, r52) into one arm, run the 5-seed promotion screen on H200 against
+  0.231, and run record D 006 if it passes.
+- D11. **Self-imitation on the policy's own verified samples** (allowed, INBOX 2026-11-10 14:50).
+  Completions the verifier accepted during this run's RL go into a buffer with their original
+  generator puzzle, and a likelihood loss on samples from the buffer is added to the RL loss. The
+  limits: the buffer starts empty in each seed's timed run and is never saved or carried between
+  runs or seeds; completions are stored verbatim (no relabelling, no edits or trims); the
+  verifier's verdict is the only filter; sampling done to fill the buffer counts toward the
+  budget. Off by default in code. First arm: step-capped on B200 from D 004's checkpoints, paired
+  with r30. Track A may use it too. If an arm built on it meets the promotion rule, say so at the
+  top of STATUS before the record starts.
+- D12. **Hindsight relabelling: one unranked screen, to measure its effect** (INBOX 2026-11-10
+  14:54). It stays not allowed in records, promotion screens and anything stacked into a ranked
+  arm. One arm on track D, three seeds, dev ladder only, paired against D 005, marked unranked in
+  its config and in LOG, never promoted or stacked. The relabelled target is the value of the
+  model's own expression on the puzzle's own numbers. No solver and no search over expressions on
+  relabelled pairs (no `reachable` or "needs" filter). Off by default in code. Report the paired
+  difference, the per-level numbers and the share of samples that gave a usable relabelled pair.
+  It does not outrank r54, r55 or other ranked work; the 11-18 box has room.
 
 Box days (INBOX 2026-11-10 10:40: both remaining AWS blocks are back on, screens only, about
 50/50 between the tracks, launched by hand; AGENT.md "AWS boxes"). Box runs use step caps, and
@@ -171,7 +190,8 @@ each batch carries its own control arm:
   fixed by 11-26.
 
 Rough timeline for the extension:
-- 11-10 to 11-14: r54, then A 006's five record seeds if the rule is met. r55, r52 seeds 3-4, r53.
+- 11-10 to 11-14: r54, then A 006's five record seeds if the rule is met. r55, r53. On B200: r51,
+  r56, r57, then the first self-imitation arm (D11).
   The D7 sampling profile.
 - 11-15 to 11-16: prepare the 11-18 box (above). 11-17: Engaging maintenance.
 - 11-18 to 11-25: the H100 box day, then its results. D6 follow-ups, D7 and D8 on Engaging.

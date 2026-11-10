@@ -2,9 +2,14 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-10 13:39 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). Since 11-10 the agent runs on
+Updated 2026-11-10 14:59 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). Since 11-10 the agent runs on
 Fable 5.2. The handover entry (holders, open arms, queues, the plan for the extra month) is LOG
 2026-11-10 10:33.
+
+INBOX 11-10 14:50 and 14:54: self-imitation on the policy's own verified samples is allowed within
+limits (PLAN D11). If an arm built on it meets the promotion rule, that is flagged here, at the
+top, before the record starts. One unranked screen of hindsight relabelling is allowed (PLAN D12).
+Neither has started: the code comes first.
 
 ## Records (H200 board, rules v3.3)
 
@@ -24,36 +29,50 @@ at or above the line, none collapsed. Five-seed form: mean at or above the line,
 seeds above the holder's dev mean (A 0.255, D 0.201), at most one collapsed. The gating screen
 runs on the H200. A 006 needs a test mean of about 0.33 to pass Welch against A 004 (LOG 11-10).
 
-## Jobs (6 GPU jobs: 1 running, 5 pending)
+## Jobs (8 GPU jobs queued, none running; at most 6 can run together)
 
-| job | partition | queue | state |
-|---|---|---|---|
-| 28316532 | preemptable | `h200` | running r52 seed 4 on node4300 since 10:50 EST; ends about 16:50 EST. Then r54 seeds 0-2. The job ends 11-11 08:31; last item start about 02:10 |
-| 28486959 | preemptable | `screens_a_h200` | preempted at 11:00 EST, requeued, pending; redoes r51 seed 0 from its resume state (step 118) |
-| 28523219 | preemptable | `screens_a_h200` | preempted at 11:00 EST, requeued, pending; pops r51 next (r54 seed 0 was moved to `h200`) |
-| 28473022 | mit_normal_gpu | `h200` | pending (priority) |
-| 28595678 | preemptable | `h200` | pending |
-| 28595679 | mit_normal_gpu | `screens_a_h200` | pending (priority) |
+No GPU has run since 13:37 EST: the H200 lines are days long (LOG 2026-11-10 14:59 EST). Step-capped screens
+moved to B200, where the line is short.
 
-Not mine, left alone: the `eng-board1` array, 28597816, 28597977, 28600134 (`tc`).
+| job | partition | GPU | queue | state |
+|---|---|---|---|---|
+| 28623801 | mit_normal_gpu | B200 | `screens_d_b200`, 3 runs packed | pending since 14:53 EST |
+| 28623802 | mit_normal_gpu | B200 | `screens_b200`, 1 run | pending since 14:53 EST |
+| 28623803 | preemptable | B200 | `screens_d_b200`, 3 runs packed | pending since 14:53 EST |
+| 28473022 | mit_normal_gpu | H200 | `h200` | pending (Slurm's estimate 11-14 14:30) |
+| 28595679 | mit_normal_gpu | H200 | `screens_a_h200` | pending (Slurm's estimate 11-15 13:00) |
+| 28595678 | preemptable | H200 | `h200` | pending |
+| 28316532 | preemptable | H200 | `h200` | preempted 13:36:50 EST, requeued, pending; holds no item |
+| 28486959 | preemptable | H200 | `screens_a_h200` | preempted 11:00 EST, requeued, pending; holds no item |
+
+The cap: `mit_normal_gpu` runs at most 2 GPUs per user, so of the four jobs there two run at a time,
+plus the four on preemptable. While the B200 normal jobs run, the H200 normal jobs wait (they keep
+their age). 28523219 was cancelled at 14:52 EST.
+
+Not mine, left alone: the `eng-board1` array, 28597816, 28597977, 28600134 (`tc`), 28623041 (`v12`).
 
 ## Queues
 
-- `h200` (about 37 GPU-hours): r54 seeds 0-2 (track A, the A 006 gate, moved here 11-10 13:38 because
-  only this queue has a running worker); then r55 seeds 0-2; then r53 seeds 0-2.
-- `screens_a_h200` (track A, about 18 GPU-hours): r51 seeds 1-4. The preempted worker 28486959 holds
-  r51 seed 0 in `queue/running` and redoes it first.
-- The cluster is full (LOG 11-10 13:38): five workers have been pending since 11:00 EST.
+- `screens_d_b200` (track D, B200, 10 runs, about 17 GPU-hours packed 3 per GPU): r56 seeds 0-2,
+  r57 seeds 0-2, r56 seeds 3-4, r57 seeds 3-4.
+- `screens_b200` (track A, B200, about 19 GPU-hours): r51 seeds 0-4. Seed 0 continues from its H200
+  resume state at step 118.
+- `h200` (H200 only, about 31 GPU-hours): r54 seeds 0-1, r55 seeds 0-1, r53 seeds 0-2.
+- `screens_a_h200` (H200 only, about 6 GPU-hours): r54 seed 2, r55 seed 2.
 
 ## Open arms
 
 | arm | track | what | so far | decision |
 |---|---|---|---|---|
-| r54 `a005_ent05_h200` | A | A 005 + entropy floor (`entropy_coef` 0.05 below `entropy_target` 0.1); the H200 promotion screen for A 006 | seed 0 preempted 8 min in; seeds 0-2 are first in `h200` and start at about 16:50 EST on 28316532 | seeds 0-2 all at 0.285 or above and none collapsed: start record A 006 (5 fixed seeds). Otherwise seeds 3-4 and the five-seed form |
-| r51 `a005_os2` | A | A 005 + oversample 2 | seed 0 preempted at step 118 (dev 0.138 at step 100), resumes; seeds 1-4 queued | compare with A 005's in-loop dev 0.313 |
-| r55 `d005rl_mini3` | D | RL from D 005's checkpoints with the 3-number mini levels M2, M3, M6 in the training mix | queued in `h200` after r54 | paired with D 005's seeds 0-2 (0.193 / 0.187 / 0.210) |
-| r52 `d005_w1280_l12` | D | width 1280 (276M) | seeds 0-3: 0.203 / 0.198 / 0.222 / 0.200, mean 0.206, +0.004 paired with D 005 (SD 0.014); seed 4 running | cannot reach 0.231 (seed 4 would need 0.332); close on five seeds; width stays out of the stack |
-| r53 `d005_w768_l24` | D | depth 24 at width 768 | queued after r55 | three seeds, then decide on seeds 3-4 |
+| r54 `a005_ent05_h200` | A | A 005 + entropy floor (`entropy_coef` 0.05 below `entropy_target` 0.1); the H200 promotion screen for A 006 | not started (seed 0 was preempted 8 min in); first on both H200 queues | seeds 0-2 all at 0.285 or above and none collapsed: start record A 006 (5 fixed seeds). Otherwise seeds 3-4 and the five-seed form |
+| r51 `a005_os2` | A | A 005 + oversample 2, 400 steps on the 500-step schedule, now on B200 | seed 0 at step 118 (dev 0.138 at step 100), resumes; seeds 1-4 queued | compare with A 005's in-loop dev 0.313 |
+| r56 `d004rl_shape05_lr6e-6_mini3_s15k` | D | r30 + the mini levels M2, M3, M6 in the training mix (PLAN D6), 15,000 steps, B200 packed | queued | paired with r30 (0.192 / 0.180 / 0.220 / 0.233 / 0.193). A clear gain: H200 gate against 0.231. Clearly negative: drop r55 |
+| r57 `d004rl_shape05_lr6e-6_noL5_s15k` | D | r30 with no L5 prompts in training (PLAN D8), 15,000 steps, B200 packed | queued | paired with r30 |
+| r55 `d005rl_mini3` | D | RL from D 005's checkpoints with the mini levels, time-budgeted on H200 | queued in both H200 queues after r54 | paired with D 005's seeds 0-2 (0.193 / 0.187 / 0.210) |
+| r53 `d005_w768_l24` | D | depth 24 at width 768 | last in `h200` | three seeds, then decide on seeds 3-4 |
+
+Closed 11-10: r52 (width 1280), +0.004 paired with D 005 over four seeds; seed 4 was preempted
+and is not rerun. Width stays out of the stack.
 
 ## AWS boxes (INBOX 11-10 10:40: back on, screens only, about 50/50 A/D)
 
@@ -73,18 +92,17 @@ Not mine, left alone: the `eng-board1` array, 28597816, 28597977, 28600134 (`tc`
 
 ## Next
 
-- r52 seed 4 ends about 16:50 EST: log the five-seed table and close the width arms.
-- r54 seeds 0-2 on 28316532 from about 16:50 EST, about 2.5 h each: all three done by about
-  00:20 EST on 11-11 if no other worker starts. Apply the rule above; on a pass, create and commit
-  the A 006 record config and queue its 5 seeds on H200 record workers.
-- Then r55 seeds 0-2 (about 3.9 h each) and r53. On r55 seed 0, check the first train log for
-  M2/M3/M6 puzzles in the mix.
-- 28316532 exits after its last item (job end 11-11 08:31): submit a replacement so 6 GPU jobs stay
-  queued.
-- Next full wake (about 16:50 EST): add track D arms behind r53 (D8 level weights) and the D7
-  sampling profile, so the queues hold a day of work when all six workers run.
-- QUESTIONS 11-10 (waiting for INBOX): hindsight relabelling (assumed not allowed), self-imitation
-  on verified samples (not started), mini levels (for information).
+- When a B200 worker starts: check its first minutes for quick failures (requeue a FAILED item
+  once), and check r56 seed 0's first train log for M2/M3/M6 puzzles.
+- A `mit_normal_gpu` worker that ends at its 6-h limit is not requeued: put its
+  `queue/running/<job>-k` items back at the front of their queue and submit a replacement, keeping
+  at most 6 GPUs able to run together.
+- Code, both off by default and tested: self-imitation (PLAN D11) first, then the unranked
+  relabelling screen (D12). The first self-imitation arm is step-capped on B200, paired with r30.
+- r54 seeds 0-2 (about 2.5 h each on H200): apply the rule above; on a pass, create and commit the
+  A 006 record config and queue its 5 seeds on H200 record workers.
+- r56 and r57 (4-6 h per run packed): log each paired with r30.
+- The 11-18 box: queue files, configs and the copy list committed by 11-16.
 
 ## Notes
 

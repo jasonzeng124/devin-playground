@@ -5318,3 +5318,54 @@ Only 28316532 (r52 seed 4) has run since the two track A workers were preempted 
 What I changed is the order of work for the one GPU that runs. Worker 28316532 reads `h200`. It is free at about 16:50 EST and can start items until about 02:10 EST on 11-11 (its job ends at 08:31, less the 380 min reserve). `h200` is now: r54 seeds 0, 1, 2; r55 seeds 0-2; r53 seeds 0-2. r54 is the promotion screen for A 006 and was waiting on the preempted track A workers. If no other worker starts, its three seeds end at about 00:20 EST and r55 seed 0 follows. r54 seed 0 was held by the preempted worker 28523219; I removed its `queue/running/28523219` file while the job was pending, so the seed is not run twice. That worker pops r51 when it restarts. `screens_a_h200` is now r51 seeds 1-4 (r51 seed 0 stays with 28486959).
 
 Track split: track D has had this GPU all day (r52 seeds 3 and 4, 05:01 to about 16:50 EST). Track A then has it for about 7.5 h, and r55 follows. Workers that start in the meantime take the next items in the same order.
+
+## 2026-11-10 14:59 EST: no GPU has run since 13:37; step-capped screens moved to B200 (r51, new arms r56 and r57); r52 closed on four seeds; INBOX answers on self-imitation and relabelling
+
+**Correction to the 13:39 entry.** That entry said worker 28316532 was running r52 seed 4. The worker had been preempted at 13:36:50 EST, just before I wrote it. So from 13:37 EST all six workers were pending and no GPU was running. r52 seed 4 was 2 h 46 min into its run (2,601 RL steps, last dev 0.165) and had no resume state, so that run is lost.
+
+**How long the lines are.** The 13:39 entry also concluded that no GPU type would start sooner than another, because `sbatch --test-only` gave the same far date for all of them. That was wrong. I counted the pending jobs ahead of mine by priority, per GPU type, at 14:40-14:50 EST:
+
+| partition | GPU type | jobs ahead | GPUs they ask for | users |
+|---|---|---|---|---|
+| `mit_preemptable` | H200 | 88 | 175 | 23 |
+| `mit_preemptable` | L40S | | 96 | |
+| `mit_preemptable` | H100 | | 30 | 6 |
+| `mit_preemptable` | B200 | | 16 | 4 |
+| `mit_preemptable` | A100 | 0 | 0 | |
+| `mit_normal_gpu` | H200 | 53 | 66 | 20 |
+| `mit_normal_gpu` | B200 | 1 | 1 | 1 |
+
+Slurm's estimates for my two `mit_normal_gpu` H200 jobs are 11-14 14:30 and 11-15 13:00. B200 is the short line on both partitions. The B200 nodes were full, but the `mit_normal_gpu` jobs on them (about 15 GPUs) all end within 2 h, and the other pending B200 requests there are held by a per-user memory limit or by dependencies. 4-8 A100 GPUs were free, but that type is untested with the vLLM environment and slower, so I left it as a fallback.
+
+**What I changed.** Everything step-capped now goes to B200 (INBOX 10-25 01:40 allows any Engaging type for screens, compared within one type or under step caps). The H200 jobs keep the work that needs an H200: the A 006 gate (r54) and the time-budgeted track D arms (r55, r53).
+
+- Cancelled 28523219, a pending preemptable H200 worker that held no item.
+- Submitted three B200 workers at 14:53 EST, all `packed_worker.sbatch` with `REQUIRE_GPU=NVIDIA B200`, `SCREEN_RESUME=1` and node5501-c1 excluded (failed GPU on 10-29):
+
+| job | partition | queue | runs per GPU | time limit | reserve | resume state every |
+|---|---|---|---|---|---|---|
+| 28623801 | `mit_normal_gpu` | `screens_d_b200` (track D) | 3 | 6 h | 330 min | 10 min |
+| 28623802 | `mit_normal_gpu` | `screens_b200` (track A) | 1 | 6 h | 200 min | 30 min |
+| 28623803 | `mit_preemptable` | `screens_d_b200` (track D) | 3 | 2 days | 400 min | 10 min |
+
+- **The 6-GPU cap.** Eight GPU jobs are now queued, but at most six can run together: `mit_normal_gpu` lets one user run 2 GPUs at a time (QOS `gres/gpu=2`), so of my four jobs there at most two run, and four are on preemptable. A side effect: while the two B200 jobs run on `mit_normal_gpu`, my two older H200 jobs there are held by that limit. They keep their age. If they get near the front of the H200 line, I stop resubmitting normal B200 workers so the H200 jobs can start.
+- **r51 (track A, A 005 + oversample 2) moved to B200**: seeds 0-4 are in `screens_b200`, one run per GPU (the fp32 track A trainer needs about 51 GB). The arm is step-capped at 400 steps on the 500-step schedule, so the GPU type does not change what it trains. Seed 0 continues from its H200 resume state at step 118, so that seed is part H200 and part B200.
+- **r56, new (track D, PLAN D6): the mini levels, step-capped.** `calibration/research_r56/d004rl_shape05_lr6e-6_mini3_s15k` is r30's config with `train_ladder_levels` `L1,L2,L3,L4,L5,L6,M2,M3,M6`: RL from D 004's pretrained checkpoints for 15,000 steps, packed 3 per B200. It asks the same question as r55 (do the 3-number levels help?) without waiting for an H200. Paired per seed with r30 (0.192 / 0.180 / 0.220 / 0.233 / 0.193, mean 0.204).
+- **r57, new (track D, PLAN D8): no L5 prompts in training.** `calibration/research_r57/d004rl_shape05_lr6e-6_noL5_s15k` is r30's config with `train_ladder_levels` `L1,L2,L3,L4,L6`. L5 (6 numbers) has a dev pass rate of about 0.03 and the longest completions, so its prompts give almost no gradient. The dev ladder still scores all six levels. Paired with r30 in the same way.
+- `screens_d_b200` holds r56 seeds 0-2, r57 seeds 0-2, r56 seeds 3-4, r57 seeds 3-4, so each worker's first three runs are one arm's seeds 0-2.
+- **H200 queues.** `h200`: r54 seeds 0-1, r55 seeds 0-1, r53 seeds 0-2. `screens_a_h200`: r54 seed 2, r55 seed 2. Whichever H200 worker starts first takes an r54 seed. The rule for r54 is unchanged (LOG 11-10 10:33).
+- **r52 (width 1280) is closed on four seeds; seed 4 is not rerun.** Seeds 0-3 ended at 0.203 / 0.198 / 0.222 / 0.200 (mean 0.206), +0.004 paired with D 005's seeds 0-3. Seed 4 would need 0.332 to bring the five-seed mean to the line of 0.231, and its lost run was at 0.165 after 2,601 steps. Six more H200-hours on it would not change the decision, and the H200 line is days long. The partial run is under `calibration/research_r52/d005_w1280_l12/extra/interrupted_4_1`. Width stays out of the D10 stack.
+
+**A rule for the `mit_normal_gpu` workers.** A job that ends at its 6-h limit is not requeued, and the packed track D runs can take 4-6 h. After a TIMEOUT I put the `queue/running/<job>-k` items back at the front of their queue by hand; the next worker continues them from the resume state.
+
+**INBOX 14:50 and 14:54 EST: the answers to QUESTIONS 11-10.**
+
+- Mini levels are fine. r55 and r56 stand.
+- **Self-imitation on the policy's own verified samples is allowed**, within limits: the buffer starts empty in each seed's timed run and is never carried between runs or seeds; each completion is stored verbatim with its original generator puzzle; the verifier's verdict is the only filter; sampling done to fill the buffer counts toward the budget. If an arm built on it meets the promotion rule, I say so at the top of STATUS before the record starts. This is now PLAN D11, and it is the next code I write. It targets what the 11-10 reading names as track D's limit (most groups give no gradient).
+- **Hindsight relabelling: one unranked screen is allowed, to measure its effect.** Track D, three seeds, dev ladder only, paired against D 005, marked unranked in its config and here, never promoted or stacked. The relabelled target is the value of the model's own expression on the puzzle's own numbers, with no solver or search on relabelled pairs. I report the paired difference, the per-level numbers and the share of samples that gave a usable pair. It stays not allowed in ranked work. This is PLAN D12. It comes after r54, r55 and the self-imitation arm, and the 11-18 box has room for it.
+
+Both options will be off by default, with tests. The first self-imitation arm will be step-capped on B200 and paired with r30, like r56 and r57.
+
+**Track split.** Track D: r56 and r57 on two B200 workers, r55 and r53 on H200. Track A: r51 on one B200 worker, r54 first on both H200 queues.
+
+GPU jobs: 8 queued, 0 running, at most 6 able to run together. Queued work: `screens_d_b200` 10 runs (about 17 GPU-hours packed), `screens_b200` 5 runs (about 19 GPU-hours), `h200` about 31 GPU-hours, `screens_a_h200` about 6 GPU-hours.
