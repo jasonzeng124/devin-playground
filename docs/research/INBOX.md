@@ -359,3 +359,23 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - When you run an arm built on one of them, log it in LOG as usual and name the id (e.g.
     "maintainer idea U07"), so those results can be told apart from what you found alone. Arms
     and their results are public like the rest of LOG.
+
+- 2026-11-10 15:04 EST (maintainer, via laptop), **weigh the maintainer's ideas on their merits; and a
+  ruling on checkpoints (RULES v3.4).**
+  - **The ideas in `~/rlvr-ideas`.** Maintainer: "tell it not to rly care about me (ie dont run
+    screens that i thinks is bad just cuz i asked)". Give an idea no extra weight because it is the
+    maintainer's; judge it as you would your own. Don't run a screen you think is a poor use of
+    GPU time because the maintainer suggested it. "Not in this run", with the honest reason, is a
+    good verdict, and the reason is what the maintainer wants to read.
+  - **Checkpoints (this settles U12's question).** Maintainer: "checkpoint selection is fine as
+    long as it counts in time limit, so rollback is fine", and "no checkpointing based on test
+    tho only train eval". RULES_v3.md is amended as v3.4 (the header, "Clock and hardware" and
+    "Seeds and statistics"; reread them). In short, a run may choose among its own checkpoints, or
+    roll back and train on, if:
+    - the run's own code makes the choice before the clock stops (nobody picks afterwards);
+    - it uses training signals and in-loop dev evals only, never the test ladder;
+    - snapshots, restores and any dev eval the run acts on count toward the budget.
+    It applies to both tracks and to records. A record that uses it says so in its README, and
+    its clock has to include the dev evals it acted on: check that the trainer's clock and
+    `validate_record_v3.py` handle that before a record relies on it. Existing records chose no
+    checkpoint and are not affected.

@@ -10,6 +10,9 @@ clock starts is allowed, with conditions (see "Untimed warm-up" under "Clock and
 **v3.3 (2026-10-31):** the maintainer withdrew the external-data amendment for **track A**: its
 data is again generator puzzles and verifier verdicts only (see "Track A"). Track D keeps it.
 No track A record used external data, so none is affected.
+**v3.4 (2026-11-10):** the maintainer ruled that a run may choose among its own checkpoints,
+rollback included, as long as the choosing counts toward the time budget and never uses the test
+ladder (see "Seeds and statistics"). Earlier records chose no checkpoint, so none is affected.
 Edge cases the text doesn't settle are arbitrated by the maintainer, and rulings are added
 here. v3 replaces v2's "time to a threshold" with a **fixed compute budget, scored on a
 difficulty ladder**, and has two tracks. Evidence for each choice is in `docs/v3_design.md`.
@@ -174,7 +177,8 @@ constraint by itself solves nothing (base models: 0.003-0.011). On trained Qwen 
   unranked), from the first
   GPU operation of the run to the final checkpoint being written. In-loop dev evals may be
   excluded from the clock if logged separately; everything else on the GPU counts (pretraining,
-  rollouts, updates, compilation, warmup).
+  rollouts, updates, compilation, warmup). A dev eval that the run uses to choose a checkpoint or
+  to trigger a rollback is not excluded: it counts (v3.4, see "Seeds and statistics").
 - CPU-only preparation (download, tokenizer training, tokenization, filtering) is not timed,
   but must be a deterministic script in the submission that uses only the allowed data.
 - Scoring on the test ladder happens after the clock stops and is not timed. It may run as a
@@ -223,8 +227,15 @@ constraint by itself solves nothing (base models: 0.003-0.011). On trained Qwen 
   seed scores.
 - N is fixed before the first test-ladder score, and every scored seed counts: adding seeds
   after a near-miss is not allowed.
-- Each seed is scored on its final weights. Choosing a checkpoint (on the dev ladder or
-  otherwise) is not allowed.
+- Each seed is scored once, on the weights its run writes as final. Up to v3.3, choosing a
+  checkpoint (on the dev ladder or otherwise) was not allowed. **v3.4 (maintainer, 2026-11-10):**
+  a run may choose among its own checkpoints, and may roll back to an earlier one and train on,
+  under three conditions:
+  - the run's own code makes the choice before the clock stops, and nobody picks a checkpoint
+    afterwards;
+  - the choice uses training signals and in-loop dev evals only, never the test ladder;
+  - everything the choice needs is on the clock: saving and restoring snapshots, and any dev eval
+    whose result the run acts on (see "Clock and hardware").
 
 ## Submissions
 
