@@ -33,6 +33,11 @@ judged by records logged on the leaderboard, in either track.
   fp32 track A weights are ~7 GB each.
 - Every finished batch gets a LOG entry with the `scripts/summarize_screens.py` table and what
   it means, and the branch is pushed. Commits use `zjason <zjason@mit.edu>`.
+- The maintainer's own ideas (INBOX 2026-11-10 14:58 and 15:04) are judged in
+  `~/rlvr-ideas/STATUS.md`, outside this checkout. The list is private, so neither it nor the
+  assessments are copied here. Read that file at each full wake together with this one, and
+  update it when a verdict or a result changes. An arm built on one of the ideas names its id in
+  LOG.
 
 ## Reference points (dev ladder, final in-loop eval)
 
@@ -119,6 +124,26 @@ Track A (start: Qwen3-1.7B-Base, 5 h; no external data since v3.3):
   - (c) more prompts per step (r20 tried 96 without the floor).
 
   Whatever clears the promotion rule against A 006's line becomes A 007.
+- A8. **Checkpoint choice and rollback** (allowed since RULES v3.4, 2026-11-10). A run may keep
+  the best of its own checkpoints, or roll back and train on, if its own code decides before the
+  clock stops, from training signals and in-loop dev evals only, with snapshots, restores and the
+  dev evals it acts on counted in the budget. The size, on A 005's own logs: final in-loop dev
+  0.313 (SD 0.087), best of each seed's eight evals 0.364 (SD 0.027). The two seeds that slid
+  (0.197 and 0.248) were at 0.335 and 0.365 at steps 250 and 350. The eight evals took 117 s. The
+  best of eight noisy evals overstates dev by about 0.01-0.02, so read the low seeds and the test
+  score, not the selected dev mean alone.
+  - (a) An option, off by default, that keeps the best in-loop dev checkpoint: every in-loop dev
+    eval counts toward the clock, the weights are copied when an eval is the best so far, and the
+    best copy is written as final. Before a record relies on it, check that `clock.json` and
+    `validate_record_v3.py` count those evals. The record's README says it chose a checkpoint.
+  - (b) The promotion screen for A 006 becomes r54's config with (a) on (r58), if the code is
+    ready before r54 starts. The training path is r54's, so one eval log gives both readings (the
+    last eval and the kept one). If r54 starts first, it runs as queued, both readings come from
+    its log, and the option gets a short run on B200 before the record.
+  - (c) Rollback and train on (maintainer idea U12): restore the best snapshot when dev falls or
+    the malformed share jumps, lower the lr and continue. For the 700-step schedule (A7 (a)) on
+    the 11-18 box, where a slide at step 450 leaves time to use.
+  - Track D runs don't slide, so no track D arm is planned on it.
 
 Track D (from scratch, 6 h):
 - D1. fp32 master weights + lr sweep. **Done** (in D 002 to D 005).
@@ -181,7 +206,7 @@ Box days (INBOX 2026-11-10 10:40: both remaining AWS blocks are back on, screens
 50/50 between the tracks, launched by hand; AGENT.md "AWS boxes"). Box runs use step caps, and
 each batch carries its own control arm:
 - 11-18 06:30 EST to 11-19 06:30 EST, 8x H100. Track A (4 GPUs, one fp32 run per GPU): A7 (a),
-  the 700-step schedule under the floor, about 12 runs. Track D (4 GPUs, packed): RL-only arms
+  the 700-step schedule under the floor, with and without rollback (A8 (c)), about 12 runs. Track D (4 GPUs, packed): RL-only arms
   from D 005's checkpoints for D6's follow-ups and D8. The arms are fixed by 11-16 from r54, r55
   and what follows them. Queue files, configs and the copy list are committed by 11-16, because
   Engaging's maintenance is 11-17 00:00-21:00 EST.
@@ -190,8 +215,9 @@ each batch carries its own control arm:
   fixed by 11-26.
 
 Rough timeline for the extension:
-- 11-10 to 11-14: r54, then A 006's five record seeds if the rule is met. r55, r53. On B200: r51,
-  r56, r57, then the first self-imitation arm (D11).
+- 11-10 to 11-14: code in this order: the checkpoint option (A8), self-imitation (D11), the
+  unranked relabelling screen (D12). r54 or r58, then A 006's five record seeds if the rule is
+  met. r55, r53. On B200: r51, r56, r57, then the first self-imitation arm (D11).
   The D7 sampling profile.
 - 11-15 to 11-16: prepare the 11-18 box (above). 11-17: Engaging maintenance.
 - 11-18 to 11-25: the H100 box day, then its results. D6 follow-ups, D7 and D8 on Engaging.

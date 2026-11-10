@@ -5369,3 +5369,37 @@ Both options will be off by default, with tests. The first self-imitation arm wi
 **Track split.** Track D: r56 and r57 on two B200 workers, r55 and r53 on H200. Track A: r51 on one B200 worker, r54 first on both H200 queues.
 
 GPU jobs: 8 queued, 0 running, at most 6 able to run together. Queued work: `screens_d_b200` 10 runs (about 17 GPU-hours packed), `screens_b200` 5 runs (about 19 GPU-hours), `h200` about 31 GPU-hours, `screens_a_h200` about 6 GPU-hours.
+
+## 2026-11-10 15:19 EST: INBOX 14:58 and 15:04 (the maintainer's ideas; RULES v3.4 allows checkpoint choice); r56 started on B200
+
+**INBOX 14:58 and 15:04 EST: the maintainer's ideas.** The list (`~/rlvr-ideas/IDEAS.md`) is private and stays outside this checkout, and so do my assessments of it. The first pass is written in `~/rlvr-ideas/STATUS.md`: one row and a short assessment per idea, each judged as I would judge my own (INBOX 15:04). When an arm is built on one of them, its LOG entry names the id.
+
+**RULES v3.4 (INBOX 15:04): a run may choose among its own checkpoints, or roll back and train on.** The conditions: the run's own code decides before the clock stops; it uses training signals and in-loop dev evals only, never the test ladder; snapshots, restores and the dev evals it acts on count toward the budget.
+
+What that is worth on track A, from A 005's own eval logs (in-loop dev, greedy, 600 puzzles, eight evals per seed at steps 50 to 400):
+
+| seed | final (step 400) | best of the eight | at step |
+|---|---|---|---|
+| 0 | 0.375 | 0.375 | 400 |
+| 1 | 0.403 | 0.403 | 400 |
+| 2 | 0.342 | 0.342 | 400 |
+| 3 | 0.197 | 0.335 | 250 |
+| 4 | 0.248 | 0.365 | 350 |
+| mean | 0.313 | 0.364 | |
+| SD | 0.087 | 0.027 | |
+
+- Seeds 3 and 4 are the two that slid, and they are why A 005 missed the record (Welch p = 0.072). Before the slide they were level with the other three.
+- The cost is small: seed 3's eight evals took 117 s (`grpo_eval_s` in its `clock.json`). The run used 7618 s of the 17,400 s budget.
+- The best of eight noisy evals overstates dev (one eval's standard error is about 0.02), so the "best" column can't be compared with a final-eval mean as it stands. The part that should carry over to the test ladder is the two slid seeds.
+
+The plan (PLAN A8, new):
+
+- **An option, off by default, that keeps the best in-loop dev checkpoint.** When it is on, every in-loop dev eval counts toward the clock, the weights are copied when an eval is the best so far, and the best copy is written as final. It gets tests, and before a record relies on it I check that `clock.json` and `validate_record_v3.py` count those evals.
+- **The promotion screen for A 006 becomes r54's config with the option on (r58)**, if the code is ready before an H200 worker starts r54. The option doesn't change the training path, so one run's eval log gives both readings (the last eval and the kept one). If r54 starts first, it runs as queued, both readings come from its log, and the option gets a short run on B200 before the record.
+- **Rollback and train on comes second (maintainer idea U12)**: restore the best snapshot when dev falls or the malformed share jumps, lower the lr and continue. It is for the 700-step schedule on the 11-18 box, where a slide at step 450 leaves time to use.
+- Track D runs don't slide, so no track D arm is planned on it.
+- The code order is now: the checkpoint option, then self-imitation (D11), then the unranked relabelling screen (D12).
+
+**B200: the first worker started.** 28623801 (`mit_normal_gpu`, node5600-c1) started at 15:03 EST and runs r56 seeds 0-2 packed on one B200. At 15:19 EST all three were sampling and none had failed. They have written no train log yet, so the check for M2/M3/M6 puzzles in the training mix is still open. The job's 6-h limit ends at 21:03 EST. The packed runs took 3.8-5.8 h in r30, so some may not finish; they save resume state every 10 min, and I put unfinished items back at the front of `screens_d_b200` and submit a replacement.
+
+GPU jobs: 8 (1 running, 7 pending), at most 6 able to run together. Queued work is unchanged apart from r56 seeds 0-2 being in hand.
