@@ -167,6 +167,17 @@ def test_ladder_levels_meet_their_requirements():
                 assert Fraction(p.target) not in reachable(nums, "+-*")
             elif level.name in ("L4", "L5"):
                 assert p.target not in _plus_minus_values(p.numbers)
+    from rlvr_speedrun.ladder import MINI_LEVELS, level_by_name
+
+    for level in MINI_LEVELS:  # training-only 3-number levels: the same operator rules as L2, L3 and L6
+        assert level_by_name(level.name) is level
+        for _ in range(20):
+            p = generate_level_puzzle(rng, level)
+            assert len(p.numbers) == 3 and p.ops in level.ops and p.level == level.name and 10 <= p.target <= 200
+            assert verify(f"<answer>{p.solution}</answer>", p).correct
+            nums = tuple(sorted(Fraction(x) for x in p.numbers))
+            subsets = {"M2": ("+-",), "M3": ("+-*",), "M6": tuple(p.ops)}[level.name]
+            assert all(Fraction(p.target) not in reachable(nums, sub) for sub in subsets)
     small = build_ladder_eval(per_level=5)
     assert small == build_ladder_eval(per_level=5)  # deterministic
     keys = frozenset(puzzle_key(p) for p in small)

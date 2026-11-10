@@ -765,3 +765,16 @@ def test_train_ladder_levels_restricts_the_ladder_stream():
     stream, _ = grpo._train_streams(config)
     ops = {next(stream).ops for _ in range(200)}
     assert "+-" not in ops and "+-*" in ops  # L1 is "+-" only; L2 is "+-*"
+
+
+def test_train_ladder_levels_accepts_the_mini_levels():
+    import itertools
+
+    stream, _ = grpo._train_streams(GRPOConfig(train_mix="ladder", train_ladder_levels="L1,M2,M3,M6"))
+    puzzles = list(itertools.islice(stream, 200))
+    assert {p.level for p in puzzles} == {"L1", "M2", "M3", "M6"}
+    assert all(len(p.numbers) == (4 if p.level == "L1" else 3) for p in puzzles)
+    default, _ = grpo._train_streams(GRPOConfig(train_mix="ladder"))  # unchanged: the six scored levels only
+    assert {p.level for p in itertools.islice(default, 300)} == {"L1", "L2", "L3", "L4", "L5", "L6"}
+    with pytest.raises(AssertionError, match="train_ladder_levels"):
+        grpo._train_streams(GRPOConfig(train_mix="ladder", train_ladder_levels="L1,M9"))

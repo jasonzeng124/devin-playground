@@ -30,7 +30,7 @@ from .data import load_puzzles, train_puzzle_stream
 from .distributed import SINGLE, Dist, destroy, init_from_env
 from .eval import aggregate_results
 from .ladder import LEVEL_NAMES as LADDER_LEVELS
-from .ladder import ladder_keys, ladder_stream
+from .ladder import MINI_LEVEL_NAMES, ladder_keys, ladder_stream
 from .model_utils import answer_stopping_criteria, load_causal_model, load_tokenizer
 
 
@@ -121,7 +121,9 @@ class GRPOConfig:
     eval_samples: int = 0  # 0 = greedy; k > 0 = mean pass rate of k samples at T=1 per puzzle (vLLM backend)
     train_mix: str = ""  # "" = the generator's 4-number mix; "ladder" = uniform over the ladder levels
     train_levels: str = ""  # comma-separated countdown.LEVELS to train on (e.g. "+-*,+-*/"); empty = the generator's full mix
-    train_ladder_levels: str = ""  # with train_mix "ladder": comma-separated ladder levels to train on (e.g. "L2,L3,L4,L5,L6"); empty = all
+    # with train_mix "ladder": comma-separated ladder levels to train on (e.g. "L2,L3,L4,L5,L6"); empty = all six. The
+    # list may also name ladder.MINI_LEVELS (M2, M3, M6: 3-number training-only levels); the mix is uniform over the names
+    train_ladder_levels: str = ""
     save_every: int = 0
     # resumable state (weights, optimizer, RNG, logs) in resume_dir every resume_every_s training
     # seconds; a run started with the same resume_dir continues from it (e.g. after preemption)
@@ -882,7 +884,8 @@ def _train_streams(config: GRPOConfig, offset: int = 0):
     """The main training stream (filtered to `train_levels`) and the two easy curriculum streams."""
     if config.train_mix == "ladder":
         names = tuple(config.train_ladder_levels.split(",")) if config.train_ladder_levels else LADDER_LEVELS
-        assert set(names) <= set(LADDER_LEVELS), f"train_ladder_levels must be a subset of {LADDER_LEVELS}"
+        allowed = LADDER_LEVELS + MINI_LEVEL_NAMES  # the mini levels (3 numbers) are training-only and off unless named
+        assert set(names) <= set(allowed), f"train_ladder_levels must be a subset of {allowed}"
         stream = ladder_stream(config.seed + offset * 10_000_000, names, exclude=ladder_keys())
     elif config.train_mix:
         raise ValueError(f"unknown train_mix {config.train_mix!r} (expected '' or 'ladder')")

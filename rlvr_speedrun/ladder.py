@@ -57,6 +57,14 @@ LEVELS = (
     Level("L6", 4, ("+*", "-*", "+/", "-/"), "all"),
 )
 LEVEL_NAMES = tuple(level.name for level in LEVELS)
+# Training-only "mini" levels: the operator rules of L2, L3 and L6 on 3 numbers. They are never scored and are in no
+# eval set. A training stream uses them only when a config names them (GRPOConfig.train_ladder_levels).
+MINI_LEVELS = (
+    Level("M2", 3, ("+-*",), "*"),
+    Level("M3", 3, ("+-*/",), "/"),
+    Level("M6", 3, ("+*", "-*", "+/", "-/"), "all"),
+)
+MINI_LEVEL_NAMES = tuple(level.name for level in MINI_LEVELS)
 
 
 def _plus_minus_values(numbers: tuple[int, ...]) -> set[int]:
@@ -88,7 +96,7 @@ def generate_level_puzzle(rng: random.Random, level: Level, max_tries: int = 10_
 
 
 def level_by_name(name: str) -> Level:
-    return next(level for level in LEVELS if level.name == name)
+    return next(level for level in LEVELS + MINI_LEVELS if level.name == name)
 
 
 def ladder_stream(seed: int, names: tuple[str, ...] = LEVEL_NAMES, exclude: frozenset = frozenset()):

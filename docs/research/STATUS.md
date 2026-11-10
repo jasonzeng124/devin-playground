@@ -2,137 +2,95 @@
 
 (maintained by the research agent; see AGENT.md)
 
-**v3.3 (2026-10-31): external data is withdrawn for track A (generator puzzles and verifier verdicts only) and kept for track D.**
+Updated 2026-11-10 10:33 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). Since 11-10 the agent runs on
+Fable 5.2. The handover entry (holders, open arms, queues, the plan for the extra month) is LOG
+2026-11-10 10:33.
 
-**INBOX 10-31 12:15: track D matters more; it gets at least half of research effort and screen capacity. A 005 and A 002 still run.**
+## Records (H200 board, rules v3.3)
 
-**INBOX 11-03 13:30: the 11-05 H100 box (8x H100, 11:30Z 11-05 to 11:30Z 11-06) is back on for screens only, about 50/50 track A/D. Prep plan in LOG 11-03 12:50. The 11-18 and 11-28 blocks stay off.**
+| track | record | test, 5 seeds | in-loop dev mean | state |
+|---|---|---|---|---|
+| A | `records/v3/track_a/004_ladder_constrained_h200` | 0.2671 ± 0.0565 | 0.255 | **holder** |
+| A | `records/v3/track_a/005_fp32_mal0_cos500_s400` | 0.3400 ± 0.0815 | 0.313 | valid, not a record (Welch vs A 004 p = 0.072) |
+| A | `records/v3/track_a/002_fp32_skip_cosine` | 0.2784 ± 0.0904 | | valid, short of A 004 (p = 0.41) |
+| D | `records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6` | 0.2150 ± 0.0287 | 0.201 | **holder** (Welch vs D 004 p = 0.0034) |
+| D | `records/v3/track_d/004_dm_math_fp32_h200_warm` | 0.1552 ± 0.0217 | 0.159 | held before D 005 |
+| D | `records/v3/track_d/003_dm_math_fp32_h200` | | | failed: seeds 0 and 2 over budget |
 
-**v3.1 (2026-10-25): the reference GPU is the H200 SXM (`NVIDIA H200`). The H100 records keep a
-separate board. v3.2 (2026-10-26): an untimed warm-up is allowed (RULES_v3, "Untimed warm-up"); record
-seeds now run `scripts/warm_start.sh` first and log its time to `<record>/warm_start.log`.**
+The H100 board closed on 10-24 (A 001 0.2481; D 002 0.1512 ± 0.0202).
 
-| record | config | runs on | state |
+Promotion lines (the holder's dev mean + 0.03): **A 0.285, D 0.231**. Three-seed form: every seed
+at or above the line, none collapsed. Five-seed form: mean at or above the line, at least 4 of 5
+seeds above the holder's dev mean (A 0.255, D 0.201), at most one collapsed. The gating screen
+runs on the H200. A 006 needs a test mean of about 0.33 to pass Welch against A 004 (LOG 11-10).
+
+## Jobs (6 of 6 GPUs)
+
+| job | partition | queue | state |
 |---|---|---|---|
-| `records/v3/track_a/004_ladder_constrained_h200` | A 001's, unchanged | done | **Complete: 0.2671 ± 0.0565, validated, track A (H200) holder (LOG 10-30 22:55)**. Seeds 0.3135 / 0.2358 / 0.3132 / 0.2895 / 0.1834 (seed 4 one-guess collapse); dev mean 0.255; five preempted attempts in `extra/` |
-| `records/v3/track_a/005_fp32_mal0_cos500_s400` | r16's, stopped at step 400 (`max_steps` 400), + `budget_steps_time_stop` | done | **Complete: 0.3400 ± 0.0815, validated, not a new record** (Welch vs A 004 p = 0.072; LOG 11-01 09:50). Seeds 0.3995 / 0.4076 / 0.3821 / 0.2209 / 0.2899; dev mean 0.313; seeds 3-4 shortened their outputs; four preempted attempts in `extra/` |
-| `records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6` | D 004 + RL lr 6e-6 + partial credit 0.5 (gate r33) | done | **Complete: 0.2150 ± 0.0287, validated, track D (H200) holder** (Welch vs D 004 p = 0.0034; LOG 11-07 17:05). Seeds 0.2150 / 0.1711 / 0.2183 / 0.2516 / 0.2191; dev mean 0.201; no preempted attempts |
-| `records/v3/track_d/004_dm_math_fp32_h200_warm` | D 002's, unchanged | done | seed 1 done: test 0.1296, within budget; seed 0 done (third attempt; attempt 2 in `extra/interrupted_0_2`): test 0.1832, dev 0.182, within budget (20,816 s); seed 2 done: test 0.1384, dev 0.137, within budget (20,892 s); seed 3 done: test 0.1677, dev 0.183, within budget (20,941 s); seed 4 done: test 0.1572, dev 0.163, within budget (20,932 s). **Complete: 0.1552 ± 0.0217, validated, track D (H200) holder (LOG 10-30 18:55)** |
-| `records/v3/track_a/002_fp32_skip_cosine` | as promoted 10-23 | done | all 5 seeds within budget; test 0.2784 ± 0.0904 (seed 4 0.4320); short of A 004, Welch p = 0.41; 7 preempted attempts in `extra/` (LOG 11-08 07:40) |
-| `records/v3/track_d/003_dm_math_fp32_h200` | D 002's, unchanged | done | **failed**: seeds 0 and 2 over budget; README reports it (test mean of all five 0.1538) |
+| 28316532 | preemptable | `h200` | running r52 seed 3 on node4300 since 05:01 EST; ends about 11:00 EST |
+| 28486959 | preemptable | `screens_a_h200` | running r51 seed 0 on node4301 since 09:48 EST; ends about 13:45 EST |
+| 28473022 | mit_normal_gpu | `h200` | pending |
+| 28595678 | preemptable | `h200` | pending |
+| 28523219 | preemptable | `screens_a_h200` | pending |
+| 28595679 | mit_normal_gpu | `screens_a_h200` | pending |
 
-- A preempted seed is an infrastructure stop: its partial attempt goes to `extra/` and the same seed
-  reruns (INBOX 10-25 11:15).
-- Promotion lines (H200 holders' dev mean + 0.03): A 0.285 (A 004, 10-30; 3-seed form: every seed at
-  least that), D 0.231 (D 005, 11-07). 5-seed form: mean at least the line, at least 4 of 5 seeds above the holder's dev
-  mean (A 0.255, D 0.201), at most one collapsed. When A 004 and D 004 land, their in-loop final dev
-  replaces these (PLAN).
-- node4900 is excluded from every worker (CPUs oversubscribed, LOG 10-25 14:30). node2500 is excluded from
-  every H200 worker (track A ran about 3x slow there, LOG 10-30 21:55).
-
-H200 board: A 004 holds track A (test 0.2671 ± 0.0565, dev 0.255); D 005 holds track D (test
-0.2150 ± 0.0287, dev 0.201; LOG 11-07 17:05). D 004 held it before (test 0.1552 ± 0.0217, dev 0.159).
-
-H100 board (closed 10-24): A 001 holds track A (test 0.2481, dev 0.2403); D 002 holds track D
-(test 0.1512 ± 0.0202, dev 0.160).
-
-A 002 landed 11-08: test 0.2784 ± 0.0904, valid but short of A 004 (Welch p = 0.41; LOG 11-08 07:40). A 003 (promoted on the H100, dev 0.324) is not started: records need an H200 promotion screen.
-
-Updated 2026-11-10 10:20 EST (r50 closed: w1024 five-seed mean 0.204, +0.002 vs D 005; r52 w1280 seeds 0-2 mean 0.208, +0.011; r53 depth w768 x 24 queued; workers 28595678 (track D) and 28595679 (track A, mit_normal_gpu)). Earlier, 2026-11-09 18:00 EST (r50 w640 closed -0.008; w1024 +0.011 over seeds 0-2, seeds 3-4 running; r52 w1280 queued; second r51 worker 28523219). Earlier, 2026-11-09 14:00 EST (INBOX 13:00: keep track A running; r51 = A 005 + oversample 2 queued on `screens_a_h200`, worker 28486959). Earlier, 2026-11-09 11:55 EST (r49 closed, +0.008 vs r30; r50 w1024 seed 1 0.215 vs D 005 0.187; w1024 seeds 3-4 queued, workers 28473022/28473023). Earlier, 2026-11-09 06:00 EST (r38 closed at 0.126, seeds 3-4 dead; r50 w640 seed 1 0.170 vs D 005 0.187; worker 28439655). Earlier, 02:55 (r38 seed 3 dead at 0.000, same stall as on the box; r38 cannot promote). Earlier, 23:55 11-08 (r50 w640 seed 0 0.193, ties D 005 seed 0). Earlier, 22:10 (r44 box control complete, 0.219; temperature closed). Earlier, 18:05 (r49 seeds 2-3 0.205 and 0.233: level with r32/r30, mean 0.204 vs r32 0.203; seed 4 running; r50 started; LOG 11-08 18:05). Earlier, 12:25 (r49 seed 0 0.190 at step 15,000, level with r32 0.187 and r30 0.192; LOG 11-08 12:25). Earlier, 08:50 (r49 seed 1 0.217 at step 15,000 against r32 0.203 and r30 0.180; r50 (D5, model size: 70M and 184M against D 005's 110M) queued (LOG 11-08 08:50). Earlier, 07:40: **A 002 lands at 0.2784 ± 0.0904, short of A 004 (p = 0.41); A 003 not started** (LOG 11-08 07:40). Earlier, 23:05 11-07: r49 running on 2 H200, process credit active; A 002 seed 4 preempted a third time (LOG 11-07 23:05). Earlier, 17:05: **D 005 lands: test 0.2150 ± 0.0287, validated, new track D holder (Welch vs D 004 p = 0.0034); D line now 0.231** (LOG 11-07 17:05). Earlier: D 005 seed 3 test 0.2516, 4-seed mean 0.2140 against D 004 0.1553; seed 4 needs 0.089 for the 0.189 line; A 002 seed 4 preempted again (LOG 11-07 15:10). Earlier: D 005 seed 2 test 0.2183, 3-seed mean 0.2015 against D 004 0.1553; A 002 seed 4 rerunning; r49 moved to `h200` while the B200 nodes are unavailable (LOG 11-07 11:15). Earlier: D 005 seed 1 test 0.1711, 2-seed mean 0.1931 against D 004 0.1553; seeds 2-3 running (LOG 11-07 09:15). Earlier: A 002 seed 1 test 0.2149; A 002 4-seed test mean 0.2400 against A 004 0.2671; D 005 seed 2 running (LOG 11-07 05:15). Earlier: D 005 seed 0 test 0.2150 against the D 004 test mean 0.1553; seed 1 running (LOG 11-07 03:15). Earlier: D 005 seed 0 running; A 002 seed 4 preempted, reruns on restart (LOG 11-06 21:20). Earlier: A 002 seed 3 test 0.2123, a long-output seed; worker 28133807 replaces 27530015 (LOG 11-06 16:25). Earlier: **r33 passed the promotion rule (mean 0.201, 5/5 above 0.159, none collapsed): track D record 005 `records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6` seeds 0-4 queued on `h200` after A 002 seed 4**; r46 labels fixed per INBOX 11-06 11:30, at step 15,000 r46 is 0.204 = r30 (LOG 11-06 12:40). Earlier: r46 pt80 closed as a tie: 0.216 vs r30 0.204 and box control r44 0.215 on 4 seeds; r44 seed 1 0.212, seed 2 resuming on B200; r49 (PLAN D4: r32 GSM8K SFT + new `process_reward` 0.25 for legal moves in <think>) seeds 0-4 queued on `screens_d_b200` (LOG 11-06 10:40). Earlier: box block done: r40 closed, null on the mean over 10 seeds; r43 t1.4 0.222 and r36 t1.2 0.214 over 5 seeds, against r44 control seeds 0/3/4 0.216; r44 seeds 1-2 pulled back and queued on `screens_d_b200` (LOG 11-06 05:20). Earlier: r46 pt80 beats r30 on seeds 0-1 (0.213/0.222 vs 0.192/0.180), pt80 seeds 2-4 pretraining queued on `screens_d_b200`; track A: r40 entropy floor leads the control 0.380 vs 0.353 on 4 seeds, paired seeds 5-7 on the box; r41, r42, r47, r48 dropped; r37 closed level with r30 (LOG 11-05 17:45 to 20:05). Earlier: 11-05 box running, see below; r46 pt80 and pt150 seed 0 pretrained, RL follow-ups on the box; r38 moved off the box (LOG 11-05 10:55). Earlier: r46 moved to the head of the 11-05 box queue box_d (LOG 11-05 01:45); Engaging jobs pending. Earlier: r33 seed 3 0.215, seeds 0+3 mean 0.210; all six Engaging GPU jobs pending since about 14:00 on a congested cluster (LOG 11-04 19:50). Earlier: r46 queued: pretraining/RL time split, `pretrain_only` pretraining items pt150/pt80 seeds 0-1, RL items queued by hand after (LOG 11-04 13:50); r30/r34/r36/r37 all 0.198-0.204, RL knobs plateaued; box runs finish on Engaging via `SCREEN_RESUME=1` and `STATE=1 box_sync.sh` (LOG 11-04 12:10). Earlier: r30 seed 3 0.233; r45 (r30 without L1 training prompts, new `train_ladder_levels`) seeds 0-2 queued on `screens_d_b200`; box copy command and checkpoint path in LOG 11-04 04:50. Earlier: 11-05 box queues `box_a` (r39-r42, track A) and `box_d` (r36-r38 seeds 3-4, r43, r44, track D) written, LOG 22:45; all Engaging jobs pending since about 19:45. Earlier: r26 closes: 0.183/0.148/0.183, mean 0.171, vs D 004 0.150 and r30 0.197. r37 seed 0 0.205 and r36 seeds 0-1 0.203/0.195, each about +0.012 over r30; seed 2 decides. r38 (temperature 1.2 plus entropy floor) queued. H200 worker 27814763 replaces 27412796. 11-05 H100 box back on: see the INBOX note above.)
-
-## AWS box 11-05 (8x H100, 11:30Z 11-05 to 11:30Z 11-06): done
-
-Screens only, dev ladder, step caps (INBOX 11-03). The last sync ran at 10:16Z 11-06 with `STATE=1`. No
-more syncs; the 11-18 and 11-28 blocks stay off. Results (LOG 11-06 05:20):
-- Track A, step 400, ten paired seeds: r39 control mean 0.366 (0.379 without seed 3 at 0.253), r40 entropy
-  floor 0.377 (0.376). r40 loses 7 of 10 and only narrows the spread (sd 0.015 against 0.046). Closed.
-  Dropped earlier: r41 (t1.1), r42 (lr 7e-7), r47 (lr 1.5e-6), r48 (cosine over 400).
-- Track D, 15k steps, 5 seeds each: r36 (t1.2) 0.214, r43 (t1.4) 0.222, r37 (entropy floor) 0.204. r44
-  control seeds 0, 3, 4 give 0.218 / 0.227 / 0.203. Seeds 1-2 were pulled back with their state and are
-  queued on `screens_d_b200` to resume (box-then-B200 seeds). D 004-based arms only have seeds 0-4.
-- r38 (t1.2 + entropy floor): closed 11-09 06:00, mean 0.126 (seeds 3-4 dead on B200 at 0.000, as three runs were on the box).
-- r49 (GSM8K SFT + process reward, PLAN D4): closed 11-09 11:55, mean 0.212 vs r30 0.204 (+0.008, SE 0.009).
-- r51 (track A, PLAN A2 dynamic sampling): A 005's recipe with oversample 2, seeds 0-4 on H200; compared with A 005's record seeds' in-loop dev (mean 0.313).
-- r50 (model size, PLAN D5): closed 11-10. w640 (69M) 0.188 vs D 005 0.197 over seeds 0-2. w1024 (182M) five seeds 0.212 / 0.215 / 0.197 / 0.188 / 0.207, mean 0.204 vs D 005 0.201 (+0.002, SE 0.010; 3 of 5 above 0.201).
-- r52 (PLAN D5 continued): w1280 x 12 (276M), seeds 0-2 0.203 / 0.198 / 0.222, mean 0.208 vs D 005 0.197 (+0.011, SE 0.001). Seed 3 running (28316532), seed 4 queued. Below the D line 0.231.
-- r53 (PLAN D5, depth): w768 x 24 (about 195M), seeds 0-2 queued on `h200` after r52 seed 4.
-- r44 seed 1 finished 0.212 on B200 from step 12,505; seed 2 resumed at 8,582 and is running.
-
-## Running
-
-- mit_preemptable H200 (`--time-min=06:30:00`, RESERVE_MIN 380, NVL nodes and node4900 excluded):
-  - 26854533 and 26824150 exited 10-30 22:20 after A 004 seeds 3 and 2 (less than 380 min left).
-  - 27412796: finished r26 seed 0 (16:01 EST 11-03, 0.183) and exited (less than 380 min left). Replaced by 27814763 (submitted 16:50 EST 11-03, same settings, queue `h200`): pending.
-  - 27412797 (same): ran A 005 seed 2's rerun (test 0.3821); exited 11-01 03:40 EST (less than 380 min left).
-  - 27530015 (submitted 11-01 03:45 EST, same settings, queue `h200`): pending.
-  - 26933254 exited 10-29 20:29 after D 004 seed 2.
-  - 27162158 (preempted 10-30 21:03 and 10-31 09:03): ran A 005 seed 4 (test 0.2899) and r18 `d003rl_p256_lr3e-6` seed 1 (dev 0.148); exited 10-31 19:07 (less than 380 min left).
-  - 27487788 (submitted 10-31 19:50, same settings, queue `h200`): running on node4300 since about 09:00 EST 11-01; r26 seeds 1 and 2 done, now r18 `lr6e-6` seed 1.
-- mit_normal_gpu H200 (6 h, one item per job): two chains. 26927304 ran A 004 seed 4 (10-29 08:07-13:07);
-  26927305 is next (eligible), then 26927306. The other chain (26927308 -> 26927310 -> 26927311) was cancelled 10-31 12:48 to free a slot for track D. They read A 004's and A 002's (empty) record queues, then `h200` (head: A 005 seed 0).
-- mit_preemptable B200 screen worker 27318631 (exited 10-30 16:58 with less than 240 min left; from 10-30 02:48, replaces 27168550, which was requeued onto node5501-c1 and exited there 10-30 02:10, LOG 02:50; 27168549 exited 10-29 04:43 on node5501-c1's failed GPU;
-  27206873 cancelled 10-29 12:05 after a preemption, LOG 12:10) (LOG 10-28 20:25): `packed_worker.sbatch`
-  with PER_GPU=1 (GCC 12's libstdc++ first, deadline from `squeue`), REQUIRE_GPU "NVIDIA B200",
-  RESERVE_MIN 240, queue `screens_b200` only. One run per GPU: the probe found a second track A run
-  adds 11 %.
-- Second B200 screen worker 27283068 (same settings, from 10-29 20:32; preempted and requeued 10-30 00:35, 01:38, about 02:00 and about 20:30; exited 10-31 03:36 after r24 seed 0, less than 240 min left). 27432002 (10-31 03:54-06:10) ran r24 seed 1 and exited the same way. 27441594 (10-31 06:48 to 11-01 05:45) kept resuming r22 seed 3 from its only save (step 224) and was cancelled. 27534692 (submitted 11-01 05:45 EST) uses the same settings plus `RESUME_EVERY_S=1800`.
-- Track D B200 worker 27483976 (submitted 10-31 18:50, replaces 27460856, whose eight preemptions on node5800-c1 each came before the first hourly save, LOG 18:50): `packed_worker.sbatch` with PER_GPU=3, RESERVE_MIN 180, `--time-min=08:00:00`, `RESUME_EVERY_S=600`, queue `screens_d_b200` (r25); running again since 11-01 00:17, resumed from the saves.
-- Track D B200 worker 27987194 (submitted 11-05 10:44 EST, PER_GPU=2, otherwise as 27483976): ran r38 seed 3 (dead, 0.000), exited 02:02 EST 11-09 on an empty queue.
-- Cap (10:20 EST 11-10): 6 GPU jobs, 3 track D + 3 track A. Running 28316532 (r52 seed 3). Pending 28473022 (mit_normal_gpu), 28595678 (new, preemptable), queue `h200` = r52 seed 4 + r53 seeds 0-2; 28486959, 28523219 (preemptable) and 28595679 (new, mit_normal_gpu), queue `screens_a_h200` = r51 seeds 0-4 (nothing started yet).
-- Cap (18:00 EST 11-09): 6 GPU jobs, 4 track D + 2 track A. Running 28316532 (w1024 seed 4), 28334442 (w1024 seed 3); pending 28473022, 28473023 (queue `h200` = r52 seeds 0-4), 28486959, 28523219 (queue `screens_a_h200` = r51 seeds 0-4).
-- Cap (14:00 EST 11-09): 6 GPU jobs, 5 track D + 1 track A. Running 28316532, 28334442, 28439655 (r50); pending 28473022, 28473023 (r50 w1024 seeds 3-4) and 28486959 (r51, queue `screens_a_h200`).
-- Cap (11:55 EST 11-09): running: H200 28316532 (r50 w640 seed 2), 28334442 (w1024 seed 0), 28439655 (w1024 seed 2), all node4300/4301. Pending: 28473022 (mit_normal_gpu), 28473023 (preemptable), queue `h200` = w1024 seeds 3-4 = 5. 26927306 exited (chain ended). Previous: 06:00 EST 11-09): running: H200 26927306 (mit_normal_gpu, r50 w1024 seed 1, node2434). Pending: H200 28316532 (r49 seed 4, resumes at step 9,601), 28334442 (r50 w1024 seed 0), 28439655 (new, replaces 28312159) = 4. Previous: 02:55 EST 11-09): running: H200 28312159 (r50 w640 seed 1, node4300), B200 27598456 (r38 seed 4, node5600-c1). Pending: H200 28316532 (r49 seed 4, resumes at step 9,601), 28334442 (r50 w1024 seed 0), 26927306 = 5. Previous: 23:55 EST 11-08): running: H200 28312159 (r50 w640 seed 1, node4300), 28334442 (r50 w1024 seed 0, node4601). Pending (all preempted, each holds its item): H200 28316532 (r49 seed 4, resumes at step 9,601), B200 27987194 (r38 seed 3), 27598456 (r38 seed 4), plus H200 26927306 = 6. `h200` queue: 3 r50 items; B200 queues empty.
-- Old cap (11:25 EST 11-05): B200 27987194 running + B200 27598456 (preempted 10:30, pending) + 4 pending H200 (26927306, 27487788, 27530015, 27814763) = 6. 27800892 exited 09:23 (queue empty).
-  I may update or cancel my own pending jobs without asking.
+Not mine, left alone: the `eng-board1` array, 28597816, 28597977.
 
 ## Queues
 
-- `h200` (6 queued + 3 held, 12:40 EST 11-06): A 002 seed 4, then D 005 seeds 0-4. Held: A 002 seed 1 (27814763, pending, resumes), seed 2 (27487788, test stage) and seed 3 (27530015, running). r33 is done (LOG 11-06 12:40).
-  r18 is closed (LOG 11-02 05:55). Every H200 worker reads this queue.
-- `screens_d_b200` (12:40 EST 11-06): r49 (process reward, PLAN D4) seeds 0-4 queued; r38 seeds 3-4 and r44 seed 2 held by 27598456 (preempted, pending); 27987194 pending. Older: r38 seeds 0 and 2 and r45 seed 0 done; 27598456 (pending) holds the rest of r38/r45 seeds 0-2. r30 five-seed mean 0.204; r36 0.202, r37 0.198 (3 seeds).
-  At step 6,000: r25 `shape05` 0.188 / 0.140 / 0.153, `shape02` 0.140 / 0.185 / 0.148; r27 `shape05_lr6e-6` 0.175 / 0.152 / 0.180; r28 `shape05_g16` 0.138 / 0.158 / 0.168, closed (LOG 11-01 18:45); r29 `shape05_lr1e-5` 0.170 / 0.172 / 0.182 (LOG 11-01 19:45); D 004's own dev 0.122 / 0.115 / 0.075 (seeds 0 / 1 / 2). `shape10` 0.123 / 0.118, closed.
-- `screens_b200` (1 + 1 running, worker 27585540): r30 seed 2 running (step-capped, so it compares with the packed seeds by step). r22 `ent05_t10_lr2e-6` closed: 0.360 / 0.387 / 0.440 / 0.357 / 0.470, mean 0.403 (LOG 11-01 11:50). r24 `ent05_lr3e-6` closed: 0.413, 0.065
-  (collapse at step 430; LOG 10-31 06:50). r23 closed: `gc015` 0.392, 0.018, 0.005, 0.435 (LOG 10-30 17:55);
-  `gc03` 0.378, 0.125 (LOG 10-31 01:50).
-  r22 closed: `ent01` 0.355 ± 0.157, `ent05` 0.396 ± 0.041. ent01-based runs: 3 collapses in 10. r21, r20, r17, r19 closed.
-- Other record queues: empty. `b200` (r15), `h100`, `later`: parked, read by no worker.
+- `h200` (track D, about 36 GPU-hours): r52 seed 4; r55 seed 0; r53 seed 0; r55 seeds 1-2; r53
+  seeds 1-2.
+- `screens_a_h200` (track A, about 23 GPU-hours): r54 seeds 0-2; r51 seeds 1-4.
 
-## Best so far
+## Open arms
 
-- Track A (dev): r16 (r5 + cosine over 500 steps) 0.232 / 0.405 / 0.412 / 0.332 / 0.438, mean 0.364;
-  at step 400 0.397 ± 0.011, which A 005 uses (stop at 400). r14 (r5 + TIS, same lr path by accident) 0.398 / 0.403. A 002 and A 003 0.324
-  (H100). r16's seeds that kept about a fifth of outputs truncated ended highest; seed 0 slid into
-  truncation in its last 50 steps (0.54 to 0.61), which r17 targets.
-- Track D: D 002's recipe, test 0.1552 ± 0.0217 (D 004, the H200 record), 0.1512 (H100 record) and
-  0.1538 (D 003 on the H200, invalid clocks).
-  Closed: dm51, r11 (lr 1e-5, 3e-5).
+| arm | track | what | so far | decision |
+|---|---|---|---|---|
+| r54 `a005_ent05_h200` | A | A 005 + entropy floor (`entropy_coef` 0.05 below `entropy_target` 0.1); the H200 promotion screen for A 006 | queued | seeds 0-2 all at 0.285 or above and none collapsed: start record A 006 (5 fixed seeds). Otherwise seeds 3-4 and the five-seed form |
+| r51 `a005_os2` | A | A 005 + oversample 2 | seed 0 running | compare with A 005's in-loop dev 0.313 |
+| r55 `d005rl_mini3` | D | RL from D 005's checkpoints with the 3-number mini levels M2, M3, M6 in the training mix | queued | paired with D 005's seeds 0-2 (0.193 / 0.187 / 0.210) |
+| r52 `d005_w1280_l12` | D | width 1280 (276M) | seeds 0-2 mean 0.208, +0.011 paired; seed 3 running, seed 4 queued | close on five seeds |
+| r53 `d005_w768_l24` | D | depth 24 at width 768 | queued | three seeds, then decide on seeds 3-4 |
+
+## AWS boxes (INBOX 11-10 10:40: back on, screens only, about 50/50 A/D)
+
+| block (EST) | GPUs | ssh | launch template |
+|---|---|---|---|
+| 11-18 06:30 to 11-19 06:30 | 8x H100 | zjason@174.129.98.131 | `rlvr-box-cr-0261a6f8bb30fc123` |
+| 11-28 06:30 to 11-29 06:30 | 8x H200 (the maintainer may take it) | zjason@100.29.118.132 | `rlvr-box-cr-08927241900b5884c` |
+
+- No scheduled launch. From the block start: `aws ec2 describe-instances --region us-east-1`, then
+  `aws ec2 run-instances --region us-east-1 --launch-template LaunchTemplateName=<template>`, retried
+  every couple of minutes. No other AWS call; the $500 budget stays suspended.
+- Engaging maintenance is 11-17 00:00-21:00 EST. The 11-18 queue files, configs and copy list are
+  committed by 11-16.
+- While a box is up: wake every 20-30 min, `box_sync.sh from` every wake and a last time before
+  06:00 EST on the end day, and bring resume state back (INBOX 11-04).
+- The plan for each box is in PLAN ("Box days") and LOG 11-10 10:33.
 
 ## Next
 
-- D 005: check each seed's `clock.json` `within_budget` and `warm_start.log` as it ends; after all 5, README, `validate_record_v3.py --compare-to records/v3/track_d/004_dm_math_fp32_h200_warm`, leaderboard.
-- r49: check the first train log for a nonzero `process_credit`.
-- A 005's seeds follow A 004's in `h200`. Check each record seed's `clock.json` `within_budget` and
-  `warm_start.log` as soon as it ends; an A 005 seed should train about 2.7 h (400 steps).
-- Every slide so far (r16, r17, r19, r20 `p96`) starts within 50-100 steps of entropy reaching
-  0.035-0.045. Next: r21, an entropy bonus that turns on below a target entropy (new option, off by
-  default), run on the B200 workers (r21 closed, r22 running). A new arm needs about 0.43 to beat A 005's expected 0.397; its
-  gating seeds then run on the H200.
-- Track D: every D 004 seed ends one-guess, with 1-10 informative groups of 64 from step ~1,500 on. r25 tests
-  partial credit (`shaping`) and the entropy bonus against that. Next directions: PLAN D3 (SFT on a published
-  worked-solutions set) and D4 (process rewards). r18 is time-budgeted and stays on the H200.
+- r52 seed 3 ends about 11:00 EST: log it with seeds 0-2. The pending workers then pop r52 seed 4,
+  r55 and r53.
+- r54 seeds 0-2 need about 2.5 h each once the track A workers start (A 005's seeds took 2.1-2.5 h):
+  apply the rule above.
+- r55 seed 0: check the first train log for M2/M3/M6 puzzles in the mix.
+- The D7 sampling profile, at a later full wake.
+- QUESTIONS 11-10 (waiting for INBOX): hindsight relabelling (assumed not allowed), self-imitation
+  on verified samples (not started), mini levels (for information).
 
 ## Notes
 
 - Run tests as `OMP_NUM_THREADS=2 uv run pytest -q` (two-rank tests fail on the login node otherwise).
-- Eval arms: a dir with `eval.json`, queued like a screen, runs the reference scorer on the dev
-  ladder (`scripts/research/run_item.sh`). `summarize_screens.py` prints them.
-- Step-capped runs (`budget_steps`) log `clock_s` as the step clock (500 steps = 17,400 s);
-  `summarize_screens.py` reads their minutes from it. `budget_steps_time_stop` also stops them at
-  `time_budget_s` of real time (for records).
+- node4900 is excluded from every worker (CPUs oversubscribed). node2500 is excluded from every H200
+  worker (track A ran about 3x slow there).
+- Workers exit on empty queues: keep each queue stocked ahead of every worker's next pop.
+- Items with `no_save` and a pretraining stage (r50, r52, r53) log FAILED in `worker.log` after their
+  results are written (`mv` of a missing `final`). The results are valid.
+- Record seeds: check `clock.json` `within_budget` and `warm_start.log` as soon as a seed finishes.
+- Step-capped runs (`budget_steps`) log `clock_s` as the step clock (500 steps = 17,400 s).
 - Track D pretraining is time-budgeted and its speed varies by node; read D results with their
   tokens/s.
-- Ubuntu 24 nodes: the worker adds gcc's multiarch paths; `module load` fails there.
-- Record seeds: check `clock.json` `within_budget` as soon as a seed finishes.
-- Workers exit on empty queues: keep `h200` stocked ahead of every worker's next pop.
-- B200 workers: start them a few minutes apart (simultaneous first Triton compiles race on the shared
-  cache, LOG 10-28 20:34).
+- B200 workers: start them a few minutes apart (the first Triton compiles race on the shared cache).
+- LOG and STATUS times come from `date`, in EST (`worker.log` is UTC).

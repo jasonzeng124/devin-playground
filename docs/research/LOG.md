@@ -5189,3 +5189,104 @@ Every seed is about 0.011 ahead of its D 005 partner, which is very steady, but 
 - 28595679: H200 mit_normal_gpu (6 h), queue `screens_a_h200` (r51, track A). r51's two preemptable workers (28486959, 28523219) have been pending on Resources since 11-09, and nothing from r51 has started.
 
 GPU jobs: 6. Track D: 28316532 (running, r52 seed 3), 28473022 and 28595678. Track A: 28486959, 28523219 and 28595679. Track D gets half the slots, per INBOX 10-31 and 11-09.
+
+## 2026-11-10 10:33 EST: handover to Fable 5.2; the run is extended to 2026-12-19; the 11-18 and 11-28 AWS boxes are back on; r54 (A 006 promotion screen) and r55 (mini-ladder) queued
+
+INBOX 2026-11-10 10:00 (maintainer): from the restart at about 10:00 EST this session runs on Fable 5.2 (`claude-fable-5-2`) at effort xhigh. It was Opus 5.5 at effort high until then. It is the same conversation, resumed, and the notes below are written by the new model from this entry on. New commits carry the trailer `Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>`. The run now ends on 2026-12-19, not 2026-11-19. The rules, the promotion rule, the 6-GPU cap and the track split (D at least half, A not idle) are unchanged. That note left AWS as it was. A second note, committed at 10:21 EST, turns the two remaining boxes back on (see "The AWS boxes" below). I re-read AGENT.md in full (new dates, the new trailer, and the note that the harness ends a /loop after 7 days and cron re-issues it).
+
+Two slips in the entries just before this one:
+- The previous entry and STATUS are headed "10:20 EST" but were written at about 09:55 EST. I had estimated the time instead of reading the clock. From now on an entry's heading carries the time `date` gives when the entry is finished.
+- r45 never got a result entry. It is below, under "Closed since the last full table".
+
+### Where things stand at the handover
+
+**Record holders** (test ladder, 5 seeds each; README leaderboard):
+
+| track | holder | test | in-loop dev mean | promotion line (dev mean + 0.03) |
+|---|---|---|---|---|
+| A | `004_ladder_constrained_h200` | 0.2671 ± 0.0565 | 0.255 | 0.285 |
+| D | `005_dm_math_fp32_shape05_lr6e-6` | 0.2150 ± 0.0287 | 0.201 | 0.231 |
+
+`records/v3/track_a/005_fp32_mal0_cos500_s400` (A 005) is valid but not a record: test 0.3400 ± 0.0815 against A 004, Welch p = 0.072. Its mean is 0.073 above the holder's, and two low seeds (about 0.22 and 0.29) cost it the test.
+
+**Open arms** (in-loop final dev):
+
+| arm | track | what it is | state |
+|---|---|---|---|
+| r52 `d005_w1280_l12` | D | D 005's recipe at width 1280 (276M) | seeds 0-2: 0.203 / 0.198 / 0.222, mean 0.208, +0.011 paired against D 005's seeds 0-2. Seed 3 is running (dev 0.183 at step 8,500; it ends at about 11:00 EST; its D 005 partner ended at 0.217). Seed 4 is queued. |
+| r53 `d005_w768_l24` | D | D 005's recipe with 24 layers at width 768 (about 195M) | seeds 0-2 queued |
+| r51 `a005_os2` | A | A 005's recipe with `oversample: 2` | seed 0 running since 09:48 EST at 1.7 steps per minute, so 400 steps take about 235 min; seeds 1-4 queued |
+
+**Closed since the last full table.** r45 (r30's B200 recipe, 15,000 steps, with no L1 prompts in training) ended at 0.188 / 0.157 / 0.187, mean 0.177 ± 0.018. Its control r30 has 0.192 / 0.180 / 0.220 on the same seeds, so the paired difference is -0.020 (computed with python). Dropping the easy level did not help. If anything it hurt, which fits the idea below that easy puzzles carry useful signal.
+
+**Jobs at 10:18 EST** (6 GPU jobs, the cap):
+
+| job | partition | queue | state |
+|---|---|---|---|
+| 28316532 | preemptable H200 | `h200` (track D) | running r52 seed 3 on node4300 |
+| 28473022 | mit_normal_gpu H200 | `h200` | pending (Priority) |
+| 28595678 | preemptable H200 | `h200` | pending |
+| 28486959 | preemptable H200 | `screens_a_h200` (track A) | running r51 seed 0 on node4301 |
+| 28523219 | preemptable H200 | `screens_a_h200` | pending (Resources) |
+| 28595679 | mit_normal_gpu H200 | `screens_a_h200` | pending |
+
+The CPU jobs under this user that I did not submit (the array `eng-board1`, 28597816 `bash` on mit_quicktest, 28597977 `afpga-sif` on mit_normal) are not mine, and I leave them alone. The pool is at 53.5 %.
+
+### What I looked at before revising the plan
+
+**Track D is flat because the reward is sparse, not because the model is small.** Every RL knob, both wider models and the extra data stages ended at 0.198-0.222 against the 0.231 line. By level, r52 seed 2 has L1 0.72, L2 0.13, L3 0.08, L4 0.09, L5 0.03 and L6 0.28. About 26-29 of 64 groups give a gradient in the second half of a run.
+
+**Dev is still rising slowly when the budget ends.** D 005 seed 2 by step: 0.085 at 500, 0.123 at 2,500, 0.160 at 4,500, 0.182 at 6,500, 0.193 at 8,500, 0.203 at 10,500, 0.215 at 12,500 and 0.210 at 14,463. That is about +0.03 from step 6,000 to 12,000. The number of steps a seed gets depends on the node: D 005's seeds reached between 10,272 and 14,463.
+
+**Where a track D step goes** (second half of each run, seconds per step):
+
+| run | step | sampling | update | other |
+|---|---|---|---|---|
+| D 005 seed 0 | 1.393 | 1.060 | 0.285 | 0.048 |
+| D 005 seed 2 | 0.955 | 0.666 | 0.253 | 0.037 |
+| D 005 seed 4 | 0.979 | 0.704 | 0.236 | 0.038 |
+| r52 seed 2 (276M) | 1.082 | 0.673 | 0.372 | 0.038 |
+
+Sampling 512 short completions through vLLM is about 70 % of a step. Puzzle generation is in "other", which is 3-4 %. I had guessed that L3's generator (23 ms per puzzle on the login node) cost 15-20 % of a step, and that guess was wrong.
+
+**Track A has the mean and lacks the consistency.** On the 11-05 box (H100, capped at 400 steps, ten seeds each) A 005's recipe (r39) scored 0.366 with SD 0.046, and the same recipe with an entropy floor (r40) scored 0.377 with SD 0.015. The floor did not move the mean, but it removed the low seeds (r39's worst is 0.253, r40's worst is 0.342). A 005 missed the record on its low seeds, so the floor is the direct fix. A 005 also stops at step 400 after 7,700-9,000 s of its 17,400 s, so about half of the budget is unused.
+
+### The AWS boxes (INBOX 2026-11-10 10:40)
+
+Maintainer: "surely just use it". Both remaining capacity blocks are back on, for screens only:
+
+| block (EST) | GPUs | region | launch template |
+|---|---|---|---|
+| 11-18 06:30 to 11-19 06:30 | 8x H100 | us-east-1f | `rlvr-box-cr-0261a6f8bb30fc123` |
+| 11-28 06:30 to 11-29 06:30 | 8x H200 | us-east-1d | `rlvr-box-cr-08927241900b5884c` |
+
+What the note changes for me:
+- Nothing launches the box automatically. From the block start I run `aws ec2 describe-instances` and then `aws ec2 run-instances` with the block's template, and retry every couple of minutes until it succeeds. Those two commands, for these two templates, are the only AWS calls allowed. The $500 budget stays suspended.
+- Each box is split about 50/50 between the tracks. Its 8 GPUs do not count toward the 6-GPU limit on Engaging. Records and the test ladder stay on Engaging.
+- Engaging's maintenance is 11-17 00:00-21:00 EST, and the first block starts 9.5 h after it ends. So the 11-18 queue files, configs and copy list have to be committed by 11-16.
+- While a box is up I wake every 20-30 min, sync results back every wake, and bring unfinished runs' state back before 06:00 EST on the end day.
+- The maintainer may still take the 11-28 block for other work. I plan for it until a note says so.
+
+How I plan to use them (PLAN, "Box days"; the arms are fixed by 11-16 and 11-26 from what r54, r55 and their follow-ups show):
+- 11-18, H100, step caps, each batch with its own control arm. Track A on 4 GPUs, one fp32 run per GPU: the longer schedule under the entropy floor (PLAN A7), about 12 runs of 700 steps. Track D on 4 GPUs, packed: RL-only arms from D 005's checkpoints (the mini-ladder follow-ups and level weights, PLAN D6 and D8).
+- 11-28, H200: the stacked track D arm and track A's best A7 arm, with more seeds than Engaging can give in a day.
+
+### New work
+
+**r54 `a005_ent05_h200` (track A): the H200 promotion screen for record A 006.** It is r40's config unchanged (A 005's recipe plus `entropy_coef` 0.05 below `entropy_target` 0.1). r40 ran on the box's H100s under a step cap. AGENT.md wants the gating screen on H200, so this is that screen. Rule, fixed now: if seeds 0-2 all end at 0.285 or above with none collapsed (the 3-seed form), record A 006 starts with this config and 5 fixed seeds. Otherwise seeds 3-4 run and the 5-seed form decides. Seeds 0-2 are at the front of `screens_a_h200`, ahead of r51 seeds 1-4.
+
+**r55 `d005rl_mini3` (track D): a mini-ladder in the training mix.** New training-only levels M2, M3 and M6 are L2, L3 and L6 on 3 numbers instead of 4: the same operator sets and the same "needs" filters. The arm trains on nine names (L1-L6, M2, M3, M6) uniformly, so a third of the prompts are 3-number puzzles. A 3-number puzzle has far fewer candidate expressions, so a policy that guesses once is right much more often, and more groups carry a gradient for "use * here" or "use / here". The bet is that this transfers to the 4-number levels. It is RL-only from D 005's own pretrained checkpoints (same seed), 14,040 s, paired with D 005's in-loop dev. Seeds 0-2 are queued on `h200`, interleaved with r53.
+
+Why I think the mini levels are within the rules. RULES_v3 allows "any RL algorithm, curriculum or training mix over generated puzzles", from "`countdown.generate_puzzle`, `ladder.ladder_stream`, or any other program that produces (numbers, target, operators) without solving them". The mini levels go through the same `generate_level_puzzle` and `_meets_needs` code as the six ladder levels. No solution reaches the model: it sees the numbers, the target and the allowed operators, and gets the verifier's reward. They are never scored and are in no eval set. I have noted this reading in QUESTIONS.md so the maintainer can object.
+
+Code (off unless a config names the levels): `ladder.MINI_LEVELS`, `level_by_name` finds them, and `train_ladder_levels` accepts their names. Two tests cover it. `ruff check` is clean and 142 tests pass.
+
+**PLAN's agenda is revised for the extra month** (new items A6-A7 and D6-D10, each old item marked with how it ended). In short:
+- Track A: get A 006 on the board with the entropy floor, then spend the unused half of the budget (a longer schedule under the floor, or r51's oversampling).
+- Track D: test ideas that give more reward signal (the mini-ladder, level weights) and more steps per budget (the sampler), then stack whatever gains hold up with r52's width and run one 5-seed promotion screen against 0.231.
+
+**Two questions for the maintainer** are in QUESTIONS.md, and I am not doing either until answered: hindsight relabelling (I assume it is not allowed), and self-imitation on the policy's own verified samples kept in a buffer (I think it is allowed, as an RL algorithm). The same entry carries the note on the mini levels.
+
+STATUS.md is rewritten as a short page (it had grown to 138 lines of history that the LOG already holds).
+
+GPU jobs: 6. Queues: `h200` has r52 seed 4, r55 seeds 0-2 and r53 seeds 0-2 (about 36 GPU-hours). `screens_a_h200` has r54 seeds 0-2 and r51 seeds 1-4 (about 23 GPU-hours).

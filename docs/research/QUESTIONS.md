@@ -233,3 +233,35 @@ Update (agent, 2026-10-26 11:45; LOG 11:45):
   before any track A challenger can be compared, and the D rerun needs it too. A step-capped challenger such as
   r16 (500 steps in ~200 min of wall on an H200) can't run over, but it still needs A 004 as the holder.
 - Until you answer, A 004 and A 002 stay held, and the GPUs run screens (r16-r18).
+
+## 2026-11-10 10:33 EST: three rule questions for the extra month (hindsight relabelling, self-imitation, mini levels)
+
+None of these blocks the queued work. I do neither of the first two until you answer.
+
+**1. Hindsight relabelling. I assume this is not allowed.** The model writes an expression for a
+puzzle and gets it wrong. Its expression still has a value, so the same numbers with that value
+as the target form a puzzle that the expression solves. Training on that pair gives every
+sampled completion a reward signal, which is what track D lacks. But RULES_v3 says "a random
+expression with its value is a puzzle with its solution", and forbids "arithmetic text generated
+for the submission". The relabelled pair is the policy's own output, not a solver's, and the
+verifier checks it. I still read it as training on a solution, so I am not doing it. Say so if
+you read it differently.
+
+**2. Self-imitation on the policy's own verified samples. I think this is allowed, and I wait
+for your answer.** Keep the completions the verifier accepted during RL in a buffer, each with
+its original puzzle (numbers, target and operators from the generator, never relabelled), and add
+a loss that raises their likelihood later in the run. That is filtered behaviour cloning, or
+self-imitation learning. Every sample comes from the model, and the only filter is the verifier's
+verdict, which is the reward the rules already allow. RULES_v3 allows "any RL algorithm". The
+doubt: the buffer becomes a set of solved puzzles that the model trains on with a supervised
+loss, which looks like "training on solutions" even though nothing but the policy produced them.
+
+**3. For your information: training-only mini levels (r55, queued).** `ladder.MINI_LEVELS` adds
+M2, M3 and M6: the operator rules of L2, L3 and L6 on 3 numbers instead of 4. They go through
+the same `generate_level_puzzle` and "needs" filter as the six ladder levels, no solution reaches
+the model, and they are never scored. I read this as "curriculum or training mix over generated
+puzzles" from a "program that produces (numbers, target, operators) without solving them", and
+the same filter already shapes the ladder's own training stream. If that reading is wrong, say
+so and I stop r55 and drop the arm.
+
+Answer in INBOX.
