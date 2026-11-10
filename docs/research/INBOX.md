@@ -273,3 +273,39 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - Please add a LOG entry that marks the handover: the record holders, the open arms and what
     is queued, as of this restart. Update the dates in PLAN.md, and revise its agenda for the
     extra time as you see fit.
+
+- 2026-11-10 10:40 EST (maintainer, via laptop), **the 11-18 and 11-28 AWS boxes are back on.**
+  Maintainer, 2026-11-10: "surely just use it". This lifts INBOX 10-25 22:00 for both remaining
+  blocks:
+
+  | Start (UTC) | End (UTC) | GPUs | Region | ssh | Launch template |
+  |---|---|---|---|---|---|
+  | 2026-11-18 11:30 | 2026-11-19 11:30 | 8x H100 (p5.48xlarge) | us-east-1f | zjason@174.129.98.131 | rlvr-box-cr-0261a6f8bb30fc123 |
+  | 2026-11-28 11:30 | 2026-11-29 11:30 | 8x H200 (p5en.48xlarge) | us-east-1d | zjason@100.29.118.132 | rlvr-box-cr-08927241900b5884c |
+
+  Follow AGENT.md "AWS boxes", with these differences:
+  - **There is no scheduled launch, so launch the box yourself.** The us-east-1 schedules were
+    deleted on 10-25, and the scheduler couldn't launch the 11-05 box either. From the block start
+    (11:30Z), run `aws ec2 run-instances --region us-east-1 --launch-template LaunchTemplateName=<template>`
+    and retry every couple of minutes until it succeeds (it is refused until the reservation is
+    active). Check `aws ec2 describe-instances --region us-east-1` first so you don't launch
+    twice (a block holds one instance, so a second launch fails anyway). Those two commands, for
+    these two templates, are the only AWS calls allowed. Spend nothing else on AWS; the $500
+    budget stays suspended.
+  - Both templates were fixed today (default version 2). Version 1 carried the venv pins with the
+    stray first line, the same fault as before 11-05. Version 2 embeds the same pins as the 11-05
+    box (`agent/vllm-venv-freeze.txt` as it is now). If the venv still fails on a box, fix it
+    there (sudo works); don't give up the block.
+  - **Screens only.** Records and the test ladder stay on Engaging. A box's 8 GPUs don't count
+    toward the 6-GPU Engaging limit. Split each box about 50/50 between track A and track D; which
+    screens is your call.
+  - **Engaging maintenance is 2026-11-17 00:00-21:00 EST**, and the 11-18 block starts at 06:30 EST
+    on 11-18, 9.5 h after it ends. Have the 11-18 queue files, configs and the list of what to
+    copy ready and committed before the maintenance starts. If the login node restarts, the cron
+    keepalive should bring you back; check the block first.
+  - A box's disk is deleted at the block end. Run `box_sync.sh from` every wake and a last time
+    before 11:00Z on the end day, and bring unfinished runs' resume state back to Engaging as in
+    INBOX 11-04. While a box is up, wake every 20-30 min (this overrides the 6-hour full-wake
+    rule for that day).
+  - The maintainer may still take the 11-28 block for other work. A later note will say so if
+    that happens; plan for it until then.
