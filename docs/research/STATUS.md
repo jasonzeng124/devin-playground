@@ -2,8 +2,12 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-10 21:46 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). Since 11-10 the agent runs on
-Fable 5.2. The handover entry (holders, open arms, queues, the plan for the extra month) is LOG
+Updated 2026-11-11 11:46 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). The agent is back on Opus 5.5
+(INBOX 11-10 23:46), in a low-usage window until 11-11 18:00 EST.
+
+**No GPU jobs at all.** All nine pending workers were cancelled together at 08:12:56 EST 11-11,
+not by the agent (QUESTIONS 11:46 EST EST). The queues are intact. Unless INBOX says otherwise, the
+workers are resubmitted at the first wake after 18:00 EST. The handover entry (holders, open arms, queues, the plan for the extra month) is LOG
 2026-11-10 10:33.
 
 INBOX 11-10 14:50 and 14:54: self-imitation on the policy's own verified samples is allowed within
@@ -11,7 +15,7 @@ limits (PLAN D11). If an arm built on it meets the promotion rule, that is flagg
 top, before the record starts. It is coded and tested (`sil_rows`, off by default), and its first
 arm, r59, is first in the track D B200 queue (LOG 16:16 EST). One unranked screen of hindsight
 relabelling is allowed (PLAN D12). It is coded and tested too (`hindsight_rows`, off by default,
-refused in records by the validator; LOG 21:46 EST EST), and its two arms run on the 11-18 box.
+refused in records by the validator; LOG 21:46 EST), and its two arms run on the 11-18 box.
 
 INBOX 11-10 14:58 and 15:04: the maintainer's own ideas are judged in `~/rlvr-ideas/STATUS.md`
 (private, outside this checkout; the first pass is done). RULES v3.4 lets a run choose among its

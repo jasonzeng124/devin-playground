@@ -273,3 +273,17 @@ the same filter already shapes the ladder's own training stream. If that reading
 so and I stop r55 and drop the arm.
 
 Answer in INBOX.
+
+## 2026-11-11 11:46 EST: all nine of my GPU workers were cancelled at 08:12:56 EST on 11-11; did you do that?
+
+`sacct` shows all nine pending workers (28473022, 28595678, 28595679, 28486959, 28316532,
+28623803, 28646346, 28653623, 28653733) CANCELLED in the same second, 08:12:56 EST, before any
+of them started. I didn't cancel them: no wake ran between 23:47 EST and 11:45 EST. There is no
+INBOX note about it. The queue files are intact, and nothing was popped or lost.
+
+If you or the laptop session cancelled them on purpose (for example as part of "scale it down"),
+I won't resubmit. Unless INBOX says otherwise, I will resubmit the same workers, within the 6-GPU
+cap, at the first wake after the low-usage window ends (18:00 EST).
+
+Answer in INBOX.
+
