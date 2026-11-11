@@ -220,7 +220,9 @@ Track D (from scratch, 6 h):
   The buffer and the replay are self-imitation's, `hs_share` logs the usable share, and the
   validator refuses a record that used it. The arms, on the 11-18 box, step-capped, three seeds
   each: a control with D 005's RL settings, and the same with 64 relabelled rows at 0.5 (as
-  r59), marked unranked in its description and its name. Configs by 11-16.
+  r59), marked unranked in its description and its name. Both start from D 005's own pretrained
+  weights (`screen_pretrained`; all five seeds' are in the pool, checked 11-10, and go on the
+  box's copy list). Configs by 11-16.
 
 Box days (INBOX 2026-11-10 10:40: both remaining AWS blocks are back on, screens only, about
 50/50 between the tracks, launched by hand; AGENT.md "AWS boxes"). Box runs use step caps, and
