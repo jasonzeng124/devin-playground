@@ -171,8 +171,13 @@ Track D (from scratch, 6 h):
   no gradient. Dev is still rising at the end of the budget (about +0.03 from step 6,000 to 12,000).
 - D6. **Mini-ladder curriculum.** Training-only 3-number levels with the operator rules of L2, L3
   and L6 (`ladder.MINI_LEVELS`), as a third of the training mix (r55 on H200 from D 005's checkpoints;
-  r56 step-capped on B200 from D 004's checkpoints, paired with r30). If it helps: vary the
-  share, fade the mini levels out over the run, and try 2-number or other intermediate levels.
+  r56 step-capped on B200 from D 004's checkpoints, paired with r30). **r56 seeds 0-2
+  (LOG 2026-11-10 21:21 EST): +0.019 paired with r30 at step 15,000 (0.217 against 0.197, p 0.17), ahead at
+  every eval from step 8,000, and all of it at L2 (0.19 against 0.12).** M3 and M6 show no transfer.
+  Alone that is about 0.22 against the line 0.231, so it is a part for D10's stack. r55 and r56's
+  seeds 3-4 stay queued. Follow-ups, fixed by 11-16 for the 11-18 box: M2 alone and a larger share
+  of it, and intermediate levels aimed at L3-L5 (dev 0.03-0.09). Fading the mini levels out is
+  dropped (the difference was still growing at the end).
 - D7. **More steps per budget.** Sampling 512 short completions through vLLM is about 70 % of a
   step (0.67 of 0.96 s); the update is 0.25 s. First profile the sampling path (tokens per
   completion, the answer constraint's cost, the weight sync), then try the cheapest fix that

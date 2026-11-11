@@ -5506,3 +5506,76 @@ What it means, on one seed:
 - `screens_b200` now holds, in order: r60 seed 0, r51 seed 1, r60 seed 1, r51 seed 2, r60 seed 2, r51 seeds 3 and 4. Each takes about 4 h, one per 6-h job.
 
 Jobs: 28646346 (B200, `mit_normal_gpu`, `screens_b200`) submitted at 19:29 EST. 28623801 (r56 seeds 0-2) runs until 21:03 EST at the latest; its three seeds then go back to the front of `screens_d_b200` with a replacement worker. No H200 worker has started; Slurm's estimate for 28473022 is now 11-14 05:30. GPU jobs: 8 (1 running, 7 pending), at most 6 able to run together.
+
+## 2026-11-10 21:21 EST: r56 seeds 0-2 (the mini levels in track D's training mix): +0.019 paired with r30 at step 15,000, all of it at L2; r55 stays; no GPU job of mine has run since 20:54 EST
+
+r56 `calibration/research_r56/d004rl_shape05_lr6e-6_mini3_s15k` (PLAN D6) is r30's config with the mini levels M2, M3 and M6 added to the training mix (a third of the prompts): RL from D 004's pretrained checkpoints for 15,000 steps, three runs packed on one B200, paired per seed with r30. Seeds 0-2 finished inside job 28623801, which completed at 20:54 EST after 5 h 52 min. The 19:31 entry expected the 6-h limit to cut them. The 15,000 steps took 5.6-5.8 h: 1.38 s per step over the whole run, against 1.56 s in the first minutes.
+
+```
+  d004rl_shape05_lr6e-6_mini3_s15k   s0 done  234m final 0.217 best 0.235 t.10   23 spm  64.1 ent 0.05 inf 22.1 ok        | 0.100 0.133 0.182 0.195 0.217
+  d004rl_shape05_lr6e-6_mini3_s15k   s1 done  234m final 0.212 best 0.217 t.10   16 spm  64.1 ent 0.06 inf 23.4 ok        | 0.132 0.170 0.185 0.188 0.212
+  d004rl_shape05_lr6e-6_mini3_s15k   s2 done  234m final 0.222 best 0.232 t.10    8 spm  64.1 ent 0.07 inf 23.1 ok        | 0.123 0.170 0.165 0.210 0.222
+= d004rl_shape05_lr6e-6_mini3_s15k     n=3 final 0.217 ± 0.005  ok/1-guess/div 3/0/0  median t.10 16m
+  d004rl_shape05_lr6e-6_s15k         s0 done  234m final 0.192 best 0.200 t.10   16 spm  64.1 ent 0.07 inf 22.1 ok        | 0.145 0.162 0.192 0.177 0.192
+  d004rl_shape05_lr6e-6_s15k         s1 done  234m final 0.180 best 0.180 t.10   16 spm  64.1 ent 0.05 inf 28.3 ok        | 0.102 0.153 0.163 0.178 0.180
+  d004rl_shape05_lr6e-6_s15k         s2 done  234m final 0.220 best 0.227 t.10   16 spm  64.1 ent 0.05 inf 27.2 ok        | 0.120 0.150 0.197 0.225 0.220
+  d004rl_shape05_lr6e-6_s15k         s3 done  234m final 0.233 best 0.233 t.10   16 spm  64.1 ent 0.07 inf 26.3 ok        | 0.120 0.147 0.185 0.205 0.233
+  d004rl_shape05_lr6e-6_s15k         s4 done  234m final 0.193 best 0.202 t.10   16 spm  64.1 ent 0.06 inf 26.7 ok        | 0.127 0.158 0.165 0.198 0.193
+= d004rl_shape05_lr6e-6_s15k           n=5 final 0.204 ± 0.022  ok/1-guess/div 5/0/0  median t.10 16m
+```
+
+Final eval (step 15,000; dev ladder, greedy, 600 puzzles):
+
+| seed | r56 | r30 | difference |
+|---|---|---|---|
+| 0 | 0.217 | 0.192 | +0.025 |
+| 1 | 0.212 | 0.180 | +0.032 |
+| 2 | 0.222 | 0.220 | +0.002 |
+| mean | 0.217 | 0.197 | **+0.019** (SE 0.009, t 2.14 on 2 df, p 0.17) |
+
+r30's seeds 3 and 4 ended at 0.233 and 0.193, so its five-seed mean is 0.204 (SD 0.022), and r56's three seeds are +0.013 above it. r56's seeds are close together (SD 0.005).
+
+Paired difference over the run (the mean of the three pairs at each eval; evals every 500 steps):
+
+| steps | mean difference | range | evals above zero |
+|---|---|---|---|
+| 500-2,500 | −0.008 | −0.014 to −0.001 | 0 of 5 |
+| 3,000-7,500 | +0.004 | −0.007 to +0.020 | 6 of 10 |
+| 8,000-15,000 | +0.014 | +0.004 to +0.029 | 15 of 15 |
+
+Over the last three evals (steps 14,000-15,000) the pairs are +0.035, +0.032 and 0.000, mean +0.022.
+
+By level at the final eval (pass@1, 100 puzzles per level):
+
+| | L1 | L2 | L3 | L4 | L5 | L6 |
+|---|---|---|---|---|---|---|
+| r56, seeds 0-2 | 0.677 | 0.190 | 0.087 | 0.080 | 0.030 | 0.237 |
+| r30, seeds 0-2 | 0.667 | 0.117 | 0.067 | 0.060 | 0.027 | 0.247 |
+| r30, seeds 0-4 | 0.674 | 0.126 | 0.072 | 0.076 | 0.030 | 0.244 |
+| difference (seeds 0-2) | +0.010 | +0.073 | +0.020 | +0.020 | +0.003 | −0.010 |
+
+What it means:
+
+- **A small gain that shows up late.** The arm is behind for the first 2,500 steps (a third of its prompts are mini puzzles), level until about step 7,500, and ahead at every eval from step 8,000, by 0.014 on average and 0.019 at the end. Three pairs don't make that significant (p 0.17). Seed 2's pair is level because r30's seed 2 was one of its two strong seeds.
+- **All of it is at L2.** L2 goes from 0.12 to 0.19, and every r56 seed's L2 (0.18-0.21) is above every one of r30's five (0.11-0.16). Treating each puzzle-seed as independent (300 a side), that is about 2.5 standard errors. L3 and L4 are +0.02 each, inside the noise; L1 and L5 are level and L6 is −0.01. So M2 transfers to L2, and M3 and M6 show no transfer to L3 and L6.
+- **Training signals.** Over steps 14,000-15,000 r56 has 21.9 / 24.1 / 22.9 informative groups of 64 against r30's 23.3 / 28.8 / 27.6 (seeds 0-2), and entropy 0.050 / 0.062 / 0.071 against 0.070 / 0.059 / 0.046. So the mix gives slightly fewer informative groups late in training (the train log doesn't split them by level), and entropy is no different. Time per step varies more between seeds than between arms: the update takes 0.42 / 0.38 / 0.57 s for r56's seeds, which shared one job, and 0.61 / 0.29 / 0.21 s for r30's. So this screen says nothing about the cost of a step.
+- **Against the D line.** r30's five seeds are at 0.204 and D 005's in-loop dev mean is 0.201. A gain of 0.02 puts the mini levels alone near 0.22, short of 0.231.
+
+**What follows.**
+
+- The rule for r56 was: a clear gain goes to an H200 gate, and a clearly negative result drops r55. It is neither. **r55 stays queued** (RL from D 005's checkpoints with the mini levels, time-budgeted on H200, paired with D 005's seeds 0-2). It asks the same question under the record's clock and from the record's checkpoints.
+- r56 seeds 3 and 4 stay in `screens_d_b200`, after r57's first three seeds. Five pairs would bring the SE to about 0.007.
+- The mini levels become a part of the D10 stack, with whatever r59 (self-imitation) and r57 (no L5) show. None of the three looks likely to reach the line alone.
+- D6's follow-ups for the 11-18 box's track D half, fixed by 11-16: M2 alone (the mini level that transferred) and a larger share of it, and intermediate levels aimed at L3-L5, where dev is 0.03-0.09 and the mini levels did nothing. Fading the mini levels out is dropped, because the difference was still growing at the end.
+
+**Jobs.** No GPU job of mine has run since 20:54 EST. Every pending job waits on priority. Mine is about 365,000 on `mit_normal_gpu` (fairshare 4,513 after three weeks of use) against 515,000-565,000 for the jobs Slurm has planned onto the free B200 and H200 GPUs, and my preemptable jobs are at 36,000-38,000. `sbatch --test-only` puts a new job of any length, on any GPU type, at 11-12 to 11-14. Those estimates have been too late before: two B200 jobs started within minutes at 15:03 and 15:41 today. What I did:
+
+- 28653623 (B200, `mit_normal_gpu`, `screens_d_b200`, 3 runs packed), submitted at 21:14 EST, takes 28623801's place. r59 seeds 0-2 are first in its queue.
+- 28653733 (H200, `mit_normal_gpu`, new queue `gate_a_h200`), submitted at 21:18 EST with `--time-min=03:15:00` and `RESERVE_MIN=180`. Slurm may start it in a gap of 3 h 15 min, where the other H200 workers need 6 h, and an r58 seed takes about 2.5 h. The queue holds only r58 seeds 1 and 2 (moved out of `h200` and `screens_a_h200`), because a worker with a short reserve must not pop r55 or r53, which need 4-6 h. r58 seed 0 stays first in `h200`, where 28473022 and two preemptable workers read it.
+  The submit line, from `slurm_logs`:
+  ```
+  sbatch --parsable -p mit_normal_gpu --time=06:00:00 --time-min=03:15:00 --gres=gpu:h200:1 --export="ALL,RLVR_DIR=/home/zjason/rlvr-screens,RUNNER=scripts/research/run_item.sh,RESERVE_MIN=180,REQUIRE_GPU=NVIDIA H200,VENV=/home/zjason/orcd/pool/vllm-venv,HF_HUB_OFFLINE=1,QUEUE=gate_a_h200" ../scripts/slurm/queue_worker.sbatch
+  ```
+- GPU jobs: 9 pending, none running. Five are on `mit_normal_gpu`, where two run at a time, and four on preemptable, so at most 6 can run together. Slurm's estimate for 28646346 (B200, r60 seed 0) is 02:38 EST on 11-11. For the H200 jobs 28473022 and 28595679 it is 11-14 15:00 and 11-15 12:30 (read at 21:13 EST; squeue prints local time).
+
+Queued work: `screens_d_b200` 10 runs (about 19 GPU-hours packed), `screens_b200` 7 runs (about 28 GPU-hours), and the three H200 queues about 37 GPU-hours.
