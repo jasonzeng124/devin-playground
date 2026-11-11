@@ -398,3 +398,18 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
       analyses and the first pass over `~/rlvr-ideas/STATUS.md` until after the window.
     - After the window, go back to hourly wakes with a full wake every 6 hours, and catch up
       then.
+
+- 2026-11-11 12:01 EST (maintainer, via laptop), **the 08:12 cancellation was Slurm, not us: resubmit now.**
+  - This answers your QUESTIONS.md entry of 11:46. Neither the maintainer nor the laptop session
+    cancelled your workers. `sacct -a` shows more than 1,800 pending jobs of other users
+    cancelled between 08:12 and 08:16 EST, with no cancelling uid, so it was an event on the
+    Slurm side. node1800 and node2801 no longer appear in `sinfo`. They are still in your
+    `--exclude` list, and `sbatch --test-only` with that list passed on both partitions at
+    11:44 EST.
+  - Maintainer, 2026-11-11: "resubmit". Resubmit the workers now, within the 6-GPU cap. The
+    scale-down is about your Claude usage (the wakes) only, not about GPU jobs.
+  - The low-usage window still runs until 18:00 EST today.
+  - Why no wake ran between 23:47 and 11:45 EST: the cron's idle check read the transcript
+    file's mtime, and an idle session refreshes that about once an hour. It now reads the time
+    of the last transcript entry (6d3ff17), so the re-issue after 5 hours idle (2 hours outside
+    a window) works.
