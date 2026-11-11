@@ -19,8 +19,10 @@
 #   - no tmux session: start the agent;
 #   - session up but idle: re-issue the /loop command. The harness ends a self-paced /loop after
 #     7 days (it did on 2026-11-09) and the session stays up, so the first check misses that.
-#     The agent wakes at least hourly and every wake writes to its transcript, so a transcript
-#     untouched for STALE_MIN minutes (default 120) means the loop has ended.
+#     The agent wakes at least hourly and every wake adds entries to its transcript, so a
+#     transcript whose last entry is older than STALE_MIN minutes (default 120) means the loop
+#     has ended. The file's mtime can't be used for this: an idle session still touches its
+#     transcript about once an hour (found 2026-11-11, when 12 idle hours went unnoticed).
 # Low-usage window: while agent/slow_until holds a time that is still ahead (anything `date -d`
 # reads, e.g. "2026-11-11 18:00"), the agent ends its loop after every wake (INBOX tells it to) and
 # the idle check waits SLOW_MIN minutes (default 300) instead of STALE_MIN. So the agent wakes
@@ -40,10 +42,14 @@ if tmux has-session -t =research 2>/dev/null; then
     s=${SLOW_MIN:-300}
   fi
   t=$(ls -t "$HOME/.claude/projects/${HOME//\//-}-rlvr-screens"/*.jsonl 2>/dev/null | head -1)
-  [[ -n $t && -n $(find "$t" -mmin +"$s") ]] || exit 0
+  [[ -n $t ]] || exit 0
+  # time of the last timestamped entry (UTC, ISO); no entry found: do nothing
+  last=$(tail -c 8000000 "$t" | grep -o '"timestamp":"20[^"]*"' | tail -1 | cut -d'"' -f4)
+  [[ -n $last ]] && lt=$(date -d "$last" +%s 2>/dev/null) || exit 0
+  (($(date +%s) - lt > s * 60)) || exit 0
   # at most one re-issue per STALE_MIN (or SLOW_MIN)
   [[ -e $A/last_nudge && -z $(find "$A/last_nudge" -mmin +"$s") ]] && exit 0
-  if [[ -n ${DRY_RUN:-} ]]; then echo "would re-issue /loop (transcript $t idle over $s min)"; exit 0; fi
+  if [[ -n ${DRY_RUN:-} ]]; then echo "would re-issue /loop (last transcript entry $last, over $s min ago)"; exit 0; fi
   touch "$A/last_nudge"
   echo "$(date -Is) session idle for over $s min; re-issuing /loop" >>"$A/starts.log"
   tmux send-keys -t =research: C-u
