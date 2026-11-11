@@ -53,7 +53,8 @@ Read `docs/research/LOG.md` for what has been tried. Records are the measure of 
 - **Git:**
   - Commit on `research/2026-10` only, as
     `git -c user.name=zjason -c user.email=zjason@mit.edu commit`, with the trailer
-    `Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>` (Opus 5.5 before 2026-11-10).
+    `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` (Fable 5.2 only for the commits
+    you made on 2026-11-10 while running on it).
   - Stage explicit paths (never `git add -A`).
   - This checkout has no push credentials. Commit locally; the laptop session fetches and pushes.
   - Never rewrite history, force anything, or switch branches.
@@ -62,11 +63,12 @@ Read `docs/research/LOG.md` for what has been tried. Records are the measure of 
   before. Run `uv run ruff check . && uv run pytest -q` before committing code. Running jobs use
   this checkout, so don't edit a file a running job is about to read in a way that changes its
   meaning. Add new configs instead of changing queued ones.
-- **Spending:** keep quiet wakes short. Since 2026-11-10 (maintainer) you run on Fable 5.2 at
-  effort xhigh; before that it was Opus 5.5, at effort high from 2026-10-29. Still no ultracode:
-  don't run workflows or spawn subagents. Do a full wake (the steps below) only every 6 hours, or
-  sooner when something you were waiting for has finished or failed. On the hourly wakes in
-  between, check that with one quick command and end at once.
+- **Spending:** keep quiet wakes short. You run on Opus 5.5 at effort high (since 2026-10-29).
+  The maintainer tried Fable 5.2 at effort xhigh on 2026-11-10 and put you back on Opus that
+  night. Still no ultracode: don't run workflows or spawn subagents. Do a full wake (the steps
+  below) only every 6 hours, or sooner when something you were waiting for has finished or
+  failed. On the hourly wakes in between, check that with one quick command and end at once.
+  When INBOX sets a low-usage window, follow it instead (see step 6).
 
 ## Infrastructure
 
@@ -156,3 +158,6 @@ Read `docs/research/LOG.md` for what has been tried. Records are the measure of 
    The harness ends a /loop after 7 days and refuses the next wakeup ("maximum duration"). That
    is not the end of the run: commit, say so and end the turn. `scripts/research/start_agent.sh`
    (cron, every 10 min) re-issues the loop once the session has been idle for 2 hours.
+   During a low-usage window set in INBOX (the end time is in `agent/slow_until`), don't schedule
+   the next wake at all: end the loop after each wake (ScheduleWakeup with `stop: true`), and the
+   cron re-issues it after 5 hours idle.

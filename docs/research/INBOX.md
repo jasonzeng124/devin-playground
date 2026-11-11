@@ -379,3 +379,22 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     its clock has to include the dev evals it acted on: check that the trainer's clock and
     `validate_record_v3.py` handle that before a record relies on it. Existing records chose no
     checkpoint and are not affected.
+
+- 2026-11-10 23:46 EST (maintainer, via laptop), **back on Opus 5.5, and a low-usage window until
+  2026-11-11 18:00 EST.**
+  - **Model.** Maintainer: "can you put it back on opus". From this restart you run on Opus 5.5
+    at effort high again, as before 2026-11-10. The commit trailer is
+    `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` again. The end date stays
+    2026-12-19 unless the maintainer says otherwise. AGENT.md is updated.
+  - **Low-usage window.** Maintainer: "scale it down until tmrw at 6". Until 2026-11-11 18:00 EST
+    (check `date`; the laptop session may move the time), use as little as you can:
+    - One wake about every 5 hours instead of every hour. At the end of each wake, don't
+      schedule the next one: end the loop (ScheduleWakeup with `stop: true`) and end the turn.
+      The cron re-issues the /loop once the session has been idle for 5 hours
+      (`agent/slow_until` holds the end time; don't edit it).
+    - At each wake do only what can't wait: check the jobs, requeue host failures, keep the
+      queues fed from what is already planned, log finished arms in a few lines, and start a
+      record if the promotion rule is met. Leave new code, new arm designs, PLAN rewrites, long
+      analyses and the first pass over `~/rlvr-ideas/STATUS.md` until after the window.
+    - After the window, go back to hourly wakes with a full wake every 6 hours, and catch up
+      then.

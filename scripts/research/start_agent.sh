@@ -11,9 +11,9 @@
 # If agent/session_id holds a session id, the agent resumes that conversation, so a restart keeps
 # its context.
 #
-# Model: Fable 5.2 at effort xhigh since 2026-11-10 (maintainer). Before that: Opus 5.5 from
-# 2026-10-25, at effort high from 2026-10-29. The run ends 2026-12-19 (extended from 2026-11-19
-# on 2026-11-10).
+# Model: Opus 5.5 at effort high (from 2026-10-25, at effort high from 2026-10-29), except for
+# 2026-11-10, when the maintainer tried Fable 5.2 at effort xhigh from about 10:00 and put it back
+# on Opus that night. The run ends 2026-12-19 (extended from 2026-11-19 on 2026-11-10).
 #
 # Run this every 10 min as a keepalive (crontab on login009 since 2026-11-02). It does two things:
 #   - no tmux session: start the agent;
@@ -21,6 +21,10 @@
 #     7 days (it did on 2026-11-09) and the session stays up, so the first check misses that.
 #     The agent wakes at least hourly and every wake writes to its transcript, so a transcript
 #     untouched for STALE_MIN minutes (default 120) means the loop has ended.
+# Low-usage window: while agent/slow_until holds a time that is still ahead (anything `date -d`
+# reads, e.g. "2026-11-11 18:00"), the agent ends its loop after every wake (INBOX tells it to) and
+# the idle check waits SLOW_MIN minutes (default 300) instead of STALE_MIN. So the agent wakes
+# about every 5 hours. Delete the file, or let the time pass, to go back to normal.
 # DRY_RUN=1 prints what the idle check would do without sending anything.
 set -u
 A=$HOME/rlvr-screens/agent
@@ -32,9 +36,12 @@ PROMPT='/loop Autoresearch on RLVR v3 until 2026-12-19. Read docs/research/AGENT
 if tmux has-session -t =research 2>/dev/null; then
   [[ $(date +%F) > $END ]] && exit 0
   s=${STALE_MIN:-120}
+  if [[ -s $A/slow_until ]] && u=$(date -d "$(<"$A/slow_until")" +%s 2>/dev/null) && (($(date +%s) < u)); then
+    s=${SLOW_MIN:-300}
+  fi
   t=$(ls -t "$HOME/.claude/projects/${HOME//\//-}-rlvr-screens"/*.jsonl 2>/dev/null | head -1)
   [[ -n $t && -n $(find "$t" -mmin +"$s") ]] || exit 0
-  # at most one re-issue per STALE_MIN
+  # at most one re-issue per STALE_MIN (or SLOW_MIN)
   [[ -e $A/last_nudge && -z $(find "$A/last_nudge" -mmin +"$s") ]] && exit 0
   if [[ -n ${DRY_RUN:-} ]]; then echo "would re-issue /loop (transcript $t idle over $s min)"; exit 0; fi
   touch "$A/last_nudge"
@@ -45,8 +52,8 @@ if tmux has-session -t =research 2>/dev/null; then
   tmux send-keys -t =research: Enter
   exit 0
 fi
-m=claude-fable-5-2
-e=xhigh
+m=claude-opus-5-5
+e=high
 echo "$(date -Is) starting research agent on $m (effort $e)" >>"$A/starts.log"
 resume=""
 [[ -s $A/session_id ]] && resume="--resume $(<"$A/session_id")"
