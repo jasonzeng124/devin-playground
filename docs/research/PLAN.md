@@ -98,7 +98,8 @@ Track A (start: Qwen3-1.7B-Base, 5 h; no external data since v3.3):
 - A2. Stability on the best fp32 lr: lr decay over the budget, KL to the base model, an entropy
   floor, dynamic sampling (oversample), tighter grad clipping. **Mostly done:** cosine decay and
   malformed reward 0 are in A 005; the KL and clipping arms are in the LOG (r13, r23); the entropy
-  floor is A6; oversample is r51 (running).
+  floor is A6; oversample is r51 (seed 0, LOG 11-10 19:31 EST: ahead per step, level per unit of
+  time, the same ceiling near 0.39, then a collapse at step 400; seeds 1-2 queued).
 - A3. Throughput: where the step time goes (t_sample vs t_update), batch shapes, vLLM settings.
   **Open, low priority:** A 005 stops at step 400 with about half of its 17,400 s unused, so
   throughput does not bind until A7 makes it bind.
@@ -119,8 +120,11 @@ Track A (start: Qwen3-1.7B-Base, 5 h; no external data since v3.3):
   each screened on H200 against r54's seeds:
   - (a) a longer schedule, for example cosine over 875 steps, stopped at 700. At 500 steps the
     floor "stops slides but doesn't raise the level" (r21), and nothing longer has run under it:
-    the 800-step arms planned for r15 were dropped when the box was turned off.
-  - (b) `oversample: 2` (r51) with the floor, if r51 shows a gain.
+    the 800-step arms planned for r15 were dropped when the box was turned off. First reading:
+    r60 (r58's config on that schedule, step-capped on B200, queued 11-10). A kept dev of 0.41
+    or above on two of three seeds keeps the schedule in the 11-18 box's batch.
+  - (b) `oversample: 2` (r51) with the floor, if r51 shows a gain. Seed 0 reached the ceiling in
+    half the steps at 1.8x the time per step, and no higher, so this waits for seeds 1-2.
   - (c) more prompts per step (r20 tried 96 without the floor).
 
   Whatever clears the promotion rule against A 006's line becomes A 007.
@@ -210,7 +214,8 @@ Box days (INBOX 2026-11-10 10:40: both remaining AWS blocks are back on, screens
 50/50 between the tracks, launched by hand; AGENT.md "AWS boxes"). Box runs use step caps, and
 each batch carries its own control arm:
 - 11-18 06:30 EST to 11-19 06:30 EST, 8x H100. Track A (4 GPUs, one fp32 run per GPU): A7 (a),
-  the 700-step schedule under the floor, with and without rollback (A8 (c)), about 12 runs. Track D (4 GPUs, packed): RL-only arms
+  the 700-step schedule under the floor, with and without rollback (A8 (c)), about 12 runs, if
+  r60's B200 seeds support the schedule (otherwise this half is planned again by 11-16). Track D (4 GPUs, packed): RL-only arms
   from D 005's checkpoints for D6's follow-ups and D8. The arms are fixed by 11-16 from r54, r55
   and what follows them. Queue files, configs and the copy list are committed by 11-16, because
   Engaging's maintenance is 11-17 00:00-21:00 EST.
@@ -221,7 +226,7 @@ each batch carries its own control arm:
 Rough timeline for the extension:
 - 11-10 to 11-14: code in this order: the checkpoint option (A8, done), self-imitation (D11,
   done), the unranked relabelling screen (D12). r58, then A 006's five record seeds if the rule is
-  met. r55, r53. On B200: r51, r56, r59 (the first self-imitation arm, D11), r57.
+  met. r55, r53. On B200: r51, r60 (A7 (a)), r56, r59 (the first self-imitation arm, D11), r57.
   The D7 sampling profile.
 - 11-15 to 11-16: prepare the 11-18 box (above). 11-17: Engaging maintenance.
 - 11-18 to 11-25: the H100 box day, then its results. D6 follow-ups, D7 and D8 on Engaging.

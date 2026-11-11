@@ -5465,3 +5465,44 @@ GPU jobs: 8 (2 running, 6 pending), at most 6 able to run together. Next in the 
 - **What follows.** A clear paired gain over three seeds leads to seeds 3-4, a coefficient and row-count sweep on the 11-18 box, and a time-budgeted H200 gate from D 005's checkpoints against 0.231. If an arm built on self-imitation meets the promotion rule, that goes to the top of STATUS before any record starts (INBOX 11-10 14:50).
 
 r56 seeds 0-2 and r51 seed 0 are still running on B200 (28623801 to 21:03 EST, 28623802 to 21:41 EST). No H200 worker has started. GPU jobs: 8 (2 running, 6 pending), at most 6 able to run together. Next in the code order: the unranked relabelling screen (D12), then rollback and train on (A8 (c), by 11-16 for the 11-18 box).
+
+## 2026-11-10 19:31 EST: r51 seed 0 (oversample 2) reaches the same 0.39 ceiling in half the steps, then collapses to 0.053 at step 400; r60 (the 700-step schedule under the floor) goes first on B200
+
+**r51 `a005_os2` seed 0** finished at 18:43 EST (steps 1-118 on H200, 119-400 on B200; the run is step-capped). Its worker, 28623802, then exited with less than 200 min left.
+
+```
+  a005_os2                           s0 done  232m final 0.053 best 0.390 t.10   58 spm   1.7 ent 0.11 inf 39.5 ok        | 0.013 0.138 0.350 0.387 0.053
+```
+
+In-loop dev by step, beside A 005's record seeds (same recipe without oversampling, H200) and r40's seeds 0-4 (A 005 plus the entropy floor, H100 box):
+
+| step | r51 seed 0 | A 005 seed 0 | difference | A 005, 5 seeds | r40, seeds 0-4 | r51 train time (s) | A 005 seed 0 train time (s) |
+|---|---|---|---|---|---|---|---|
+| 50 | 0.013 | 0.038 | -0.025 | 0.036 | 0.031 | 1,209 | 595 |
+| 100 | 0.138 | 0.085 | +0.053 | 0.084 | 0.075 | 2,685 | 1,120 |
+| 150 | 0.275 | 0.180 | +0.095 | 0.182 | 0.174 | 5,121 | 2,080 |
+| 200 | 0.350 | 0.243 | +0.107 | 0.256 | 0.260 | 7,302 | 3,322 |
+| 250 | 0.360 | 0.305 | +0.055 | 0.308 | 0.294 | 9,348 | 4,460 |
+| 300 | 0.387 | 0.347 | +0.040 | 0.325 | 0.332 | 11,027 | 5,577 |
+| 350 | 0.390 | 0.357 | +0.033 | 0.315 | 0.368 | 12,665 | 6,664 |
+| 400 | 0.053 | 0.375 | -0.322 | 0.313 | 0.372 | 14,164 | 7,724 |
+
+What it means, on one seed:
+
+- **Ahead per step, not per unit of time.** From step 100 to 350 it is 0.03-0.11 above A 005's seed 0. A step costs 35.4 s against 19.3 s (1.8x), so when A 005's seed 0 ended (7,724 s, dev 0.375) r51 was at 0.350 (step 200, 7,302 s). The 400 steps took 14,164 s, inside the 17,400-s budget. The B200 was no faster than the H200 here: 51 s per step on the H200 over steps 100-118 and 47 s on the B200 over steps 119-150.
+- **The same ceiling.** 0.387 and 0.390 at steps 300 and 350. r40's seeds 0-4 are at 0.372 at step 400 (the best of each seed's eight evals: 0.375 / 0.383 / 0.385 / 0.398 / 0.342, mean 0.377), and A 005's best-of-eight mean is 0.364. One eval has an SE of about 0.019, so these are level. By level at step 350 r51 has 0.97 / 0.35 / 0.31 / 0.23 / 0.02 / 0.46, the profile of r40's finals (0.99 / 0.34 / 0.23 / 0.19 / 0.07 / 0.41): L1 is solved and L2-L5 hold the score down.
+- **Then it collapsed.** Final 0.053, with L1 down from 0.97 to 0.20. The share of malformed dev answers fell from 0.54 to 0.24 at the same time, so the model ended on well-formed wrong answers. In training, over ten-step windows from step 350: grad norm 0.73, 1.23, 1.49, 1.98, 2.56 (0.46 over steps 300-350); solve rate in the batch 0.39, 0.33, 0.24, 0.15, 0.10; entropy 0.064, 0.058, 0.065, 0.093, 0.136. The lr was 2.8e-7 falling to 1.9e-7, so a small lr did not prevent it.
+- **Why I think it slid.** Keeping the 64 most informative of 128 groups doubles the informative groups in each update (58 / 51 / 44 of 64 over steps 100-200 / 200-300 / 300-400, against 26 / 23 / 22 for A 005's seed 0). The grad norm was about twice A 005's before the slide (0.25 and 0.34 over steps 100-200 and 200-300, against 0.15), and entropy fell faster (0.101 against 0.148 over steps 200-300, 0.074 over steps 300-350). So oversampling acts like a larger step: it gets to the ceiling sooner, and sooner to the entropy of 0.05-0.09 at which A 005's seeds 3 and 4 slid. The floor (r40) holds entropy at 0.1.
+- With `keep_best_dev` this run would have ended on step 350's weights (0.390).
+- A 005 itself slid on 2 of 5 seeds, so one collapse doesn't show that oversampling makes a slide more likely.
+
+**What follows.**
+
+- r58 stays A 006's promotion screen. Nothing here argues for changing the gate.
+- r51 seeds 1 and 2 stay queued, and seeds 3 and 4 go last. A7 (b), oversampling with the floor, waits for them. It costs 1.8x per step, so it needs a higher ceiling to be worth having, not a faster start.
+- **New arm r60 `calibration/research_r60/a005_ent05_cos875_s700_keepbest`** (PLAN A7 (a)): r58's config (A 005's recipe, the floor, `keep_best_dev`) on a cosine over 875 steps, stopped at 700. The lr is 6.1e-7 at step 400 and ends at the same 1.9e-7. Why now: a higher lr under the floor (PLAN A7, r22-r24), the floor itself and now oversampling all end between 0.37 and 0.40, and nothing has trained past step 500 under the floor. The 11-18 box plan gives about 12 runs to this schedule, and its arms are fixed by 11-16, so a first reading on B200 is worth one slot now.
+  - Time: A 005's seeds took 7,569-8,826 s for 400 steps (19-22 s per step), so 700 steps take about 13,200-15,500 s, plus 14 evals on the clock (A 005's eight took 117 s). The 17,400-s budget still stops the run, so a slower run ends early on its kept eval, as a record would.
+  - How it is read: the evals from step 450 on against r40's 0.372 at step 400, and the kept dev against r40's best-of-eight mean 0.377. A kept dev of 0.41 or above on at least two of three seeds keeps the schedule in the box's track A batch and leads to an H200 gate. If the evals past step 400 stay at 0.37-0.40, the box's track A half is planned again by 11-16.
+- `screens_b200` now holds, in order: r60 seed 0, r51 seed 1, r60 seed 1, r51 seed 2, r60 seed 2, r51 seeds 3 and 4. Each takes about 4 h, one per 6-h job.
+
+Jobs: 28646346 (B200, `mit_normal_gpu`, `screens_b200`) submitted at 19:29 EST. 28623801 (r56 seeds 0-2) runs until 21:03 EST at the latest; its three seeds then go back to the front of `screens_d_b200` with a replacement worker. No H200 worker has started; Slurm's estimate for 28473022 is now 11-14 05:30. GPU jobs: 8 (1 running, 7 pending), at most 6 able to run together.
