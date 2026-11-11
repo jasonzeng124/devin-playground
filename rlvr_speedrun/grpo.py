@@ -30,7 +30,7 @@ from .data import load_puzzles, train_puzzle_stream
 from .distributed import SINGLE, Dist, destroy, init_from_env
 from .eval import aggregate_results
 from .ladder import LEVEL_NAMES as LADDER_LEVELS
-from .ladder import MINI_LEVEL_NAMES, ladder_keys, ladder_stream
+from .ladder import MINI_LEVEL_NAMES, ladder_keys, ladder_stream, level_by_name, puzzle_key
 from .model_utils import answer_stopping_criteria, load_causal_model, load_tokenizer
 
 
@@ -156,6 +156,19 @@ class GRPOConfig:
     sil_coef: float = 1.0
     sil_buffer: int = 4096
     sil_by_level: bool = True
+    # hindsight relabelling. NOT ALLOWED in records, promotion screens or anything stacked into a ranked arm: the
+    # maintainer has not ruled on it, and one unranked screen measures its effect (docs/research/INBOX.md 2026-11-10
+    # 14:54, PLAN D12; validate_record_v3.py rejects a record that used it). A sample that is a well-formed
+    # expression over the puzzle's own numbers and operators but misses the target goes into the buffer, tokens as
+    # sampled, with the puzzle relabelled to the value it does reach, when that value is an integer inside the
+    # level's generator target range and the relabelled puzzle is in neither ladder set. Nothing solves or searches
+    # a relabelled pair (the level's "needs" rule is not checked on it). Each step replays up to hindsight_rows of
+    # them (0 = off) the way self-imitation replays its rows, weighted hindsight_coef. The buffer is
+    # self-imitation's (sil_buffer, sil_by_level; empty in every run, never saved). Needs the ladder training mix
+    # and one process, and can't be combined with sil_rows. Meant for answer-only completions (track D): a think
+    # section would still reason about the original target
+    hindsight_rows: int = 0
+    hindsight_coef: float = 1.0
 
 
 def lr_at(config: GRPOConfig, train_s: float) -> float:
@@ -470,13 +483,33 @@ def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.d
     return generated, attention, completions, expanded, rewards, prompt_width, prefix_len, malformed, sampler_lp, correct
 
 
+def hindsight_puzzle(text: str, puzzle, exclude: frozenset = frozenset()):
+    """Hindsight relabelling (`GRPOConfig.hindsight_rows`; unranked screens only): the puzzle that `text` does
+    solve when it misses `puzzle` by its value alone, else None. That is `puzzle` with its target set to the value
+    of `text`'s expression, when the value is an integer inside the level's generator target range, the verifier
+    accepts `text` for the relabelled puzzle (so it uses each of the puzzle's numbers once and only its
+    operators), and the relabelled puzzle's key is not in `exclude` (the ladder sets). Nothing here solves or
+    searches: the level's "needs" rule is not checked on the relabelled puzzle."""
+    result = verify(text, puzzle)
+    if result.correct or result.value is None or result.value.denominator != 1 or not puzzle.level:
+        return None
+    low, high = level_by_name(puzzle.level).target_range
+    if not low <= result.value <= high:
+        return None
+    relabelled = replace(puzzle, target=int(result.value), solution=None)
+    if puzzle_key(relabelled) in exclude or not verify(text, relabelled).correct:
+        return None
+    return relabelled
+
+
 class _Replay:
     """The self-imitation buffer (`GRPOConfig.sil_rows`): (puzzle, completion tokens) of the run's own
     verifier-correct samples, the newest `capacity` per pool. It lives in memory only: `run` starts it empty and
-    `_save_state` never sees it."""
+    `_save_state` never sees it. With `GRPOConfig.hindsight_rows` (unranked screens only) it holds relabelled
+    pairs instead (`hindsight_puzzle`), and `exclude` is the puzzle keys that may not be relabelled to."""
 
-    def __init__(self, capacity: int, by_level: bool, seed: int = 0):
-        self.capacity, self.by_level = capacity, by_level
+    def __init__(self, capacity: int, by_level: bool, seed: int = 0, exclude: frozenset = frozenset()):
+        self.capacity, self.by_level, self.exclude = capacity, by_level, exclude
         self.pools: dict[str, list] = {}
         self.added: Counter = Counter()  # per pool, entries ever added (the next slot to overwrite once it is full)
         self.rng = random.Random(seed)  # its own stream, so the puzzle mix draws as it does without replay
@@ -515,10 +548,16 @@ class _ReplayBatch:
     nll: float = 0.0  # set by `_update`: mean negative log-prob per replayed token, before the step
 
 
+def _replay_rows(config: GRPOConfig) -> tuple[int, float]:
+    """Rows replayed per step and a replayed row's weight: hindsight relabelling's when it is on, else
+    self-imitation's."""
+    return (config.hindsight_rows, config.hindsight_coef) if config.hindsight_rows > 0 else (config.sil_rows, config.sil_coef)
+
+
 def _replay_batch(replay: _Replay, tokenizer, config: GRPOConfig, device: torch.device) -> _ReplayBatch | None:
     """This step's draws from the buffer (None while it is empty). Each row is the stored puzzle's prompt followed
     by the stored completion tokens, unchanged."""
-    drawn = replay.draw(config.sil_rows)
+    drawn = replay.draw(_replay_rows(config)[0])
     if not drawn:
         return None
     puzzles = [puzzle for puzzle, _ in drawn]
@@ -636,8 +675,9 @@ def _update(
     `grad_clip`).
 
     `replayed` (self-imitation) adds -sil_coef * (the replayed rows' summed log-probs) / token_count to the
-    step's loss, so a replayed row weighs like one of the batch's rows with advantage sil_coef. The returned
-    sums leave it out; its mean per token is written to `replayed.nll`.
+    step's loss, so a replayed row weighs like one of the batch's rows with advantage sil_coef (hindsight_coef
+    when the rows are hindsight relabelling's, `_replay_rows`). The returned sums leave it out; its mean per
+    token is written to `replayed.nll`.
 
     Under data parallelism the loss is normalised by the global completion-token
     count and gradients are summed across ranks, so the step equals the
@@ -715,7 +755,7 @@ def _update(
                 )
             model.eval()
             nll = -token_lp[completion_mask].sum()
-            (config.sil_coef * nll / token_count).backward()
+            (_replay_rows(config)[1] * nll / token_count).backward()
             nll_total += nll.detach()
         replayed.nll = (nll_total / replay_valid.sum().clamp_min(1)).item()
     dist.all_reduce_grads_(model.parameters())
@@ -751,16 +791,25 @@ def grpo_step(
     replay: _Replay | None = None,
 ) -> dict:
     """One GRPO step on `puzzles` (this rank's shard of the global prompt batch). With `replay` (self-imitation)
-    the step also replays rows drawn from it, then adds this step's verifier-correct samples to it."""
+    the step also replays rows drawn from it, then adds this step's verifier-correct samples to it. With
+    `config.hindsight_rows` (unranked screens only) it adds the samples `hindsight_puzzle` relabels instead."""
     t0 = _now(device)
     generated, attention, completions, expanded, rewards, prompt_width, prefix_len, malformed, sampler_lp, correct = _sample_batch(
         model, tokenizer, puzzles, config, device, caches
     )
     t_sample = _now(device) - t0
-    solved_samples = []  # every verifier-correct sample (kept group or not): its puzzle and its tokens as the update sees them
-    if replay is not None and bool(correct.any()):
+    hindsight, n_sampled = config.hindsight_rows > 0, len(completions)
+    store = []  # (row, the puzzle it is stored with), over all sampled rows (kept group or not)
+    if replay is not None and hindsight:  # every sample that misses by its value alone, with its relabelled puzzle
+        relabelled = [None if solved else hindsight_puzzle(text, puzzle, replay.exclude)
+                      for text, puzzle, solved in zip(completions, expanded, correct.tolist())]
+        store = [(row, puzzle) for row, puzzle in enumerate(relabelled) if puzzle is not None]
+    elif replay is not None:  # self-imitation: every verifier-correct sample, with the puzzle it answered
+        store = [(row, expanded[row]) for row in correct.nonzero().squeeze(1).tolist()]
+    solved_samples = []  # what goes into the buffer after the update: the puzzle and the sample's tokens as the update sees them
+    if store:
         sampled, sampled_valid = generated[:, prompt_width:].cpu().numpy(), attention[:, prompt_width:].bool().cpu().numpy()
-        solved_samples = [(expanded[row], sampled[row][sampled_valid[row]].astype(np.int32)) for row in correct.nonzero().squeeze(1).tolist()]
+        solved_samples = [(puzzle, sampled[row][sampled_valid[row]].astype(np.int32)) for row, puzzle in store]
     all_rewards = rewards
     all_groups = all_rewards.reshape(len(puzzles), config.group_size)
     informative_groups = int((all_groups.std(dim=1, unbiased=False) > 0).sum().item())
@@ -825,8 +874,11 @@ def grpo_step(
     if mismatch is not None:
         info.update(_mismatch_stats(mismatch, dist, config.tis_cap))
     if replay is not None:
-        info.update({"sil_rows": 0 if replayed is None else replayed.ids.shape[0], "sil_nll": 0.0 if replayed is None else replayed.nll,
-                     "sil_added": len(solved_samples), "sil_buffer": len(replay)})
+        tag = "hs" if hindsight else "sil"
+        info.update({f"{tag}_rows": 0 if replayed is None else replayed.ids.shape[0], f"{tag}_nll": 0.0 if replayed is None else replayed.nll,
+                     f"{tag}_added": len(solved_samples), f"{tag}_buffer": len(replay)})
+        if hindsight:
+            info["hs_share"] = len(solved_samples) / n_sampled  # of all this step's samples, those that gave a usable relabelled pair
     return info
 
 
@@ -1084,6 +1136,12 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError("keep_best_dev needs one process and an in-loop eval set that is not the test ladder (RULES v3.4)")
     if config.sil_rows < 0 or config.sil_coef < 0 or (config.sil_rows > 0 and (config.sil_buffer < 1 or dist.world_size > 1)):
         raise ValueError(f"sil_rows and sil_coef must be >= 0, and self-imitation needs sil_buffer >= 1 and one process, got {config.sil_rows}, {config.sil_coef}, {config.sil_buffer}")
+    if config.hindsight_rows < 0 or config.hindsight_coef < 0 or (
+        config.hindsight_rows > 0 and (config.sil_rows > 0 or config.sil_buffer < 1 or dist.world_size > 1 or config.train_mix != "ladder")
+    ):
+        raise ValueError("hindsight_rows and hindsight_coef must be >= 0, and hindsight relabelling needs sil_rows 0, sil_buffer >= 1, "
+                         f"train_mix 'ladder' and one process, got {config.hindsight_rows}, {config.hindsight_coef}, {config.sil_rows}, "
+                         f"{config.sil_buffer}, {config.train_mix!r}")
     late_config = replace(config, malformed_reward=None) if config.malformed_reward_until > 0 else config
     scheduled = config.lr_schedule != "constant" or config.lr_warmup_s > 0
     lr_at(config, config.lr_warmup_s)  # fail on a bad schedule before loading anything
@@ -1115,6 +1173,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
     stream, easy_streams = _train_streams(config)
     mix_rng = random.Random(config.seed)
     replay = _Replay(config.sil_buffer, config.sil_by_level, config.seed) if config.sil_rows > 0 else None  # empty, also after a resume
+    if config.hindsight_rows > 0:  # the same buffer, holding relabelled pairs; never one in a ladder set
+        replay = _Replay(config.sil_buffer, config.sil_by_level, config.seed, ladder_keys())
     state_path = Path(config.resume_dir) / "state.pt" if config.resume_dir else None
     resumed = None
     if state_path is not None and state_path.exists():

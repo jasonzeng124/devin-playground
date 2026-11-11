@@ -96,6 +96,9 @@ def _check_seed_config(seed: Path, name: str, track: str, config: dict, errors: 
         errors.append(f"{label}: config.json has seed {seed_config.get('seed')!r}")
     if Path(str(seed_config.get("eval_set") or "")).name == benchmark.LADDER_TEST_PATH.name:
         errors.append(f"{label}: in-training evals use the test ladder ({seed_config['eval_set']}); use the dev ladder")
+    if seed_config.get("hindsight_rows"):
+        errors.append(f"{label}: hindsight relabelling was on (hindsight_rows={seed_config['hindsight_rows']!r}); "
+                      "it is not allowed in records (docs/research/INBOX.md 2026-11-10 14:54)")
     if seed_config.get("resume_every_s") or seed_config.get("resume_dir"):
         errors.append(f"{label}: resuming was on; its checkpoint saves are taken off the clock, which RULES_v3 doesn't allow")
     if track == "D" and not _ends_with(seed_config.get("model"), "seeds", name, "pretrained"):

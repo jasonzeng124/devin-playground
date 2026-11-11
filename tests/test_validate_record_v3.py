@@ -119,6 +119,17 @@ def test_rule_checks_catch_a_fabricated_record(tmp_path):
         assert expected in message, expected
 
 
+def test_a_record_may_not_use_hindsight_relabelling(tmp_path):
+    """INBOX 2026-11-10 14:54: one unranked screen measures it; the maintainer has not allowed it in records."""
+    record = make_record(tmp_path, "d")
+    edit_json(record / "seeds" / "3" / "config.json", hindsight_rows=0)  # what a run without it writes
+    ok, message = validate(record)
+    assert ok, message
+    edit_json(record / "seeds" / "3" / "config.json", hindsight_rows=64)
+    ok, message = validate(record)
+    assert not ok and "seed 3: hindsight relabelling was on (hindsight_rows=64)" in message
+
+
 def test_a_run_that_chose_a_checkpoint_keeps_its_evals_on_the_clock(tmp_path):
     """RULES v3.4: grpo's keep_best_dev logs kept_step and train_s == wall_s, so run_seed_v3.sh takes nothing off."""
     record = make_record(tmp_path, "a")

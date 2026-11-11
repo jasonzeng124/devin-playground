@@ -994,3 +994,118 @@ def test_run_with_self_imitation_fills_an_empty_buffer_in_every_run(monkeypatch,
         run(GRPOConfig(**{**common, "prompts_per_step": 2}, sil_rows=4, out_dir=str(tmp_path / "ranks")), grpo.Dist(0, 2, 0))
     with pytest.raises(ValueError, match="sil_rows"):
         run(GRPOConfig(**common, sil_rows=-1, out_dir=str(tmp_path / "bad")))
+
+
+def test_hindsight_puzzle_relabels_only_a_well_formed_miss_inside_the_levels_target_range():
+    """Unranked screens only (INBOX 2026-11-10 14:54): the relabelled target is the value of the sample's own expression."""
+    puzzle = Puzzle((3, 4, 5, 6), 42, solution="3 * 4 + 5 * 6", ops="+-*", level="L2")
+    miss = "<answer>3 * 4 + 5 + 6</answer>"  # 23
+    relabelled = grpo.hindsight_puzzle(miss, puzzle)
+    assert relabelled == Puzzle((3, 4, 5, 6), 23, ops="+-*") and relabelled.level == "L2" and relabelled.solution is None
+    assert grpo.verify(miss, relabelled).correct and not grpo.verify(miss, puzzle).correct
+    # the level's "needs" rule is not checked on a relabelled pair (L2 needs a "*"): nothing solves or searches it
+    assert grpo.hindsight_puzzle("<answer>3 + 4 + 5 + 6</answer>", puzzle).target == 18
+    for text in ("<answer>3 * 4 + 5 * 6</answer>",  # solves the puzzle as asked
+                 "<answer>3 * 4 +</answer>", "23",  # malformed
+                 "<answer>3 * 4 + 5</answer>",  # leaves a number out
+                 "<answer>3 * 4 + 5 + 6 + 6</answer>",  # uses one twice
+                 "<answer>6 / 3 + 4 * 5</answer>",  # an operator the puzzle doesn't allow
+                 "<answer>3 + 4 - 5 - 6</answer>", "<answer>3 * 4 * 5 * 6</answer>"):  # -4 and 360: outside L2's 10-200
+        assert grpo.hindsight_puzzle(text, puzzle) is None, text
+    assert grpo.hindsight_puzzle("<answer>(3 + 4) / 5 * 6</answer>", Puzzle((3, 4, 5, 6), 42, level="L3")) is None  # 42/5
+    wide = Puzzle((3, 4, 5, 6), 420, ops="+-*", level="L5")  # L5's targets are 100-999
+    assert grpo.hindsight_puzzle("<answer>3 * 4 * 5 * 6</answer>", wide).target == 360 and grpo.hindsight_puzzle(miss, wide) is None
+    taken = frozenset({grpo.puzzle_key(Puzzle((6, 5, 4, 3), 23, ops="+-*"))})  # e.g. a ladder puzzle: never relabelled to
+    assert grpo.hindsight_puzzle(miss, puzzle, taken) is None
+    assert grpo.hindsight_puzzle(miss, Puzzle((3, 4, 5, 6), 42, ops="+-*")) is None  # no level, so no target range
+
+
+def test_hindsight_rows_replay_with_their_own_count_and_weight():
+    assert grpo._replay_rows(GRPOConfig()) == (0, 1.0)
+    assert grpo._replay_rows(GRPOConfig(sil_rows=8, sil_coef=0.5)) == (8, 0.5)
+    assert grpo._replay_rows(GRPOConfig(hindsight_rows=16, hindsight_coef=0.25, sil_coef=0.5)) == (16, 0.25)
+    generated, attention, prompt_width = _ragged_batch(3, [7, 2, 5, 3])
+    replay_ids, replay_attention, replay_width = _ragged_batch(4, [6, 1, 4], prompt_width=6)
+    advantages, base = torch.tensor([1.0, -1.0, 0.5, -0.5]), _tiny_model().eval()
+
+    def grads(**extra):
+        model = copy.deepcopy(base)
+        config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, micro_batch_size=2, **extra)
+        replayed = grpo._ReplayBatch(replay_ids, replay_attention, replay_width, 0)
+        grpo._update(model, None, generated, attention, advantages, prompt_width, 0, config, torch.optim.SGD(model.parameters(), lr=0.0),
+                     torch.device("cpu"), grpo.SINGLE, None, None, replayed)
+        return [p.grad.clone() for p in model.parameters()]
+
+    imitation, hindsight = grads(sil_coef=0.7), grads(hindsight_rows=64, hindsight_coef=0.7, sil_coef=0.2)
+    assert all(torch.equal(a, b) for a, b in zip(imitation, hindsight))
+    assert any(not torch.allclose(a, b, atol=1e-6) for a, b in zip(imitation, grads(sil_coef=0.2)))
+
+
+def test_grpo_step_with_hindsight_stores_the_relabelled_misses_and_replays_them(monkeypatch):
+    torch.manual_seed(5)
+    model, tokenizer, device = _tiny_model(), TinyTokenizer(), torch.device("cpu")
+    config = GRPOConfig(group_size=2, prompts_per_step=1, max_new_tokens=4, kl_coef=0.0, hindsight_rows=64, hindsight_coef=0.5)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    # the tiny tokenizer decodes even rows to "1 + 2" and odd rows to "1 + 1": the first puzzle's even row misses by its value
+    puzzles = [Puzzle((1, 2), 30, level="L1"), Puzzle((1, 2), 3, level="L4")]
+    monkeypatch.setattr(grpo, "level_by_name", lambda name: types.SimpleNamespace(target_range=(1, 200)))
+    sampled, replayed = [], []
+    real_sample, real_update = grpo._sample_batch, grpo._update
+    monkeypatch.setattr(grpo, "_sample_batch", lambda *args: sampled.append(real_sample(*args)) or sampled[-1])
+    monkeypatch.setattr(grpo, "_update", lambda *args: replayed.append(args[-1]) or real_update(*args))
+    plain = grpo_step(model, None, tokenizer, puzzles, config, optimizer, device)
+    assert not any(key.startswith(("hs_", "sil_")) for key in plain) and replayed == [None]  # no buffer, no replay
+    replay = grpo._Replay(config.sil_buffer, config.sil_by_level)
+    first = grpo_step(model, None, tokenizer, puzzles, config, optimizer, device, None, grpo.SINGLE, replay)
+    assert first["kept_groups"] == 1 and replayed[-1] is None  # the buffer was empty when the step drew from it
+    assert (first["hs_rows"], first["hs_nll"], first["hs_added"], first["hs_buffer"], first["hs_share"]) == (0, 0.0, 1, 1, 0.25)
+    assert not any(key.startswith("sil_") for key in first)
+    generated, attention, _, expanded, _, prompt_width, *_, correct = sampled[-1]
+    assert correct.tolist() == [False, False, True, False]  # the solved sample is not stored: this is not self-imitation
+    assert list(replay.pools) == ["L1"]
+    ((puzzle, tokens),) = replay.pools["L1"]
+    assert puzzle == Puzzle((1, 2), 3) and puzzle.level == "L1" and expanded[0].target == 30  # the sampled puzzle is left as it was
+    assert tokens.tolist() == generated[0, prompt_width:][attention[0, prompt_width:].bool()].tolist()  # tokens as sampled
+    second = grpo_step(model, None, tokenizer, puzzles, config, optimizer, device, None, grpo.SINGLE, replay)
+    assert (second["hs_rows"], second["hs_added"], second["hs_buffer"]) == (1, 1, 2) and second["hs_nll"] > 0
+    assert replayed[-1].ids.shape[0] == 1  # the earlier relabelled pair, none of this step's own
+    # the real L1 range is 10-200, so the same miss (value 3) is not usable; nor is a pair whose key is excluded
+    excluded = grpo._Replay(config.sil_buffer, config.sil_by_level, 0, frozenset({grpo.puzzle_key(Puzzle((1, 2), 3))}))
+    third = grpo_step(model, None, tokenizer, puzzles, config, optimizer, device, None, grpo.SINGLE, excluded)
+    assert (third["hs_added"], third["hs_buffer"], third["hs_share"]) == (0, 0, 0.0)
+    monkeypatch.undo()
+    out_of_range = grpo._Replay(config.sil_buffer, config.sil_by_level)
+    fourth = grpo_step(model, None, tokenizer, puzzles, config, optimizer, device, None, grpo.SINGLE, out_of_range)
+    assert (fourth["hs_added"], fourth["hs_buffer"], fourth["hs_share"]) == (0, 0, 0.0)
+
+
+def test_run_with_hindsight_relabelling_is_off_by_default_and_needs_the_ladder_mix(monkeypatch, tmp_path):
+    _patch_tiny_training(monkeypatch, tmp_path)
+    puzzle = Puzzle((1, 2), 30, level="L1")  # the first sample of each group ("1 + 2") misses it by its value
+    monkeypatch.setattr(grpo, "_train_streams", lambda config, offset=0: (itertools.repeat(puzzle), [itertools.repeat(puzzle)] * 2))
+    monkeypatch.setattr(grpo, "level_by_name", lambda name: types.SimpleNamespace(target_range=(1, 200)))
+    common = dict(model="tiny", group_size=2, prompts_per_step=1, max_new_tokens=4, max_steps=4, eval_every=1, eval_limit=1,
+                  kl_coef=0.0, no_save=True, train_mix="ladder")
+
+    def train_rows(name):
+        return [json.loads(line) for line in (tmp_path / name / "train_log.jsonl").read_text().splitlines()]
+
+    run(GRPOConfig(**common, out_dir=str(tmp_path / "off")))  # off by default: nothing about it in the log
+    assert len(train_rows("off")) == 4 and not any(key.startswith("hs_") for row in train_rows("off") for key in row)
+    run(GRPOConfig(**common, hindsight_rows=64, hindsight_coef=0.5, out_dir=str(tmp_path / "on")))
+    rows = train_rows("on")
+    assert [row["hs_added"] for row in rows] == [1, 1, 1, 1] and [row["hs_buffer"] for row in rows] == [1, 2, 3, 4]
+    assert [row["hs_rows"] for row in rows] == [0, 1, 2, 3] and [row["hs_share"] for row in rows] == [0.5] * 4
+    assert rows[0]["hs_nll"] == 0.0 and all(row["hs_nll"] > 0 for row in rows[1:])
+    assert not any(key.startswith("sil_") for row in rows for key in row)
+    # the buffer never takes a pair whose relabelled puzzle is in a ladder set
+    monkeypatch.setattr(grpo, "ladder_keys", lambda: frozenset({grpo.puzzle_key(Puzzle((1, 2), 3))}))
+    run(GRPOConfig(**common, hindsight_rows=64, out_dir=str(tmp_path / "ladder")))
+    assert [(row["hs_added"], row["hs_buffer"], row["hs_rows"]) for row in train_rows("ladder")] == [(0, 0, 0)] * 4
+    for name, bad, dist in (("sil", dict(hindsight_rows=4, sil_rows=4), grpo.SINGLE),
+                            ("mix", dict(hindsight_rows=4, train_mix=""), grpo.SINGLE),
+                            ("ranks", dict(hindsight_rows=4, prompts_per_step=2), grpo.Dist(0, 2, 0)),
+                            ("rows", dict(hindsight_rows=-1), grpo.SINGLE),
+                            ("coef", dict(hindsight_rows=4, hindsight_coef=-0.5), grpo.SINGLE)):
+        with pytest.raises(ValueError, match="hindsight"):
+            run(GRPOConfig(**{**common, **bad}, out_dir=str(tmp_path / name)), dist)
