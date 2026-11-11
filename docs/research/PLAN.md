@@ -214,6 +214,13 @@ Track D (from scratch, 6 h):
   relabelled pairs (no `reachable` or "needs" filter). Off by default in code. Report the paired
   difference, the per-level numbers and the share of samples that gave a usable relabelled pair.
   It does not outrank r54, r55 or other ranked work; the 11-18 box has room.
+  Coded (LOG 11-10 21:46 EST EST): `hindsight_rows` and `hindsight_coef`. A usable pair is a
+  rejected sample that uses the puzzle's numbers and operators correctly, whose value is an
+  integer inside the level's target range, and whose relabelled puzzle is in neither ladder set.
+  The buffer and the replay are self-imitation's, `hs_share` logs the usable share, and the
+  validator refuses a record that used it. The arms, on the 11-18 box, step-capped, three seeds
+  each: a control with D 005's RL settings, and the same with 64 relabelled rows at 0.5 (as
+  r59), marked unranked in its description and its name. Configs by 11-16.
 
 Box days (INBOX 2026-11-10 10:40: both remaining AWS blocks are back on, screens only, about
 50/50 between the tracks, launched by hand; AGENT.md "AWS boxes"). Box runs use step caps, and
@@ -230,7 +237,7 @@ each batch carries its own control arm:
 
 Rough timeline for the extension:
 - 11-10 to 11-14: code in this order: the checkpoint option (A8, done), self-imitation (D11,
-  done), the unranked relabelling screen (D12). r58, then A 006's five record seeds if the rule is
+  done), the unranked relabelling screen (D12, code done). r58, then A 006's five record seeds if the rule is
   met. r55, r53. On B200: r51, r60 (A7 (a)), r56, r59 (the first self-imitation arm, D11), r57.
   The D7 sampling profile.
 - 11-15 to 11-16: prepare the 11-18 box (above). 11-17: Engaging maintenance.

@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-10 21:21 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). Since 11-10 the agent runs on
+Updated 2026-11-10 21:46 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). Since 11-10 the agent runs on
 Fable 5.2. The handover entry (holders, open arms, queues, the plan for the extra month) is LOG
 2026-11-10 10:33.
 
@@ -10,7 +10,8 @@ INBOX 11-10 14:50 and 14:54: self-imitation on the policy's own verified samples
 limits (PLAN D11). If an arm built on it meets the promotion rule, that is flagged here, at the
 top, before the record starts. It is coded and tested (`sil_rows`, off by default), and its first
 arm, r59, is first in the track D B200 queue (LOG 16:16 EST). One unranked screen of hindsight
-relabelling is allowed (PLAN D12); its code is next.
+relabelling is allowed (PLAN D12). It is coded and tested too (`hindsight_rows`, off by default,
+refused in records by the validator; LOG 21:46 EST EST), and its two arms run on the 11-18 box.
 
 INBOX 11-10 14:58 and 15:04: the maintainer's own ideas are judged in `~/rlvr-ideas/STATUS.md`
 (private, outside this checkout; the first pass is done). RULES v3.4 lets a run choose among its
@@ -115,9 +116,9 @@ and is not rerun. Width stays out of the stack.
   `queue/running/<job>-k` items back at the front of their queue and submit a replacement, keeping
   at most 6 GPUs able to run together.
 - Code, each option off by default and tested. Done: keeping the best in-loop dev checkpoint
-  (`keep_best_dev`, with the validator check) and self-imitation (`sil_rows`). Next, in this
-  order: the unranked relabelling screen (D12), rollback and train on (A8 (c), needed by 11-16 for
-  the box).
+  (`keep_best_dev`, with the validator check), self-imitation (`sil_rows`) and hindsight relabelling
+  for the unranked screen (`hindsight_rows`, D12). Next: rollback and train on (A8 (c), needed by
+  11-16 for the box).
 - r59 (self-imitation): when its seeds start, check the first minutes (the replay runs on a GPU for
   the first time) and that `sil_rows` reaches 64 within the first few hundred steps.
 - `~/rlvr-ideas/STATUS.md`: update it whenever a verdict or a result changes.

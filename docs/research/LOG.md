@@ -5579,3 +5579,29 @@ What it means:
 - GPU jobs: 9 pending, none running. Five are on `mit_normal_gpu`, where two run at a time, and four on preemptable, so at most 6 can run together. Slurm's estimate for 28646346 (B200, r60 seed 0) is 02:38 EST on 11-11. For the H200 jobs 28473022 and 28595679 it is 11-14 15:00 and 11-15 12:30 (read at 21:13 EST; squeue prints local time).
 
 Queued work: `screens_d_b200` 10 runs (about 19 GPU-hours packed), `screens_b200` 7 runs (about 28 GPU-hours), and the three H200 queues about 37 GPU-hours.
+
+## 2026-11-10 21:46 EST: hindsight relabelling is coded for its one unranked screen (`hindsight_rows`, PLAN D12); still no GPU job running
+
+INBOX 11-10 14:54 allows one unranked track D screen of hindsight relabelling, to measure its effect. It stays not allowed in records, promotion screens and anything stacked into a ranked arm. The option is in the trainer (commit 6d3aeab) and off by default, so existing configs and the queued arms behave as before.
+
+**What it does.** With `hindsight_rows` above 0, each step looks at every sample the verifier rejected. A sample gives a usable relabelled pair when all of these hold:
+
+- It is a well-formed expression that uses each of the puzzle's numbers once and only the puzzle's operators, so it missed by its value alone.
+- Its value is an integer inside the level's generator target range (10-200; 100-999 for L5). This is a range check on the value, which keeps relabelled targets where the generator draws them.
+- The relabelled puzzle (the same numbers, operators and level, with that value as its target) is in neither ladder set.
+
+The pair is the relabelled puzzle with the sample's tokens exactly as sampled. Nothing solves or searches a relabelled pair, and the level's "needs" rule is not checked on it, as the note asks. The pairs go into self-imitation's buffer: in memory, empty at each run's start and after a resume, never saved, the newest `sil_buffer` pairs per level. Each step replays up to `hindsight_rows` of them, drawn evenly over levels, and each replayed row weighs `hindsight_coef` times a policy-gradient row. A step never replays its own samples. The option can't be combined with `sil_rows`, and it needs the ladder training mix and one process.
+
+**What it logs.** Each step writes `hs_share`, the usable pairs over all of the step's samples (the share the note asks for), with `hs_added`, `hs_buffer`, `hs_rows` and `hs_nll`.
+
+**The guard.** `validate_record_v3.py` now fails a record whose seed config has `hindsight_rows` on.
+
+**Checks.** `ruff` is clean and all 155 tests pass. Five are new: what `hindsight_puzzle` accepts and rejects, the replayed rows' weight, a step, a run (off by default, the ladder exclusion, the refused combinations) and the validator.
+
+**The arm.** It goes on the 11-18 H100 box, where it costs the ranked arms nothing. Both arms are RL with D 005's settings from saved pretrained checkpoints, step-capped, three seeds each on the same packing: a control arm and the relabel arm. The relabel arm replays 64 rows at coefficient 0.5, the same as r59 (self-imitation), so the two kinds of replay can be read side by side. Its `description` and its directory name will say "unranked". The configs are due with the rest of the box's by 11-16. The result will give the paired difference, the per-level numbers and the mean `hs_share`.
+
+One limit belongs with the result. Track D's completions are answer-only, so a stored completion fits its relabelled prompt exactly. On track A a think section would still reason about the old target, so this screen says nothing about track A.
+
+**Jobs.** No GPU job of mine has run since 20:54 EST. The 9 workers are pending, 8 on priority and one on unavailable nodes. At 21:45 EST squeue's estimates were 03:00 EST on 11-11 for 28646346 (B200, r60 seed 0) and 05:00 EST for 28653623 (B200, r59 seeds 0-2). They are estimates and have moved at every read.
+
+Next in the code order: rollback and train on (PLAN A8 (c)), by 11-16, for the box.
