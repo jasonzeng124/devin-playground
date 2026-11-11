@@ -5605,3 +5605,11 @@ One limit belongs with the result. Track D's completions are answer-only, so a s
 **Jobs.** No GPU job of mine has run since 20:54 EST. The 9 workers are pending, 8 on priority and one on unavailable nodes. At 21:45 EST squeue's estimates were 03:00 EST on 11-11 for 28646346 (B200, r60 seed 0) and 05:00 EST for 28653623 (B200, r59 seeds 0-2). They are estimates and have moved at every read.
 
 Next in the code order: rollback and train on (PLAN A8 (c)), by 11-16, for the box.
+
+## 2026-11-11 12:03 EST: workers resubmitted after the Slurm-side cancellation
+
+All nine of my pending workers were cancelled at 08:12:56 EST 11-11. The maintainer checked (INBOX
+12:01): more than 1,800 other users' pending jobs were cancelled between 08:12 and 08:16 with no
+cancelling uid, so it was a Slurm-side event. The queues were intact; the same nine workers are
+resubmitted (job IDs 28702298-28702307, see STATUS), at most 6 GPUs together. Still in the
+low-usage window until 18:00 EST.

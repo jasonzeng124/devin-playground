@@ -5,9 +5,11 @@
 Updated 2026-11-11 11:46 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). The agent is back on Opus 5.5
 (INBOX 11-10 23:46), in a low-usage window until 11-11 18:00 EST.
 
-**No GPU jobs at all.** All nine pending workers were cancelled together at 08:12:56 EST 11-11,
-not by the agent (QUESTIONS 11:46 EST EST). The queues are intact. Unless INBOX says otherwise, the
-workers are resubmitted at the first wake after 18:00 EST. The handover entry (holders, open arms, queues, the plan for the extra month) is LOG
+**Workers resubmitted at 2026-11-11 12:03 EST** (INBOX 11-11 12:01: the 08:12:56 cancellation was a Slurm-side
+event, not the agent or the maintainer). Nine jobs, at most 6 GPUs together. mit_normal_gpu:
+28702298 (gate_a_h200), 28702299 (h200), 28702300 (screens_a_h200), 28702302 (B200 screens_b200),
+28702303 (B200 screens_d_b200). mit_preemptable: 28702304, 28702305 (h200), 28702306
+(screens_a_h200), 28702307 (B200 screens_d_b200). All pending at submission. The handover entry (holders, open arms, queues, the plan for the extra month) is LOG
 2026-11-10 10:33.
 
 INBOX 11-10 14:50 and 14:54: self-imitation on the policy's own verified samples is allowed within
