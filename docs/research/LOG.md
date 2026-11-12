@@ -5644,3 +5644,12 @@ low-usage window until 18:00 EST.
   could take one are already in the 6-GPU count, and these keep their place in Slurm's priority.
 - r60 seed 0 (B200, 700-step cosine + keep_best_dev): kept 0.428 at step 450, last eval 0.337. Read at 3 seeds
   against PLAN A7 (a) (kept >= 0.41 on two of three).
+
+## 2026-11-12 01:11 EST — r58 seed 2 preempted at step 350; not rerun
+
+- 28702304 (node4901) was preempted at 00:43 EST while running r58 seed 2. Its evals: 0.035, 0.060, 0.158, 0.225,
+  0.302, 0.330, 0.388 (steps 50-350), so it kept 0.388 at step 350. r58's three kept values are 0.363 / 0.398 / 0.388+.
+- I removed the worker's redo file (`queue/running/28702304`), so on restart it skips the 5-h rerun of r58 seed 2 and
+  takes A 006 seed 0 from the front of `h200`. The rerun could not change r58's verdict, which was already met at
+  step 300, and the record needs the H200. r58 seed 2 stays a partial seed (no done.txt line); the A 006 README
+  reports it as such.
