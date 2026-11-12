@@ -2,7 +2,9 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-11 11:46 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). The agent is back on Opus 5.5
+**Record A 006 started (2026-11-12 00:11 EST).** Its promotion screen r58 (A 005 + entropy floor + keep_best_dev, H200) met its 3-seed rule: kept dev 0.363 / 0.398 / 0.330 (seed 2 at step 300, still running), every seed >= 0.305, none collapsed. `records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest` (config committed f04191c); seeds 0-4 are at the front of `h200` (28702304 takes seed 0 after r58 seed 2, then 28742593/28702299). The record chooses its checkpoint by its own in-loop dev evals (RULES v3.4). Holder to compare: A 004 (test 0.2671).
+
+Updated 2026-11-12 00:11 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). The agent is back on Opus 5.5
 (INBOX 11-10 23:46), in a low-usage window until 11-11 18:00 EST.
 
 **Jobs (2026-11-11 19:12 EST).** Six GPUs at most: 28702304 (preemptable H200, running r55 seed 1), 28742593

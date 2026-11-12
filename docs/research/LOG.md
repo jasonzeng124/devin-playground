@@ -5633,3 +5633,14 @@ low-usage window until 18:00 EST.
 - 28702305/28702306 (preemptable H200, node5200) ran 7 h with an empty log and no CPU time:
   cancelled, node5200 excluded, replaced by 28742593.
 
+## 2026-11-12 00:11 EST — r58 meets its rule; record A 006 queued
+
+- r58 seed 2 kept dev 0.330 at step 300 (evals 0.225, 0.302, 0.330), so all three seeds are at or above the 0.305
+  bar (0.363 / 0.398 / 0.330) and none collapsed: r58's 3-seed rule is met. A kept value can only rise, so seed 2's
+  remaining evals cannot undo this; its final value goes in the record README.
+- Record A 006: `records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest` (config f04191c) is r58's config without
+  `no_save`. Seeds 0-4 are at the front of `h200`, whose workers run `run_item.sh`; it runs a records/v3 item as
+  `STAGE=all scripts/run_seed_v3.sh`, as A 005's seeds ran. No separate record-<slug> queue: the H200 workers that
+  could take one are already in the 6-GPU count, and these keep their place in Slurm's priority.
+- r60 seed 0 (B200, 700-step cosine + keep_best_dev): kept 0.428 at step 450, last eval 0.337. Read at 3 seeds
+  against PLAN A7 (a) (kept >= 0.41 on two of three).
