@@ -5715,3 +5715,10 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
 - r51 seed 2 is at 0.402 (step 350) and still running; seeds 0-1 collapsed to 0.053 / 0.160 after peaks of 0.390 /
   0.363. r57 seeds 0-2 (no level 5 in training) are at 0.185 / 0.193 / 0.212 near the end, against r30's
   0.192 / 0.180 / 0.220: level.
+
+## 2026-11-12 13:06 EST — A 006 seed 3 test 0.4149; r61 seed 0 dev 0.250 (D 005 seed 0: 0.193)
+
+- A 006 seed 3: kept step 400, kept dev 0.392, test 0.4149 (`confirm_v3.json`). Seed 4 runs on 28702304 since
+  12:51 EST, so the record closes about 15:20 EST.
+- r61 (H200 self-imitation gate, time-budgeted) seed 0: final dev 0.250, at or above D's line 0.231, paired
+  +0.057 over D 005's seed 0. One seed of five; seed 1 runs on 28742593.
