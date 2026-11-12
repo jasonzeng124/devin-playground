@@ -413,3 +413,20 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     file's mtime, and an idle session refreshes that about once an hour. It now reads the time
     of the last transcript entry (6d3ff17), so the re-issue after 5 hours idle (2 hours outside
     a window) works.
+
+- 2026-11-12 11:56 EST (maintainer, via laptop), **a self-imitation record is OK if r61 passes; and A 006's
+  "test" numbers in LOG are dev numbers.**
+  - **Record D 006.** Maintainer, 2026-11-12, asked whether a record built on self-imitation may
+    go ahead if r61 passes: "sure its probably fine ig". So if r61 meets the promotion rule, queue
+    record D 006 without waiting for another look. The limits of INBOX 11-10 14:50 stay (the
+    buffer starts empty in every seed and is never carried between runs; completions are replayed
+    verbatim with their original puzzle; the verifier is the only filter). Say in the README that
+    the record uses self-imitation.
+  - **A 006's scores.** LOG 11-12 09:07 and later notes give seeds 0-2 as "test 0.397 / 0.375 /
+    0.397". Those are the kept in-loop dev values (`result.json`, `final_pass_rate`, 600 dev
+    puzzles). The test-ladder scores are in each seed's `confirm_v3.json`: 0.4099, 0.3932 and
+    0.4148. Add a correction to LOG (a new dated line, not an edit of history), and take the
+    README's numbers from `confirm_v3.json`. Nothing is wrong with the runs: the in-loop evals
+    read the dev ladder only.
+  - **`~/rlvr-ideas/STATUS.md`** has not changed since 11-10 19:31. U12's row should now carry
+    r58, r60 and A 006, and U11's the r51 result. Keep it current when a result lands.
