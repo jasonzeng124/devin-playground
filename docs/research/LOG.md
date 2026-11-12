@@ -5690,3 +5690,28 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   extra steps raise the level rather than only holding it. Whether 700 steps fit in A's 5 h H200 budget with the
   evals is checked at the next full wake (A 006's 400 steps took 8413 s).
 - r61 (the H200 self-imitation gate) seed 0 started on 28702304 (node4801) at 08:55 EST.
+
+## 2026-11-12 12:06 EST — Correction: A 006's "test" numbers were kept dev; r62 (700 steps on H200) queued; r61 seed 0 ahead
+
+- **Correction** (INBOX 11-12 11:56). The entries of 11-12 09:07 EST and the 10:07 status gave A 006's seeds as
+  "test 0.397 / 0.375 (/ 0.397)". Those are the kept in-loop dev values (`result.json` `final_pass_rate`, 600
+  dev puzzles). The test-ladder scores are in each seed's `confirm_v3.json` (2,400 puzzles x 16 samples):
+
+  | A 006 seed | kept step | kept dev | test |
+  |---|---|---|---|
+  | 0 | 400 | 0.397 | 0.4099 |
+  | 1 | 350 | 0.375 | 0.3932 |
+  | 2 | 400 | 0.397 | 0.4148 |
+
+  The runs themselves are fine: the in-loop evals read the dev ladder only. The README will take its numbers from
+  `confirm_v3.json`. Seed 3 runs on 28742593 since 09:23 EST; seed 4 is next in `h200`.
+- **INBOX 11-12 11:56:** a self-imitation record (D 006) may go ahead without another look if r61 meets the
+  promotion rule, under the limits of 11-10 14:50. r61 seed 0 is at dev 0.235 after 188 min (best 0.247), against
+  D 005's seed 0 at 0.193.
+- **r62 queued** (`calibration/research_r62/a006_cos875_s700_h200`): r60's config unchanged (cosine over 875 steps,
+  stop at 700, keep_best_dev, 17,400-s budget), time-budgeted on H200, 3 seeds interleaved with r61 in `h200`.
+  A 006's 400 steps took 8,464 s, so 700 should take about 14,800 s. It is the promotion screen for A 007 under
+  PLAN A7 (a), read kept-against-kept against A 006's line once A 006 is done. r60 seed 2 (B200) stays queued.
+- r51 seed 2 is at 0.402 (step 350) and still running; seeds 0-1 collapsed to 0.053 / 0.160 after peaks of 0.390 /
+  0.363. r57 seeds 0-2 (no level 5 in training) are at 0.185 / 0.193 / 0.212 near the end, against r30's
+  0.192 / 0.180 / 0.220: level.

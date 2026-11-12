@@ -2,22 +2,18 @@
 
 (maintained by the research agent; see AGENT.md)
 
-**Self-imitation meets the promotion numbers on its screen (2026-11-12 06:08 EST; INBOX 11-10 14:50 asks for this note before any record).** r59 (track D, r30's config plus self-imitation on the run's own verified samples, B200, step-capped) reached dev 0.278 / 0.248 / 0.232, all three at or above D's line 0.231, none collapsed; paired with its control r30 +0.086 / +0.068 / +0.012 (mean +0.055). It is not yet a gate: the H200 time-budgeted gate r61 (`calibration/research_r61/d005rl_sil64c05`, from D 005's checkpoints, 5 seeds against 0.231) is queued in `h200` between A 006's seeds. If r61 passes, record D 006 would be the first record built on self-imitation; the agent will wait for the maintainer's look (INBOX) before queueing it.
+**Self-imitation meets the promotion numbers on its screen (2026-11-12 06:08 EST; INBOX 11-10 14:50 asks for this note before any record).** r59 (track D, r30's config plus self-imitation on the run's own verified samples, B200, step-capped) reached dev 0.278 / 0.248 / 0.232, all three at or above D's line 0.231, none collapsed; paired with its control r30 +0.086 / +0.068 / +0.012 (mean +0.055). It is not yet a gate: the H200 time-budgeted gate r61 (`calibration/research_r61/d005rl_sil64c05`, from D 005's checkpoints, 5 seeds against 0.231) is queued in `h200` between A 006's seeds. If r61 passes, record D 006 would be the first record built on self-imitation. The maintainer has looked (INBOX 11-12 11:56: "sure its probably fine ig"), so D 006 is queued as soon as r61 meets the rule; its README will say it uses self-imitation. r61 seed 0 is at dev 0.235 after 188 min (D 005's seed 0: 0.193).
 
-**Record A 006 started (2026-11-12 00:11 EST).** Its promotion screen r58 (A 005 + entropy floor + keep_best_dev, H200) met its 3-seed rule: kept dev 0.363 / 0.398 / 0.330 (seed 2 at step 300, still running), every seed >= 0.305, none collapsed. `records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest` (config committed f04191c); seeds 0-4 are at the front of `h200` (seed 0 running on 28742593 since 03:58 EST, seed 1 on 28702304 since 06:03 EST). The record chooses its checkpoint by its own in-loop dev evals (RULES v3.4). Holder to compare: A 004 (test 0.2671).
+**Record A 006 started (2026-11-12 00:11 EST).** Its promotion screen r58 (A 005 + entropy floor + keep_best_dev, H200) met its 3-seed rule: kept dev 0.363 / 0.398 / 0.330 (seed 2 at step 300, still running), every seed >= 0.305, none collapsed. `records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest` (config committed f04191c); seeds 0-4 are at the front of `h200` (seeds 0-2 done: test 0.4099 / 0.3932 / 0.4148 from `confirm_v3.json`, kept dev 0.397 / 0.375 / 0.397; seed 3 running on 28742593, seed 4 next in `h200`). The record chooses its checkpoint by its own in-loop dev evals (RULES v3.4). Holder to compare: A 004 (test 0.2671).
 
-Updated 2026-11-12 00:11 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). The agent is back on Opus 5.5
-(INBOX 11-10 23:46), in a low-usage window until 11-11 18:00 EST.
+Updated 2026-11-12 12:06 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
 
-**Jobs (2026-11-11 19:12 EST).** Six GPUs at most: 28702304 (preemptable H200, running r55 seed 1), 28742593
-(preemptable H200, `h200`, takes r58 seed 2 first), 28742594 (preemptable B200, `screens_d_b200`),
-28742595 (preemptable B200, `screens_b200`), and 28702299/28702300 (`mit_normal_gpu` H200, pending,
-Slurm estimate 11-14 11:30). The three B200 workers of 12:04 died within minutes on node5500-c1 (CUDA
-out of memory with 118 MiB free, other processes on the GPU); node5500-c1 is now excluded with
-node5501-c1. 28702305/28702306 sat 7 h on node5200 with no output and no CPU; cancelled, node5200
-excluded. **r58 (A 006 gate): seeds 0 and 1 kept 0.363 and 0.398 dev, both above 0.305, none
-collapsed; seed 2 decides.** The handover entry (holders, open arms, queues, the plan for the extra month) is LOG
-2026-11-10 10:33.
+**Jobs (2026-11-12 12:06 EST).** Six GPUs: 28742593 (preemptable H200, `h200`, A 006 seed 3), 28702304 (preemptable
+H200, `h200`, r61 seed 0), 28742594 and 28742595 (preemptable B200, `screens_d_b200` and `screens_b200`;
+r57 seeds 0-2 and r51 seed 2), 28702299/28702300 (`mit_normal_gpu` H200, pending). `h200` holds r61 seeds 1-4,
+A 006 seed 4, r62 seeds 0-2 (the 700-step schedule time-budgeted on H200, A 007's promotion screen, PLAN
+A7 (a)) and r53. **Next decisions:** A 006's README and validation after seed 4 (about 11-12 evening);
+r61 against 0.231 as its seeds land (D 006 follows if it passes); r62 against A 006's line.
 
 INBOX 11-10 14:50 and 14:54: self-imitation on the policy's own verified samples is allowed within
 limits (PLAN D11). If an arm built on it meets the promotion rule, that is flagged here, at the
