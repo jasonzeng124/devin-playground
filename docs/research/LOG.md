@@ -5677,3 +5677,16 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
 - r60 seed 1 (B200, 700-step cosine + keep_best_dev): kept 0.322 at step 300, still running.
 - A 006: seed 0 on 28742593 (node4601) since 03:58 EST, seed 1 on 28702304 (node4801, restarted after the
   preemption) since 06:03 EST.
+
+## 2026-11-12 09:07 EST — A 006 seeds 0-1 done; r60 meets PLAN A7 (a)'s bar on 2 of 2
+
+- Record A 006 (test ladder): seed 0 test 0.397 (kept step 400), seed 1 test 0.375 (kept step 350);
+  mean so far 0.386. Seeds 2-4 follow (seed 2 on 28742593 since 06:42 EST); the README and validation come
+  after all five. (Holder A 004: 0.2671.)
+- r60 (r58's config on a cosine schedule over 875 steps stopped at 700, keep_best_dev, B200 step-capped): kept
+  0.428 (step 450, last 0.337) and 0.462 (step 650, last 0.457), mean 0.445. PLAN A7 (a) asks
+  for a kept dev of 0.41 or above on two of three seeds, so the 700-step schedule stays in the 11-18 box batch;
+  seed 2 is still queued in `screens_b200`. Seed 1 kept improving to step 650, which is the first sign that the
+  extra steps raise the level rather than only holding it. Whether 700 steps fit in A's 5 h H200 budget with the
+  evals is checked at the next full wake (A 006's 400 steps took 8413 s).
+- r61 (the H200 self-imitation gate) seed 0 started on 28702304 (node4801) at 08:55 EST.
