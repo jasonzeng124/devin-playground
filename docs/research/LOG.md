@@ -5722,3 +5722,28 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   12:51 EST, so the record closes about 15:20 EST.
 - r61 (H200 self-imitation gate, time-budgeted) seed 0: final dev 0.250, at or above D's line 0.231, paired
   +0.057 over D 005's seed 0. One seed of five; seed 1 runs on 28742593.
+
+## 2026-11-12 16:05 EST — Record A 006: test 0.4123 ± 0.0127, the new track A holder (Welch vs A 004 p = 0.0019); r51 closed
+
+- **A 006** (`records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest`), all five seeds, test from `confirm_v3.json`:
+
+  | seed | node | kept step | kept dev | test | pass@16 | mean tokens | total_s |
+  |---|---|---|---|---|---|---|---|
+  | 0 | node4601 | 400 | 0.397 | 0.4099 | 0.6750 | 703 | 8464 |
+  | 1 | node4801 | 350 | 0.375 | 0.3932 | 0.6825 | 726 | 8722 |
+  | 2 | node4601 | 400 | 0.397 | 0.4148 | 0.6879 | 718 | 8315 |
+  | 3 | node4601 | 400 | 0.392 | 0.4149 | 0.6763 | 712 | 9018 |
+  | 4 | node4801 | 400 | 0.380 | 0.4285 | 0.6846 | 697 | 9586 |
+
+  Mean test 0.4123 ± 0.0127; kept dev mean 0.388. `validate_record_v3.py --compare-to` A 004: t = 5.61, df 4.4,
+  one-sided p = 0.0019, "new record". Against A 005 (not a holder): +0.072, p = 0.059. No seed was preempted.
+  In plain words: A 005 had two seeds of five that shortened their outputs and scored 0.22 / 0.29; here every seed
+  kept long outputs (697-726 tokens) and the spread fell from 0.082 to 0.013. The checkpoint choice moved one seed
+  (seed 1, step 350 over 400, 0.375 against 0.365 on dev). README written, leaderboard updated.
+- **A 006's line for r62 (A 007's promotion screen), kept against kept:** 0.388 + 0.03 = **0.418**. Both sides are
+  kept evals, so no extra +0.02. r62's 3-seed form: each seed's kept dev at least 0.418, none collapsed.
+- **r51 (A 005 + oversample 2, B200, U11) closed at 3 seeds:** last dev 0.053 / 0.160 / 0.177 after peaks of
+  0.390 / 0.363 / 0.402. Every seed collapsed late. Even read at its peaks (mean 0.385) it is level with A 006's
+  kept dev, not above it, so oversampling at this lr is no help. Seeds 3-4 are taken out of `screens_b200` and
+  replaced by r60 seeds 3-4 (the 700-step schedule the 11-18 box batch builds on), so that arm reads at five seeds.
+

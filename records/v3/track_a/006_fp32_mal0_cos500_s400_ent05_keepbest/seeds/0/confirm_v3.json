@@ -1,0 +1,25 @@
+{
+ "benchmark_version": 3,
+ "model": "/home/zjason/orcd/pool/rlvr-ckpts/records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest/seeds/0/final",
+ "test_set": "data/ladder_v3_test.jsonl",
+ "n_puzzles": 2400,
+ "samples_per_puzzle": 16,
+ "sampler": {
+  "temperature": 1.0,
+  "constrain": true,
+  "think_budget": 0,
+  "max_new_tokens": 1024
+ },
+ "ladder_score": 0.40994791666666663,
+ "pass@1_by_level": {
+  "L1": 0.98828125,
+  "L2": 0.5053125,
+  "L3": 0.25125,
+  "L4": 0.2003125,
+  "L5": 0.03734375,
+  "L6": 0.4771875
+ },
+ "pass@16": 0.675,
+ "truncated": 0.5326302083333333,
+ "mean_tokens": 702.681328125
+}

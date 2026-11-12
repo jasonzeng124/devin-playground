@@ -4,16 +4,16 @@
 
 **Self-imitation meets the promotion numbers on its screen (2026-11-12 06:08 EST; INBOX 11-10 14:50 asks for this note before any record).** r59 (track D, r30's config plus self-imitation on the run's own verified samples, B200, step-capped) reached dev 0.278 / 0.248 / 0.232, all three at or above D's line 0.231, none collapsed; paired with its control r30 +0.086 / +0.068 / +0.012 (mean +0.055). It is not yet a gate: the H200 time-budgeted gate r61 (`calibration/research_r61/d005rl_sil64c05`, from D 005's checkpoints, 5 seeds against 0.231) is queued in `h200` between A 006's seeds. If r61 passes, record D 006 would be the first record built on self-imitation. The maintainer has looked (INBOX 11-12 11:56: "sure its probably fine ig"), so D 006 is queued as soon as r61 meets the rule; its README will say it uses self-imitation. r61 seed 0 is at dev 0.235 after 188 min (D 005's seed 0: 0.193).
 
-**Record A 006 started (2026-11-12 00:11 EST).** Its promotion screen r58 (A 005 + entropy floor + keep_best_dev, H200) met its 3-seed rule: kept dev 0.363 / 0.398 / 0.330 (seed 2 at step 300, still running), every seed >= 0.305, none collapsed. `records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest` (config committed f04191c); seeds 0-4 are at the front of `h200` (seeds 0-2 done: test 0.4099 / 0.3932 / 0.4148 from `confirm_v3.json`, kept dev 0.397 / 0.375 / 0.397; seed 3 running on 28742593, seed 4 next in `h200`). The record chooses its checkpoint by its own in-loop dev evals (RULES v3.4). Holder to compare: A 004 (test 0.2671).
+**Record A 006 is the new track A holder (2026-11-12 16:05 EST).** Test 0.4123 ± 0.0127 over five seeds (0.4099 / 0.3932 / 0.4148 / 0.4149 / 0.4285, from `confirm_v3.json`), against A 004's 0.2671 ± 0.0565: one-sided Welch p = 0.0019. It is A 005's recipe plus an entropy floor and `keep_best_dev`, so it chose its checkpoint by its own in-loop dev evals (RULES v3.4); kept dev mean 0.388. The next track A screen, r62 (700-step schedule, H200), is read against A 006's kept line 0.418.
 
-Updated 2026-11-12 12:06 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
+Updated 2026-11-12 16:05 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
 
-**Jobs (2026-11-12 12:06 EST).** Six GPUs: 28742593 (preemptable H200, `h200`, A 006 seed 3), 28702304 (preemptable
-H200, `h200`, r61 seed 0), 28742594 and 28742595 (preemptable B200, `screens_d_b200` and `screens_b200`;
-r57 seeds 0-2 and r51 seed 2), 28702299/28702300 (`mit_normal_gpu` H200, pending). `h200` holds r61 seeds 1-4,
-A 006 seed 4, r62 seeds 0-2 (the 700-step schedule time-budgeted on H200, A 007's promotion screen, PLAN
-A7 (a)) and r53. **Next decisions:** A 006's README and validation after seed 4 (about 11-12 evening);
-r61 against 0.231 as its seeds land (D 006 follows if it passes); r62 against A 006's line.
+**Jobs (2026-11-12 16:05 EST).** Six GPUs: 28742593 (preemptable H200, `h200`, r61 seed 1), 28702304 (preemptable
+H200, `h200`, r61 seed 2), 28742594 and 28742595 (preemptable B200, `screens_d_b200` and `screens_b200`;
+r57 seed 1, r59 seed 4, r56 seed 3; r60 seed 2), 28702299/28702300 (`mit_normal_gpu` H200, pending). `h200` holds
+r62 seeds 0-2 interleaved with r61 seeds 3-4, then r53; `screens_b200` holds r60 seeds 3-4 (r51 closed). **Next
+decisions:** r61 against 0.231 as its seeds land (D 006 follows if it passes); r62 against A 006's kept line 0.418
+(A 007 if it passes); the 11-18 box queue and configs committed before the 11-17 maintenance.
 
 INBOX 11-10 14:50 and 14:54: self-imitation on the policy's own verified samples is allowed within
 limits (PLAN D11). If an arm built on it meets the promotion rule, that is flagged here, at the
@@ -29,11 +29,12 @@ logs, keeping the best in-loop dev checkpoint gives dev 0.364 (SD 0.027) against
 (SD 0.087). The option (`keep_best_dev`) is coded and tested, and r58, r54's config with it on,
 is now A 006's promotion screen (LOG 15:46 EST).
 
-## Records (H200 board; rules v3.4 since 11-10, no record so far chose a checkpoint)
+## Records (H200 board; rules v3.4 since 11-10; A 006 is the first record that chose a checkpoint)
 
 | track | record | test, 5 seeds | in-loop dev mean | state |
 |---|---|---|---|---|
-| A | `records/v3/track_a/004_ladder_constrained_h200` | 0.2671 ± 0.0565 | 0.255 | **holder** |
+| A | `records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest` | 0.4123 ± 0.0127 | 0.388 (kept) | **holder** (Welch vs A 004 p = 0.0019; chose its checkpoint) |
+| A | `records/v3/track_a/004_ladder_constrained_h200` | 0.2671 ± 0.0565 | 0.255 | held before A 006 |
 | A | `records/v3/track_a/005_fp32_mal0_cos500_s400` | 0.3400 ± 0.0815 | 0.313 | valid, not a record (Welch vs A 004 p = 0.072) |
 | A | `records/v3/track_a/002_fp32_skip_cosine` | 0.2784 ± 0.0904 | | valid, short of A 004 (p = 0.41) |
 | D | `records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6` | 0.2150 ± 0.0287 | 0.201 | **holder** (Welch vs D 004 p = 0.0034) |

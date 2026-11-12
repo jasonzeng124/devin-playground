@@ -1,0 +1,5 @@
+2026-11-12T08:58:41Z worker 28742593: warm start: 19 s on node4601 before records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest 0
+2026-11-12T11:05:05Z worker 28702304: warm start: 87 s on node4801 before records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest 1
+2026-11-12T11:42:14Z worker 28742593: warm start: 8 s on node4601 before records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest 2
+2026-11-12T14:24:03Z worker 28742593: warm start: 10 s on node4601 before records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest 3
+2026-11-12T17:52:28Z worker 28702304: warm start: 61 s on node4801 before records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest 4

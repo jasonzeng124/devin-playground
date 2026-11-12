@@ -37,7 +37,13 @@ hardware"). The first H200 records are reruns of the H100 holders' configs; they
 
 | # | record | test ladder score (mean ± sd) | N | sampler | clock (measured) | author |
 |---|---|---:|--:|---|---|---|
-| 004 | **[004_ladder_constrained_h200](records/v3/track_a/004_ladder_constrained_h200)** (holder) | **0.2671 ± 0.0565** | 5 | constrained | 291-292 min GRPO | Claude / @jasonzeng124 |
+| 006 | **[006_fp32_mal0_cos500_s400_ent05_keepbest](records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest)** (holder) | **0.4123 ± 0.0127** | 5 | constrained | 139-160 min GRPO | Claude / @jasonzeng124 |
+| 004 | [004_ladder_constrained_h200](records/v3/track_a/004_ladder_constrained_h200) | 0.2671 ± 0.0565 | 5 | constrained | 291-292 min GRPO | Claude / @jasonzeng124 |
+
+006 is A 005's recipe (fp32 master weights at lr 1e-6 on a cosine, zero-advantage rows skipped,
+truncated outputs rewarded 0, stopped at step 400) plus an entropy floor, and it ends on its best
+in-loop dev checkpoint (RULES v3.4). It beats 004 by +0.145 (one-sided Welch p = 0.0019). A 005
+(0.3400 ± 0.0815) did not clear the significance test against 004 and is not listed.
 
 004 reruns A 001's config unchanged on the H200, after the untimed warm-up (v3.2). As on the H100,
 one seed collapsed into single guesses and still scored 0.183 (see its README).
