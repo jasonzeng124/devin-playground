@@ -5613,3 +5613,23 @@ All nine of my pending workers were cancelled at 08:12:56 EST 11-11. The maintai
 cancelling uid, so it was a Slurm-side event. The queues were intact; the same nine workers are
 resubmitted (job IDs 28702298-28702307, see STATUS), at most 6 GPUs together. Still in the
 low-usage window until 18:00 EST.
+
+## 2026-11-11 19:12 EST: r58 seeds 0-1 pass the gate so far; B200 and node5200 host failures
+
+```
+  a005_ent05_keepbest_h200   s0 done 232m final 0.363 best 0.363 ok        | 0.055 0.085 0.223 0.315 0.363 | kept step 400, last 0.363
+  a005_ent05_keepbest_h200   s1 done 232m final 0.398 best 0.398 diverged  | 0.017 0.107 0.273 0.368 0.392 | kept step 350, last 0.392
+  d005rl_mini3               s0 done 234m final 0.233 best 0.237 ok        | 0.120 0.130 0.173 0.213 0.233
+```
+
+- r58 (A 006's promotion screen, H200): kept dev 0.363 and 0.398, both above the 0.305 bar. Seed 1's
+  "diverged" label does not count as collapsed: r58 is answer-constrained and its final dev is far above
+  the holder's dev mean (PLAN, clarification of 10-23). Seed 2 decides; it is first in `h200`.
+- r55 seed 0 (D 005 + mini3, H200): 0.233 dev against D 005's dev mean 0.201. One seed; read at 3.
+- Host failures, requeued once at the front: the three B200 workers that started at 12:04 EST all
+  landed on node5500-c1 and every item failed within about a minute with CUDA out of memory (118 MiB
+  free of 178 GiB, this process 17.7 GiB). r60 s0, r59 s0-2 and r57 s0-1 were lost from the queues
+  and are back. node5500-c1 is excluded with node5501-c1.
+- 28702305/28702306 (preemptable H200, node5200) ran 7 h with an empty log and no CPU time:
+  cancelled, node5200 excluded, replaced by 28742593.
+

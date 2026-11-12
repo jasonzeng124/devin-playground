@@ -5,11 +5,14 @@
 Updated 2026-11-11 11:46 EST. The run ends 2026-12-19 (INBOX 11-10 10:00). The agent is back on Opus 5.5
 (INBOX 11-10 23:46), in a low-usage window until 11-11 18:00 EST.
 
-**Workers resubmitted at 2026-11-11 12:03 EST** (INBOX 11-11 12:01: the 08:12:56 cancellation was a Slurm-side
-event, not the agent or the maintainer). Nine jobs, at most 6 GPUs together. mit_normal_gpu:
-28702298 (gate_a_h200), 28702299 (h200), 28702300 (screens_a_h200), 28702302 (B200 screens_b200),
-28702303 (B200 screens_d_b200). mit_preemptable: 28702304, 28702305 (h200), 28702306
-(screens_a_h200), 28702307 (B200 screens_d_b200). All pending at submission. The handover entry (holders, open arms, queues, the plan for the extra month) is LOG
+**Jobs (2026-11-11 19:12 EST).** Six GPUs at most: 28702304 (preemptable H200, running r55 seed 1), 28742593
+(preemptable H200, `h200`, takes r58 seed 2 first), 28742594 (preemptable B200, `screens_d_b200`),
+28742595 (preemptable B200, `screens_b200`), and 28702299/28702300 (`mit_normal_gpu` H200, pending,
+Slurm estimate 11-14 11:30). The three B200 workers of 12:04 died within minutes on node5500-c1 (CUDA
+out of memory with 118 MiB free, other processes on the GPU); node5500-c1 is now excluded with
+node5501-c1. 28702305/28702306 sat 7 h on node5200 with no output and no CPU; cancelled, node5200
+excluded. **r58 (A 006 gate): seeds 0 and 1 kept 0.363 and 0.398 dev, both above 0.305, none
+collapsed; seed 2 decides.** The handover entry (holders, open arms, queues, the plan for the extra month) is LOG
 2026-11-10 10:33.
 
 INBOX 11-10 14:50 and 14:54: self-imitation on the policy's own verified samples is allowed within
