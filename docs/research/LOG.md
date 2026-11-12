@@ -5747,3 +5747,13 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   kept dev, not above it, so oversampling at this lr is no help. Seeds 3-4 are taken out of `screens_b200` and
   replaced by r60 seeds 3-4 (the 700-step schedule the 11-18 box batch builds on), so that arm reads at five seeds.
 
+## 2026-11-12 18:04 EST — r61 seed 1 dev 0.247 (+0.060 over D 005's seed 1); both B200 workers preempted
+
+- r61 (H200 self-imitation gate) seed 1: final dev 0.247 (`summarize_screens`: best 0.247, not collapsed), against
+  D 005's seed 1 at 0.187. Seeds 0-1: 0.250 / 0.247, both at or above 0.231, paired +0.057 / +0.060. Seed 2 runs on
+  28702304 since 16:03 EST; seeds 3-4 follow in `h200`.
+- r62 (A 007's promotion screen) seed 0 runs on 28742593 since 16:16 EST; read against 0.418 (kept against kept).
+- 28742594 and 28742595 (B200) were preempted about 16:30 EST and wait in the queue. Their items (r56 seed 3, r57
+  seed 1, r59 seed 4, r60 seed 2) are in `queue/running/` and go back to their queues when the workers restart.
+  `mit_normal_gpu` 28702299/28702300 still pending (Slurm estimates 11-14). Six GPUs counted, two running.
+

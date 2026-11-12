@@ -6,14 +6,14 @@
 
 **Record A 006 is the new track A holder (2026-11-12 16:05 EST).** Test 0.4123 ± 0.0127 over five seeds (0.4099 / 0.3932 / 0.4148 / 0.4149 / 0.4285, from `confirm_v3.json`), against A 004's 0.2671 ± 0.0565: one-sided Welch p = 0.0019. It is A 005's recipe plus an entropy floor and `keep_best_dev`, so it chose its checkpoint by its own in-loop dev evals (RULES v3.4); kept dev mean 0.388. The next track A screen, r62 (700-step schedule, H200), is read against A 006's kept line 0.418.
 
-Updated 2026-11-12 16:05 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
+Updated 2026-11-12 18:04 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
 
-**Jobs (2026-11-12 16:05 EST).** Six GPUs: 28742593 (preemptable H200, `h200`, r61 seed 1), 28702304 (preemptable
-H200, `h200`, r61 seed 2), 28742594 and 28742595 (preemptable B200, `screens_d_b200` and `screens_b200`;
-r57 seed 1, r59 seed 4, r56 seed 3; r60 seed 2), 28702299/28702300 (`mit_normal_gpu` H200, pending). `h200` holds
-r62 seeds 0-2 interleaved with r61 seeds 3-4, then r53; `screens_b200` holds r60 seeds 3-4 (r51 closed). **Next
-decisions:** r61 against 0.231 as its seeds land (D 006 follows if it passes); r62 against A 006's kept line 0.418
-(A 007 if it passes); the 11-18 box queue and configs committed before the 11-17 maintenance.
+**Jobs (2026-11-12 18:04 EST).** Six GPUs counted, two running: 28742593 (preemptable H200, `h200`, r62 seed 0),
+28702304 (preemptable H200, `h200`, r61 seed 2). 28742594 and 28742595 (preemptable B200, `screens_d_b200` and
+`screens_b200`) were preempted and are pending; 28702299/28702300 (`mit_normal_gpu` H200) pending. `h200` holds
+r61 seeds 3-4 interleaved with r62 seeds 1-2, then r53; `screens_b200` holds r60 seeds 3-4. r61 so far 0.250 / 0.247
+(line 0.231). **Next decisions:** r61 against 0.231 as its seeds land (D 006 follows if it passes); r62 against A
+006's kept line 0.418 (A 007 if it passes); the 11-18 box queue and configs committed before the 11-17 maintenance.
 
 INBOX 11-10 14:50 and 14:54: self-imitation on the policy's own verified samples is allowed within
 limits (PLAN D11). If an arm built on it meets the promotion rule, that is flagged here, at the
