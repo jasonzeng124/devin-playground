@@ -5653,3 +5653,27 @@ low-usage window until 18:00 EST.
   takes A 006 seed 0 from the front of `h200`. The rerun could not change r58's verdict, which was already met at
   step 300, and the record needs the H200. r58 seed 2 stays a partial seed (no done.txt line); the A 006 README
   reports it as such.
+
+## 2026-11-12 06:08 EST — r59 (self-imitation): clear gain over r30; H200 gate r61 queued; A 006 seeds 0-1 running
+
+Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoints (summarize_screens):
+
+| arm | s0 | s1 | s2 | s3 | s4 | mean |
+|---|---|---|---|---|---|---|
+| r59 sil64 c0.5 | 0.278 | 0.248 | 0.232 | | | 0.253 (n=3) |
+| r30 control | 0.192 | 0.180 | 0.220 | 0.233 | 0.193 | 0.204 (n=5); 0.197 on s0-2 |
+
+- Paired by seed (python): +0.086, +0.068, +0.012, mean +0.055. All three seeds gained, two by a lot, and every r59
+  seed is at or above D's line 0.231. This is the largest single-change gain on track D since the shaping change.
+  The step cap hides the replay's update time, so the number that counts is the time-budgeted one.
+- Next, as PLAN D11 says for a clear gain: r59 seeds 3-4 go to the front of `screens_d_b200`; the time-budgeted H200
+  gate r61 (`calibration/research_r61/d005rl_sil64c05`: D 005's RL phase from D 005's own checkpoints plus r59's
+  self-imitation settings, 5 seeds, against 0.231, paired with D 005's in-loop dev 0.193 / 0.187 / 0.210 / 0.217 /
+  0.200) is queued in `h200`, alternating with A 006's seeds 2-4; a coefficient and row-count sweep goes to the
+  11-18 box. STATUS says at the top that a self-imitation arm reached the promotion numbers on its screen, as
+  INBOX 11-10 14:50 asks; a D 006 record waits for the maintainer's look.
+- r51 (A 005 with oversample 2, B200) seeds 0-1: last dev 0.053 / 0.160 after peaks of 0.390 / 0.363. It peaks like
+  A 005 and then falls apart; without keep_best_dev it is worse than A 005. Read at more seeds.
+- r60 seed 1 (B200, 700-step cosine + keep_best_dev): kept 0.322 at step 300, still running.
+- A 006: seed 0 on 28742593 (node4601) since 03:58 EST, seed 1 on 28702304 (node4801, restarted after the
+  preemption) since 06:03 EST.
