@@ -5868,3 +5868,12 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   Every seed still runs under `run_seed_v3.sh` on an H200, as RULES_v3 requires.
 - In progress: r63 seed 0 (96 prompts per step, B200) kept 0.427 at step 300 (152 min). r53 seed 0 (d005_w768_l24) is
   at 0.212 after 222 min, against D 005 seed 0's 0.193. r57 seeds 3-4 and r56 seed 4 are on the B200 track D worker.
+
+### 2026-11-13 06:05 EST: rollback option, r64 queued
+
+- `rollback_drop` added to grpo.py (off by default; needs keep_best_dev; RULES v3.4 allows rollback when its evals
+  count on the clock). An in-loop eval more than `rollback_drop` below the kept best sends training back to the kept
+  weights; the optimizer state carries on, and the eval log marks the row `rolled_back_to`. Tested (156 pass).
+- r64 = r60's config + `rollback_drop` 0.05, seeds 0-2 queued on B200 behind r63 s1-2 (PLAN A8 (c)). It targets the
+  late-schedule slide (r60 s0/s2/s4, r62 s1-2). Read it against r60's B200 seeds: kept dev, and whether the
+  rolled-back runs climb past their kept eval. Also a candidate for the 11-18 box batch.
