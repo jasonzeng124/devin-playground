@@ -5757,3 +5757,31 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   seed 1, r59 seed 4, r60 seed 2) are in `queue/running/` and go back to their queues when the workers restart.
   `mit_normal_gpu` 28702299/28702300 still pending (Slurm estimates 11-14). Six GPUs counted, two running.
 
+## 2026-11-12 20:05 EST — r61 passes D's promotion rule (3-seed form); record D 006 (self-imitation) queued
+
+- r61 (H200, time-budgeted, D 005's RL from D 005's own pretrained checkpoints, plus self-imitation: 64 replayed
+  rows per step, coefficient 0.5, buffer 4,096) seed 2 ended at dev 0.237, against D 005's seed 2 at 0.210.
+
+  | seed | r61 final dev | D 005 in-loop dev | paired |
+  |---|---|---|---|
+  | 0 | 0.250 | 0.193 | +0.057 |
+  | 1 | 0.247 | 0.187 | +0.060 |
+  | 2 | 0.237 | 0.210 | +0.027 |
+
+  `summarize_screens`: n = 3, final 0.244 ± 0.007, none collapsed. Every seed is at least D's line 0.231 (D 005's dev
+  mean 0.201 + 0.03), which is PLAN's 3-seed form of the promotion rule. In plain words: the replay of the run's own
+  verified answers adds about 0.04-0.05 dev on top of D 005, the same size r59 showed on B200 from D 004's checkpoints.
+- INBOX 11-12 11:56 lets the self-imitation record go ahead without another look once r61 passes, under the limits of
+  11-10 14:50. `records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05/config.json` (D 005's config plus the
+  four `sil_*` keys, nothing else changed) is committed as 3c4e32f. Its five seeds are in
+  `queue/record-006_dm_math_fp32_shape05_lr6e-6_sil64c05.txt`. The buffer starts empty in every seed, is never
+  carried between runs, replays completions verbatim with their own puzzle, and the verifier is its only filter.
+- Workers: I cancelled my two pending `mit_normal_gpu` jobs (28702299 `h200`, 28702300 `screens_a_h200`; Slurm put
+  their start at 11-14, and a 6-h job cannot hold a ~5.8-h track D seed plus its test scoring) and submitted two
+  preemptable H200 record workers, 28891874 and 28891875 (`QUEUE=record-006_…:h200`, `--time-min=06:30:00`,
+  RESERVE_MIN 380), the settings D 005 ran under. They take D 006's seeds first, then `h200`. A preempted seed is an
+  infrastructure interruption (INBOX 10-25): the partial goes to `extra/` and the same seed reruns.
+- r61 seed 3 keeps running on 28702304 (it started at 19:59); seed 4 is taken out of `h200`, since the promotion is
+  decided and the record's seeds are the replication. r55 seed 2 moves from `screens_a_h200` to the end of `h200`.
+  GPU jobs: 6 (4 running, 2 pending).
+
