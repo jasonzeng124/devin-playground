@@ -5835,3 +5835,22 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   This is the B200 screen behind the H200 gate r61, which passed. Record D 006's five seeds are queued.
 - 28742594 now runs r57 seeds 3-4 and r56 seed 4. `screens_d_b200` is empty after these, and the box queue
   rebuild comes at the 06:00 full wake.
+
+## 2026-11-13 04:02 EST — r60 complete (B200, 700-step schedule): kept 0.427 mean, but 3 of 5 seeds slid late
+
+| seed | kept dev (step) | last eval (step 700) |
+|---|---|---|
+| 0 | 0.428 (450) | 0.337 |
+| 1 | 0.462 (650) | 0.457 |
+| 2 | 0.380 (300) | 0.105 (one-guess) |
+| 3 | 0.435 (650) | 0.418 |
+| 4 | 0.432 (450) | 0.230 |
+| mean | 0.4274 ± 0.0297 | 0.3094 |
+
+- On kept dev, r60 is +0.039 over A 006's kept mean of 0.388 (B200 step caps; A 006 ran on H200). But seeds 0, 2 and 4
+  fell 0.09 to 0.28 after their best eval. The last half of the longer cosine schedule is unstable, and keep_best_dev is
+  what holds the score up. r62 (H200) shows the same pattern: seed 1 fell from 0.412 to 0.065, and seed 2 is at 0.432
+  kept (step 500) with a last eval of 0.353 at 225 min.
+- This points at the end of the schedule, not its length: a lower lr floor or faster decay after step 450, or a
+  rollback when dev drops (PLAN A8 (c)). These go into the 11-18 box's track A batch. r63 seed 0 (96 prompts per
+  step) started on 28742595 at 03:40.
