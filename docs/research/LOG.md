@@ -5785,3 +5785,11 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   decided and the record's seeds are the replication. r55 seed 2 moves from `screens_a_h200` to the end of `h200`.
   GPU jobs: 6 (4 running, 2 pending).
 
+## 2026-11-12 21:05 EST — r62 seed 0 kept dev 0.463 (A 006's line 0.418)
+
+- r62 (A 006's recipe, cosine over 875 steps stopped at 700, keep_best_dev, time-budgeted on H200) seed 0 ended
+  `ok` after 232 min: dev 0.013 / 0.097 / 0.380 / 0.435 / 0.463 over its evals, kept step 700 at 0.463. That is above
+  A 006's kept line 0.418 and +0.066 over A 006 seed 0's kept 0.397. Seed 1 started on 28742593 at 20:32; seed 2
+  follows in `h200`. The 3-seed form needs every seed at 0.418 or more with none collapsed.
+- D 006's record workers 28891874/28891875 are still pending. GPU jobs: 6 (4 running, 2 pending).
+
