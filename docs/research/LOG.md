@@ -5914,3 +5914,12 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   already requeued once); they are not rerun, since three seeds already show no effect.
 - The preemptable QOS holds at 4 GPUs (all D 006 seeds). Two mit_normal_gpu B200 workers (28967959, 28967960; 6 h)
   take `screens_b200` (r63 s2, r64 s0-2), so the total is 6.
+
+### 2026-11-13 13:00 EST: D 006 seed 0 done; B200 workers hit a bad node
+
+- D 006 seed 0 (self-imitation record) finished: test ladder_score 0.2252 (confirm_v3.json), dev 0.220. D 005's
+  test is 0.2150. Seeds 1-3 are running and seed 4 waits; no verdict until all five are in.
+- Both mit_normal_gpu B200 workers (28967959, 28967960) landed on node5801-c1 and failed in seconds: the node's
+  `/lib64/libstdc++.so.6` lacks GLIBCXX_3.4.26, so the cached flashinfer `fmha_gen.so` won't load. r63 s2 and r64 s0
+  went to FAILED and are back at the head of `screens_b200`; r64 s1-2 were put back by the worker. Resubmitted as
+  28973352 and 28973353 excluding node5500-c1, node5501-c1, node5800-c1 and node5801-c1.
