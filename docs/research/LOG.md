@@ -5819,3 +5819,19 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
 - Seed 2 (67 min in) is at 0.317 at step 200. Its "diverged" flag in the summary is the early malformed rate (0.64 at
   step 200); seed 0 was at 0.53 at the same step and recovered.
 - I queued r62 seeds 3-4 at the front of `h200`, ahead of r53 seeds 1-2 and r55 seed 2.
+
+## 2026-11-13 02:03 EST — r59 complete: self-imitation +0.054 over its control r30 on all five seeds (B200)
+
+| seed | r59 (self-imitation) | r30 (control) | diff |
+|---|---|---|---|
+| 0 | 0.278 | 0.192 | +0.086 |
+| 1 | 0.248 | 0.180 | +0.068 |
+| 2 | 0.232 | 0.220 | +0.012 |
+| 3 | 0.247 | 0.233 | +0.014 |
+| 4 | 0.285 | 0.193 | +0.092 |
+| mean | 0.2580 | 0.2036 | +0.0544 |
+
+- Seeds 3 and 4 ended `ok` at 0.247 and 0.285. All five seeds beat their paired control (smallest gap +0.012).
+  This is the B200 screen behind the H200 gate r61, which passed. Record D 006's five seeds are queued.
+- 28742594 now runs r57 seeds 3-4 and r56 seed 4. `screens_d_b200` is empty after these, and the box queue
+  rebuild comes at the 06:00 full wake.
