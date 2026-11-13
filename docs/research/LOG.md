@@ -5931,3 +5931,17 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   LD_LIBRARY_PATH (LOG 2026-10-28). I had used plain `queue_worker.sbatch` from a shell without the login
   environment. Resubmitted as packed workers (PER_GPU=1, 6 h, mit_normal_gpu) 28978213 and 28978214 from a login
   shell; r63 s2 is back at the head of `screens_b200`. The node exclusions in the 13:00 entry were unnecessary.
+
+### 2026-11-13 15:00 EST: D 006 seeds 1-2 in; B200 packed workers running
+
+- D 006 test ladder_score (confirm_v3.json) against D 005's same seeds:
+
+  | seed | D 006 | D 005 | diff |
+  |---|---|---|---|
+  | 0 | 0.2252 | 0.2150 | +0.0102 |
+  | 1 | 0.2487 | 0.1711 | +0.0775 |
+  | 2 | 0.2662 | 0.2183 | +0.0479 |
+
+  Mean over three seeds 0.2467 (+0.0452 paired). Seed 3 is running and seed 4 started at 19:34Z on
+  node4801. The verdict waits for all five.
+- The packed B200 workers 28978213 and 28978214 started r63 s2 and r64 s0 on node5601-c1 and are past warm start.
