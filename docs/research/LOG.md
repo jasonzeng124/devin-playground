@@ -5877,3 +5877,14 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
 - r64 = r60's config + `rollback_drop` 0.05, seeds 0-2 queued on B200 behind r63 s1-2 (PLAN A8 (c)). It targets the
   late-schedule slide (r60 s0/s2/s4, r62 s1-2). Read it against r60's B200 seeds: kept dev, and whether the
   rolled-back runs climb past their kept eval. Also a candidate for the 11-18 box batch.
+
+### 2026-11-13 08:10 EST: r62 fails promotion (s3 kept 0.390); r62 s4 dropped; r53 s0
+
+- r62 s3 (H200): kept 0.390 at step 350, then collapsed to one-guess (0.042 at step 400, last 0.053). With s1
+  (0.412) also under the 0.418 line, two of five seeds are below it, so the 5-seed form can't pass. No A 007 from r62.
+  Kept dev over four seeds: mean 0.4243 ± 0.0310. r62 s4 is removed from the h200 queue (it
+  can't change the verdict); the H200 time goes to D 006 and the D screens.
+- The slide is now in four of r62's seeds after the kept eval (s1 0.065, s2 0.233, s3 0.053 at the end), worse
+  than r60 on B200. That is what r64 (rollback_drop 0.05) tests; keep_best_dev alone leaves the kept eval early.
+- r53 s0 (D, w768 l24) finished: final 0.200, best 0.222 (D 005 s0 0.193). The worker marked it FAILED only because
+  the post-run `mv` of `final/` found nothing (no_save); the result is complete and is not rerun.
