@@ -5923,3 +5923,11 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   `/lib64/libstdc++.so.6` lacks GLIBCXX_3.4.26, so the cached flashinfer `fmha_gen.so` won't load. r63 s2 and r64 s0
   went to FAILED and are back at the head of `screens_b200`; r64 s1-2 were put back by the worker. Resubmitted as
   28973352 and 28973353 excluding node5500-c1, node5501-c1, node5800-c1 and node5801-c1.
+
+### 2026-11-13 14:10 EST: the B200 failures were my submit environment, not the nodes
+
+- The resubmitted worker 28973352 failed the same way on node5701-c1, where r60 and r63 ran fine. The cause is
+  that B200 workers must start through `packed_worker.sbatch`, which puts Spack GCC 12's libstdc++ first on
+  LD_LIBRARY_PATH (LOG 2026-10-28). I had used plain `queue_worker.sbatch` from a shell without the login
+  environment. Resubmitted as packed workers (PER_GPU=1, 6 h, mit_normal_gpu) 28978213 and 28978214 from a login
+  shell; r63 s2 is back at the head of `screens_b200`. The node exclusions in the 13:00 entry were unnecessary.
