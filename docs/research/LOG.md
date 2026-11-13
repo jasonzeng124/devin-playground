@@ -5793,3 +5793,17 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   follows in `h200`. The 3-seed form needs every seed at 0.418 or more with none collapsed.
 - D 006's record workers 28891874/28891875 are still pending. GPU jobs: 6 (4 running, 2 pending).
 
+
+## 2026-11-13 00:04 EST — r61 seed 3 0.228; r60 seed 3 kept 0.435; r63 (96 prompts per step) queued on B200
+
+- r61 (self-imitation gate, H200) seed 3 ended `ok`: dev 0.228 (best 0.253), against D 005 seed 3's 0.217, +0.011.
+  Over its four seeds r61 averages 0.2405 (0.250 / 0.247 / 0.237 / 0.228). It had already passed in the 3-seed form;
+  record D 006's five seeds are the replication (workers 28891874/28891875 still pending).
+- r60 (A 006's recipe on the 700-step cosine schedule, B200, step-capped) seed 3 kept 0.435 at step 650. Kept dev over
+  four seeds: 0.428 / 0.462 / 0.380 (one-guess, slid) / 0.435, mean 0.4263. Seed 4 runs on 28742595.
+- r62 seed 1 (H200 gate) is at 198 min: kept 0.412 at step 400, last eval 0.315. It needs 0.418 or more for the
+  3-seed form; seed 2 started on 28702304 at 23:55.
+- `screens_b200` was about to run dry, so I queued r63 (PLAN A7 (c), `calibration/research_r63/a006_p96_cos583_s467`,
+  seeds 0-2): r60's config with 96 prompts per step, cosine over 583 steps stopped at 467, so it sees the same number
+  of prompts as r60 (44,832 against 44,800). Read paired against r60's B200 seeds. r20 tried 96 prompts without the
+  entropy floor. GPU jobs: 6 (4 running, 2 pending).
