@@ -5854,3 +5854,17 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
 - This points at the end of the schedule, not its length: a lower lr floor or faster decay after step 450, or a
   rollback when dev drops (PLAN A8 (c)). These go into the 11-18 box's track A batch. r63 seed 0 (96 prompts per
   step) started on 28742595 at 03:40.
+
+## 2026-11-13 06:02 EST — r62 seed 2 kept 0.432 (last 0.233); D 006 seeds 0-1 moved onto the running H200 workers
+
+- r62 (H200 gate, 700-step schedule) seed 2 ended `ok`: kept 0.432 at step 500, last eval 0.233 at step 700. It slid
+  late like seed 1. Kept so far: 0.463 / 0.412 / 0.432, mean 0.4357. Seed 3 is at 0.385 (step 300, 102 min),
+  and seed 4 is queued. For the 5-seed form, seeds 3 and 4 both need 0.418 or more (seed 1 is already under the line).
+- The two D 006 record workers (28891874/5) are pending with `QOSMaxGRESPerUser`: the four running preemptable jobs
+  fill the per-user GPU cap, so they cannot start until one of them ends. The running `h200` workers use
+  `run_item.sh`, which runs a `records/v3/` item as a record (A 006's seeds ran this way on 28742593), and they are on
+  H200 SXM nodes (node4601, node4801). I moved D 006 seeds 0-1 to the front of `h200`, so they start as soon as r53
+  seed 0 (~06:30) and r62 seed 3 (~08:05) end. Seeds 2-4 stay in the record queue for whichever worker frees first.
+  Every seed still runs under `run_seed_v3.sh` on an H200, as RULES_v3 requires.
+- In progress: r63 seed 0 (96 prompts per step, B200) kept 0.427 at step 300 (152 min). r53 seed 0 (d005_w768_l24) is
+  at 0.212 after 222 min, against D 005 seed 0's 0.193. r57 seeds 3-4 and r56 seed 4 are on the B200 track D worker.

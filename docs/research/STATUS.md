@@ -8,15 +8,16 @@
 
 **Record A 006 is the new track A holder (2026-11-12 16:05 EST).** Test 0.4123 ± 0.0127 over five seeds (0.4099 / 0.3932 / 0.4148 / 0.4149 / 0.4285, from `confirm_v3.json`), against A 004's 0.2671 ± 0.0565: one-sided Welch p = 0.0019. It is A 005's recipe plus an entropy floor and `keep_best_dev`, so it chose its checkpoint by its own in-loop dev evals (RULES v3.4); kept dev mean 0.388. The next track A screen, r62 (700-step schedule, H200), is read against A 006's kept line 0.418.
 
-Updated 2026-11-13 00:04 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
+Updated 2026-11-13 06:02 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
 
-**Jobs (2026-11-13 00:04 EST).** Six GPUs counted, four running: 28742593 (preemptable H200, `h200`, r62 seed 1),
-28702304 (preemptable H200, `h200`, r62 seed 2), 28742594 (preemptable B200, `screens_d_b200`, PER_GPU=3: r59 seeds
-3-4, r56 seed 3) and 28742595 (preemptable B200, `screens_b200`: r60 seed 4, then r63 seeds 0-2). Pending: 28891874 and
-28891875 (preemptable H200 record workers, `record-006_…` then `h200`). `h200` holds r53 seeds 0-2 and r55 seed 2;
-`screens_d_b200` holds r56 seed 4 and r57 seeds 3-4. **Next decisions:** D 006's seeds as they land (about 6 h each);
-r62 seeds 1-2 against A 006's kept line 0.418 (A 007 if both clear it); r63 against r60; the 11-18 box queue and
-configs committed before the 11-17 maintenance.
+**Jobs (2026-11-13 06:02 EST).** Six GPUs counted, four running: 28742593 (preemptable H200, `h200`, r53 seed 0),
+28702304 (preemptable H200, `h200`, r62 seed 3), 28742594 (preemptable B200, `screens_d_b200`, PER_GPU=3: r57 seeds
+3-4, r56 seed 4) and 28742595 (preemptable B200, `screens_b200`: r63 seed 0, then seeds 1-2). Pending
+(`QOSMaxGRESPerUser`): 28891874 and 28891875 (preemptable H200 record workers, `record-006_…` then `h200`). `h200`
+holds D 006 seeds 0-1 at its front, then r62 seed 4, r53 seeds 1-2 and r55 seed 2; the record queue holds D 006
+seeds 2-4. **Next decisions:** D 006's seeds as they land (about 6 h each); r62 seeds 3-4 against A 006's kept line
+0.418 (both must clear it for A 007); r63 against r60; a fix for the late-schedule slide (lr floor or rollback) and the
+11-18 box queue and configs, committed before the 11-17 maintenance.
 
 INBOX 11-10 14:50 and 14:54: self-imitation on the policy's own verified samples is allowed within
 limits (PLAN D11). If an arm built on it meets the promotion rule, that is flagged here, at the
