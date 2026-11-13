@@ -5888,3 +5888,29 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   than r60 on B200. That is what r64 (rollback_drop 0.05) tests; keep_best_dev alone leaves the kept eval early.
 - r53 s0 (D, w768 l24) finished: final 0.200, best 0.222 (D 005 s0 0.193). The worker marked it FAILED only because
   the post-run `mv` of `final/` found nothing (no_save); the result is complete and is not rerun.
+
+### 2026-11-13 12:00 EST: r63 s0-1, r56 and r57 results; two mit_normal_gpu B200 screen workers
+
+- r63 (A 006 + 96 prompts per step, 583-step cosine stopped at 467, B200) kept dev against r60's B200 seeds:
+
+  | seed | r63 kept (step) | r63 last | r60 kept | diff |
+  |---|---|---|---|---|
+  | 0 | 0.4583 (350) | 0.420 | 0.4283 | +0.0300 |
+  | 1 | 0.4383 (400) | 0.432 | 0.4617 | -0.0233 |
+
+  Mean diff +0.0033 over two seeds. No late slide in either seed. Seed 2 is queued.
+- r56 (D, mini3) against r30, all five seeds paired:
+
+  | seed | 0 | 1 | 2 | 3 | 4 | mean |
+  |---|---|---|---|---|---|---|
+  | r56 | 0.2167 | 0.2117 | 0.2217 | 0.2250 | 0.2150 | 0.2180 |
+  | r30 | 0.1917 | 0.1800 | 0.2200 | 0.2333 | 0.1933 | 0.2037 |
+  | diff | +0.0250 | +0.0317 | +0.0017 | -0.0083 | +0.0217 | +0.0143 |
+
+  Positive in 4 of 5 and with a much tighter spread (sd 0.0053), but no seed reaches the 0.231 D line. It is a
+  variance reducer, not a record; it is a candidate to stack on D 006's setup.
+- r57 (D, no L5) seeds 2-4 against r30: 0.2233/0.2250/0.2100 vs 0.2200/0.2333/0.1933, mean diff +0.0039. Null.
+  Seeds 0-1 failed on node5800-c1 (vLLM "No available memory for the cache blocks" after a preemption restart,
+  already requeued once); they are not rerun, since three seeds already show no effect.
+- The preemptable QOS holds at 4 GPUs (all D 006 seeds). Two mit_normal_gpu B200 workers (28967959, 28967960; 6 h)
+  take `screens_b200` (r63 s2, r64 s0-2), so the total is 6.
