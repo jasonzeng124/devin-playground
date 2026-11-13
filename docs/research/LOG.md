@@ -5950,3 +5950,31 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
 
 - D 006 seed 3: test 0.2335 against D 005 seed 3's 0.2516 (-0.0182), the first seed below its D 005 pair. Four-seed
   mean 0.2434. Seed 4 is running on node4801; its worker 28891875 moved on to r55 s2.
+
+### 2026-11-13 18:05 EST: r63 seed 2, r64 seed 0, r53 seed 1; r65-r67 queued (D stack, sil coef, the D12 screen)
+
+- r63 (A 006 + 96 prompts per step, B200, step-capped) against r60's B200 seeds, kept dev:
+
+  | seed | r63 kept | r60 kept | diff |
+  |---|---|---|---|
+  | 0 | 0.4583 | 0.4283 | +0.0300 |
+  | 1 | 0.4383 | 0.4617 | -0.0233 |
+  | 2 | 0.4350 | 0.3800 | +0.0550 |
+
+  Mean diff +0.0206 (sd 0.040). Seed 2's gain is mostly r60 seed 2's slide (kept at step 300). r63 never slid
+  (last within 0.02 of kept in all three seeds). Seeds 3-4 are queued on B200 so the pairing covers all five of r60's seeds.
+- r64 (r60 + rollback_drop 0.05) seed 0: kept 0.4417 at step 650, last 0.4367, against r60 seed 0's 0.4283 kept at step
+  450 and last 0.337 (+0.0133 kept). The slide r60 seed 0 had is gone. Seeds 1-2 are queued.
+- r53 (D 005 at 24 layers) seeds 0-1 against D 005's dev: 0.2000 / 0.1933 vs 0.1933 / 0.1867, +0.0067 each. Seed 1's
+  worker marked it FAILED only because `mv final/` found nothing under no_save (its result and clock are complete,
+  within budget); it is not rerun. Seed 2 is running. Depth looks like width (D5): no gain.
+- The two packed B200 workers exited at 22:18Z and 22:24Z with under 250 min left, as designed.
+- Queued on `h200` (preemptable H200, time-budgeted, from D 005's pretrained checkpoints, 3 seeds each, paired against
+  r61):
+  - r65 = r61 (D 006's RL setup) + the mini levels M2/M3/M6 (PLAN D10 stack; r56 was +0.014 paired with a tight spread).
+  - r67 = the one unranked hindsight-relabelling screen (PLAN D12, INBOX 11-10 14:54): D 005's RL with hindsight_rows
+    64, coef 0.5, no self-imitation. Paired against D 005's dev and r61. Never promoted or stacked. It runs here instead
+    of on the 11-18 box.
+  - r66 = r61 with sil_coef 1.0.
+- Workers: 29004220 (preemptable H200, `h200`), 29004221 and 29004222 (mit_normal_gpu B200 packed, PER_GPU=1,
+  `screens_b200`: r64 s1-2, then r63 s3-4). With D 006 s4, r55 s2 and r53 s2 running, that is 6 GPUs.
