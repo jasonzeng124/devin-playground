@@ -5945,3 +5945,8 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   Mean over three seeds 0.2467 (+0.0452 paired). Seed 3 is running and seed 4 started at 19:34Z on
   node4801. The verdict waits for all five.
 - The packed B200 workers 28978213 and 28978214 started r63 s2 and r64 s0 on node5601-c1 and are past warm start.
+
+### 2026-11-13 17:00 EST: D 006 seed 3
+
+- D 006 seed 3: test 0.2335 against D 005 seed 3's 0.2516 (-0.0182), the first seed below its D 005 pair. Four-seed
+  mean 0.2434. Seed 4 is running on node4801; its worker 28891875 moved on to r55 s2.
