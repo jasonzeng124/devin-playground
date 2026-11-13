@@ -5807,3 +5807,15 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   seeds 0-2): r60's config with 96 prompts per step, cosine over 583 steps stopped at 467, so it sees the same number
   of prompts as r60 (44,832 against 44,800). Read paired against r60's B200 seeds. r20 tried 96 prompts without the
   entropy floor. GPU jobs: 6 (4 running, 2 pending).
+
+## 2026-11-13 01:03 EST — r62 seed 1 kept 0.412, under A 006's line 0.418; r62 goes to five seeds
+
+- r62 seed 1 ended `ok` after 232 min. Dev rose to 0.412 at step 400, then fell late in the schedule: 0.382 at step 500,
+  0.093 at step 600, 0.065 at step 700. keep_best_dev kept step 400 (0.412). That is under the line 0.418, so the
+  3-seed form can no longer pass. The 5-seed form is still open (mean at least 0.418 with 4 of 5 seeds above it and
+  at most 1 collapsed). So far: 0.463 / 0.412, mean 0.438.
+- Seed 1's late collapse is the risk of the longer schedule: the lr is still high past step 500. r60's B200 seed 2
+  (0.380, one-guess) slid the same way. keep_best_dev protects the score but not the run.
+- Seed 2 (67 min in) is at 0.317 at step 200. Its "diverged" flag in the summary is the early malformed rate (0.64 at
+  step 200); seed 0 was at 0.53 at the same step and recovered.
+- I queued r62 seeds 3-4 at the front of `h200`, ahead of r53 seeds 1-2 and r55 seed 2.
