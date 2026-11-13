@@ -828,6 +828,31 @@ def test_keep_best_dev_ends_on_the_best_evals_weights_with_the_evals_on_the_cloc
         run(GRPOConfig(**common, keep_best_dev=True, eval_set="data/ladder_v3_test.jsonl", out_dir=str(tmp_path / "bad")))
 
 
+def test_rollback_drop_continues_from_the_kept_weights_after_a_drop(monkeypatch, tmp_path):
+    common = dict(model="tiny", group_size=2, prompts_per_step=1, max_new_tokens=4, max_steps=4, eval_every=1,
+                  eval_limit=1, kl_coef=0.0, lr=1e-2, no_save=True, keep_best_dev=True)
+    model, _, _ = _patch_tiny_training(monkeypatch, tmp_path)
+    seen = []
+    _scripted_evals(monkeypatch, [0.5, 0.45, 0.2, 0.1], seen)
+    real_step = grpo.grpo_step
+    starts = []
+
+    def recording_step(model, *args, **kwargs):
+        starts.append({name: tensor.clone() for name, tensor in model.state_dict().items()})
+        return real_step(model, *args, **kwargs)
+
+    monkeypatch.setattr(grpo, "grpo_step", recording_step)
+    result = run(GRPOConfig(**common, rollback_drop=0.1, out_dir=str(tmp_path / "run")))
+    rows = [json.loads(line) for line in (tmp_path / "run" / "eval_log.jsonl").read_text().splitlines()]
+    # 0.45 is within the margin; 0.2 and 0.1 are not, so steps 4 and 5 would start from step 1's weights
+    assert [row.get("rolled_back_to") for row in rows] == [None, None, 1, 1]
+    assert _same_weights(model, seen[0]) and result["kept_step"] == 1 and result["final_pass_rate"] == 0.5
+    assert all(torch.equal(tensor, seen[0][name]) for name, tensor in starts[3].items())
+    assert not all(torch.equal(tensor, seen[0][name]) for name, tensor in starts[2].items())
+    with pytest.raises(ValueError, match="rollback_drop"):
+        run(GRPOConfig(**{**common, "keep_best_dev": False}, rollback_drop=0.1, out_dir=str(tmp_path / "bad")))
+
+
 def test_keep_best_dev_carries_the_kept_weights_through_a_resume(monkeypatch, tmp_path):
     model, _, _ = _patch_tiny_training(monkeypatch, tmp_path)
     config = GRPOConfig(model="tiny", group_size=2, prompts_per_step=1, max_new_tokens=4, max_steps=4, eval_every=1,

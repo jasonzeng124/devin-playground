@@ -144,6 +144,10 @@ class GRPOConfig:
     # includes them, so run_seed_v3.sh excludes nothing), and a time-budgeted run's final eval comes after the time
     # stop, so time_budget_s has to leave room for it. One process only, and the eval set may not be the test ladder
     keep_best_dev: bool = False
+    # rollback (RULES v3.4; needs keep_best_dev): when an in-loop eval scores more than rollback_drop below the kept
+    # best, training continues from the kept weights (the optimizer state carries on). 0 = off. The eval and the
+    # restore count on the clock, like keep_best_dev's. Meant for the late-schedule dev slide (PLAN A8 (c))
+    rollback_drop: float = 0.0
     # self-imitation (allowed with limits, docs/research/INBOX.md 2026-11-10): every verifier-correct sample of the
     # run's own rollouts goes into a buffer, as sampled and with the generator puzzle it answered, and each step
     # replays up to sil_rows of them (0 = off) as extra rows of the same optimizer step, each weighing like a
@@ -1134,6 +1138,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError(f"eval_max_new_tokens must be >= 0 and needs cache_len 0, got {config.eval_max_new_tokens}")
     if config.keep_best_dev and (dist.world_size > 1 or Path(config.eval_set).name == Path(benchmark.LADDER_TEST_PATH).name):
         raise ValueError("keep_best_dev needs one process and an in-loop eval set that is not the test ladder (RULES v3.4)")
+    if config.rollback_drop > 0 and not config.keep_best_dev:
+        raise ValueError("rollback_drop needs keep_best_dev")
     if config.sil_rows < 0 or config.sil_coef < 0 or (config.sil_rows > 0 and (config.sil_buffer < 1 or dist.world_size > 1)):
         raise ValueError(f"sil_rows and sil_coef must be >= 0, and self-imitation needs sil_buffer >= 1 and one process, got {config.sil_rows}, {config.sil_coef}, {config.sil_buffer}")
     if config.hindsight_rows < 0 or config.hindsight_coef < 0 or (
@@ -1281,6 +1287,11 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
                 if config.keep_best_dev:  # the eval and the copy stay on the clock (RULES v3.4)
                     if kept is None or result["pass_rate"] >= kept["pass_rate"]:
                         kept = {"step": step, "pass_rate": result["pass_rate"], "state": _cpu_weights(model, kept and kept["state"])}
+                    elif config.rollback_drop > 0 and result["pass_rate"] < kept["pass_rate"] - config.rollback_drop:
+                        model.load_state_dict(kept["state"])
+                        if engine is not None:
+                            engine.sync(model)
+                        result["rolled_back_to"] = kept["step"]
                     result["kept_step"] = kept["step"]
                 else:
                     eval_s += time.perf_counter() - eval_start
