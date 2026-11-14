@@ -6034,3 +6034,22 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   0.4350, all above 0.418) remains track A's lead; its seeds 3-4 go next.
 - Both B200 workers exited normally with under 250 min left. Two new ones (29037156, 29037159, with the node5500/5501
   exclusion) take r63 s3 and s4 from `screens_b200`.
+
+## 2026-11-14 00:10 EST: B200 first (INBOX 11-13 23:43 and 23:45); r65 s0; new B200 screens r68-r70
+
+- INBOX 23:43 and 23:45 read and followed. Progress now comes before records: nothing waits for an H200. The running H200
+  workers finish what they hold and are not cancelled. When a worker ends, a B200 worker replaces it. Gates and records
+  wait in a backlog listed in STATUS until the maintainer says otherwise.
+- **r63 is not yet gated.** Its B200 seeds 0-2 (kept 0.4583 / 0.4383 / 0.4350) all clear A's line 0.418, so they meet the
+  3-seed form on B200. The H200 gate, about 14,900 s on an H200 by the B200 timing, goes into the backlog as the first item.
+- r65 (r61 plus three minibatches, timed H200 from D 005's checkpoints), seed 0: final dev 0.2483 vs r61 seed 0's
+  0.2500 (-0.002). Seeds 1-2 are running.
+- `h200` loses r66's three seeds (sil coef 1.0 from D 005's checkpoints, timed), so the H200 workers exit sooner. Only r67
+  seed 2 (the unranked hindsight screen) stays there. The same change returns as B200 step-capped screens with r59 as the
+  paired control (config commit 65ce423):
+  - r68: r59 with sil coef 1.0 (seeds 0-2, `screens_d_b200`, packed 3 per GPU).
+  - r70: r59 with 128 replayed rows (seeds 0-2, `screens_d_b200`).
+  - r69: r63 plus D 006's self-imitation (64 rows, coef 0.5, by level). It is track A's first self-imitation screen, read
+    against r63's B200 seeds (seeds 0-2, `screens_b200`).
+- Jobs: two B200 workers on r63 s3-4; four preemptable H200 workers on r65 s1-2 and r67 s0-1. All six slots are in use.
+  As each H200 worker ends, a B200 worker takes its slot (D queue: PER_GPU=3).
