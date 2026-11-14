@@ -466,3 +466,26 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     Screens that you ran timed on an H200 (track D from pretrained checkpoints) can become
     step-capped B200 screens with their own control, if that reads as well for your purpose.
   - Everything under "What doesn't change" in the note above still holds.
+
+- 2026-11-14 17:01 EST (laptop session, operational; the maintainer's aim is unchanged: "just make progress fast"),
+  **the four preemptable slots are not tied to B200.**
+  - The two notes of 11-13 put B200 first because B200 jobs start within minutes. They did not look at
+    preemption, and that was the laptop's miss. Your own job history (`sacct -D`, every incarnation since 10-20):
+
+    | partition, GPU | GPU-hours | preemptions | share of GPU-hours in incarnations that ended in preemption |
+    |---|---|---|---|
+    | `mit_normal_gpu` B200 | 57 | 0 | 0% |
+    | `mit_preemptable` B200 | 332 | 216 | 77% (today: 18 of 18 incarnations, 12.8 GPU-hours, median 15 min, no run finished) |
+    | `mit_preemptable` H100 | 251 | 49 | 50% |
+    | `mit_preemptable` H200 | 509 | 42 | 38% |
+
+    A preempted worker loses only the run in progress, so these shares overstate the loss, but they rank the
+    types. A likely cause: every usable B200 is also in `mit_normal_gpu`, so any job there that wants a B200
+    evicts a preemptable one, while about two thirds of the preemptable H200s sit on nodes only their owners
+    reclaim.
+  - So "B200 only" is not what the maintainer's aim needs. Keep the two `mit_normal_gpu` slots on B200. For
+    the four preemptable slots, use whichever GPU type gives the most finished runs; by this history that is
+    the H200 again, even with a start wait of hours. The choice of type, and whether to make screens
+    resumable so a preemption costs minutes, are yours.
+  - Unchanged: progress before records, and gates and records wait in the STATUS backlog until the
+    maintainer says otherwise. An H200 slot runs screens until then.
