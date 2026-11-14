@@ -1,0 +1,25 @@
+{
+ "benchmark_version": 3,
+ "model": "/home/zjason/orcd/pool/rlvr-ckpts/records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05/seeds/0/final",
+ "test_set": "data/ladder_v3_test.jsonl",
+ "n_puzzles": 2400,
+ "samples_per_puzzle": 16,
+ "sampler": {
+  "temperature": 1.0,
+  "constrain": true,
+  "think_budget": 0,
+  "max_new_tokens": 1024
+ },
+ "ladder_score": 0.22520833333333334,
+ "pass@1_by_level": {
+  "L1": 0.72109375,
+  "L2": 0.144375,
+  "L3": 0.1090625,
+  "L4": 0.06109375,
+  "L5": 0.00984375,
+  "L6": 0.30578125
+ },
+ "pass@16": 0.28833333333333333,
+ "truncated": 0.0,
+ "mean_tokens": 25.185442708333333
+}

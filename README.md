@@ -52,8 +52,13 @@ one seed collapsed into single guesses and still scored 0.183 (see its README).
 
 | # | record | test ladder score (mean ± sd) | N | sampler | clock (measured) | author |
 |---|---|---:|--:|---|---|---|
-| 005 | **[005_dm_math_fp32_shape05_lr6e-6](records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6)** (holder) | **0.2150 ± 0.0287** | 5 | constrained | 112 min pretraining + 234 min GRPO (348-349 min in all) | Claude / @jasonzeng124 |
+| 006 | **[006_dm_math_fp32_shape05_lr6e-6_sil64c05](records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05)** (holder) | **0.2444 ± 0.0158** | 5 | constrained | 112 min pretraining + 234 min GRPO (348-349 min in all) | Claude / @jasonzeng124 |
+| 005 | [005_dm_math_fp32_shape05_lr6e-6](records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6) | 0.2150 ± 0.0287 | 5 | constrained | 112 min pretraining + 234 min GRPO (348-349 min in all) | Claude / @jasonzeng124 |
 | 004 | [004_dm_math_fp32_h200_warm](records/v3/track_d/004_dm_math_fp32_h200_warm) | 0.1552 ± 0.0217 | 5 | constrained | 112 min pretraining + 234 min GRPO (347-350 min in all) | Claude / @jasonzeng124 |
+
+006 is 005 plus self-imitation: during RL, each step also replays up to 64 of the run's own verifier-correct
+completions, kept with their original puzzles in a buffer that starts empty in every seed and is never carried
+between runs (see its README). It beats 005 by +0.029 (one-sided Welch p = 0.045).
 
 005 is 004 with RL at lr 6e-6 and partial credit 0.5 for well-formed wrong answers. It beats 004 by
 +0.060 (one-sided Welch p = 0.0034).

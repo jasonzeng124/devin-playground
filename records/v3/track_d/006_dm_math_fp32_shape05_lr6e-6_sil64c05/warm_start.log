@@ -1,0 +1,5 @@
+2026-11-13T11:14:52Z worker 28742593: warm start: 49 s on node4601 before records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05 0
+2026-11-13T12:44:29Z worker 28702304: warm start: 41 s on node4801 before records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05 1
+2026-11-13T13:43:02Z worker 28891874: warm start: 9 s on node4801 before records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05 2
+2026-11-13T15:46:01Z worker 28891875: warm start: 42 s on node4603 before records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05 3
+2026-11-13T19:34:18Z worker 28891874: warm start: 6 s on node4801 before records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05 4
