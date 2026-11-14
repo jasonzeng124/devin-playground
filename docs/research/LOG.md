@@ -6085,3 +6085,24 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   s0-2. Two new mit_normal_gpu B200 workers (29067858, 29067860) take r69 s0-1, and r69 s2 waits in `screens_b200`.
   The mit_normal_gpu worker submitted at 01:04 (29053189) sat on QOSMaxCpuPerUserLimit while two B200 jobs ran there,
   so it was cancelled and replaced on preemptable.
+
+## 2026-11-14 05:04 EST: r67 (unranked hindsight screen, D12) done: above D 005, below self-imitation; full wake, B200 only
+
+| seed | r67 (hindsight) | D 005 | r61 (self-imitation) | vs D 005 | vs r61 |
+|---|---|---|---|---|---|
+| 0 | 0.2183 | 0.1933 | 0.2500 | +0.0250 | -0.0317 |
+| 1 | 0.2217 | 0.1867 | 0.2467 | +0.0350 | -0.0250 |
+| 2 | 0.2133 | 0.2100 | 0.2367 | +0.0033 | -0.0233 |
+
+- Hindsight relabelling (64 rows, coef 0.5, timed H200 from D 005's checkpoints) gains +0.021 over D 005 on average
+  but trails self-imitation by -0.027 on every seed. As INBOX 11-10 14:54 says, r67 is unranked and is never promoted
+  or stacked. D12 is closed.
+- All H200 workers have now finished their items and exited; none was cancelled. Engaging work is B200 only from here.
+- **Preemptable B200 churn:** 29060211 and 29060212 (r68 and r70, packed 3 each) were preempted twice between 08:00Z
+  and 08:45Z, once by this agent's own mit_normal_gpu job landing on node5701-c1. They are pending again with their six
+  items in hand. Screens are no_save, so each preemption costs the minutes run so far. mit_normal_gpu takes only two
+  B200 jobs per user (the third pends on QOSMaxCpuPerUserLimit), so the other four slots have to be preemptable.
+- New: r71 (commit above) is r63 with 128 prompts per step, 350 of 437 cosine steps, paired with r63. Its seeds 0-2
+  go into `screens_b200` after r69 s2.
+- Jobs, 6 GPUs: 29067858 and 29067860 (mit_normal_gpu B200: r69 s0-1); pending preemptable B200: 29060211 and
+  29060212 (r68 and r70), 29073366 (r69 s2) and 29076377 (r71).
