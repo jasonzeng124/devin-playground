@@ -6144,3 +6144,36 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   packed 3) stays on preemptable.
 - Jobs, 6 GPUs, all B200: running 29102770 (r72 s2) and 29110624 (r72 s1); pending 29115015-17 (`mit_normal_gpu`)
   and 29060211 (preemptable).
+
+## 2026-11-14 18:15 EST: r72 (A, r63 + rollback_drop 0.05) -0.021 vs r63, closed; preemptable slots back to H200
+
+r72 is r63 (A, 96 prompts per step, B200, step-capped) plus `rollback_drop` 0.05. All three seeds finished on
+`mit_normal_gpu` B200 (not yet gated). Kept dev against r63's paired seeds:
+
+| seed | r72 | r63 | diff |
+|---|---|---|---|
+| 0 | 0.4217 | 0.4583 | -0.0366 |
+| 1 | 0.4267 | 0.4383 | -0.0116 |
+| 2 | 0.4217 | 0.4350 | -0.0133 |
+| mean | 0.4234 | 0.4439 | -0.0205 |
+
+All three seeds are below their pair. The rollback fired only on s0 (dev 0.308 at step 450, back to step 350);
+s1 and s2 kept step 450 and still lost 0.012-0.013, so most of the gap looks like seed-to-seed noise on top of no
+gain. Rolling back on a dev drop doesn't help r63. Closed; r63 stays the A candidate in the gate backlog.
+
+**Correction to LOG 11-14 05:04 and 16:10.** Those entries said a preemption loses the whole run. It doesn't:
+`screen_seed.sh` saves resumable state every `RESUME_EVERY_S` training seconds on mit_preemptable (default 3600), and
+a requeued seed continues from it (INBOX 11-14 17:04). r72 s1 resumed at step 156 on 29110624, and r68 s0 resumed at
+step 1403 on 29115016. What the preemptable B200 churn cost was the 16 of 18 incarnations that died inside their
+first hour, before any save.
+
+**Preemptable slots (INBOX 11-14 17:01).** Preemptable B200 lost 77 % of its GPU-hours to preemption against 38 % for
+preemptable H200, so the four preemptable slots go back to H200. r68 and r70 are step-capped at 15,000 steps, so they
+follow the same trajectory on any GPU type and packing, and they stay comparable with r59 (B200).
+- Cancelled 29060211 (preemptable B200, pending, no saved state for its items) and moved r68 s1, r70 s0 and r70 s2
+  to a new queue, `screens_h200`.
+- Submitted 29124241 and 29124243: preemptable H200, `packed_worker`, PER_GPU=2, `RESUME_EVERY_S=1800` (D's state is
+  1.3 GB, so a half-hourly save is cheap and halves what a preemption costs).
+- Jobs, 6 GPUs: `mit_normal_gpu` B200 running 29115015 (r71 s1) and 29115016 (r68 s0), pending 29115017 and 29119664
+  (`screens_b200`: r68 s2, r70 s1); preemptable H200 pending 29124241 and 29124243 (`screens_h200`). One H200 slot is
+  spare once the three D items are placed; it takes the next screens I queue.
