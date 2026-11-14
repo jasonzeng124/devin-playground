@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-14 00:10 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
+Updated 2026-11-14 03:04 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
 
 **Record D 006 is the new track D holder (2026-11-13 21:02 EST).** Test 0.2444 ± 0.0158 over five seeds (0.2252 /
 0.2487 / 0.2662 / 0.2335 / 0.2485, from `confirm_v3.json`) against D 005's 0.2150 ± 0.0287: one-sided Welch
@@ -11,18 +11,17 @@ Committed in f73c704. D's line is now 0.259; the next D candidates (r65, r66) ar
 
 **Record A 006 is the new track A holder (2026-11-12 16:05 EST).** Test 0.4123 ± 0.0127 over five seeds (0.4099 / 0.3932 / 0.4148 / 0.4149 / 0.4285, from `confirm_v3.json`), against A 004's 0.2671 ± 0.0565: one-sided Welch p = 0.0019. It is A 005's recipe plus an entropy floor and `keep_best_dev`, so it chose its checkpoint by its own in-loop dev evals (RULES v3.4); kept dev mean 0.388. The next track A screen, r62 (700-step schedule, H200), is read against A 006's kept line 0.418.
 
-**Jobs (00:10 EST 11-14), 6 GPUs.** Running: 29037156 and 29037159 (mit_normal_gpu B200, `screens_b200`: r63 s4, s3);
-28891874 and 28891875 (preemptable H200: r65 s1, s2); 29004220 and 28702304 (preemptable H200: r67 s0, s1). Queues:
-`h200` holds only r67 s2. `screens_b200` holds r69 s0-2 (A, r63 plus self-imitation). `screens_d_b200` holds r68 s0-2
-(sil coef 1.0) and r70 s0-2 (128 rows), packed 3 per B200. When an H200 worker ends, a B200 worker takes its slot.
-**Next decisions:** r63 s3-4 against r60; r65 against r61; r68, r69 and r70 against r59 and r63; the 11-18 box queue,
+**Jobs (03:10 EST 11-14), 6 GPUs.** Running: 29060211 and 29060212 (preemptable B200, PER_GPU=3: r68 s0-2 and r70
+s0-2); 28891874 and 28702304 (preemptable H200: r67 s2 and s1, finishing). Pending: 29067858 and 29067860 (mit_normal_gpu
+B200: r69). Queues: `h200` is empty; `screens_b200` holds r69 s2. When an H200 worker ends, a B200 worker takes its slot.
+**Next decisions:** r68, r69 and r70 against r59 and r63; the 11-18 box queue,
 configs and copy list, committed before the 11-17 00:00 EST maintenance.
 
 **B200 first (INBOX 11-13 23:43 and 23:45).** Progress comes before records. Nothing waits for an H200, and the running
 H200 workers finish without being cancelled. Results on B200 are marked "not yet gated" until an H200 gate runs.
 **Backlog of gates and records (they wait until the maintainer says otherwise):**
-1. r63 (A, 96 prompts per step): its H200 gate, then A 007 if the gate passes. The B200 seeds 0-2 (0.458 / 0.438 / 0.435)
-   meet the 3-seed form. Not yet gated. It needs about 14,900 s on an H200 against a 17,400-s budget.
+1. r63 (A, 96 prompts per step): its H200 gate, then A 007 if the gate passes. On five B200 seeds it kept
+   0.458 / 0.438 / 0.435 / 0.430 / 0.445 (mean 0.441, +0.014 over r60) and meets the 5-seed form. Not yet gated. It needs about 14,900 s on an H200 against a 17,400-s budget.
 
 INBOX notes in force: self-imitation is allowed within the 11-12 limits (empty buffer per seed, never carried
 between runs, completions replayed verbatim with their own puzzle, the verifier the only filter), and records that use it

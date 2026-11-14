@@ -6066,3 +6066,22 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   005's checkpoints, as r55 found without it (+0.009). r65 is closed; nothing to gate.
 - 28891875 ended with `h200` empty. 28891874 took r67 seed 2 at 05:22Z and runs it to the end (INBOX: let the H200
   workers finish). The free slot goes to 29053189 (mit_normal_gpu B200, PER_GPU=3, `screens_d_b200`: r68 seeds 0-2).
+
+## 2026-11-14 03:04 EST: r63 complete on five B200 seeds: kept mean 0.441, +0.014 over r60; meets the 5-seed form, not yet gated
+
+| seed | r63 kept (96 prompts) | kept step | r60 kept (64 prompts) | diff |
+|---|---|---|---|---|
+| 0 | 0.4583 | 350 | 0.4283 | +0.0300 |
+| 1 | 0.4383 | 400 | 0.4617 | -0.0233 |
+| 2 | 0.4350 | 450 | 0.3800 | +0.0550 |
+| 3 | 0.4300 | 350 | 0.4350 | -0.0050 |
+| 4 | 0.4450 | 400 | 0.4317 | +0.0133 |
+
+- Mean 0.4413 vs 0.4273, diff +0.014 (3 of 5 seeds up). Every r63 seed clears A 006's dev mean 0.388 and the mean
+  clears A's line 0.418, so r63 meets the 5-seed form on B200. It is **not yet gated**, and its H200 gate stays first
+  in the STATUS backlog (INBOX 11-13 23:45). Most of the gain over A 006 comes from the longer schedule (r60 is 0.427
+  too); 96 prompts per step adds a little and narrows the spread (0.430-0.458 against 0.380-0.462).
+- 29037156 and 29037159 exited normally. 29060211 and 29060212 (preemptable B200, PER_GPU=3) run r68 s0-2 and r70
+  s0-2. Two new mit_normal_gpu B200 workers (29067858, 29067860) take r69 s0-1, and r69 s2 waits in `screens_b200`.
+  The mit_normal_gpu worker submitted at 01:04 (29053189) sat on QOSMaxCpuPerUserLimit while two B200 jobs ran there,
+  so it was cancelled and replaced on preemptable.
