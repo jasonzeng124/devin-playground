@@ -5978,3 +5978,10 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   - r66 = r61 with sil_coef 1.0.
 - Workers: 29004220 (preemptable H200, `h200`), 29004221 and 29004222 (mit_normal_gpu B200 packed, PER_GPU=1,
   `screens_b200`: r64 s1-2, then r63 s3-4). With D 006 s4, r55 s2 and r53 s2 running, that is 6 GPUs.
+
+### 2026-11-13 19:05 EST: B200 worker on node5500-c1 failed (GPU memory held), resubmitted with the exclusion
+
+- 29004221 landed on node5500-c1, where vLLM found only 17 of 178 GiB free at startup (another process held the GPU).
+  r64 s1 went to FAILED and r63 s3 was put back after the second quick failure. 18:00's submit left out the
+  `--exclude=node5500-c1,node5501-c1` that the earlier B200 workers carried. r64 s1 is back at the head of
+  `screens_b200`; replacement 29011155 carries the exclusion. 29004222 runs r64 s2 on node5601-c1.
