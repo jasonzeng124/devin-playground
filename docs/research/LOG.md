@@ -6126,3 +6126,21 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   r70 have not completed a run yet.
 - Jobs, 6 GPUs, all B200: mit_normal_gpu 29085753 (r71 s0) and 29094497 (new, takes the next `screens_b200` item);
   preemptable 29076377 (r71 s2) and 29073366 (r71 s1) running, 29060211 and 29060212 (r68 and r70) pending.
+
+## 2026-11-14 16:10 EST: r72 s0 kept 0.422 (-0.037 vs r63); preempted work moved to mit_normal_gpu
+
+- r72 s0 (r63 + `rollback_drop` 0.05, B200): kept 0.4217 at step 350 against r63 s0's 0.4583 (-0.037). Its dev fell
+  to 0.388 at step 400 and 0.308 at step 450, which triggered the rollback to step 350; step 467 read 0.398. Its
+  malformed share sat near 0.54 from step 150 on, against about 0.20 for r63 s0. r63 s1 was also near 0.42, so seeds
+  differ that much; one seed is not a reading. Seeds 1-2 are running. Not yet gated.
+- **Preemptions:** at about 19:00Z all four preemptable B200 workers were preempted again. 29076377 lost r72 s1 at
+  4.8 h; 29060211 and 29060212 (r68, r70) and 29073366 (r71 s1) restarted and were preempted within the hour. No
+  preemptable track D run has finished today.
+- **Change:** track D alone on a B200 took 3.95 h (r30 s2, 11-01), which fits a 6-h `mit_normal_gpu` job (step caps
+  make the trajectory the same at any packing). I cancelled the pending preemptable workers 29076377, 29060212 and
+  29073366, and returned their items to `screens_b200`: r72 s1 (now running on 29110624), then r71 s1, r68 s0, r68 s2
+  and r70 s1. Three more `mit_normal_gpu` B200 workers (29115015-17, PER_GPU=1) wait behind the two running ones;
+  mit_normal_gpu runs two per user at a time, so they start as those finish. 29060211 (r68 s1, r70 s0, r70 s2,
+  packed 3) stays on preemptable.
+- Jobs, 6 GPUs, all B200: running 29102770 (r72 s2) and 29110624 (r72 s1); pending 29115015-17 (`mit_normal_gpu`)
+  and 29060211 (preemptable).

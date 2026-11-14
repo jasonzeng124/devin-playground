@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-14 11:00 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
+Updated 2026-11-14 16:10 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
 
 **Record D 006 is the new track D holder (2026-11-13 21:02 EST).** Test 0.2444 ± 0.0158 over five seeds (0.2252 /
 0.2487 / 0.2662 / 0.2335 / 0.2485, from `confirm_v3.json`) against D 005's 0.2150 ± 0.0287: one-sided Welch
@@ -11,10 +11,10 @@ Committed in f73c704. D's line is now 0.259; the next D candidates (r65, r66) ar
 
 **Record A 006 is the new track A holder (2026-11-12 16:05 EST).** Test 0.4123 ± 0.0127 over five seeds (0.4099 / 0.3932 / 0.4148 / 0.4149 / 0.4285, from `confirm_v3.json`), against A 004's 0.2671 ± 0.0565: one-sided Welch p = 0.0019. It is A 005's recipe plus an entropy floor and `keep_best_dev`, so it chose its checkpoint by its own in-loop dev evals (RULES v3.4); kept dev mean 0.388. The next track A screen, r62 (700-step schedule, H200), is read against A 006's kept line 0.418.
 
-**Jobs (11:00 EST 11-14), 6 GPUs, all B200.** mit_normal_gpu: 29085753 (r71 s0) and 29094497 (next `screens_b200`
-item). Preemptable: 29073366 (r71 s1) and 29076377 (r71 s2) running; 29060211 and 29060212 (PER_GPU=3, r68 s0-2 and
-r70 s0-2 in hand) pending after repeated preemptions. Queue `screens_b200`: r72 s0-2. r69 (track A self-imitation,
--0.083 vs r63) is closed.
+**Jobs (16:10 EST 11-14), 6 GPUs, all B200.** mit_normal_gpu: 29102770 (r72 s2) and 29110624 (r72 s1) running;
+29115015-17 pending (two run at a time per user) for `screens_b200`: r71 s1, r68 s0, r68 s2, r70 s1 (track D alone on
+a B200 takes about 4 h, so it fits 6 h). Preemptable: 29060211 (r68 s1, r70 s0, r70 s2 in hand), pending after
+repeated preemptions. r72 s0 kept 0.422 (-0.037 vs r63). r69 is closed.
 **Next decisions:** r68 and r70 against r59; r71 and r72 against r63; the 11-18 box queue,
 configs and copy list, committed before the 11-17 00:00 EST maintenance.
 
