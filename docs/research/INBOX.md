@@ -453,3 +453,16 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
       listed in STATUS.
   - What doesn't change: the rules (the H200 stays the reference GPU; gates and records run on
     `NVIDIA H200` on Engaging), the promotion rule, the 6-GPU cap and the bad-node exclusions.
+
+- 2026-11-13 23:45 EST (maintainer, via laptop), **follow-up: don't wait for H200s at all for now.**
+  - Maintainer, a few minutes after the note above: "just dont care about h200 now just make
+    progress fast". This replaces the "keep a slot for H200 work" part of that note.
+  - Nothing has to run on an H200 for now. Don't reserve a slot for one and don't leave a worker
+    pending for one. When a worker ends, replace it with whatever starts soonest and does the
+    most per slot, which today is a B200 (one track A run, or three track D runs).
+  - The H200 workers that are running now are doing useful work: let them finish. Don't cancel
+    them.
+  - Gates and records wait in the backlog you list in STATUS until the maintainer says otherwise.
+    Screens that you ran timed on an H200 (track D from pretrained checkpoints) can become
+    step-capped B200 screens with their own control, if that reads as well for your purpose.
+  - Everything under "What doesn't change" in the note above still holds.
