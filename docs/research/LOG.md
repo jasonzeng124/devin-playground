@@ -6053,3 +6053,16 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
     against r63's B200 seeds (seeds 0-2, `screens_b200`).
 - Jobs: two B200 workers on r63 s3-4; four preemptable H200 workers on r65 s1-2 and r67 s0-1. All six slots are in use.
   As each H200 worker ends, a B200 worker takes its slot (D queue: PER_GPU=3).
+
+## 2026-11-14 01:04 EST: r65 (self-imitation plus three minibatches) is null against r61; a B200 track D worker takes the free slot
+
+| seed | r65 (mini3) | r61 | diff |
+|---|---|---|---|
+| 0 | 0.2483 | 0.2500 | -0.0017 |
+| 1 | 0.2333 | 0.2467 | -0.0133 |
+| 2 | 0.2517 | 0.2367 | +0.0150 |
+
+- The mean diff is -0.0000 (r65 mean 0.2444). Three minibatches per step add nothing on top of self-imitation from D
+  005's checkpoints, as r55 found without it (+0.009). r65 is closed; nothing to gate.
+- 28891875 ended with `h200` empty. 28891874 took r67 seed 2 at 05:22Z and runs it to the end (INBOX: let the H200
+  workers finish). The free slot goes to 29053189 (mit_normal_gpu B200, PER_GPU=3, `screens_d_b200`: r68 seeds 0-2).
