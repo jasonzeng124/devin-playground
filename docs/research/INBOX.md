@@ -430,3 +430,26 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     read the dev ladder only.
   - **`~/rlvr-ideas/STATUS.md`** has not changed since 11-10 19:31. U12's row should now carry
     r58, r60 and A 006, and U11's the r51 result. Keep it current when a result lands.
+
+- 2026-11-13 23:43 EST (maintainer, via laptop), **B200 first, progress first; H200 gates and records may
+  wait as a backlog.**
+  - Maintainer, 2026-11-13: "if b200s are so easy why dont we just max out b200 and dont worry
+    about h200", "any record backload can just be backlogged until we start getting more h200 or
+    smth else changes", and "just prioritize progress rn".
+  - The numbers behind it (your own started jobs in November, submit to start): B200 median 0.1 h
+    on both partitions (max 0.8 h on mit_normal_gpu, 2.2 h preemptable); H200 median 6-9 h
+    preemptable and 214 h on mit_normal_gpu. On 11-13, 25 pending mit_normal_gpu jobs asked for
+    a B200 against 98 for an H200.
+  - What changes:
+    - Progress comes before records for now. Use the six slots for whatever finds the next
+      improvement soonest, which will mostly be step-capped B200 screens. A gate or a record
+      that waits days for an H200 is fine.
+    - Don't hold a slot idle or pending for an H200 while B200 work is queued. Slurm's per-user
+      caps count running jobs, so an H200 worker can't start while B200 workers fill that
+      partition's cap: when H200 work is waiting, keep a slot for it (how many is your call);
+      otherwise fill all six with B200.
+    - How far to build on a B200 result whose H200 gate hasn't run is your call. Mark such
+      results in LOG and STATUS as not yet gated, and keep the backlog of gates and records
+      listed in STATUS.
+  - What doesn't change: the rules (the H200 stays the reference GPU; gates and records run on
+    `NVIDIA H200` on Engaging), the promotion rule, the 6-GPU cap and the bad-node exclusions.
