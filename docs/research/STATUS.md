@@ -8,35 +8,19 @@
 
 **Record A 006 is the new track A holder (2026-11-12 16:05 EST).** Test 0.4123 ± 0.0127 over five seeds (0.4099 / 0.3932 / 0.4148 / 0.4149 / 0.4285, from `confirm_v3.json`), against A 004's 0.2671 ± 0.0565: one-sided Welch p = 0.0019. It is A 005's recipe plus an entropy floor and `keep_best_dev`, so it chose its checkpoint by its own in-loop dev evals (RULES v3.4); kept dev mean 0.388. The next track A screen, r62 (700-step schedule, H200), is read against A 006's kept line 0.418.
 
-Updated 2026-11-13 18:05 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
+Updated 2026-11-13 21:03 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
 
-**D 006 (record in progress).** Test 0.2252 / 0.2487 / 0.2662 / 0.2335 for seeds 0-3 (mean 0.2434 against D 005's
-0.2150); seed 4 runs on node4801 (28891874, started 19:34Z, about 6 h). Then README (self-imitation named),
-validate against D 005, leaderboard.
+**Record D 006 is the new track D holder (2026-11-13 21:02 EST).** Test 0.2444 ± 0.0158 over five seeds (0.2252 /
+0.2487 / 0.2662 / 0.2335 / 0.2485, from `confirm_v3.json`) against D 005's 0.2150 ± 0.0287: one-sided Welch
+p = 0.045. It is D 005 plus self-imitation (the README says so, with the limits from INBOX 11-12); dev mean 0.229.
+Committed in f73c704. D's line is now 0.259; the next D candidates (r65, r66) are paired against r61.
 
-**Jobs (18:05 EST), 6 GPUs.** Running: 28891874 (preemptable H200, D 006 s4), 28891875 (preemptable H200, r55 s2),
-28702304 (preemptable H200, r53 s2). Pending: 29004220 (preemptable H200, `h200`), 29004221 and 29004222
-(mit_normal_gpu B200 packed workers, 6 h, `screens_b200`). Queues: `h200` holds r65 (D 006 RL + mini levels),
-r67 (the unranked D12 hindsight screen) and r66 (sil coef 1.0), 3 seeds each; `screens_b200` holds r64 s1-2 and
-r63 s3-4. **Next decisions:** D 006's verdict after seed 4; r65 against r61 (a D 007 candidate if it clears D 006's
-numbers); r63 and r64 against r60 on all seeds (track A's next H200 gate); the 11-18 box queue, configs and copy list,
-committed before the 11-17 00:00 EST maintenance.
-
-INBOX 11-10 14:50 and 14:54: self-imitation on the policy's own verified samples is allowed within
-limits (PLAN D11). If an arm built on it meets the promotion rule, that is flagged here, at the
-top, before the record starts. It is coded and tested (`sil_rows`, off by default), and its first
-arm, r59, is first in the track D B200 queue (LOG 16:16 EST). One unranked screen of hindsight
-relabelling is allowed (PLAN D12). It is coded and tested too (`hindsight_rows`, off by default,
-refused in records by the validator; LOG 21:46 EST), and its two arms run on the 11-18 box.
-
-INBOX 11-10 14:58 and 15:04: the maintainer's own ideas are judged in `~/rlvr-ideas/STATUS.md`
-(private, outside this checkout; the first pass is done). RULES v3.4 lets a run choose among its
-own checkpoints or roll back, on the clock and never from the test ladder (PLAN A8). On A 005's
-logs, keeping the best in-loop dev checkpoint gives dev 0.364 (SD 0.027) against the final 0.313
-(SD 0.087). The option (`keep_best_dev`) is coded and tested, and r58, r54's config with it on,
-is now A 006's promotion screen (LOG 15:46 EST).
-
-## Records (H200 board; rules v3.4 since 11-10; A 006 is the first record that chose a checkpoint)
+**Jobs (21:03 EST), 6 GPUs.** Running: 28702304, 28891874, 28891875 (preemptable H200, `h200`: r65 s0-2),
+29004222 and 29011155 (mit_normal_gpu B200 packed, 6 h, `screens_b200`: r64 s2, r64 s1). Pending: 29004220
+(preemptable H200, `h200`). Queues: `h200` holds r67 (the unranked D12 hindsight screen) and r66 (sil coef 1.0), 3 seeds
+each; `screens_b200` holds r63 s3-4. **Next decisions:** r65 against r61 (a D 007 gate if every seed clears r61 by
++0.03 or the mean reaches 0.259); r63 and r64 against r60 on all seeds (track A's next H200 gate); the 11-18 box queue,
+configs and copy list, committed before the 11-17 00:00 EST maintenance.
 
 | track | record | test, 5 seeds | in-loop dev mean | state |
 |---|---|---|---|---|
@@ -44,16 +28,17 @@ is now A 006's promotion screen (LOG 15:46 EST).
 | A | `records/v3/track_a/004_ladder_constrained_h200` | 0.2671 ± 0.0565 | 0.255 | held before A 006 |
 | A | `records/v3/track_a/005_fp32_mal0_cos500_s400` | 0.3400 ± 0.0815 | 0.313 | valid, not a record (Welch vs A 004 p = 0.072) |
 | A | `records/v3/track_a/002_fp32_skip_cosine` | 0.2784 ± 0.0904 | | valid, short of A 004 (p = 0.41) |
-| D | `records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6` | 0.2150 ± 0.0287 | 0.201 | **holder** (Welch vs D 004 p = 0.0034) |
+| D | `records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05` | 0.2444 ± 0.0158 | 0.229 | **holder** (Welch vs D 005 p = 0.045; self-imitation) |
+| D | `records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6` | 0.2150 ± 0.0287 | 0.201 | held before D 006 (Welch vs D 004 p = 0.0034) |
 | D | `records/v3/track_d/004_dm_math_fp32_h200_warm` | 0.1552 ± 0.0217 | 0.159 | held before D 005 |
 | D | `records/v3/track_d/003_dm_math_fp32_h200` | | | failed: seeds 0 and 2 over budget |
 
 The H100 board closed on 10-24 (A 001 0.2481; D 002 0.1512 ± 0.0202).
 
-Promotion lines (the holder's dev mean + 0.03): **A 0.285, D 0.231**. Three-seed form: every seed
-at or above the line, none collapsed. Five-seed form: mean at or above the line, at least 4 of 5
-seeds above the holder's dev mean (A 0.255, D 0.201), at most one collapsed. The gating screen
-runs on the H200. A 006 needs a test mean of about 0.33 to pass Welch against A 004 (LOG 11-10).
+Promotion lines (the holder's dev mean + 0.03): **A 0.418 (kept dev, A 006's 0.388), D 0.259 (D 006's 0.229)**.
+Three-seed form: every seed at or above the line, or +0.03 over its paired gate-screen seed, none collapsed. Five-seed
+form: mean at or above the line, at least 4 of 5 seeds above the holder's dev mean (A 0.388, D 0.229), at most one
+collapsed. The gating screen runs on the H200.
 
 ## Jobs (9 GPU jobs: 0 running, 9 pending; at most 6 can run together)
 

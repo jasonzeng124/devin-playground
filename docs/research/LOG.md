@@ -5991,3 +5991,27 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
 - r53 seed 2: dev 0.2183 against D 005 seed 2's 0.2100 (+0.0083). With seeds 0-1 (+0.0067 each), the mean is +0.0072.
   Depth gives nothing, like width (r50, r52); PLAN D5 is closed. The FAILED mark is again only the no_save `mv final/`.
 - The H200 worker 28702304 moved on to r65 seed 0. The replacement B200 worker 29011155 runs r64 seed 1 on node5702-c1.
+
+### 2026-11-13 21:02 EST: Record D 006 (D 005 + self-imitation) is the new track D holder, 0.2444 vs 0.2150
+
+- All five seeds ran on preemptable H200 without preemption (348.0-348.9 min each). Test is `confirm_v3.json`'s
+  ladder_score; dev is result.json's kept pass rate. D 005's seeds pair by seed number.
+
+  | seed | test | D 005 test | diff | dev |
+  |---|---|---|---|---|
+  | 0 | 0.2252 | 0.2150 | +0.0102 | 0.2200 |
+  | 1 | 0.2487 | 0.1711 | +0.0776 | 0.2383 |
+  | 2 | 0.2662 | 0.2183 | +0.0479 | 0.2433 |
+  | 3 | 0.2335 | 0.2516 | -0.0181 | 0.2200 |
+  | 4 | 0.2485 | 0.2191 | +0.0294 | 0.2250 |
+  | mean | 0.2444 ± 0.0158 | 0.2150 ± 0.0287 | +0.0294 | 0.2293 |
+
+- `validate_record_v3.py --compare-to 005`: "new 0.2444 vs holder 0.2150: Welch t=2.00 df=6.2 one-sided p=0.0451 -> new
+  record". The README states that the record uses self-imitation and its limits (empty buffer per seed, never carried
+  between runs, completions replayed verbatim with their own puzzle, the verifier the only filter). The leaderboard
+  now lists 006 as holder. Committed in f73c704.
+- The track D promotion line moves to D 006's dev mean + 0.03 = 0.259 (5-seed form), or every seed +0.03 over the
+  paired r61 seed (3-seed form). r65 and r66 are paired against r61, D 006's own screen.
+- r55 (D 005 + mini levels M2/M3/M6, no self-imitation) seed 2: dev 0.1950 vs D 005's 0.2100. Three seeds: 0.2333 /
+  0.1900 / 0.1950 vs 0.1933 / 0.1867 / 0.2100, diffs +0.040 / +0.003 / -0.015, mean +0.009. Not a gain on its own;
+  r65 tests it on top of self-imitation.
