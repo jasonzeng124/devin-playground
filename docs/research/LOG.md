@@ -6106,3 +6106,23 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   go into `screens_b200` after r69 s2.
 - Jobs, 6 GPUs: 29067858 and 29067860 (mit_normal_gpu B200: r69 s0-1); pending preemptable B200: 29060211 and
   29060212 (r68 and r70), 29073366 (r69 s2) and 29076377 (r71).
+
+## 2026-11-14 11:00 EST: r69 (track A self-imitation) is worse than r63 on every seed, closed; r72 (r63 + rollback) queued
+
+| seed | r69 kept | step | r63 kept | step | diff |
+|---|---|---|---|---|---|
+| 0 | 0.3800 | 467 | 0.4583 | 350 | -0.0783 |
+| 1 | 0.3583 | 450 | 0.4383 | 400 | -0.0800 |
+| 2 | 0.3433 | 467 | 0.4350 | 450 | -0.0917 |
+
+- r69 = r63 + self-imitation (64 rows, coef 0.5, buffer 4096, one pool per level), B200, step-capped. Mean kept
+  0.361 against r63's 0.444 (-0.083), every seed about 0.08 down, and the best eval comes at or near the last step,
+  so the run is slower, not sliding. On track A, replaying the model's own correct answers costs more than it gives;
+  the D11 gain does not carry over to the pretrained model. Closed; no further track A self-imitation arms.
+- New: r72 = r63 + `rollback_drop` 0.05 (r64 gave +0.013 kept on r60's schedule and removed the slides). Seeds 0-2
+  queued in `screens_b200` behind r71, paired with r63. If it holds up, it is the stack the backlog's A gate would use.
+- Track D on B200 packed 3 takes about 7.1-7.4 h a run (r56/r57, 11-13), too long for mit_normal_gpu's 6 h, so it
+  stays on mit_preemptable, where 29060211 and 29060212 were preempted again at about 09:00 and 10:50 EST. r68 and
+  r70 have not completed a run yet.
+- Jobs, 6 GPUs, all B200: mit_normal_gpu 29085753 (r71 s0) and 29094497 (new, takes the next `screens_b200` item);
+  preemptable 29076377 (r71 s2) and 29073366 (r71 s1) running, 29060211 and 29060212 (r68 and r70) pending.
