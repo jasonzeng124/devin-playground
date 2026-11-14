@@ -6015,3 +6015,22 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
 - r55 (D 005 + mini levels M2/M3/M6, no self-imitation) seed 2: dev 0.1950 vs D 005's 0.2100. Three seeds: 0.2333 /
   0.1900 / 0.1950 vs 0.1933 / 0.1867 / 0.2100, diffs +0.040 / +0.003 / -0.015, mean +0.009. Not a gain on its own;
   r65 tests it on top of self-imitation.
+
+### 2026-11-13 23:05 EST: r64 (rollback_drop 0.05) done on three seeds: +0.013 kept, the slides are gone
+
+- r64 = r60 (A 006's config on the 700-step schedule, B200, step-capped) + `rollback_drop` 0.05. Kept dev / kept step /
+  last dev, against r60's same seed:
+
+  | seed | r64 kept | step | r64 last | r60 kept | step | r60 last | kept diff |
+  |---|---|---|---|---|---|---|---|
+  | 0 | 0.4417 | 650 | 0.4367 | 0.4283 | 450 | 0.3367 | +0.0133 |
+  | 1 | 0.4067 | 500 | 0.3983 | 0.4617 | 650 | 0.4567 | -0.0550 |
+  | 2 | 0.4600 | 650 | 0.4500 | 0.3800 | 300 | 0.1050 | +0.0800 |
+  | mean | 0.4361 | | 0.4283 | 0.4233 | | 0.2994 | +0.0128 (sd 0.068) |
+
+- Rollback does what it should: the last eval sits within 0.01 of the kept one in every seed, where r60 slid to 0.105 in
+  seed 2. The kept score gains only +0.013 on average, though, and seed 1 lost 0.055 (its run took a worse path after a
+  rollback). Seed 1 is under A's line 0.418, so r64 does not pass the 3-seed form. r63 (96 rows, s0-2 0.4583 / 0.4383 /
+  0.4350, all above 0.418) remains track A's lead; its seeds 3-4 go next.
+- Both B200 workers exited normally with under 250 min left. Two new ones (29037156, 29037159, with the node5500/5501
+  exclusion) take r63 s3 and s4 from `screens_b200`.
