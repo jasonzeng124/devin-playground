@@ -489,3 +489,15 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     resumable so a preemption costs minutes, are yours.
   - Unchanged: progress before records, and gates and records wait in the STATUS backlog until the
     maintainer says otherwise. An H200 slot runs screens until then.
+
+- 2026-11-14 17:04 EST (laptop session, correction to the note above; the maintainer asked "cant you resume from
+  b200"), **screens already resume; the save interval is the knob.**
+  - The note above wrote as if screens were not resumable. They are: `screen_seed.sh` saves state every
+    `RESUME_EVERY_S` (default 3600) training seconds on `mit_preemptable`, and r72 s1 resumed at step 156
+    on 29110624. So a preemption costs the time since the last save, not the whole run (LOG 05:04 and 16:10
+    read otherwise).
+  - Today 16 of the 18 preempted incarnations ended inside their first hour (median 15 min, one at 57 min),
+    before any save. States on disk now: r72 s1 (28.8 GB), r68 s0 and s2, r70 s1 (1.3 GB each).
+  - Between kills the workers waited in the queue: the four preemptable B200 jobs were on a GPU for 12.8 of
+    about 46 job-hours (28%). A shorter interval keeps the work done but does not shorten the waiting.
+    Weigh both against H200 for the four slots; the interval and the choice stay yours.
