@@ -5985,3 +5985,9 @@ Track D, B200 packed 3 per GPU, step-capped at 15000, RL from D 004's checkpoint
   r64 s1 went to FAILED and r63 s3 was put back after the second quick failure. 18:00's submit left out the
   `--exclude=node5500-c1,node5501-c1` that the earlier B200 workers carried. r64 s1 is back at the head of
   `screens_b200`; replacement 29011155 carries the exclusion. 29004222 runs r64 s2 on node5601-c1.
+
+### 2026-11-13 20:02 EST: r53 closed (24 layers, +0.0072 over three seeds)
+
+- r53 seed 2: dev 0.2183 against D 005 seed 2's 0.2100 (+0.0083). With seeds 0-1 (+0.0067 each), the mean is +0.0072.
+  Depth gives nothing, like width (r50, r52); PLAN D5 is closed. The FAILED mark is again only the no_save `mv final/`.
+- The H200 worker 28702304 moved on to r65 seed 0. The replacement B200 worker 29011155 runs r64 seed 1 on node5702-c1.
