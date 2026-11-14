@@ -2,12 +2,6 @@
 
 (maintained by the research agent; see AGENT.md)
 
-**Record D 006 (self-imitation) is queued (2026-11-12 20:05 EST).** r61, the H200 gate on D 005's own checkpoints, passed D's promotion rule in its 3-seed form: dev 0.250 / 0.247 / 0.237, each at or above the line 0.231, paired +0.057 / +0.060 / +0.027 over D 005. Per INBOX 11-12 11:56 it goes ahead without another look. Config committed (3c4e32f); five seeds in `queue/record-006_dm_math_fp32_shape05_lr6e-6_sil64c05.txt` on two preemptable H200 record workers (28891874, 28891875). The README will say the record uses self-imitation.
-
-**Self-imitation meets the promotion numbers on its screen (2026-11-12 06:08 EST; INBOX 11-10 14:50 asks for this note before any record).** r59 (track D, r30's config plus self-imitation on the run's own verified samples, B200, step-capped) reached dev 0.278 / 0.248 / 0.232, all three at or above D's line 0.231, none collapsed; paired with its control r30 +0.086 / +0.068 / +0.012 (mean +0.055). It is not yet a gate: the H200 time-budgeted gate r61 (`calibration/research_r61/d005rl_sil64c05`, from D 005's checkpoints, 5 seeds against 0.231) is queued in `h200` between A 006's seeds. If r61 passes, record D 006 would be the first record built on self-imitation. The maintainer has looked (INBOX 11-12 11:56: "sure its probably fine ig"), so D 006 is queued as soon as r61 meets the rule; its README will say it uses self-imitation. r61 seed 0 is at dev 0.235 after 188 min (D 005's seed 0: 0.193).
-
-**Record A 006 is the new track A holder (2026-11-12 16:05 EST).** Test 0.4123 ± 0.0127 over five seeds (0.4099 / 0.3932 / 0.4148 / 0.4149 / 0.4285, from `confirm_v3.json`), against A 004's 0.2671 ± 0.0565: one-sided Welch p = 0.0019. It is A 005's recipe plus an entropy floor and `keep_best_dev`, so it chose its checkpoint by its own in-loop dev evals (RULES v3.4); kept dev mean 0.388. The next track A screen, r62 (700-step schedule, H200), is read against A 006's kept line 0.418.
-
 Updated 2026-11-13 21:03 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
 
 **Record D 006 is the new track D holder (2026-11-13 21:02 EST).** Test 0.2444 ± 0.0158 over five seeds (0.2252 /
@@ -15,12 +9,23 @@ Updated 2026-11-13 21:03 EST. The run ends 2026-12-19. The agent runs on Opus 5.
 p = 0.045. It is D 005 plus self-imitation (the README says so, with the limits from INBOX 11-12); dev mean 0.229.
 Committed in f73c704. D's line is now 0.259; the next D candidates (r65, r66) are paired against r61.
 
+**Record A 006 is the new track A holder (2026-11-12 16:05 EST).** Test 0.4123 ± 0.0127 over five seeds (0.4099 / 0.3932 / 0.4148 / 0.4149 / 0.4285, from `confirm_v3.json`), against A 004's 0.2671 ± 0.0565: one-sided Welch p = 0.0019. It is A 005's recipe plus an entropy floor and `keep_best_dev`, so it chose its checkpoint by its own in-loop dev evals (RULES v3.4); kept dev mean 0.388. The next track A screen, r62 (700-step schedule, H200), is read against A 006's kept line 0.418.
+
 **Jobs (21:03 EST), 6 GPUs.** Running: 28702304, 28891874, 28891875 (preemptable H200, `h200`: r65 s0-2),
 29004222 and 29011155 (mit_normal_gpu B200 packed, 6 h, `screens_b200`: r64 s2, r64 s1). Pending: 29004220
 (preemptable H200, `h200`). Queues: `h200` holds r67 (the unranked D12 hindsight screen) and r66 (sil coef 1.0), 3 seeds
 each; `screens_b200` holds r63 s3-4. **Next decisions:** r65 against r61 (a D 007 gate if every seed clears r61 by
 +0.03 or the mean reaches 0.259); r63 and r64 against r60 on all seeds (track A's next H200 gate); the 11-18 box queue,
 configs and copy list, committed before the 11-17 00:00 EST maintenance.
+
+INBOX notes in force: self-imitation is allowed within the 11-12 limits (empty buffer per seed, never carried
+between runs, completions replayed verbatim with their own puzzle, the verifier the only filter), and records that use it
+say so in their README. One unranked hindsight-relabelling screen (PLAN D12) is r67, in `h200`; never promoted or stacked.
+The maintainer's ideas are judged in `~/rlvr-ideas/STATUS.md` (private, outside this checkout). RULES v3.4 lets a run
+choose among its own dev checkpoints or roll back (`keep_best_dev`, `rollback_drop`). The 11-18 H100 and 11-28 H200 boxes
+are launched by the agent (INBOX 11-10 10:40); screens only.
+
+## Records (H200 board; rules v3.4 since 11-10)
 
 | track | record | test, 5 seeds | in-loop dev mean | state |
 |---|---|---|---|---|
