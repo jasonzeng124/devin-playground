@@ -92,6 +92,11 @@ class GRPOConfig:
     # above there: with malformed_reward 0, e.g. -0.5 pushes finished searches over truncated ones only where the
     # policy can solve the puzzle, and never toward one quick guess in unsolved groups; None = off
     malformed_reward_solved: float | None = None
+    # soft overlong penalty (DAPO, Yu et al. 2025): a training completion of L tokens loses
+    # overlong_coef * clamp((L - (max_new_tokens - overlong_buffer)) / overlong_buffer, 0, 1) reward, so the
+    # last overlong_buffer tokens before the cap cost up to overlong_coef; 0 = off
+    overlong_buffer: int = 0
+    overlong_coef: float = 0.0
     temperature: float = 1.0
     max_new_tokens: int = 48
     # if > 0, the in-loop eval's token limit (needs cache_len 0); training rollouts keep max_new_tokens, so a run can
@@ -494,6 +499,10 @@ def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.d
         if tokenizer.pad_token_id is not None and tokenizer.pad_token_id != tokenizer.eos_token_id:
             valid &= completion.ne(tokenizer.pad_token_id)
     completion_attention = valid.to(prompt_attention.dtype)
+    if config.overlong_coef:
+        start = config.max_new_tokens - config.overlong_buffer
+        over = (valid.sum(dim=1).float() - start).clamp(min=0) / config.overlong_buffer
+        rewards = rewards - config.overlong_coef * over.clamp(max=1.0)
     attention = torch.cat([prompt_attention, completion_attention], dim=1)
     malformed = torch.tensor([r.malformed for r in results], dtype=torch.bool, device=device)
     correct = torch.tensor([r.correct for r in results], dtype=torch.bool, device=device)  # the verifier's verdict per sample
@@ -1181,6 +1190,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError(f"tis_cap must be >= 0, got {config.tis_cap}")
     if _wants_sampler_logprobs(config) and config.rollout_backend != "vllm":
         raise ValueError("log_mismatch and tis_cap need rollout_backend='vllm' (the sampler's log-probs come from vLLM)")
+    if config.overlong_coef and not 0 < config.overlong_buffer <= config.max_new_tokens:
+        raise ValueError(f"overlong_coef needs 0 < overlong_buffer <= max_new_tokens, got {config.overlong_buffer}")
     if config.malformed_reward_until > 0 and config.malformed_reward is None:
         raise ValueError("malformed_reward_until needs malformed_reward (it switches from it to the verifier's -0.1)")
     if config.vllm_engine_args:

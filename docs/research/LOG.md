@@ -6377,3 +6377,23 @@ Same H200 (node3200), steps 50-300, medians:
   RESUME_EVERY_S=1800). GPUs: 2 running (29183441 r74 s2, 29147202 r74 s0/s1), 3 pending; one `mit_normal_gpu`
   slot is free for the next screen.
 
+## 2026-11-15 11:05 EST: r74 s0-s1; second r75 gate worker; U10 coded (`overlong_buffer`, `overlong_coef`) and screened as r79 on B200
+
+- r74 (maintainer idea U14: r59 plus an LM loss on the pretraining mix) s0: 0.2733 (-0.005 against r59), s1: 0.2300
+  (-0.018). s2 runs on 29183441. 29147202 ended COMPLETED after s0.
+- r75: s1 resumed on 29173680. A second `gate_a_h200` worker, 29202527 (same flags), takes s2 so the gate doesn't
+  wait about 5 h for it.
+- U10 (maintainer idea: a longer training cap plus a length penalty) is coded: `overlong_buffer` and
+  `overlong_coef`, both off by default. They add DAPO's soft overlong penalty to the training reward only: a completion of
+  L tokens loses overlong_coef * clamp((L - (max_new_tokens - overlong_buffer)) / overlong_buffer, 0, 1). A test
+  checks the ramp. ruff and the 163 tests pass.
+- r79 = r63 (A's strongest config, kept dev 0.441 over 5 B200 seeds) with a training cap of 1,536 tokens,
+  in-loop dev still at 1,024 (`eval_max_new_tokens`, the test ladder's limit), and the penalty over tokens
+  1,024-1,536 (coef 0.5). So a correct answer past 1,024 tokens, which the ladder would score as a failure,
+  earns 1.0 down to 0.5, still above a truncated one (0). r40's seeds lost 41 % of late samples to the cap.
+  It is step-capped like r63, so I'll compare s/step with r63's on B200 (12,533 s for seed 0) to see what the
+  longer samples cost. Three seeds are in `screens_b200`, with workers 29202659 and 29202660 (`mit_normal_gpu`
+  B200, PER_GPU=1, RESERVE_MIN=250). This is earlier than the 11-18 box planned in STATUS, so the box can
+  take other work.
+- GPUs: 29183441, 29173680, 29198329 and 29198428 are running; 29202527, 29202659 and 29202660 are pending.
+

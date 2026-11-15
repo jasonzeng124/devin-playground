@@ -260,6 +260,21 @@ def test_malformed_reward_solved_applies_only_in_groups_with_a_correct_sample(mo
     assert rewards.tolist() == [1.0, 0.0, -0.5, 0.0, 0.0, 0.0]
 
 
+def test_overlong_penalty_ramps_over_the_buffer_before_the_cap(monkeypatch):
+    tokenizer = TinyTokenizer()
+    puzzles = [Puzzle((1, 2), 3)]
+    config = GRPOConfig(group_size=4, prompts_per_step=1, max_new_tokens=8, overlong_buffer=4, overlong_coef=0.5)
+    encoded, _ = grpo._encode_prompts(tokenizer, puzzles, config, torch.device("cpu"))
+    generated = torch.cat([encoded["input_ids"].repeat_interleave(4, dim=0), torch.full((4, 8), 5)], dim=1)
+    # lengths 3, 4 (penalty starts after 8 - 4 = 4 tokens), 6 (half the buffer) and 8 (the cap)
+    monkeypatch.setattr(grpo, "_generate_chunked", lambda *args, **kwargs: (generated, torch.tensor([3, 4, 6, 8])))
+    monkeypatch.setattr(grpo, "verify", lambda text, puzzle: types.SimpleNamespace(reward=1.0, correct=True, malformed=False))
+    rewards = grpo._sample_batch(None, tokenizer, puzzles, config, torch.device("cpu"))[4]
+    assert rewards.tolist() == [1.0, 1.0, 0.75, 0.5]
+    off = grpo._sample_batch(None, tokenizer, puzzles, GRPOConfig(group_size=4, prompts_per_step=1, max_new_tokens=8), torch.device("cpu"))[4]
+    assert off.tolist() == [1.0, 1.0, 1.0, 1.0]
+
+
 def test_group_advantages_std_and_none():
     groups = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
     centred = grpo.group_advantages(groups, "none")
