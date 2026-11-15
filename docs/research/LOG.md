@@ -6242,3 +6242,9 @@ schedule rollback seldom fires, so it can add little. The noise figure matters m
 0.01-0.015 of noise on track A, so a 3-seed pair needs a gain well above that.
 
 **Results in.** r68 s0 (track D, sil coef 1.0): final dev 0.240 against r59 s0's 0.278 (-0.038). s1 and s2 pending.
+
+## 2026-11-15 01:05 EST: worker resubmit, r68 s2
+
+- 29137875 (preemptable H200, submitted before the node5100 exclude) also landed on node5100 and hung on the venv. Cancelled and resubmitted as 29151450 (PER_GPU=2, node5100 and node5200 excluded). Slurm copies the batch script at submit, so the 30cd3ae guard covers only workers submitted after it: 29147202/3/4 and 29119664/29124243 run the old copy.
+- r68 (sil coef 1.0) s2: 0.2383 vs r59 s2 0.232. With s0 (0.240 vs 0.278), r68 stands at -0.016 over two seeds; s1 is running.
+- Queues: screens_h200 r70 s2; screens_b200 r73 s1, s2. Next track D arm: maintainer idea U14 (PLAN D9, an LM loss on the pretraining mix during RL), being coded.
