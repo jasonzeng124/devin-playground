@@ -961,7 +961,7 @@ def test_grpo_step_replays_earlier_solutions_and_stores_every_verified_sample(mo
     sampled, replayed = [], []
     real_sample, real_update = grpo._sample_batch, grpo._update
     monkeypatch.setattr(grpo, "_sample_batch", lambda *args: sampled.append(real_sample(*args)) or sampled[-1])
-    monkeypatch.setattr(grpo, "_update", lambda *args: replayed.append(args[-1]) or real_update(*args))
+    monkeypatch.setattr(grpo, "_update", lambda *args: replayed.append(args[13]) or real_update(*args))
     plain = grpo_step(model, None, tokenizer, puzzles, config, optimizer, device)
     assert not any(key.startswith("sil_") for key in plain) and replayed == [None]  # no buffer, no replay
     replay = grpo._Replay(config.sil_buffer, config.sil_by_level)
@@ -1077,7 +1077,7 @@ def test_grpo_step_with_hindsight_stores_the_relabelled_misses_and_replays_them(
     sampled, replayed = [], []
     real_sample, real_update = grpo._sample_batch, grpo._update
     monkeypatch.setattr(grpo, "_sample_batch", lambda *args: sampled.append(real_sample(*args)) or sampled[-1])
-    monkeypatch.setattr(grpo, "_update", lambda *args: replayed.append(args[-1]) or real_update(*args))
+    monkeypatch.setattr(grpo, "_update", lambda *args: replayed.append(args[13]) or real_update(*args))
     plain = grpo_step(model, None, tokenizer, puzzles, config, optimizer, device)
     assert not any(key.startswith(("hs_", "sil_")) for key in plain) and replayed == [None]  # no buffer, no replay
     replay = grpo._Replay(config.sil_buffer, config.sil_by_level)
@@ -1134,3 +1134,65 @@ def test_run_with_hindsight_relabelling_is_off_by_default_and_needs_the_ladder_m
                             ("coef", dict(hindsight_rows=4, hindsight_coef=-0.5), grpo.SINGLE)):
         with pytest.raises(ValueError, match="hindsight"):
             run(GRPOConfig(**{**common, **bad}, out_dir=str(tmp_path / name)), dist)
+
+
+def test_lm_windows_add_lm_coef_times_their_mean_cross_entropy():
+    """The pretraining term is lm_coef * the windows' mean next-token cross-entropy, added to an unchanged RL term."""
+    generated, attention, prompt_width = _ragged_batch(3, [7, 2, 5, 3])
+    advantages = torch.tensor([1.0, -1.0, 0.5, -0.5])
+    windows = torch.randint(2, 40, (3, 9), generator=torch.Generator().manual_seed(5))
+    base = _tiny_model().eval()
+
+    def grads(lm=None, **extra):
+        model = copy.deepcopy(base)
+        config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, micro_batch_size=2, **extra)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+        sums = grpo._update(model, None, generated, attention, advantages, prompt_width, 0, config, optimizer, torch.device("cpu"),
+                            grpo.SINGLE, None, None, None, lm)
+        return [p.grad.clone() for p in model.parameters()], sums
+
+    plain, plain_sums = grads()
+    lm = grpo._LMBatch(windows)
+    both, both_sums = grads(lm, lm_coef=0.3)
+    model = copy.deepcopy(base)
+    ce = torch.nn.functional.cross_entropy(model(input_ids=windows[:, :-1]).logits.reshape(-1, 40), windows[:, 1:].reshape(-1))
+    ce.backward()
+    for rl, mixed, p in zip(plain, both, model.parameters()):
+        assert torch.allclose(mixed - rl, 0.3 * p.grad, atol=1e-6)
+    assert all(torch.equal(a, b) for a, b in zip(plain_sums[:4], both_sums[:4]))  # loss, kl, entropy and tokens leave it out
+    assert lm.loss == pytest.approx(ce.item(), abs=1e-5)
+
+
+def test_lm_batch_draws_the_same_windows_for_a_seed_and_step_and_checks_the_vocabulary():
+    data = np.arange(1000, dtype=np.uint16)
+    config = GRPOConfig(model="tiny", lm_rows=4, lm_seq_len=8, seed=3)
+    first = grpo._lm_batch(data, config, 7, 1000, torch.device("cpu")).ids
+    assert first.shape == (4, 9) and torch.equal(first, grpo._lm_batch(data, config, 7, 1000, torch.device("cpu")).ids)
+    assert not torch.equal(first, grpo._lm_batch(data, config, 8, 1000, torch.device("cpu")).ids)
+    assert all(torch.equal(row, torch.arange(int(row[0]), int(row[0]) + 9)) for row in first)  # contiguous windows of the file
+    with pytest.raises(ValueError, match="vocabulary"):
+        grpo._lm_batch(data, config, 7, 5, torch.device("cpu"))
+
+
+def test_run_with_lm_rows_logs_the_lm_loss_and_is_off_by_default(monkeypatch, tmp_path):
+    _patch_tiny_training(monkeypatch, tmp_path)
+    tokens = tmp_path / "tokens.bin"
+    (np.arange(500, dtype=np.uint16) % 37 + 2).astype(np.uint16).tofile(tokens)
+    common = dict(model="tiny", group_size=2, prompts_per_step=1, max_new_tokens=4, max_steps=3, eval_every=1, eval_limit=1,
+                  kl_coef=0.0, no_save=True)
+
+    def train_rows(name):
+        return [json.loads(line) for line in (tmp_path / name / "train_log.jsonl").read_text().splitlines()]
+
+    run(GRPOConfig(**common, out_dir=str(tmp_path / "off")))
+    assert len(train_rows("off")) == 3 and not any("lm_loss" in row for row in train_rows("off"))
+    run(GRPOConfig(**common, lm_rows=2, lm_seq_len=16, lm_tokens=str(tokens), out_dir=str(tmp_path / "on")))
+    assert len(train_rows("on")) == 3 and all(row["lm_loss"] > 0 for row in train_rows("on"))
+    for name, bad, dist in (("missing", dict(lm_rows=2, lm_tokens=str(tmp_path / "none.bin")), grpo.SINGLE),
+                            ("ranks", dict(lm_rows=2, lm_tokens=str(tokens), prompts_per_step=2), grpo.Dist(0, 2, 0)),
+                            ("rows", dict(lm_rows=-1), grpo.SINGLE),
+                            ("coef", dict(lm_rows=2, lm_tokens=str(tokens), lm_coef=-1.0), grpo.SINGLE),
+                            ("seq", dict(lm_rows=2, lm_tokens=str(tokens), lm_seq_len=0), grpo.SINGLE)):
+        with pytest.raises(ValueError, match="lm_rows"):
+            run(GRPOConfig(**{**common, **bad}, out_dir=str(tmp_path / name)), dist)
+

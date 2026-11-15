@@ -173,6 +173,15 @@ class GRPOConfig:
     # section would still reason about the original target
     hindsight_rows: int = 0
     hindsight_coef: float = 1.0
+    # pretraining during RL (maintainer idea U14, PLAN D9; track D): each step also takes lm_rows windows of
+    # lm_seq_len + 1 tokens from lm_tokens (a uint16 token file as scripts/pretrain_scratch.py reads it, in the
+    # policy's tokenizer) and adds lm_coef * their mean next-token cross-entropy to the step's loss (0 rows = off).
+    # The window starts are drawn from (seed, step), so a resumed run draws the same ones with nothing saved.
+    # One process only
+    lm_rows: int = 0
+    lm_coef: float = 1.0
+    lm_seq_len: int = 1024
+    lm_tokens: str = ""
 
 
 def lr_at(config: GRPOConfig, train_s: float) -> float:
@@ -552,6 +561,24 @@ class _ReplayBatch:
     nll: float = 0.0  # set by `_update`: mean negative log-prob per replayed token, before the step
 
 
+@dataclass
+class _LMBatch:
+    """This step's pretraining windows (`GRPOConfig.lm_rows`), for `_update`."""
+
+    ids: torch.Tensor  # [lm_rows, lm_seq_len + 1]
+    loss: float = 0.0  # set by `_update`: mean next-token cross-entropy, before the step
+
+
+def _lm_batch(data: np.ndarray, config: GRPOConfig, step: int, vocab: int, device: torch.device) -> _LMBatch:
+    """lm_rows windows of `data` (a token file) at offsets drawn from (seed, step)."""
+    span = config.lm_seq_len + 1
+    starts = np.random.default_rng((config.seed, step)).integers(0, len(data) - span + 1, config.lm_rows)
+    windows = np.stack([np.asarray(data[i : i + span], dtype=np.int64) for i in starts])
+    if windows.max() >= vocab:
+        raise ValueError(f"lm_tokens holds token id {int(windows.max())}, outside the policy's vocabulary ({vocab}): another tokenizer?")
+    return _LMBatch(torch.from_numpy(windows).to(device))
+
+
 def _replay_rows(config: GRPOConfig) -> tuple[int, float]:
     """Rows replayed per step and a replayed row's weight: hindsight relabelling's when it is on, else
     self-imitation's."""
@@ -672,6 +699,7 @@ def _update(
     allowed=None,
     sampler_lp: torch.Tensor | None = None,
     replayed: _ReplayBatch | None = None,
+    lm: _LMBatch | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
     """One optimizer step on this rank's rows; returns (loss, kl, entropy_sum, token_count) sums,
     with `sampler_lp` (the sampler's per-token log-probs, [rows, completion width]) the
@@ -682,6 +710,9 @@ def _update(
     step's loss, so a replayed row weighs like one of the batch's rows with advantage sil_coef (hindsight_coef
     when the rows are hindsight relabelling's, `_replay_rows`). The returned sums leave it out; its mean per
     token is written to `replayed.nll`.
+
+    `lm` (pretraining during RL) adds lm_coef * the windows' mean next-token cross-entropy, left out of the
+    returned sums too; the mean is written to `lm.loss`.
 
     Under data parallelism the loss is normalised by the global completion-token
     count and gradients are summed across ranks, so the step equals the
@@ -762,6 +793,22 @@ def _update(
             (_replay_rows(config)[1] * nll / token_count).backward()
             nll_total += nll.detach()
         replayed.nll = (nll_total / replay_valid.sum().clamp_min(1)).item()
+    if lm is not None:
+        per_micro = max(1, config.micro_batch_tokens // lm.ids.shape[1] if config.micro_batch_tokens > 0 else config.micro_batch_size)
+        lm_tokens = lm.ids[:, 1:].numel()
+        ce_total = torch.zeros((), device=device)
+        for first in range(0, lm.ids.shape[0], per_micro):
+            window = lm.ids[first : first + per_micro]
+            if config.grad_checkpoint:
+                model.train()
+            with torch.autocast(device.type, dtype=torch.bfloat16, enabled=config.master_fp32):
+                hidden = model.base_model(input_ids=window[:, :-1], use_cache=False).last_hidden_state
+                logits = model.get_output_embeddings()(hidden).float()
+            model.eval()
+            ce = torch.nn.functional.cross_entropy(logits.reshape(-1, logits.shape[-1]), window[:, 1:].reshape(-1), reduction="sum")
+            (config.lm_coef * ce / lm_tokens).backward()
+            ce_total += ce.detach()
+        lm.loss = (ce_total / lm_tokens).item()
     dist.all_reduce_grads_(model.parameters())
     grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip) if config.grad_clip > 0 else None
     optimizer.step()
@@ -793,8 +840,10 @@ def grpo_step(
     caches: StaticCachePool | None = None,
     dist: Dist = SINGLE,
     replay: _Replay | None = None,
+    lm: _LMBatch | None = None,
 ) -> dict:
-    """One GRPO step on `puzzles` (this rank's shard of the global prompt batch). With `replay` (self-imitation)
+    """One GRPO step on `puzzles` (this rank's shard of the global prompt batch). With `lm` the step also
+    trains on those pretraining windows (`GRPOConfig.lm_rows`). With `replay` (self-imitation)
     the step also replays rows drawn from it, then adds this step's verifier-correct samples to it. With
     `config.hindsight_rows` (unranked screens only) it adds the samples `hindsight_puzzle` relabels instead."""
     t0 = _now(device)
@@ -833,7 +882,7 @@ def grpo_step(
     replayed = _replay_batch(replay, tokenizer, config, device) if replay is not None else None
     loss, kl, entropy_total, token_count, mismatch, grad_norm = _update(
         model, ref_model, generated, attention, advantages, prompt_width, prefix_len, config, optimizer, device, dist, allowed, sampler_lp,
-        replayed,
+        replayed, lm,
     )
     for puzzle, tokens in solved_samples:  # after the update: a step never replays its own samples
         replay.add(puzzle, tokens)
@@ -877,6 +926,8 @@ def grpo_step(
         info["grad_norm"] = grad_norm.item()  # before clipping; the same on every rank (grads are all-reduced)
     if mismatch is not None:
         info.update(_mismatch_stats(mismatch, dist, config.tis_cap))
+    if lm is not None:
+        info["lm_loss"] = lm.loss
     if replay is not None:
         tag = "hs" if hindsight else "sil"
         info.update({f"{tag}_rows": 0 if replayed is None else replayed.ids.shape[0], f"{tag}_nll": 0.0 if replayed is None else replayed.nll,
@@ -1148,6 +1199,11 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError("hindsight_rows and hindsight_coef must be >= 0, and hindsight relabelling needs sil_rows 0, sil_buffer >= 1, "
                          f"train_mix 'ladder' and one process, got {config.hindsight_rows}, {config.hindsight_coef}, {config.sil_rows}, "
                          f"{config.sil_buffer}, {config.train_mix!r}")
+    if config.lm_rows < 0 or config.lm_coef < 0 or config.lm_seq_len < 1 or (
+        config.lm_rows > 0 and (dist.world_size > 1 or not Path(config.lm_tokens).is_file())
+    ):
+        raise ValueError(f"lm_rows and lm_coef must be >= 0 and lm_seq_len >= 1, and pretraining during RL needs one process and an "
+                         f"lm_tokens file, got {config.lm_rows}, {config.lm_coef}, {config.lm_seq_len}, {config.lm_tokens!r}")
     late_config = replace(config, malformed_reward=None) if config.malformed_reward_until > 0 else config
     scheduled = config.lr_schedule != "constant" or config.lr_warmup_s > 0
     lr_at(config, config.lr_warmup_s)  # fail on a bad schedule before loading anything
@@ -1181,6 +1237,7 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
     replay = _Replay(config.sil_buffer, config.sil_by_level, config.seed) if config.sil_rows > 0 else None  # empty, also after a resume
     if config.hindsight_rows > 0:  # the same buffer, holding relabelled pairs; never one in a ladder set
         replay = _Replay(config.sil_buffer, config.sil_by_level, config.seed, ladder_keys())
+    lm_data = np.memmap(config.lm_tokens, dtype=np.uint16, mode="r") if config.lm_rows > 0 else None
     state_path = Path(config.resume_dir) / "state.pt" if config.resume_dir else None
     resumed = None
     if state_path is not None and state_path.exists():
@@ -1243,7 +1300,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
             step_config = late_config if 0 < config.malformed_reward_until <= step else config
             if config.entropy_coef > 0 and config.entropy_target > 0 and not (last_entropy is not None and last_entropy < config.entropy_target):
                 step_config = replace(step_config, entropy_coef=0.0)
-            info = grpo_step(model, ref_model, tokenizer, dist.shard(puzzles), step_config, optimizer, device, caches, dist, replay)
+            lm = None if lm_data is None else _lm_batch(lm_data, config, step, model.get_input_embeddings().num_embeddings, device)
+            info = grpo_step(model, ref_model, tokenizer, dist.shard(puzzles), step_config, optimizer, device, caches, dist, replay, lm)
             last_entropy = info["entropy"]
             if config.entropy_coef > 0:
                 info["entropy_coef"] = step_config.entropy_coef
