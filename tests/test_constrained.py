@@ -139,3 +139,21 @@ def test_batched_mask_equals_the_per_request_mask(grammar_and_tokenizer):
     assert torch.equal(mask_rows_cached(logits.clone(), rows, cache), torch.stack(expected))
     assert torch.equal(mask_rows_cached(logits.clone(), rows, cache), torch.stack(expected))  # cached indices
     assert torch.equal(mask_rows_cached(logits.clone(), [(0, None)], cache), logits)
+
+
+def test_allowed_equals_testing_every_candidate(grammar_and_tokenizer):
+    grammar, _ = grammar_and_tokenizer
+    rng = random.Random(0)
+    checked = 0
+    for _ in range(40):
+        numbers = tuple(rng.randint(1, 120) for _ in range(rng.randint(2, 5)))
+        ops = "".join(rng.sample("+-*/", rng.randint(1, 4)))
+        state = initial_state(numbers)
+        while state and state[2] != "done":
+            allowed = grammar.allowed(state, ops)
+            assert allowed == tuple(i for i in grammar.candidates if feed(state, grammar.strings[i], ops) is not None)
+            checked += 1
+            if not allowed:
+                break
+            state = feed(state, grammar.strings[rng.choice(allowed)], ops)
+    assert checked > 200

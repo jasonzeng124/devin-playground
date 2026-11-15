@@ -101,6 +101,12 @@ class AnswerGrammar:
         self.open_ids = tuple(open_ids)  # the tokens of OPEN, forced once a think budget runs out
         self.candidates = [i for i, s in enumerate(strings) if s and set(s) <= _CHARS]
         self._cache: dict = {}
+        self._trie: dict = {}  # the candidates' strings as a character trie; None keys hold the ids ending there
+        for i in self.candidates:
+            node = self._trie
+            for ch in strings[i]:
+                node = node.setdefault(ch, {})
+            node.setdefault(None, []).append(i)
 
     def text(self, token_id: int) -> str:
         """The token's text; "" for ids past the tokenizer (models pad their embedding matrix, e.g. Qwen3)."""
@@ -109,7 +115,16 @@ class AnswerGrammar:
     def allowed(self, state: State, ops: str) -> tuple[int, ...]:
         key = (state, ops)
         if key not in self._cache:
-            self._cache[key] = tuple(i for i in self.candidates if feed(state, self.strings[i], ops) is not None)
+            # the candidates that `feed` accepts from `state`, ascending, found by walking the trie so that a prefix
+            # the grammar rejects drops every token under it at once (PLAN D7: ~11x faster than testing each one)
+            out, stack = [], [(self._trie, state)]
+            while stack:
+                node, at = stack.pop()
+                for ch, child in node.items():
+                    if ch is not None and (after := step(at, ch, ops)) is not None:
+                        out.extend(child.get(None, ()))
+                        stack.append((child, after))
+            self._cache[key] = tuple(sorted(out))
         return self._cache[key]
 
     def forced(self, position: int, think_budget: int) -> tuple[int, ...] | None:
