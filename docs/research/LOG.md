@@ -6183,3 +6183,31 @@ follow the same trajectory on any GPU type and packing, and they stay comparable
 29124241 (preemptable H200) sat 43 min on node5200 with both `queue_worker` processes in uninterruptible I/O wait
 (state D, no children, GPU idle) before popping an item. Cancelled; 29128857 replaces it with node5200 added to the
 H200 exclusions. r70 s2 is still first in `screens_h200`. 29124243 runs r68 s1 and r70 s0 on node5001.
+
+## 2026-11-14 21:20 EST: r71 (A, 128 prompts per step) -0.004 vs r63, closed; r73 (D8 mid levels x2) queued
+
+r71 is r63 with 128 prompts per step instead of 96, the prompts seen kept equal (cosine over 437 steps, stopped at
+350). All three seeds on `mit_normal_gpu` B200, step-capped (not yet gated). Kept dev against r63's paired seeds:
+
+| seed | r71 | r63 | diff |
+|---|---|---|---|
+| 0 | 0.4533 | 0.4583 | -0.0050 |
+| 1 | 0.4183 | 0.4383 | -0.0200 |
+| 2 | 0.4483 | 0.4350 | +0.0133 |
+| mean | 0.4400 | 0.4439 | -0.0039 |
+
+Null: within seed noise either way, and every seed kept step 350, its last eval but one. Wider steps don't buy
+anything over r63 at the same prompts seen, and they cost time per step. Closed. With r69 (self-imitation, -0.083)
+and r72 (rollback, -0.021) also closed, r63 stays the A candidate in the gate backlog; its five seeds sit at
+0.42-0.44 from step 350 on, with the kept step at 350-450.
+
+**Next D arm, r73 (PLAN D8 level weights).** r59's config (D 006's recipe) with `train_ladder_levels`
+L1,L2,L2,L3,L3,L4,L4,L5,L6, so L2-L4 are drawn 2/9 each instead of 1/6 and L1, L5, L6 1/9 each. r59 ends at 0.06-0.22
+dev on L2-L4, where groups are most often mixed; r45 (no L1, -0.020) and r57 (no L5, null) said to keep the end levels
+in, so this reweights instead of dropping. `ladder_stream` draws uniformly over the names, so a repeated name is
+drawn twice as often. Step-capped at 15,000 steps; read paired with r59 (0.278 / 0.248 / 0.232). Seeds 0-2 are
+appended to `screens_b200` after r70 s1, for the `mit_normal_gpu` B200 slots that free up overnight.
+
+- 29124243 (preemptable H200, r68 s1 and r70 s0) was preempted after about 1.5 h, past its first 30-min save, and
+  is pending again; 29128857 (r70 s2) is still pending. B200: 29115016 (r68 s0) and 29115017 (r68 s2) running,
+  29119664 (r70 s1) pending.

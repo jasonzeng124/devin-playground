@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-14 18:15 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
+Updated 2026-11-14 21:20 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
 
 **Record D 006 is the new track D holder (2026-11-13 21:02 EST).** Test 0.2444 ± 0.0158 over five seeds (0.2252 /
 0.2487 / 0.2662 / 0.2335 / 0.2485, from `confirm_v3.json`) against D 005's 0.2150 ± 0.0287: one-sided Welch
@@ -11,11 +11,11 @@ Committed in f73c704. D's line is now 0.259; the next D candidates (r65, r66) ar
 
 **Record A 006 is the new track A holder (2026-11-12 16:05 EST).** Test 0.4123 ± 0.0127 over five seeds (0.4099 / 0.3932 / 0.4148 / 0.4149 / 0.4285, from `confirm_v3.json`), against A 004's 0.2671 ± 0.0565: one-sided Welch p = 0.0019. It is A 005's recipe plus an entropy floor and `keep_best_dev`, so it chose its checkpoint by its own in-loop dev evals (RULES v3.4); kept dev mean 0.388. The next track A screen, r62 (700-step schedule, H200), is read against A 006's kept line 0.418.
 
-**Jobs (18:15 EST 11-14), 6 GPUs.** mit_normal_gpu B200: 29115015 (r71 s1) and 29115016 (r68 s0, resumed at step
-1403) running; 29115017 and 29119664 pending for `screens_b200` (r68 s2, r70 s1). Preemptable H200 (INBOX 11-14 17:01):
-29124241 and 29124243, PER_GPU=2, `RESUME_EVERY_S=1800`, pending for `screens_h200` (r68 s1, r70 s0, r70 s2).
-r72 closed at -0.021 vs r63 (LOG 18:15). Preempted screens resume from saved state (LOG 05:04 and 16:10 were wrong).
-**Next decisions:** r68 and r70 against r59; r71 against r63; new screens for the spare H200 slot; the 11-18 box queue,
+**Jobs (21:20 EST 11-14), 6 GPUs.** mit_normal_gpu B200: 29115016 (r68 s0) and 29115017 (r68 s2) running, 29119664
+pending; `screens_b200` holds r70 s1 then r73 s0-2 (D8: L2-L4 drawn twice as often). Preemptable H200 (PER_GPU=2,
+`RESUME_EVERY_S=1800`, node5200 excluded): 29124243 (r68 s1, r70 s0; preempted once, pending) and 29128857 (r70 s2,
+pending). Closed today: r71 (-0.004 vs r63) and r72 (-0.021 vs r63). Preempted screens resume from saved state.
+**Next decisions:** r68, r70 and r73 against r59; a next A arm or the A half of the box batch; the 11-18 box queue,
 configs and copy list, committed before the 11-17 00:00 EST maintenance.
 
 **B200 first (INBOX 11-13 23:43 and 23:45).** Progress comes before records. Nothing waits for an H200, and the running
