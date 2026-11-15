@@ -13,6 +13,10 @@ No track A record used external data, so none is affected.
 **v3.4 (2026-11-10):** the maintainer ruled that a run may choose among its own checkpoints,
 rollback included, as long as the choosing counts toward the time budget and never uses the test
 ladder (see "Seeds and statistics"). Earlier records chose no checkpoint, so none is affected.
+**v3.5 (2026-11-15):** the maintainer ruled that a record need not use vLLM, for training or for
+scoring ("using non vllm is fine"), so a model that vLLM's model classes do not run can be entered.
+The test ladder, the prompt, the 16 samples per puzzle, the verifier and the sampler conditions are
+unchanged (see "The evaluation sampler"). Every record so far used vLLM, so none is affected.
 Edge cases the text doesn't settle are arbitrated by the maintainer, and rulings are added
 here. v3 replaces v2's "time to a threshold" with a **fixed compute budget, scored on a
 difficulty ladder**, and has two tracks. Evidence for each choice is in `docs/v3_design.md`.
@@ -156,6 +160,15 @@ it forces `<answer>` after N free tokens), or another sampler the entrant implem
   the verifier (enforcing syntax and number usage is fine; checking values is search);
 - is included in the submission and runs inside `ladder_confirm`.
 
+**v3.5 (maintainer, 2026-11-15):** the sampler need not be built on vLLM. A record whose model or
+sampler vLLM does not run is still scored by `ladder_confirm`, with the record's own generation
+code in place of the vLLM call and nothing else changed: the test ladder, the `r1` prompts, 16
+independent samples per puzzle, `verify`, `score`, and the same fields in `confirm_v3.json` plus the
+name of the backend. The three conditions above apply to it as they are, and the README names the
+software that scored it. `ladder_confirm` has no backend option yet; the first record that needs one
+adds it, and that change is reviewed with the record. vLLM stays the default, and a record that
+uses it keeps the pinned version.
+
 Best-of-n selection, majority voting or retries are not allowed: each of the 16 samples is
 scored on its own.
 
@@ -182,7 +195,9 @@ constraint by itself solves nothing (base models: 0.003-0.011). On trained Qwen 
 - CPU-only preparation (download, tokenizer training, tokenization, filtering) is not timed,
   but must be a deterministic script in the submission that uses only the allowed data.
 - Scoring on the test ladder happens after the clock stops and is not timed. It may run as a
-  separate job, on any GPU, but always with `ladder_confirm` under the reference software below.
+  separate job, on any GPU, but always with `ladder_confirm` under the reference software below
+  (v3.5: or with the record's own generation backend inside `ladder_confirm`; see "The evaluation
+  sampler").
 - Training runs on other GPUs are unranked.
 - v3.0 (2026-10-07 to 2026-10-24) used one H100 80GB SXM (`NVIDIA H100 80GB HBM3`). Its records
   (track A 000-001, track D 000-002) keep their scores on a separate H100 leaderboard and are
@@ -208,8 +223,9 @@ constraint by itself solves nothing (base models: 0.003-0.011). On trained Qwen 
   hosts don't mix into the seed spread. Runs elsewhere go in `extra/` with a note (for example
   track A 000's Modal run, `extra/modal_0`).
 - Reference software (`benchmark.V3_REFERENCE_SOFTWARE`): vLLM 0.30.0, torch 2.13.0+cu130,
-  transformers 5.17.0. The baselines use it, and the scorer always runs in it. Records may train with
-  other software if the README says which.
+  transformers 5.17.0. The baselines use it, and the scorer runs in it unless the record brings its
+  own generation backend (v3.5), in which case the README says which software scored it. Records may
+  train with other software if the README says which.
 
 ## Seeds and statistics
 

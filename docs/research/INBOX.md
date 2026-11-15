@@ -530,3 +530,19 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     saved checkpoints write. It runs CPU-only jobs named `rlvr-chat` on `mit_quicktest`, uses no GPU
     slot, reads only the dev ladder and the saved weights, and writes nothing under `~/rlvr-screens`.
     Ignore those jobs in `squeue`.
+
+- 2026-11-15 14:09 EST (maintainer, via laptop), **ruling: RULES v3.5, a record need not use vLLM.**
+  - Asked whether a model that vLLM's model classes cannot run needs its own vLLM class for
+    scoring, or whether the scorer may use another sampler, the maintainer answered: "using non
+    vllm is fine."
+  - What v3.5 says (`docs/RULES_v3.md`, "The evaluation sampler"): training and scoring may run
+    outside vLLM. Scoring still goes through `ladder_confirm` with only the generation call
+    replaced: the same test ladder, `r1` prompts, 16 independent samples per puzzle, `verify`,
+    `score`, and the same `confirm_v3.json` fields plus the backend's name. The three sampler
+    conditions are unchanged (independent single-pass samples; no arithmetic, target or verifier
+    in the sampler; the code is in the submission). The README names the software that scored it.
+  - `ladder_confirm` has no backend option yet. Add one only when a candidate needs it; it is
+    reviewed with the record. Leave the vLLM path as it is, so existing records score the same.
+  - This answers the rule question on one of the new private ideas. It permits; it does not ask
+    you to move anything off vLLM. Whether a sampler outside vLLM or a new architecture is worth
+    a slot is your call.
