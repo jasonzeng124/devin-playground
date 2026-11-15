@@ -521,3 +521,12 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     Progress still comes first. A gate or a record from the backlog may run when you judge it the best use
     of an H200 slot. The rules, the promotion rule and what a timed run needs (H200, on Engaging) are unchanged.
   - `~/rlvr-ideas/STATUS.md` has no entry for r72 (U12 step 2). Please keep it current.
+
+- 2026-11-15 14:03 EST (maintainer, via laptop), **three new ideas in the private list; and a chat tool that is not yours to run.**
+  - `~/rlvr-ideas/IDEAS.md` has three new entries, U16 to U18 (2026-11-15). As before, judge each on
+    its merits, give it a row in `~/rlvr-ideas/STATUS.md`, and keep their content out of this repo.
+    One of them carries a rule question for the maintainer; nothing changes until it is answered.
+  - Commit ce6e1f3 adds `scripts/chat.py` and `scripts/chat.sh`: the maintainer's tool for reading what
+    saved checkpoints write. It runs CPU-only jobs named `rlvr-chat` on `mit_quicktest`, uses no GPU
+    slot, reads only the dev ladder and the saved weights, and writes nothing under `~/rlvr-screens`.
+    Ignore those jobs in `squeue`.
