@@ -6356,3 +6356,24 @@ Same H200 (node3200), steps 50-300, medians:
   and `no_save`, run alone on an H200, read seed by seed against D's line 0.259 on dev. D 006's own seeds kept dev
   0.220 / 0.238 / 0.243 / 0.220 / 0.225. Seeds 0-2 are in queue `gate_d_h200`; worker 29194209 (mit_preemptable
   H200, PER_GPU=1, RESUME_EVERY_S=1800) is pending. GPUs: 5 running, 1 pending.
+
+## 2026-11-15 09:55 EST: r70 and r73 close flat; r73 s2 cut at step 14,500 by the B200 time limit; r77 worker resubmitted; r78 = r59 at 20k steps
+
+- r70 (128 sil rows) s2: 0.2617 against r59 s2's 0.2317 (+0.030). Over three seeds -0.012 / -0.015 / +0.030,
+  mean +0.001: no gain. Closed.
+- r73 (D8, mid levels x2) s1: 0.270 against 0.2483 (+0.022). s2: 29147204 (`mit_normal_gpu` B200, no saved state)
+  hit its 6-h limit at step 14,500 of 15,000, 21,464 s in. Read at step 14,500 against r59 s2 at the same step:
+  0.250 against 0.235 (+0.015). Over three seeds -0.023 / +0.022 / +0.015, mean +0.005, within the
+  seed noise. Closed without a rerun.
+- Alone on a B200, a D screen ran about 1.48 s per step, so 15k steps barely fit the 6-h `mit_normal_gpu` limit.
+  New D screens set `constrain_batched` (the same mask, so step-capped results don't change) to fit.
+- 29194209 (r77's worker) exited after 3 s: I left out `--time`, so the job got the partition's short default
+  ("less than 90 min left"). Resubmitted as 29198329 with the documented flags (`--time=2-00:00:00`, VENV,
+  RLVR_DIR, HF_HUB_OFFLINE).
+- r75 s1 was preempted; 29173680 is requeued and resumes from its half-hourly state.
+- r78 = r59 with `budget_steps` 20000 (the lr schedule reads step s as s/20000 of the time budget) and
+  `constrain_batched`: what a D run gains from 20k RL steps instead of 15k, which sizes the value of more
+  speed work (PLAN D7). Three seeds in queue `screens_r78`, worker 29198428 (mit_preemptable H200, PER_GPU=3,
+  RESUME_EVERY_S=1800). GPUs: 2 running (29183441 r74 s2, 29147202 r74 s0/s1), 3 pending; one `mit_normal_gpu`
+  slot is free for the next screen.
+
