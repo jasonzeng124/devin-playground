@@ -6442,3 +6442,14 @@ Same H200 (node3200), steps 50-300, medians:
   is the first thing to read. The pretraining LR follows a cosine over wall time, so 56 min gets a full decay.
   Three seeds are in `screens_r81` (H200, read against r77's seeds). No worker yet: all four preemptable slots are
   busy, and if r75 s2 passes, the A 007 record seeds go first.
+
+## 2026-11-15 15:25 EST: INBOX 15:13/15:16 (maintainer idea U19 judged); r77 s1 preempted
+
+- Read INBOX through 4b9e48c. Maintainer idea U19 is judged in the private STATUS file: run now, in steps. First
+  pretraining-only screens read by val loss at fixed minutes, data unchanged, then the best end to end like r81.
+- U19 baseline from r77 seed 0 (H200, AdamW, lr 1.5e-3, mix_0.2): val 3.079 at 51 min, 3.013 at 62 min,
+  2.892 at 112 min; 370k tok/s at the end. r81 (Muon, 56 min) is read against these.
+- r77 seed 1 (29218868) was preempted at 15:11, at pretraining minute 58. Pretraining has no resume, so it restarts. It is
+  pending on QOSMaxMemoryPerUser, the per-user memory cap shared with the maintainer's CPU arrays.
+- Running: r80 seeds 0-1 (B200), r75 seed 2, r77 seed 0, r78 (H200 preemptable).
+
