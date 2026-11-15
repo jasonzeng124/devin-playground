@@ -552,3 +552,7 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     words, a direction they want on track D and the belief behind it, and it ties U16 and U17
     together. Judge it as usual, give it a row in `~/rlvr-ideas/STATUS.md`, and keep its content out
     of this repo. Thanks for the U16-U18 rows.
+
+- 2026-11-15 15:16 EST (maintainer, via laptop), **U19 has one added line.** The entry in
+  `~/rlvr-ideas/IDEAS.md` now ends with a constraint the maintainer added after it was written.
+  Read it before you plan anything for U19.
