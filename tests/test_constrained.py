@@ -11,6 +11,7 @@ from rlvr_speedrun.constrained import (
     RequestConstraint,
     feed,
     initial_state,
+    mask_rows_cached,
     open_token_ids,
     token_strings,
 )
@@ -121,3 +122,20 @@ def test_think_budget_forces_the_answer_open_and_then_constrains_it(grammar_and_
     assert allowed[:budget] == [None] * budget and allowed[budget : budget + len(open_ids)] == [(t,) for t in open_ids]
     assert allowed[-1] == grammar.allowed(initial_state((3, 7)), "+-")
     assert RequestConstraint(grammar, (3, 7), "+-", {}, think_budget=0)(rambling, torch.zeros(len(tokenizer))).isfinite().all()
+
+
+def test_batched_mask_equals_the_per_request_mask(grammar_and_tokenizer):
+    grammar, tokenizer = grammar_and_tokenizer
+    texts = ["ok <answer>3", "hmm", "<answer>(7 -", "x <answer>3 + 7</answer>", "<answer>", "<answer>7*"]
+    torch.manual_seed(0)
+    logits = torch.randn(len(texts), len(tokenizer))
+    expected, rows = [], []
+    for row, text in enumerate(texts):
+        output = tokenizer.encode(text, add_special_tokens=False)
+        expected.append(RequestConstraint(grammar, (3, 7), "+-", {})(output, logits[row].clone()))
+        rows.append((row, RequestConstraint(grammar, (3, 7), "+-", {}).allowed_ids(output)))
+    assert any(ids for _, ids in rows) and not all(ids for _, ids in rows)  # both kinds of row
+    cache = {}
+    assert torch.equal(mask_rows_cached(logits.clone(), rows, cache), torch.stack(expected))
+    assert torch.equal(mask_rows_cached(logits.clone(), rows, cache), torch.stack(expected))  # cached indices
+    assert torch.equal(mask_rows_cached(logits.clone(), [(0, None)], cache), logits)

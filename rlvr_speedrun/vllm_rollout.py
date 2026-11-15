@@ -19,15 +19,16 @@ import torch
 
 class VLLMRollout:
     def __init__(self, model_name: str, max_len: int, gpu_memory_utilization: float, seed: int, dtype: str = "bfloat16",
-                 constrain_answer: bool = False, logprobs: bool = False, engine_args: dict | None = None):
+                 constrain_answer: bool = False, logprobs: bool = False, engine_args: dict | None = None,
+                 constrain_batched: bool = False):
         os.environ.setdefault("VLLM_ENABLE_V1_MULTIPROCESSING", "0")  # keep the engine in-process so weights can be copied in
         from vllm import LLM
 
         processors = []
         if constrain_answer:
-            from .vllm_constrained import AnswerLogitsProcessor
+            from .vllm_constrained import AnswerLogitsProcessor, BatchedAnswerLogitsProcessor
 
-            processors.append(AnswerLogitsProcessor)
+            processors.append(BatchedAnswerLogitsProcessor if constrain_batched else AnswerLogitsProcessor)
         extra = {"logprobs_mode": "processed_logprobs"} if logprobs else {}  # the distribution actually sampled from
         extra.update(engine_args or {})  # e.g. async_scheduling (GRPOConfig.vllm_engine_args)
         self.llm = LLM(model_name, dtype=dtype, gpu_memory_utilization=gpu_memory_utilization, max_model_len=max_len,

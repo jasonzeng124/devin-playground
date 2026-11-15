@@ -5,7 +5,7 @@ from __future__ import annotations
 from transformers import AutoTokenizer
 from vllm.v1.sample.logits_processor import AdapterLogitsProcessor
 
-from .constrained import AnswerGrammar, RequestConstraint, open_token_ids, token_strings
+from .constrained import AnswerGrammar, RequestConstraint, mask_rows_cached, open_token_ids, token_strings
 
 
 class AnswerLogitsProcessor(AdapterLogitsProcessor):
@@ -25,3 +25,12 @@ class AnswerLogitsProcessor(AdapterLogitsProcessor):
         if puzzle is None:
             return None
         return RequestConstraint(self.grammar, puzzle["numbers"], puzzle["ops"], self.index_cache, puzzle.get("think_budget", 0))
+
+
+class BatchedAnswerLogitsProcessor(AnswerLogitsProcessor):
+    """The same mask as `AnswerLogitsProcessor`, applied to the whole batch at once (PLAN D7): the adapter's
+    `apply` runs each request's processor on its own row, a few kernels per request per decoded token."""
+
+    def apply(self, logits):
+        rows = [(row, lp.func.allowed_ids(*lp.args)) for row, lp in self.req_info.items()]
+        return mask_rows_cached(logits, rows, self.index_cache)

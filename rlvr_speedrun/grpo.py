@@ -49,6 +49,8 @@ class GRPOConfig:
     vllm_gpu_memory: float = 0.3  # share of GPU memory given to the vLLM engine (weights + KV cache)
     # extra keyword arguments for vllm.LLM, as a JSON object (e.g. '{"async_scheduling": true}'; PLAN D7); "" = none
     vllm_engine_args: str = ""
+    # constrain_answer's vLLM mask applied to the whole batch in one go instead of request by request (same mask; PLAN D7)
+    constrain_batched: bool = False
     adv_norm: str = "std"
     # multiplies the positive advantages (W-REINFORCE, Zhu et al. 2025): below 1 damps the push toward sampled
     # solutions, which narrows the policy, and keeps the push away from failures; 1 = unchanged
@@ -1186,6 +1188,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
             raise ValueError("vllm_engine_args needs rollout_backend='vllm'")
         if not isinstance(json.loads(config.vllm_engine_args), dict):
             raise ValueError(f"vllm_engine_args must be a JSON object, got {config.vllm_engine_args!r}")
+    if config.constrain_batched and not (config.constrain_answer and config.rollout_backend == "vllm"):
+        raise ValueError("constrain_batched needs constrain_answer and rollout_backend='vllm'")
     if config.budget_steps < 0:
         raise ValueError(f"budget_steps must be >= 0, got {config.budget_steps}")
     if config.budget_steps_time_stop and not (config.budget_steps > 0 and config.time_budget_s > 0):
@@ -1226,7 +1230,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
 
         engine = VLLMRollout(config.model, 512 + max(config.max_new_tokens, config.eval_max_new_tokens), config.vllm_gpu_memory, config.seed + 1_000_003 * dist.rank,
                              constrain_answer=config.constrain_answer, logprobs=_wants_sampler_logprobs(config),
-                             engine_args=json.loads(config.vllm_engine_args) if config.vllm_engine_args else None)
+                             engine_args=json.loads(config.vllm_engine_args) if config.vllm_engine_args else None,
+                             constrain_batched=config.constrain_batched)
     elif config.rollout_backend != "hf":
         raise ValueError(f"unknown rollout_backend {config.rollout_backend!r} (expected 'hf' or 'vllm')")
     model, device = load_causal_model(config.model, config.device, "fp32" if config.master_fp32 else config.dtype)

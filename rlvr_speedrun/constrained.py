@@ -146,6 +146,18 @@ class RequestConstraint:
     def __call__(self, output_ids: list[int], logits):
         import torch
 
+        allowed = self.allowed_ids(output_ids)
+        if not allowed:
+            return logits
+        index = self.index_cache.get(allowed)
+        if index is None:
+            index = self.index_cache[allowed] = torch.tensor(allowed, dtype=torch.long, device=logits.device)
+        masked = torch.full_like(logits, float("-inf"))
+        masked[index] = logits[index]
+        return masked
+
+    def allowed_ids(self, output_ids: list[int]) -> tuple[int, ...] | None:
+        """Advance over the newly sampled ids; the ids allowed next (None or () = unconstrained)."""
         for tid in output_ids[self.seen :]:
             if self.state is None:
                 self.text += self.grammar.text(tid)
@@ -155,19 +167,10 @@ class RequestConstraint:
                 self.state = feed(self.state, self.grammar.text(tid), self.ops) or False
         self.seen = len(output_ids)
         if self.state is None:
-            allowed = self.grammar.forced(len(output_ids), self.think_budget)
-        elif not self.state or self.state[2] == "done":
-            return logits
-        else:
-            allowed = self.grammar.allowed(self.state, self.ops)
-        if not allowed:
-            return logits
-        index = self.index_cache.get(allowed)
-        if index is None:
-            index = self.index_cache[allowed] = torch.tensor(allowed, dtype=torch.long, device=logits.device)
-        masked = torch.full_like(logits, float("-inf"))
-        masked[index] = logits[index]
-        return masked
+            return self.grammar.forced(len(output_ids), self.think_budget)
+        if not self.state or self.state[2] == "done":
+            return None
+        return self.grammar.allowed(self.state, self.ops)
 
 
 def mask_logits(logits, rows: list[tuple[int, tuple[int, ...]]]):
@@ -184,3 +187,28 @@ def mask_logits(logits, rows: list[tuple[int, tuple[int, ...]]]):
     constrained[torch.tensor([row for row, _ in rows], device=logits.device)] = True
     return logits.masked_fill(constrained.unsqueeze(1) & ~keep, float("-inf"))
 
+
+
+def mask_rows_cached(logits, rows: list[tuple[int, tuple[int, ...]]], index_cache: dict):
+    """`mask_logits` for a whole batch in a fixed handful of kernels: each allowed set's ids live on the device
+    in `index_cache` (keyed by the tuple), so a call costs one concatenation, not a mask per row."""
+    import torch
+
+    rows = [(row, ids) for row, ids in rows if ids]
+    if not rows:
+        return logits
+    parts = []
+    for _, ids in rows:
+        index = index_cache.get(ids)
+        if index is None:
+            index = index_cache[ids] = torch.tensor(ids, dtype=torch.long, device=logits.device)
+        parts.append(index)
+    c = torch.cat(parts)
+    row_ids = torch.tensor([row for row, _ in rows], dtype=torch.long).to(logits.device, non_blocking=True)
+    lengths = torch.tensor([len(ids) for _, ids in rows], dtype=torch.long).to(logits.device, non_blocking=True)
+    r = torch.repeat_interleave(row_ids, lengths, output_size=c.numel())
+    keep = torch.zeros_like(logits, dtype=torch.bool)
+    keep[r, c] = True
+    constrained = torch.zeros(logits.shape[0], dtype=torch.bool, device=logits.device)
+    constrained[row_ids] = True
+    return logits.masked_fill(constrained.unsqueeze(1) & ~keep, float("-inf"))
