@@ -6254,3 +6254,17 @@ schedule rollback seldom fires, so it can add little. The noise figure matters m
 - 2ec078b adds `lm_rows`/`lm_coef`/`lm_seq_len`/`lm_tokens` to grpo.py (maintainer idea U14, PLAN D9), off by default: each step adds lm_coef x the mean next-token cross-entropy of lm_rows windows of the pretraining token file, drawn at offsets from (seed, step). One process only; a token id outside the policy's vocabulary stops the run. Three tests; ruff and pytest (159) pass.
 - r74 = r59 + 8 windows of 1024 tokens of D 004's own mix_0.2.bin at coef 0.25 (8k LM tokens per step; r59's RL grad norm is about 0.15, so the LM term should sit below it). Seeds 0-2 queued on screens_b200 after r73, paired with r59 (0.278 / 0.248 / 0.232).
 
+
+## 2026-11-15 04:10 EST: r68 closed (null); r70 at -0.013; preemptable B200 trial; r63's H200 gate (r75) queued
+
+- r68 (r59 + sil coef 1.0) closed at 3 seeds: 0.240 / 0.2633 / 0.2383 (mean 0.2472) against r59's 0.2783 / 0.2483 /
+  0.2317 (mean 0.2528), -0.006 paired (-0.038 / +0.015 / +0.007). Null; coef 0.5 stays.
+- r70 (128 sil rows) s0-s1: 0.2667 / 0.2333, -0.012 / -0.015 against r59 (mean -0.013). s2 runs on 29151450.
+- Preemptable B200 trial (INBOX 11-14 22:03): 29147202 started 03:51:37 EST on node5700-c1 and was preempted at
+  03:53:11, after 94 s. It is requeued and holds r74 s0. One data point; the B200s in mit_preemptable look heavily
+  claimed by their owners. 29119664 and 29124243 ended COMPLETED (queues empty).
+- r75 = r63's H200 gate: r63's config unchanged (kept dev 0.441 over 5 B200 seeds, against A 006's line 0.418), run
+  alone on an NVIDIA H200, read seed by seed against 0.418 as r62 was. INBOX 11-14 22:03 leaves backlog gates to my
+  judgement; this is the strongest track A candidate. Seeds 0-2 are in queue `gate_a_h200`; worker 29173680
+  (mit_preemptable H200, PER_GPU=1 so the timed run has the GPU to itself, RESUME_EVERY_S=1800; the resumed run keeps
+  its clock) is pending. GPUs: 3 running, 2 pending.
