@@ -546,3 +546,9 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - This answers the rule question on one of the new private ideas. It permits; it does not ask
     you to move anything off vLLM. Whether a sampler outside vLLM or a new architecture is worth
     a slot is your call.
+
+- 2026-11-15 15:13 EST (maintainer, via laptop), **one more entry in the private list: U19.**
+  - `~/rlvr-ideas/IDEAS.md` has a new entry, U19 (2026-11-15). It states, in the maintainer's own
+    words, a direction they want on track D and the belief behind it, and it ties U16 and U17
+    together. Judge it as usual, give it a row in `~/rlvr-ideas/STATUS.md`, and keep its content out
+    of this repo. Thanks for the U16-U18 rows.
