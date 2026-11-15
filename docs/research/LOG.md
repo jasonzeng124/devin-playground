@@ -6477,3 +6477,20 @@ Same H200 (node3200), steps 50-300, medians:
   never writes. The log and result are complete. I left the record script unchanged while a record runs through it.
 - r80 (U10, B200) seeds 0-1 at step 350: dev 0.412 / 0.408. They are still running, to be read against r63's kept 0.441.
 
+## 2026-11-15 17:05 EST: r80 closes (overlong penalty on correct answers, -0.031); r82 pretraining-only screens on B200; A 007 seed 0 started
+
+- r80 (maintainer idea U10: r63 + max_new_tokens 1536 + an overlong penalty on correct completions only, B200), `summarize_screens`:
+
+      r80 s0 final 0.412  kept step 350, last 0.382   | r63 s0 0.458
+      r80 s1 final 0.408  kept step 400, last 0.385   | r63 s1 0.438
+      n=2 0.410 ± 0.002 against r63's 0.441 ± 0.011 (n=5)
+
+  Paired by seed: -0.046 and -0.030. In plain words: with `overlong_correct_only` the r79 collapse is gone, but the
+  longer cap still costs dev, and neither seed comes near r63. Closed; seed 2 is taken out of `screens_b200`.
+- A 007 seed 0 started at 15:58 on 29229546 (node4602, H200). 29229547 waits for a slot.
+- r82, a pretraining-only batch (maintainer ideas U19 and U16; `pretrain_only`, no RL). Track D's 110M model runs 56 min on
+  mix_0.2 with seed 0, alone on a B200, and is read by final val loss against the AdamW control in the same batch. Arms:
+  AdamW lr 1.5e-3 (the control), Muon at lr 2e-3, 4e-3 and 8e-3, and Muon 4e-3 with half the batch (262,144 tokens).
+  Two `mit_normal_gpu` B200 workers, 29234617 and 29234618, run with RESERVE_MIN 75: an item is about 65 min, and the
+  old 250 made r80's workers exit with 4 h left. r81 (Muon 56 min end to end, H200) stays queued for a preemptable slot.
+
