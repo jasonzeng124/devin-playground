@@ -6416,3 +6416,14 @@ Same H200 (node3200), steps 50-300, medians:
   (B200, same flags). time_budget_s 17,400 fits the 6 h limit.
 - GPUs: 29198329 (r77), 29198428 (r78) and 29173680 (r75 s1) are running; 29202527 (r75 s2), 29208466 and
   29208467 are pending.
+
+## 2026-11-15 13:50 EST: r75 s1 0.445; r80 not collapsing; r77 s1 worker
+
+- r75 (r63's H200 gate) s1: kept dev 0.445 at step 450 (last 0.423). With s0 at 0.450, both seeds so far clear
+  A 006's line of 0.418. s2 runs on 29202527. 29173680 ended COMPLETED.
+- r80 (U10 with `overlong_correct_only`) s0 and s1 are at about step 125. Unlike r79, they track r63's trajectory
+  (reward 0.2-0.25, malformed 0.5, entropy 0.18). Samples take about 25 s against r63's 15 s, because the training cap
+  is now 1,536 tokens.
+- A third preemptable worker, 29218868 (`gate_d_h200`), takes r77 s1 in the slot 29173680 freed.
+- GPUs: 29198329 (r77 s0), 29198428 (r78), 29202527 (r75 s2), 29208466 and 29208467 (r80 s0-s1) are running;
+  29218868 is pending.
