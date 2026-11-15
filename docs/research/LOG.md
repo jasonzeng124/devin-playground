@@ -6453,3 +6453,27 @@ Same H200 (node3200), steps 50-300, medians:
   pending on QOSMaxMemoryPerUser, the per-user memory cap shared with the maintainer's CPU arrays.
 - Running: r80 seeds 0-1 (B200), r75 seed 2, r77 seed 0, r78 (H200 preemptable).
 
+## 2026-11-15 16:05 EST: r75 passes 3/3; A 007 record queued; r77 seed 0 under the line
+
+- r75 (r63's config on an H200, A 006's line 0.418), `summarize_screens`:
+
+      a006_p96_cos583_s467_h200  s0 final 0.450  kept step 467, last 0.450
+      a006_p96_cos583_s467_h200  s1 final 0.445  kept step 450, last 0.423
+      a006_p96_cos583_s467_h200  s2 final 0.438  kept step 467, last 0.438
+      n=3 final 0.444 ± 0.006, none collapsed, 232 min each
+
+  Every seed clears 0.418, which is PLAN's 3-seed promotion form. In plain words: 96 prompts per step with a longer
+  cosine adds about 0.056 dev over A 006's kept dev mean of 0.388, and the gain from B200 (r63, 0.441) holds on the H200.
+- Record config `records/v3/track_a/007_fp32_mal0_p96_cos583_s467_ent05_keepbest` (f589beb) is r75's config minus
+  `no_save`. Nothing else changed (checked key by key against A 006). Its five seeds are in
+  `queue/record-007_fp32_mal0_p96_cos583_s467_ent05_keepbest.txt`, run by two preemptable H200 packed workers,
+  29229546 and 29229547 (PER_GPU=1, RESERVE_MIN 380, no resume saves, so the record's clock carries none). They are
+  pending, with "Reserved for maintenance" as the reason; `--time-min` lets them start before the 11-17 window. A
+  preempted seed goes to `extra/` and reruns, as the worker does.
+- r77 seed 0 (D 006 + constrain_batched on an H200) kept dev 0.253 against D's line 0.259. That is +0.024 over D 006's
+  dev mean of 0.229, but the 3-seed form already fails. The 5-seed form would need the mean of seeds 1-2 plus two more
+  seeds to reach 0.259. Seeds 1 and 2 run on. Clock: pretraining 6,878 s plus GRPO 14,259 s, 21,110 s against 21,600.
+  `done.txt` says FAILED only because `run_seed_v3.sh` (STAGE=train) moves a `final/` that a `no_save` screen
+  never writes. The log and result are complete. I left the record script unchanged while a record runs through it.
+- r80 (U10, B200) seeds 0-1 at step 350: dev 0.412 / 0.408. They are still running, to be read against r63's kept 0.441.
+

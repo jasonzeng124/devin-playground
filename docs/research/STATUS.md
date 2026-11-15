@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-15 04:15 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
+Updated 2026-11-15 16:05 EST. The run ends 2026-12-19. The agent runs on Opus 5.5, effort high.
 
 **Record D 006 is the new track D holder (2026-11-13 21:02 EST).** Test 0.2444 ± 0.0158 over five seeds (0.2252 /
 0.2487 / 0.2662 / 0.2335 / 0.2485, from `confirm_v3.json`) against D 005's 0.2150 ± 0.0287: one-sided Welch
@@ -11,19 +11,21 @@ Committed in f73c704. D's line is now 0.259; the next D candidates (r65, r66) ar
 
 **Record A 006 is the new track A holder (2026-11-12 16:05 EST).** Test 0.4123 ± 0.0127 over five seeds (0.4099 / 0.3932 / 0.4148 / 0.4149 / 0.4285, from `confirm_v3.json`), against A 004's 0.2671 ± 0.0565: one-sided Welch p = 0.0019. It is A 005's recipe plus an entropy floor and `keep_best_dev`, so it chose its checkpoint by its own in-loop dev evals (RULES v3.4); kept dev mean 0.388. The next track A screen, r62 (700-step schedule, H200), is read against A 006's kept line 0.418.
 
-**Jobs (04:15 EST 11-15).** `mit_normal_gpu` B200: 29147203 (r73 s0) and 29147204 (r73 s2) running. Preemptable:
-29151450 H200 running (r70 s2, r73 s1; PER_GPU=2); 29147202 B200 preempted after 94 s and requeued, holds r74 s0;
-29173680 H200 (PER_GPU=1, queue `gate_a_h200`: r75 = r63's H200 gate, seeds 0-2) pending. Queues: `screens_h200` empty;
-`screens_b200` r74 s1-2. Closed: r68 (sil coef 1.0) -0.006 against r59, null. r70 (128 sil rows) -0.013 over two seeds.
-**Next decisions:** r70, r73 and r74 (U14, an LM loss during RL) against r59; r75 seed by seed against 0.418, and
-A 007's record config if it passes; the 11-18 box queue, configs and copy list, committed before the 11-17 00:00 EST
-maintenance; more B200 screens queued before `screens_b200` runs dry.
+**A 007 record queued (16:00 EST 11-15).** r75, r63's H200 gate, kept dev 0.450 / 0.445 / 0.438, each >= A 006's line
+0.418 (3-seed form). `records/v3/track_a/007_fp32_mal0_p96_cos583_s467_ent05_keepbest` (f589beb) runs five seeds on two
+preemptable H200 workers 29229546-7 (queue `record-007_...`, pending at 16:00).
+
+**Jobs (16:00 EST 11-15).** `mit_normal_gpu` B200: 29208466-7 (r80 s0-1, U10 overlong penalty on correct answers only;
+dev 0.412 / 0.408 at step 350). Preemptable H200: 29198428 (r78), 29198329 (r77 s2), 29218868 (r77 s1, restarted after a
+preemption), 29229546-7 (A 007, pending). Queues: `screens_b200` r80 s2; `screens_r81` (U16, Muon 56 min) s0-2, no worker
+yet. r77 (D 006 + constrain_batched, H200 gate) seed 0 kept dev 0.253, under D's line 0.259; seeds 1-2 running.
+**Next decisions:** A 007 seed by seed, then its README and validation; r80 against r63 (0.441); r77 over 3 seeds; r81
+once a slot frees; the 11-18 box queue, configs and copy list, committed before the 11-17 00:00 EST maintenance.
 
 **B200 first (INBOX 11-13 23:43 and 23:45).** Progress comes before records. Nothing waits for an H200, and the running
 H200 workers finish without being cancelled. Results on B200 are marked "not yet gated" until an H200 gate runs.
 **Backlog of gates and records (INBOX 11-14 22:03: run when the agent judges an H200 slot best used so):**
-1. r63 (A, 96 prompts per step): its H200 gate, then A 007 if the gate passes. On five B200 seeds it kept
-   0.458 / 0.438 / 0.435 / 0.430 / 0.445 (mean 0.441, +0.014 over r60) and meets the 5-seed form. Not yet gated. It needs about 14,900 s on an H200 against a 17,400-s budget. Its gate, r75, is queued (11-15 04:10).
+1. r63 (A, 96 prompts per step): gate r75 passed 3/3 (0.450 / 0.445 / 0.438); A 007's record runs.
 
 INBOX notes in force: self-imitation is allowed within the 11-12 limits (empty buffer per seed, never carried
 between runs, completions replayed verbatim with their own puzzle, the verifier the only filter), and records that use it
