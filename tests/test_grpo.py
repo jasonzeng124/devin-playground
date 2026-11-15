@@ -1196,3 +1196,26 @@ def test_run_with_lm_rows_logs_the_lm_loss_and_is_off_by_default(monkeypatch, tm
         with pytest.raises(ValueError, match="lm_rows"):
             run(GRPOConfig(**{**common, **bad}, out_dir=str(tmp_path / name)), dist)
 
+
+
+def test_vllm_engine_args_are_checked_and_passed_to_the_engine(tmp_path, monkeypatch):
+    import sys
+    import types
+
+    for bad in (dict(vllm_engine_args='{"async_scheduling": true}'),  # the hf backend has no engine
+                dict(vllm_engine_args="[1]", rollout_backend="vllm")):
+        with pytest.raises(ValueError, match="vllm_engine_args"):
+            run(GRPOConfig(model="unused", out_dir=str(tmp_path / "bad"), **bad))
+    seen = {}
+
+    class LLM:
+        def __init__(self, *args, **kwargs):
+            seen.update(kwargs)
+
+    monkeypatch.setitem(sys.modules, "vllm", types.SimpleNamespace(LLM=LLM))
+    from rlvr_speedrun.vllm_rollout import VLLMRollout as Rollout
+
+    Rollout("m", 64, 0.3, 0)
+    assert "async_scheduling" not in seen  # off by default
+    Rollout("m", 64, 0.3, 0, engine_args={"async_scheduling": True})
+    assert seen["async_scheduling"] is True and seen["enable_prefix_caching"] is True
