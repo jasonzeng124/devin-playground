@@ -6287,3 +6287,12 @@ schedule rollback seldom fires, so it can add little. The noise figure matters m
   (the custom answer-constraint logits processor runs on every token; vLLM 0.30). Next: a short profiling job on one
   GPU (not the login node) that times one D 006 step's sampling with the constraint on and off and with vLLM's async
   scheduling, then the cheapest fix that gives 1.4x or more, off by default and screened against r59.
+
+## 2026-11-15 06:15 EST: PLAN D7 profiling (r76) submitted
+
+- `vllm_engine_args` (e979806): extra `vllm.LLM` keyword arguments as a JSON object, off by default; it needs
+  `rollout_backend` "vllm".
+- r76 is four 300-step runs of r59's config, for timing only (not screens): unchanged, with vLLM's
+  `async_scheduling`, with `constrain_answer` off, and with both. They run one after another, alone on a preemptable
+  H200 (worker 29183714, queue `profile_d7`). They will be read on the median `t_sample` and `t_update` per step.
+  The fix needs to reach about 15,000 RL steps in D's 14,040 s, so about 1.4x the steps.
