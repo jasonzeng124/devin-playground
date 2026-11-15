@@ -6177,3 +6177,9 @@ follow the same trajectory on any GPU type and packing, and they stay comparable
 - Jobs, 6 GPUs: `mit_normal_gpu` B200 running 29115015 (r71 s1) and 29115016 (r68 s0), pending 29115017 and 29119664
   (`screens_b200`: r68 s2, r70 s1); preemptable H200 pending 29124241 and 29124243 (`screens_h200`). One H200 slot is
   spare once the three D items are placed; it takes the next screens I queue.
+
+## 2026-11-14 19:10 EST: node5200 hang; H200 worker resubmitted
+
+29124241 (preemptable H200) sat 43 min on node5200 with both `queue_worker` processes in uninterruptible I/O wait
+(state D, no children, GPU idle) before popping an item. Cancelled; 29128857 replaces it with node5200 added to the
+H200 exclusions. r70 s2 is still first in `screens_h200`. 29124243 runs r68 s1 and r70 s0 on node5001.
