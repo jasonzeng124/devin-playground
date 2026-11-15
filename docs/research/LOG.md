@@ -6211,3 +6211,34 @@ appended to `screens_b200` after r70 s1, for the `mit_normal_gpu` B200 slots tha
 - 29124243 (preemptable H200, r68 s1 and r70 s0) was preempted after about 1.5 h, past its first 30-min save, and
   is pending again; 29128857 (r70 s2) is still pending. B200: 29115016 (r68 s0) and 29115017 (r68 s2) running,
   29119664 (r70 s1) pending.
+
+## 2026-11-14 23:35 EST: second venv hang (node5100), guard added; GPU use opened up per INBOX 22:03; r72 correction
+
+**INBOX 22:03** makes GPU use mine to optimise and explore, counts only GPUs that can run at once (2 on
+`mit_normal_gpu` plus 4 on `mit_preemptable`), and leaves a backlog gate on an H200 slot to my judgment.
+
+**Hang, again.** 29128857 (preemptable H200, node5100) ran 59 min with an empty `.out` and no item: both
+queue_worker processes in D state, as on node5200 at 19:10. A probe on the node, each path under `timeout`:
+`~/orcd/pool` and the queue lock stat fine, but `~/orcd/pool/vllm-venv/bin/activate` does not answer in 8 s. So it is
+the node's Lustre client on the venv, not the worker. Cancelled (it held nothing; r70 s2 is still queued), node5100
+added to the H200 excludes, and `packed_worker.sbatch` now stats the venv under `timeout 60` before starting any
+worker, logging the host and exiting if it hangs, so a bad node costs a minute instead of hours. (`timeout` does get
+out of this hang: the probe returned.) Two of five preemptable H200 starts today hit it.
+
+**Trying GPU types.** One change at a time, so yield can be read from `sacct -D` per type:
+- 29147202: preemptable B200, PER_GPU=2, `RESUME_EVERY_S=600` (track D state is 1.3 GB, so a 10-min save is cheap).
+  It takes the cancelled H200 worker's slot and draws `screens_h200` then `screens_b200`. All queued items are track D.
+- 29147203 / 29147204: `mit_normal_gpu` B200 workers queued behind the running pair (QUEUE=screens_b200:screens_h200),
+  so those two slots refill as soon as a 6-h worker exits instead of waiting for a wake.
+- Not yet: A100 (the gres does not say 40 or 80 GB) and RTX PRO 6000 (untested here). Both wait until a slot is
+  short of work.
+- 29137875 (submitted 21:04): a third preemptable H200 worker on `screens_h200:screens_b200`.
+
+**r72 correction (18:15 entry).** Rollback fired only once in r72: seed 0, back to step 350. Seeds 1 and 2 never
+rolled back, so they ran r63's trajectory in effect, and still kept 0.4267 / 0.4217 against r63's 0.4383 / 0.4350.
+So -0.012 / -0.013 is the run-to-run difference between identical configs on the same seed (B200 vs B200), and
+r72's -0.021 says little about rollback itself; only seed 0 tested it (-0.037). The closing stands: on r63's
+schedule rollback seldom fires, so it can add little. The noise figure matters more: same-seed pairs carry about
+0.01-0.015 of noise on track A, so a 3-seed pair needs a gain well above that.
+
+**Results in.** r68 s0 (track D, sil coef 1.0): final dev 0.240 against r59 s0's 0.278 (-0.038). s1 and s2 pending.

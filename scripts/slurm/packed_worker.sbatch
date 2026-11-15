@@ -32,6 +32,13 @@ export DEADLINE=${DEADLINE:-$(( $(date +%s) + 10#$days * 86400 + secs ))}
 # environment) that need its libstdc++, newer than the Rocky 8 system one, so it goes first (LOG 2026-10-28).
 lib=$("${CXX:-g++}" -print-file-name=libstdc++.so.6 2>/dev/null)
 [[ $lib == /* ]] && export LD_LIBRARY_PATH=$(dirname "$lib")${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+# On some nodes the Lustre client hangs on the venv: workers then sat in D state for an hour or more without
+# logging a line (node5200 and node5100, LOG 2026-11-14). Give up on such a node at once, holding no item.
+if [[ -n "${VENV:-}" ]] && ! timeout 60 stat "$VENV/bin/activate" >/dev/null 2>&1; then
+  echo "$(date -u +%FT%TZ) worker $job (${QUEUE:-}): $VENV/bin/activate unreadable on $(hostname) in 60 s; exiting" \
+    | tee -a queue/worker.log
+  exit 1
+fi
 for k in $(seq 1 "$n"); do
   SLURM_JOB_ID=$job-$k bash scripts/slurm/queue_worker.sbatch &
   (( k < n )) && sleep "${STAGGER_S:-120}"
