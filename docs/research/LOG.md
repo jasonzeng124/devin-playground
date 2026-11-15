@@ -6341,3 +6341,18 @@ Same H200 (node3200), steps 50-300, medians:
   compares it with testing every candidate. The output is unchanged, so this is not an option. It also speeds
   up the trainer's `allowed_per_position`.
 - Timing r76 `d7prof_batched_trie` and `d7prof_base_trie` next (worker 29191186).
+
+## 2026-11-15 08:45 EST: r76 round 3, the trie does not cut sampling; r75 s0 passes 0.418; r77 = D 006 + constrain_batched, H200 gate
+
+- r76 round 3 on node4500, medians over steps 50-300, alone on an H200: `d7prof_base_trie` t_sample 0.98 s,
+  t_update 0.62 s, wall 579 s; `d7prof_batched_trie` 0.614 / 0.602, wall 467 s. The trie gives no sampling gain:
+  states repeat within each group of 8, so the per-state cache already hides the cost of building allowed sets.
+  `constrain_batched` saves 0.25-0.37 s per step against the unchanged mask on the same node (node3200: 0.842 ->
+  0.593; node4500: 0.98 -> 0.614), with matching entropy and reward. Late in a D run (about 1.29 s per step) that
+  is about 1.2-1.3x the steps: an estimated 13.5k-15k RL steps in 14,040 s against D 006's 10.9k. r59's five-seed
+  dev was 0.239 at step 10,000 and 0.258 at 15,000.
+- r75 (r63's H200 gate) s0: dev 0.450 at step 467 against A 006's line 0.418. s1 runs on 29173680.
+- r77 = D 006's record config unchanged (its own pretraining, the same time budgets) plus `constrain_batched: true`
+  and `no_save`, run alone on an H200, read seed by seed against D's line 0.259 on dev. D 006's own seeds kept dev
+  0.220 / 0.238 / 0.243 / 0.220 / 0.225. Seeds 0-2 are in queue `gate_d_h200`; worker 29194209 (mit_preemptable
+  H200, PER_GPU=1, RESUME_EVERY_S=1800) is pending. GPUs: 5 running, 1 pending.
