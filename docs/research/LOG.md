@@ -6268,3 +6268,22 @@ schedule rollback seldom fires, so it can add little. The noise figure matters m
   judgement; this is the strongest track A candidate. Seeds 0-2 are in queue `gate_a_h200`; worker 29173680
   (mit_preemptable H200, PER_GPU=1 so the timed run has the GPU to itself, RESUME_EVERY_S=1800; the resumed run keeps
   its clock) is pending. GPUs: 3 running, 2 pending.
+
+## 2026-11-15 06:40 EST: r73 s0; B200 worker replaced; track D's H200 runs get 10,900 RL steps, not 15,000 (PLAN D7)
+
+- r73 (D8, mid levels x2) s0: 0.255 against r59's 0.2783 (-0.023). s1 runs on 29151450, s2 on 29147204.
+- 29147203 (`mit_normal_gpu` B200) ended COMPLETED after r73 s0, with under 250 min left. Replacement 29183441, same
+  settings (PER_GPU=1, QUEUE=screens_b200:screens_h200, RESERVE_MIN=250); r74 s2 is the only item left in either queue.
+- Correction: the 11-14 01:04 entry calls r65 "three minibatches". r65's `mini3` is the mini levels M2, M3, M6
+  (`train_ladder_levels` L1-L6,M2,M3,M6), as in r56. The verdict stands: null on self-imitation from D 005.
+- **The step gap.** Record D 006's five H200 seeds ran 10,912 / 11,380 / 11,237 / 10,068 / 10,621 RL steps in the
+  14,040-s budget (1.29 s per step on seed 0: t_sample 0.76-0.82 s, t_update 0.33-0.37 s, about 0.14 s else). r33
+  (no self-imitation) made 13,728. The B200 screens stop at 15,000 steps, so they read the curve further than an H200
+  record gets. r59's five-seed mean dev by step: 0.163 / 0.192 / 0.219 / 0.239 / 0.246 / 0.258 at 2,500 / 5,000 /
+  7,500 / 10,000 / 12,500 / 15,000. D 006's dev mean was 0.229, about where r59 is at 10,000. Reaching 15,000 steps in
+  the H200 budget is worth about +0.02 by that curve, near the D line 0.259 on its own.
+- So PLAN D7 (more steps per budget) moves ahead of further self-imitation and level-weight arms. Sampling is the
+  biggest part: about 512 completions of about 25-30 tokens in 0.8 s, so the decode loop's per-token CPU cost dominates
+  (the custom answer-constraint logits processor runs on every token; vLLM 0.30). Next: a short profiling job on one
+  GPU (not the login node) that times one D 006 step's sampling with the constraint on and off and with vLLM's async
+  scheduling, then the cheapest fix that gives 1.4x or more, off by default and screened against r59.
