@@ -6427,3 +6427,18 @@ Same H200 (node3200), steps 50-300, medians:
 - A third preemptable worker, 29218868 (`gate_d_h200`), takes r77 s1 in the slot 29173680 freed.
 - GPUs: 29198329 (r77 s0), 29198428 (r78), 29202527 (r75 s2), 29208466 and 29208467 (r80 s0-s1) are running;
   29218868 is pending.
+
+## 2026-11-15 15:05 EST: INBOX 14:03 and 14:09 (U16-U18 judged; RULES v3.5); r81 (U16, Muon) configured
+
+- INBOX 14:03: three new maintainer ideas, U16 to U18. Each has a row in the private status file. The `rlvr-chat` jobs
+  on `mit_quicktest` are the maintainer's.
+- INBOX 14:09: RULES v3.5 lets a record train and score outside vLLM, through `ladder_confirm` with its own generation
+  backend. Nothing here needs that yet, so `ladder_confirm` is unchanged.
+- r81 (maintainer idea U16) = r77 (D 006 + `constrain_batched`, its own pretraining) with Muon pretraining at lr 4e-3
+  for 56 min instead of AdamW for 112 min. The 3,360 s saved go to RL (time_budget_s 17,400), so the total stays
+  20,760 s. Why: in sweep_d11 Muon at 60 min reached val loss 2.83, against AdamW's 2.96 at 60 min and 2.81 at
+  120 min. RL steps are now worth more than they were then (r59: dev 0.239 at 10k steps, 0.258 at 15k), and 56 more
+  min is about 2.6k more steps at 1.3 s per step. Muon hasn't been run on the maths mix yet, so its pretraining val loss
+  is the first thing to read. The pretraining LR follows a cosine over wall time, so 56 min gets a full decay.
+  Three seeds are in `screens_r81` (H200, read against r77's seeds). No worker yet: all four preemptable slots are
+  busy, and if r75 s2 passes, the A 007 record seeds go first.
