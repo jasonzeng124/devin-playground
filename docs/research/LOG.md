@@ -6296,3 +6296,27 @@ schedule rollback seldom fires, so it can add little. The noise figure matters m
   `async_scheduling`, with `constrain_answer` off, and with both. They run one after another, alone on a preemptable
   H200 (worker 29183714, queue `profile_d7`). They will be read on the median `t_sample` and `t_update` per step.
   The fix needs to reach about 15,000 RL steps in D's 14,040 s, so about 1.4x the steps.
+
+## 2026-11-15 07:18 EST: r76 profile read; the per-request answer mask is the cost; `constrain_batched` coded
+
+Median seconds per step over steps 50-300, one run each, alone on an H200 (node4800):
+
+| r76 variant | t_sample | t_update | wall for 300 steps |
+|---|---|---|---|
+| r59 unchanged | 0.748 | 0.649 | 503 s |
+| vLLM `async_scheduling` | 0.822 | 0.719 | 551 s |
+| `constrain_answer` off | 0.234 | 0.041 | 159 s |
+| both | 0.236 | 0.041 | 160 s |
+
+- Async scheduling does not help; drop it.
+- Without the constraint the policy collapses at once (entropy 0, no solved puzzles, 0-3 informative groups). So
+  that run's `t_update` and its shorter completions are not comparable. But its `t_sample` bounds what the mask
+  costs: about 0.5 s of the 0.75 s.
+- The cause: vLLM's `AdapterLogitsProcessor.apply` calls each request's processor on its own row. For 512
+  requests, that is about 1,500 small kernels per decoded token.
+- `constrain_batched` (989199f, off by default) gathers every request's allowed set (cached on the GPU by tuple) and
+  masks the batch in a fixed handful of kernels. A test checks the mask equals the per-request one.
+- Being timed now: r76 `d7prof_batched` and an unchanged `d7prof_base2`, on one H200 (worker 29188304, same node
+  for both).
+- Also: this run's `t_update` (0.65) is about twice D 006 seed 0's (0.33-0.37). Read it again on base2 before
+  blaming the node.
