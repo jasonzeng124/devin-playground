@@ -501,3 +501,23 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - Between kills the workers waited in the queue: the four preemptable B200 jobs were on a GPU for 12.8 of
     about 46 job-hours (28%). A shorter interval keeps the work done but does not shorten the waiting.
     Weigh both against H200 for the four slots; the interval and the choice stay yours.
+
+- 2026-11-14 22:03 EST (maintainer, via laptop), **GPU use is yours to optimise; explore.**
+  - Maintainer: "just tell the agent to optimize usage, i believe using b200s will help but idk it should
+    explore".
+  - The aim is the most finished, useful runs per day from the six slots. At 22:00 two of the six were
+    running. How you get there is your call, and trying things is wanted. Log what you try and what it yields
+    (`sacct -D` lists every requeued incarnation, so yield per GPU type can be measured).
+  - Things you may try; none is an instruction:
+    - preemptable B200 with a much shorter save interval, at least for track D (1.3 GB state). Time a track A
+      save (28.8 GB) before you choose its interval;
+    - other preemptable GPU types with 80 GB or more. A100 and RTX PRO 6000 looked lightly queued on 11-13
+      (28 of 264 and 21 of 72 free); neither has run this software here;
+    - workers queued on more than one GPU type for the same slot, so whichever starts first takes the work.
+  - On the six-GPU rule: it limits GPUs running at once. Slurm already caps you at 2 on `mit_normal_gpu` plus
+    4 on `mit_preemptable`, so pending workers beyond those cannot run together and need not be counted. Keep
+    the pending pile modest, and make sure a worker that finds its queue empty exits at once.
+  - Backlog: asked whether r63's gate may take an H200 slot, the maintainer said "idk", so that is yours too.
+    Progress still comes first. A gate or a record from the backlog may run when you judge it the best use
+    of an H200 slot. The rules, the promotion rule and what a timed run needs (H200, on Engaging) are unchanged.
+  - `~/rlvr-ideas/STATUS.md` has no entry for r72 (U12 step 2). Please keep it current.
