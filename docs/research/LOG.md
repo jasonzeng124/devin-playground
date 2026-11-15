@@ -6320,3 +6320,24 @@ Median seconds per step over steps 50-300, one run each, alone on an H200 (node4
   for both).
 - Also: this run's `t_update` (0.65) is about twice D 006 seed 0's (0.33-0.37). Read it again on base2 before
   blaming the node.
+
+## 2026-11-15 08:01 EST: `constrain_batched` saves 0.25 s a step; trie-built allowed sets; r76 timing round 3
+
+Same H200 (node3200), steps 50-300, medians:
+
+| r76 variant | t_sample | t_update | wall for 300 steps |
+|---|---|---|---|
+| `d7prof_base2` (r59 unchanged) | 0.842 | 0.712 | 551 s |
+| `d7prof_batched` | 0.593 | 0.686 | 467 s |
+
+- The batched run's entropy (0.26 vs 0.27) and reward (0.40 vs 0.39) match the unchanged run.
+- The high `t_update` is early-run cost, not the node. D 006 seed 0 has the same over steps 50-300 (t_sample 0.88,
+  t_update 0.70), falling to 0.76 / 0.37 by step 8000.
+- So `constrain_batched` alone saves about 0.25 s of a late step's 1.29 s, about 1.24x the steps. That is short
+  of the 1.4x target.
+- A CPU microbenchmark (TinyLlama tokenizer, random 3-5 number puzzles, 512 rows) puts the rest in Python:
+  building the allowed-token set for each new grammar state tested all 477 candidate tokens, at 191 us per state.
+- c81d9e2 walks a character trie of the candidates instead. It gives the same ids at 17 us per state; a test
+  compares it with testing every candidate. The output is unchanged, so this is not an option. It also speeds
+  up the trainer's `allowed_per_position`.
+- Timing r76 `d7prof_batched_trie` and `d7prof_base_trie` next (worker 29191186).
