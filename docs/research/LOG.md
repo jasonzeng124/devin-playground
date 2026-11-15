@@ -6248,3 +6248,9 @@ schedule rollback seldom fires, so it can add little. The noise figure matters m
 - 29137875 (preemptable H200, submitted before the node5100 exclude) also landed on node5100 and hung on the venv. Cancelled and resubmitted as 29151450 (PER_GPU=2, node5100 and node5200 excluded). Slurm copies the batch script at submit, so the 30cd3ae guard covers only workers submitted after it: 29147202/3/4 and 29119664/29124243 run the old copy.
 - r68 (sil coef 1.0) s2: 0.2383 vs r59 s2 0.232. With s0 (0.240 vs 0.278), r68 stands at -0.016 over two seeds; s1 is running.
 - Queues: screens_h200 r70 s2; screens_b200 r73 s1, s2. Next track D arm: maintainer idea U14 (PLAN D9, an LM loss on the pretraining mix during RL), being coded.
+
+## 2026-11-15 01:40 EST: U14 coded (lm_rows), r74 queued
+
+- 2ec078b adds `lm_rows`/`lm_coef`/`lm_seq_len`/`lm_tokens` to grpo.py (maintainer idea U14, PLAN D9), off by default: each step adds lm_coef x the mean next-token cross-entropy of lm_rows windows of the pretraining token file, drawn at offsets from (seed, step). One process only; a token id outside the policy's vocabulary stops the run. Three tests; ruff and pytest (159) pass.
+- r74 = r59 + 8 windows of 1024 tokens of D 004's own mix_0.2.bin at coef 0.25 (8k LM tokens per step; r59's RL grad norm is about 0.15, so the LM term should sit below it). Seeds 0-2 queued on screens_b200 after r73, paired with r59 (0.278 / 0.248 / 0.232).
+
