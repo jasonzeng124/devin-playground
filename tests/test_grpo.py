@@ -275,6 +275,21 @@ def test_overlong_penalty_ramps_over_the_buffer_before_the_cap(monkeypatch):
     assert off.tolist() == [1.0, 1.0, 1.0, 1.0]
 
 
+def test_overlong_correct_only_spares_wrong_and_truncated_samples(monkeypatch):
+    tokenizer = TinyTokenizer()
+    puzzles = [Puzzle((1, 2), 3)]
+    config = GRPOConfig(group_size=3, prompts_per_step=1, max_new_tokens=8, overlong_buffer=4, overlong_coef=0.5,
+                        malformed_reward=0.0, overlong_correct_only=True)
+    encoded, _ = grpo._encode_prompts(tokenizer, puzzles, config, torch.device("cpu"))
+    generated = torch.cat([encoded["input_ids"].repeat_interleave(3, dim=0), torch.full((3, 8), 5)], dim=1)
+    monkeypatch.setattr(grpo, "_generate_chunked", lambda *args, **kwargs: (generated, torch.tensor([8, 8, 8])))
+    # all at the cap: correct, wrong, truncated (malformed)
+    verdicts = iter([(1.0, True, False), (0.0, False, False), (-0.1, False, True)])
+    monkeypatch.setattr(grpo, "verify", lambda text, puzzle: types.SimpleNamespace(**dict(zip(("reward", "correct", "malformed"), next(verdicts)))))
+    rewards = grpo._sample_batch(None, tokenizer, puzzles, config, torch.device("cpu"))[4]
+    assert rewards.tolist() == [0.5, 0.0, 0.0]
+
+
 def test_group_advantages_std_and_none():
     groups = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
     centred = grpo.group_advantages(groups, "none")

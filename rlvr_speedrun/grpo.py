@@ -97,6 +97,9 @@ class GRPOConfig:
     # last overlong_buffer tokens before the cap cost up to overlong_coef; 0 = off
     overlong_buffer: int = 0
     overlong_coef: float = 0.0
+    # the overlong penalty only on correct completions, so a long or truncated attempt never scores below a quick
+    # wrong guess (r79: penalising truncated samples too collapsed track A into short guesses)
+    overlong_correct_only: bool = False
     temperature: float = 1.0
     max_new_tokens: int = 48
     # if > 0, the in-loop eval's token limit (needs cache_len 0); training rollouts keep max_new_tokens, so a run can
@@ -502,7 +505,10 @@ def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.d
     if config.overlong_coef:
         start = config.max_new_tokens - config.overlong_buffer
         over = (valid.sum(dim=1).float() - start).clamp(min=0) / config.overlong_buffer
-        rewards = rewards - config.overlong_coef * over.clamp(max=1.0)
+        penalty = config.overlong_coef * over.clamp(max=1.0)
+        if config.overlong_correct_only:
+            penalty = penalty * torch.tensor([r.correct for r in results], dtype=penalty.dtype, device=penalty.device)
+        rewards = rewards - penalty
     attention = torch.cat([prompt_attention, completion_attention], dim=1)
     malformed = torch.tensor([r.malformed for r in results], dtype=torch.bool, device=device)
     correct = torch.tensor([r.correct for r in results], dtype=torch.bool, device=device)  # the verifier's verdict per sample
@@ -1192,6 +1198,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError("log_mismatch and tis_cap need rollout_backend='vllm' (the sampler's log-probs come from vLLM)")
     if config.overlong_coef and not 0 < config.overlong_buffer <= config.max_new_tokens:
         raise ValueError(f"overlong_coef needs 0 < overlong_buffer <= max_new_tokens, got {config.overlong_buffer}")
+    if config.overlong_correct_only and not config.overlong_coef:
+        raise ValueError("overlong_correct_only needs overlong_coef")
     if config.malformed_reward_until > 0 and config.malformed_reward is None:
         raise ValueError("malformed_reward_until needs malformed_reward (it switches from it to the verifier's -0.1)")
     if config.vllm_engine_args:

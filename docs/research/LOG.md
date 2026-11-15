@@ -6397,3 +6397,22 @@ Same H200 (node3200), steps 50-300, medians:
   take other work.
 - GPUs: 29183441, 29173680, 29198329 and 29198428 are running; 29202527, 29202659 and 29202660 are pending.
 
+
+## 2026-11-15 11:50 EST: r74 closes flat; r79 collapses (my design error), cancelled; `overlong_correct_only`; r80 queued
+
+- r74 s2: 0.235 against r59 s2's 0.2317 at the same step (+0.003). Over three seeds the mean is -0.007 against r59.
+  Maintainer idea U14 closes as flat.
+- r79 s0 collapsed: dev 0.2017 against r63's 0.441, and it finished its 467 steps in 2,001 s against r63's 12,533 s.
+  Compared with r63 s0 at the same steps (step 161): malformed 0.0 vs 0.53, t_sample 0.83 s vs 15.5 s, and mean reward
+  0.08 vs 0.31. It learned to give short guesses. The cause is my reward design, not a length bug. A truncated sample
+  sits at the 1,536 cap, so it took the full -0.5 penalty on top of malformed_reward 0.0. That put it below any quick
+  wrong guess (0), so short outputs were always the safer choice (step 1's mean reward was -0.11). The 11:05 entry's
+  "still above a truncated one (0)" was wrong. DAPO applies the penalty to every sample, but their truncated samples
+  are rare. Here r40 lost 41 % of late samples to the cap. I cancelled s1 and s2 (29202659, 29202660, both mine).
+- New option `overlong_correct_only` (default off): the penalty applies only to correct completions. A long or
+  truncated attempt then scores the same as a short wrong one (0), and a correct answer past 1,024 tokens gets 1.0
+  down to 0.5. A test covers the correct, wrong and truncated cases at the cap. ruff and the 164 tests pass.
+- r80 = r79 + `overlong_correct_only`. Three seeds are in `screens_b200`, with workers 29208466 and 29208467
+  (B200, same flags). time_budget_s 17,400 fits the 6 h limit.
+- GPUs: 29198329 (r77), 29198428 (r78) and 29173680 (r75 s1) are running; 29202527 (r75 s2), 29208466 and
+  29208467 are pending.
