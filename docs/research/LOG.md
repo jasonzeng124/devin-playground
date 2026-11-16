@@ -6494,3 +6494,33 @@ Same H200 (node3200), steps 50-300, medians:
   Two `mit_normal_gpu` B200 workers, 29234617 and 29234618, run with RESERVE_MIN 75: an item is about 65 min, and the
   old 250 made r80's workers exit with 4 h left. r81 (Muon 56 min end to end, H200) stays queued for a preemptable slot.
 
+## 2026-11-15 20:10 EST: r82 closes (Muon lr 4e-3 best, -0.115 val loss against AdamW at 56 min); r78 (20k RL steps) +0.032 over r59; r83 queued
+
+- r82, final val loss after 56 min alone on a B200 (seed 0, same data order; lower is better):
+
+      AdamW lr 1.5e-3 (control)    2.919
+      Muon lr 2e-3                 2.836   -0.083
+      Muon lr 4e-3                 2.805   -0.115
+      Muon lr 8e-3                 2.818   -0.102
+      Muon lr 4e-3, batch 262k     2.818   -0.102
+
+  Muon wins at every lr tried, and lr 4e-3 with the full batch is best, which is the setting r81 already uses, so r81
+  stays as queued. All arms ran about 600k tok/s. One seed per arm; the spread between Muon settings (0.013-0.031) is
+  small next to the gap to AdamW.
+- r83 (maintainer ideas U19/U16): r82's Muon 4e-3 and AdamW arms for 112 min instead of 56, on B200. It asks whether
+  the gain holds at twice the tokens, and how Muon at 56 min (2.805) compares with AdamW at 112 min on the same GPU.
+  That decides whether r81's split (56 min pretraining, the rest to RL) is the right use of the saved time. Queue
+  `screens_b200`, workers 29250819 and 29250820 (RESERVE_MIN 130).
+- r78 = r59 with `budget_steps` 20000 and `constrain_batched` (H200 packed 3 per GPU; 34,542 s of wall time, so this
+  is a step-capped screen, not a fit for the budget). Final dev against r59's 15k-step seeds:
+
+      r78 s0 0.295  (0.277 at step 15,000) | r59 s0 0.278
+      r78 s1 0.255  (0.250)                | r59 s1 0.248
+      r78 s2 0.305  (0.273)                | r59 s2 0.232
+      mean 0.285 (0.267 at 15k) against 0.253; paired +0.017 / +0.007 / +0.073, mean +0.032
+
+  Dev still climbs from step 15,000 to 20,000 (+0.018 within r78, and the longer cosine itself adds a little at
+  15k). So a D run that fits about a third more RL steps into its budget is worth about +0.02 to +0.03 dev. That is
+  the value of the speed work (PLAN D7), and of r81's move of 56 min from pretraining to RL.
+- r77 s1's worker 29218868 was preempted again and is pending; it resumes from its half-hourly state. r77 s2 runs on
+  29198329. A 007 s0 runs on 29229546; 29229547 is pending.
