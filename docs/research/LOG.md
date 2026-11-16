@@ -6537,3 +6537,10 @@ Same H200 (node3200), steps 50-300, medians:
   D 004 checkpoints at 11441 steps (r77's H200 count) against Muon 1.338B + 14180 steps (r81's split),
   Muon 2.676B + 11441 steps, and (last) Muon 1.338B + 11441 steps; seeds 0-4.
 - Plan, queue contents and copy list: docs/research/box_1118.md.
+
+## 2026-11-15 21:03 EST: A 007 seed 0 finished (test 0.456, dev 0.435); seed 1 and r77 seed 1 preempted
+
+- A 007 seed 0 (H200, 29229546): 467 steps, kept step 400, dev 0.435, test ladder 0.456 (A 006: 0.4123).
+  The same worker went on to seed 2.
+- Seed 1 (29229547) and r77 seed 1 (29218868) were both preempted on node4600 and are pending again.
+  The requeued worker redoes the item and moves the partial seed to extra/interrupted_1_<n>, as RULES_v3 asks.
