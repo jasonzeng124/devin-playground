@@ -6615,3 +6615,14 @@ Same H200 (node3200), steps 50-300, medians:
 - D 007: seeds 0-3 on four preemptable H200 workers (RESERVE_MIN 380, no resume saves), limits ending before the 11-17
   00:00 maintenance; a fifth worker for seed 4 waits for the maintenance to end.
 
+
+## 2026-11-16 14:30 EST: U18 coded (answer-opening mask, off by default); r88 on the two B200 slots
+
+`mask_answer_open` (commit 701b913) sets the advantage of the tokens that spell a completion's first `<answer>` to 0
+in the policy-gradient term only (they still count in the token mean; entropy bonus, KL and self-imitation rows are
+unchanged), so when to answer stays at the model's prior. Tests: the mask marks exactly the tokens overlapping the first
+OPEN, and masking a row's tokens gives the gradient of zeroing its advantage. ruff and pytest pass (166).
+
+r88 `calibration/research_r88/d004_maskopen_s11441` is r87's control `d004_ctl_s11441` plus the mask. Seeds 0 and 1 run
+on two mit_normal_gpu B200 workers (29360942, 29360944; about 3 h each, so they end before the 11-17 maintenance). Read
+by final dev, paired by seed with r87's control (seed 0: 0.263; its seed 1 runs after the maintenance). Not gated.

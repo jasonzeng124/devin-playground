@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-16 13:54 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-16 14:30 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **D 007 promotion (13:54 EST 11-16), built on self-imitation, so said here before its seeds start (INBOX 11-12).**
 Arm r81, `calibration/research_r81/d006_batched_muon56_rl17400`: D 006 (which already uses self-imitation, same limits)
@@ -23,9 +23,10 @@ A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 **Jobs (13:54 EST 11-16).** All earlier workers have ended. A 007 is done. r81 seeds 0-2 are done (closed by
 promotion). r87 (B200, seed 0, not gated): muon1338m_s14180 final dev 0.240 against d004_ctl_s11441 0.263, one paired
 seed. Starting now: D 007 seeds 0-3 on four preemptable H200 workers.
-**Next decisions:** D 007 seed by seed; seed 4 after the maintenance (11-17 21:00 EST); the 11-18 H100 box
-(`box_a_1118`: r85, A 007 arms; `box_d_1118`: r86, Muon checkpoints with more RL steps); U18 code (answer-opening mask,
-off by default).
+r88 (U18 answer-opening mask, 14:30 EST): seeds 0 and 1 on the two B200 mit_normal_gpu slots, about 3 h each.
+**Next decisions:** D 007 seed by seed; seed 4 after the maintenance (11-17 21:00 EST); r88 against r87's control (r87
+control seed 1 after the maintenance); the 11-18 H100 box (`box_a_1118`: r85, A 007 arms; `box_d_1118`: r86, Muon
+checkpoints with more RL steps).
 
 **B200 first (INBOX 11-13 23:43 and 23:45).** Progress comes before records. Results on B200 are marked "not yet gated"
 until an H200 gate runs. INBOX 11-14 22:03: a gate or record may take an H200 slot when the agent judges that best.
@@ -80,7 +81,7 @@ screen runs on the H200.
   leaderboard.
 - After the maintenance (11-17 21:00 EST): `box_sync.sh to` as a CPU job (docs/research/box_1118.md), then the 11-18 box
   from 06:30 EST with only the two allowed AWS commands; wake every 20-30 min while it is up.
-- U18: an answer-opening token mask for track D, off by default, with tests.
+- U18: coded (`mask_answer_open`); r88 on B200. After the maintenance, queue r87's control seed 1 on B200.
 - `~/rlvr-ideas/STATUS.md`: update it whenever a verdict or a result changes.
 
 ## Notes
