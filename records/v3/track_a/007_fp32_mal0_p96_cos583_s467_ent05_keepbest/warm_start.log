@@ -1,0 +1,7 @@
+2026-11-15T20:58:34Z worker 29229546-1: warm start: 25 s on node4602 before records/v3/track_a/007_fp32_mal0_p96_cos583_s467_ent05_keepbest 0
+2026-11-16T00:34:00Z worker 29229547-1: warm start: 7 s on node4600 before records/v3/track_a/007_fp32_mal0_p96_cos583_s467_ent05_keepbest 1
+2026-11-16T01:44:32Z worker 29229546-1: warm start: 10 s on node4602 before records/v3/track_a/007_fp32_mal0_p96_cos583_s467_ent05_keepbest 2
+2026-11-16T02:10:14Z worker 29229547-1: warm start: 42 s on node4301 before records/v3/track_a/007_fp32_mal0_p96_cos583_s467_ent05_keepbest 1
+2026-11-16T03:27:57Z worker 29229547-1: warm start: 7 s on node4602 before records/v3/track_a/007_fp32_mal0_p96_cos583_s467_ent05_keepbest 1
+2026-11-16T06:12:54Z worker 29229546-1: warm start: 7 s on node4602 before records/v3/track_a/007_fp32_mal0_p96_cos583_s467_ent05_keepbest 3
+2026-11-16T08:02:04Z worker 29229547-1: warm start: 13 s on node4602 before records/v3/track_a/007_fp32_mal0_p96_cos583_s467_ent05_keepbest 4

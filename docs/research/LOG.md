@@ -6596,3 +6596,22 @@ Same H200 (node3200), steps 50-300, medians:
 - r81 workers 29292521/22 sat pending behind the 11-17 maintenance reservation (2-day limit); resubmitted at 04:05
   with a 19 h limit as 29297581/29297587 (seeds 0 and 1, running since 04:27). Seed 2 now on a third preemptable
   H200 worker (17.5 h limit). GPUs: 6.
+
+## 2026-11-16 13:53 EST: A 007 is the new track A record (test 0.4527, p = 0.0004); r81 passes D's line, D 007 starts
+
+- A 007 seed 4 (H200, 29229547): 467 steps, kept step 467, dev 0.413, test 0.446. All five: 0.456 / 0.439 / 0.453 /
+  0.469 / 0.446, mean 0.4527 ± 0.0113, all within 18,000 s (246.6-263.6 min). `validate_record_v3.py --compare-to`
+  A 006: Welch t = 5.31, df 7.9, one-sided p = 0.0004, so A 007 holds track A. README and leaderboard updated. Kept dev
+  mean 0.429, so A's line is now 0.459.
+- r81 (D 006 + `constrain_batched` + Muon 56 min pretraining, RL budget 17,400 s; H200): final dev 0.262 / 0.268 /
+  0.275 (mean 0.268), each at or above D's line 0.259: the 3-seed promotion rule. Promoted to
+  `records/v3/track_d/007_dm_math_sil64c05_batched_muon56` (r81's config minus `no_save`). It uses self-imitation
+  (as D 006 does); said at the top of STATUS before its seeds start (INBOX 11-12).
+- Risk for D 007: r81 seed 2's process exited about 15 min after its loop ended (GRPO wall 18,430 s for 17,428 s of
+  loop), so its clock was 21,770 s against 21,600; seeds 0 and 1 were at 20,880 s and 20,885 s. The other recent D
+  runs had 55-220 s of overhead. Asked in QUESTIONS 11-16 13:54 how such a seed should count.
+- r87 (B200, seed 0, not yet gated): Muon checkpoint `muon1338m_s14180` final dev 0.240 against the AdamW control
+  `d004_ctl_s11441` 0.263, one paired seed (-0.023). The box's r86 gives more seeds.
+- D 007: seeds 0-3 on four preemptable H200 workers (RESERVE_MIN 380, no resume saves), limits ending before the 11-17
+  00:00 maintenance; a fifth worker for seed 4 waits for the maintenance to end.
+

@@ -37,8 +37,13 @@ hardware"). The first H200 records are reruns of the H100 holders' configs; they
 
 | # | record | test ladder score (mean ± sd) | N | sampler | clock (measured) | author |
 |---|---|---:|--:|---|---|---|
-| 006 | **[006_fp32_mal0_cos500_s400_ent05_keepbest](records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest)** (holder) | **0.4123 ± 0.0127** | 5 | constrained | 139-160 min GRPO | Claude / @jasonzeng124 |
+| 007 | **[007_fp32_mal0_p96_cos583_s467_ent05_keepbest](records/v3/track_a/007_fp32_mal0_p96_cos583_s467_ent05_keepbest)** (holder) | **0.4527 ± 0.0113** | 5 | constrained | 247-264 min GRPO | Claude / @jasonzeng124 |
+| 006 | [006_fp32_mal0_cos500_s400_ent05_keepbest](records/v3/track_a/006_fp32_mal0_cos500_s400_ent05_keepbest) | 0.4123 ± 0.0127 | 5 | constrained | 139-160 min GRPO | Claude / @jasonzeng124 |
 | 004 | [004_ladder_constrained_h200](records/v3/track_a/004_ladder_constrained_h200) | 0.2671 ± 0.0565 | 5 | constrained | 291-292 min GRPO | Claude / @jasonzeng124 |
+
+007 is 006's recipe with 96 prompts per step instead of 64, the cosine counted over 583 steps
+and training stopped at step 467, so it uses about 250 of its 300 minutes. It beats 006 by +0.040
+(one-sided Welch p = 0.0004).
 
 006 is A 005's recipe (fp32 master weights at lr 1e-6 on a cosine, zero-advantage rows skipped,
 truncated outputs rewarded 0, stopped at step 400) plus an entropy floor, and it ends on its best

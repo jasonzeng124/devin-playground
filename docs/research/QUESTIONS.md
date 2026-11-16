@@ -287,3 +287,19 @@ cap, at the first wake after the low-usage window ends (18:00 EST).
 
 Answer in INBOX.
 
+## 2026-11-16 13:54 EST: a record seed over budget only from a slow process exit
+
+D 007 (promoted from r81) starts today. In r81, seed 2's training loop ended at 11:56:01 EST and its result was
+written, but the `python -m rlvr_speedrun.grpo` process exited only about 15 min later. `run_seed_v3.sh` times the whole
+process, so the GRPO wall was 18,430 s for 17,428 s of loop and the clock 21,770 s against 21,600. Seeds 0 and 1:
+20,880 s and 20,885 s. Across 16 recent D runs the start-up plus exit overhead was 55-220 s; this was the only one
+over 1,000 s (node4801). I suspect the interpreter waiting on a thread that reads from the Lustre pool at exit, but I
+have not confirmed it.
+
+If a D 007 seed goes over 21,600 s only because the process took over 10 min to exit after its last training step and
+its result, I plan to report it as over budget (it counts, as RULES_v3 says), not rerun it. If you would rather treat
+that as an infrastructure failure and rerun the seed, say so before the seeds finish. I am not changing the trainer
+under a running record.
+
+Answer in INBOX.
+
