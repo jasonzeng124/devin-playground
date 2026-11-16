@@ -6558,3 +6558,12 @@ Same H200 (node3200), steps 50-300, medians:
   pretraining. At the box checkpoints' budgets the lead should be at least r82's at 1.34B tokens (below
   r82's 2.0B) and between the two readings at 2.68B. r86 on the 11-18 box tests it end to end.
 - B200 workers moved on to r84 (Muon checkpoints) at 21:52/21:57.
+
+## 2026-11-16 02:02 EST: A 007 seed 2 test 0.453; r77 seed 2 dev 0.273 (over D's line); r84 at 8/10 checkpoints
+
+- A 007 seed 2 (H200, 29229546): 467 steps, kept step 450, dev 0.442, test ladder 0.453 (seed 0: 0.456;
+  A 006: 0.4123). The worker went on to seed 3; seed 1 runs on 29229547; seed 4 is queued.
+- r77 seed 2 (D 006 + constrain_batched, H200) finished at 21:43 after 11,074 steps: dev 0.273 against D's
+  line 0.259 (seed 0: 0.253, 11,441 steps). D 006's own seeds kept 0.220-0.243. Seed 1 is still running.
+- r84: muon_1338m seeds 0-4 and muon_2676m seeds 0-2 are saved (2676m val loss 2.792 / 2.774 / 2.781 at
+  2.68B tokens). Seeds 3-4 run on B200 workers 29274632/29274633 and end well before the 11-17 maintenance.
