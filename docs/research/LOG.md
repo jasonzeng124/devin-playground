@@ -6567,3 +6567,24 @@ Same H200 (node3200), steps 50-300, medians:
   line 0.259 (seed 0: 0.253, 11,441 steps). D 006's own seeds kept 0.220-0.243. Seed 1 is still running.
 - r84: muon_1338m seeds 0-4 and muon_2676m seeds 0-2 are saved (2676m val loss 2.792 / 2.774 / 2.781 at
   2.68B tokens). Seeds 3-4 run on B200 workers 29274632/29274633 and end well before the 11-17 maintenance.
+
+## 2026-11-16 03:03 EST: r77 closes under D's line (mean 0.248); A 007 seed 1 test 0.439; r84 done; r81 and r87 start
+
+- r77 (D 006 + constrain_batched, alone on an H200) seed 1 kept dev 0.218. It ran 16,055 RL steps in the same
+  14,040 s (seeds 0/2: 11,441 / 11,074), so that node was faster per step, yet it scored lowest.
+
+      r77 s0 0.253 | s1 0.218 | s2 0.273   mean 0.248 against the line 0.259
+      D 006 s0-2: 0.220 / 0.238 / 0.243 (mean 0.234); paired +0.033 / -0.020 / +0.030, mean +0.014
+
+  Batched constrained sampling alone does not clear D's line, so no record from it. It stays in the D configs
+  (r81, r86) since it is faster per step and does not hurt.
+- A 007 seed 1 (H200, 29229547, preempted twice; partials in extra/interrupted_1_1 and _2): 467 steps, kept step
+  350, dev 0.427, test ladder 0.439. Seeds 0-2: 0.456 / 0.439 / 0.453 (mean 0.449; A 006 0.4123). Seeds 3 and 4
+  run on 29229546 / 29229547 from about 03:00.
+- r84 is complete: muon_1338m seeds 0-4 and muon_2676m seeds 0-4 saved in the pool (2676m seeds 3-4: val loss
+  2.792 / 2.782). The 11-18 box's checkpoints are all in place before the maintenance.
+- r81 (Muon 56 min end to end, H200, seeds 0-2): preemptable workers 29292521 / 29292522, PER_GPU 1.
+- r87 (B200, seed 0): r86's arms muon1338m_s14180 and d004_ctl_s11441 unchanged, one per B200 (workers 29292528 /
+  29292529, RESERVE_MIN 300), as an early end-to-end look at the Muon checkpoint a day before the box. Not gated;
+  read paired against each other only.
+- GPUs: 6 (2 A 007 seeds, 2 r81, 2 r87 B200).
