@@ -6524,3 +6524,16 @@ Same H200 (node3200), steps 50-300, medians:
   the value of the speed work (PLAN D7), and of r81's move of 56 min from pretraining to RL.
 - r77 s1's worker 29218868 was preempted again and is pending; it resumes from its half-hourly state. r77 s2 runs on
   29198329. A 007 s0 runs on 29229546; 29229547 is pending.
+
+## 2026-11-15 20:03 EST: 11-18 H100 box planned (r85 track A, r86 track D); r84 Muon checkpoints queued on B200
+
+- r84 (B200, screens_b200 after r83): Muon lr 4e-3 pretraining, saved, seeds 0-4, capped by tokens
+  (cosine over tokens, minutes 600 so wall time never binds): muon_1338m (1.338B tokens, H200 56 min,
+  ~37 min on B200) and muon_2676m (2.676B tokens = D 004's, ~75 min). They are the starting points
+  of the box's D arms and must finish before the 11-17 maintenance.
+- r85 (box GPUs 0-3, 12 runs): A 007 (r75) control against lr 1.3e-6, entropy target 0.15 and
+  cosine horizon 467; seeds 0-2; time stop off so the 467-step cap binds on H100.
+- r86 (box GPUs 4-7, 3 per GPU, 18 runs): D 006 RL from saved checkpoints, step-capped: control on
+  D 004 checkpoints at 11441 steps (r77's H200 count) against Muon 1.338B + 14180 steps (r81's split),
+  Muon 2.676B + 11441 steps, and (last) Muon 1.338B + 11441 steps; seeds 0-4.
+- Plan, queue contents and copy list: docs/research/box_1118.md.
