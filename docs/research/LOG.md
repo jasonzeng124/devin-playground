@@ -6626,3 +6626,19 @@ OPEN, and masking a row's tokens gives the gradient of zeroing its advantage. ru
 r88 `calibration/research_r88/d004_maskopen_s11441` is r87's control `d004_ctl_s11441` plus the mask. Seeds 0 and 1 run
 on two mit_normal_gpu B200 workers (29360942, 29360944; about 3 h each, so they end before the 11-17 maintenance). Read
 by final dev, paired by seed with r87's control (seed 0: 0.263; its seed 1 runs after the maintenance). Not gated.
+
+
+## 2026-11-16 18:47 EST: r88 (answer-opening mask) seed 0 at 0.235 against its control's 0.263
+
+| arm (B200, not gated) | seed | final dev | best in-loop dev | final entropy |
+|---|---|---|---|---|
+| r87 `d004_ctl_s11441` (control) | 0 | 0.263 | 0.270 | 0.090 |
+| r88 `d004_maskopen_s11441` | 0 | 0.235 | 0.248 | 0.095 |
+| r88 `d004_maskopen_s11441` | 1 | 0.237 | 0.243 | 0.098 |
+
+Seed 0, paired with the control: -0.028. Seed 1's control (r87 `d004_ctl_s11441` seed 1) started at 18:06 on B200
+worker 29387381 and should end about 21:20, before the maintenance. Masking the gradient on the answer-opening
+tokens does not help on the one complete pair; leaving when to answer at the model's prior seems to cost dev rather
+than gain it. The verdict waits for the seed 1 pair. Seed 0's node (node5702-c1) ran about 25 min slower than seed 1's;
+both runs are step-capped at 11,441, so the scores compare.
+
