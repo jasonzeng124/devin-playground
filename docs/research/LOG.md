@@ -6588,3 +6588,11 @@ Same H200 (node3200), steps 50-300, medians:
   29292529, RESERVE_MIN 300), as an early end-to-end look at the Muon checkpoint a day before the box. Not gated;
   read paired against each other only.
 - GPUs: 6 (2 A 007 seeds, 2 r81, 2 r87 B200).
+
+## 2026-11-16 06:02 EST: A 007 seed 3 test 0.469; r81 seed 2 gets the free H200 slot
+
+- A 007 seed 3 (H200, 29229546): 467 steps, kept step 467, dev 0.427, test ladder 0.469. Seeds 0-3: 0.456 / 0.439 /
+  0.453 / 0.469 (A 006 0.4123). Seed 4 runs on 29229547.
+- r81 workers 29292521/22 sat pending behind the 11-17 maintenance reservation (2-day limit); resubmitted at 04:05
+  with a 19 h limit as 29297581/29297587 (seeds 0 and 1, running since 04:27). Seed 2 now on a third preemptable
+  H200 worker (17.5 h limit). GPUs: 6.
