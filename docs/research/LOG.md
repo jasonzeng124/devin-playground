@@ -6544,3 +6544,17 @@ Same H200 (node3200), steps 50-300, medians:
   The same worker went on to seed 2.
 - Seed 1 (29229547) and r77 seed 1 (29218868) were both preempted on node4600 and are pending again.
   The requeued worker redoes the item and moves the partial seed to extra/interrupted_1_<n>, as RULES_v3 asks.
+
+## 2026-11-15 22:03 EST: r83 closes: Muon's lead shrinks at 112 min (-0.034 val loss, from -0.115 at 56 min)
+
+| arm (B200, seed 0, 112 min) | tokens | val loss |
+|---|---|---|
+| AdamW lr 1.5e-3 (control) | 4.11B | 2.776 |
+| Muon lr 4e-3 | 4.04B | 2.742 |
+
+- Muon still wins at twice the time, but by 0.034 instead of 0.115: most of its lead is faster early
+  progress. Muon at 56 min (2.805, r82) is still behind AdamW at 112 min (2.776).
+- B200 does ~4.1B tokens in 112 min against H200's 2.68B, so these runs are further along than any H200
+  pretraining. At the box checkpoints' budgets the lead should be at least r82's at 1.34B tokens (below
+  r82's 2.0B) and between the two readings at 2.68B. r86 on the 11-18 box tests it end to end.
+- B200 workers moved on to r84 (Muon checkpoints) at 21:52/21:57.
