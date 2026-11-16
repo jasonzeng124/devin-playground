@@ -1249,3 +1249,33 @@ def test_vllm_engine_args_are_checked_and_passed_to_the_engine(tmp_path, monkeyp
     assert "async_scheduling" not in seen  # off by default
     Rollout("m", 64, 0.3, 0, engine_args={"async_scheduling": True})
     assert seen["async_scheduling"] is True and seen["enable_prefix_caching"] is True
+
+
+def test_pg_skip_zeroes_the_policy_gradient_of_the_masked_tokens_only():
+    """Masking every token of row 0 (and one of row 2) gives the gradient of the same advantages with those set to 0."""
+    lengths = [7, 2, 5, 3, 7, 1]
+    generated, attention, prompt_width = _ragged_batch(2, lengths)
+    advantages = torch.tensor([1.0, -1.0, 0.5, -0.5, 0.3, -0.3])
+    base = _tiny_model().eval()
+    skip = torch.zeros(len(lengths), generated.shape[1] - prompt_width, dtype=torch.bool)
+    skip[0] = True
+    skip[2, 1] = True
+    grads = []
+    for adv, pg_skip in ((advantages, skip), (advantages * torch.tensor([0.0, 1, 1, 1, 1, 1]), None)):
+        model = copy.deepcopy(base)
+        config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, micro_batch_size=4, mask_answer_open=True)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+        grpo._update(
+            model, None, generated, attention, adv, prompt_width, 0, config, optimizer, torch.device("cpu"), grpo.SINGLE, None, None,
+            None, None, pg_skip,
+        )
+        grads.append([p.grad.clone() for p in model.parameters()])
+    assert not all(torch.allclose(a, b, atol=1e-7) for a, b in zip(*grads))  # row 2's masked token still differs
+    skip[2, 1] = False
+    model = copy.deepcopy(base)
+    grpo._update(
+        model, None, generated, attention, advantages, prompt_width, 0, config, torch.optim.SGD(model.parameters(), lr=0.0),
+        torch.device("cpu"), grpo.SINGLE, None, None, None, None, skip,
+    )
+    for plain, masked in zip(grads[1], [p.grad for p in model.parameters()]):
+        assert torch.allclose(plain, masked, atol=1e-6)

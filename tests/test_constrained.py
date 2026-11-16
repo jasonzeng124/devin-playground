@@ -157,3 +157,28 @@ def test_allowed_equals_testing_every_candidate(grammar_and_tokenizer):
                 break
             state = feed(state, grammar.strings[rng.choice(allowed)], ops)
     assert checked > 200
+
+
+def test_answer_open_mask_marks_the_tokens_that_spell_the_first_answer_open(grammar_and_tokenizer):
+    grammar, tokenizer = grammar_and_tokenizer
+    prompt = tokenizer.encode("Use 3 and 7.", add_special_tokens=False)
+    texts = ["I think 3 + 7 works.\n<answer>3 + 7</answer>", "3 + 7 = 10", "x<answer>3*7</answer> <answer>1</answer>"]
+    completions = [tokenizer.encode(t, add_special_tokens=False) for t in texts]
+    width = max(map(len, completions))
+    pad = tokenizer.eos_token_id
+    generated = torch.tensor([prompt + c + [pad] * (width - len(c)) for c in completions])
+    attention = torch.tensor([[1] * len(prompt) + [1] * len(c) + [0] * (width - len(c)) for c in completions])
+    mask = grpo.answer_open_mask(tokenizer, generated, attention, len(prompt))
+    assert mask.shape == (3, width)
+    assert not mask[1].any()  # no answer opened
+    for row, (text, ids) in enumerate(zip(texts, completions)):
+        if row == 1:
+            continue
+        at, ends = text.index(OPEN), []
+        for i in range(len(ids)):
+            ends.append(len(tokenizer.decode(ids[: i + 1])))
+        starts = [0] + ends[:-1]
+        expect = [s < at + len(OPEN) and e > at for s, e in zip(starts, ends)]
+        assert mask[row, : len(ids)].tolist() == expect
+        assert any(expect)
+    assert not mask[:, :].logical_and(attention[:, len(prompt) :] == 0).any()

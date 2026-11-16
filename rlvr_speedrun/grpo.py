@@ -24,7 +24,7 @@ from torch.utils.checkpoint import checkpoint
 from transformers import StaticCache
 
 from . import benchmark
-from .constrained import AnswerGrammar, mask_logits, open_token_ids, token_strings
+from .constrained import OPEN, AnswerGrammar, mask_logits, open_token_ids, token_strings
 from .countdown import LEVELS, level, safe_eval, split_prompt, verify
 from .data import load_puzzles, train_puzzle_stream
 from .distributed import SINGLE, Dist, destroy, init_from_env
@@ -170,6 +170,10 @@ class GRPOConfig:
     # step, so a step replays fewer rows while a pool is small. One process only
     sil_rows: int = 0
     sil_coef: float = 1.0
+    # leave the tokens that spell a completion's first "<answer>" out of the policy-gradient term (their advantage is
+    # set to 0; they still count in the token mean), so when to stop thinking and answer stays at the model's own
+    # prior instead of being pushed by the reward. Entropy bonus, KL and self-imitation rows are unchanged. Off = as before
+    mask_answer_open: bool = False
     sil_buffer: int = 4096
     sil_by_level: bool = True
     # hindsight relabelling. NOT ALLOWED in records, promotion screens or anything stacked into a ranked arm: the
@@ -719,6 +723,7 @@ def _update(
     sampler_lp: torch.Tensor | None = None,
     replayed: _ReplayBatch | None = None,
     lm: _LMBatch | None = None,
+    pg_skip: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
     """One optimizer step on this rank's rows; returns (loss, kl, entropy_sum, token_count) sums,
     with `sampler_lp` (the sampler's per-token log-probs, [rows, completion width]) the
@@ -729,6 +734,9 @@ def _update(
     step's loss, so a replayed row weighs like one of the batch's rows with advantage sil_coef (hindsight_coef
     when the rows are hindsight relabelling's, `_replay_rows`). The returned sums leave it out; its mean per
     token is written to `replayed.nll`.
+
+    `pg_skip` ([rows, completion width] bool, `answer_open_mask`) zeroes the advantage of those tokens in the
+    policy-gradient term only.
 
     `lm` (pretraining during RL) adds lm_coef * the windows' mean next-token cross-entropy, left out of the
     returned sums too; the mean is written to `lm.loss`.
@@ -766,6 +774,8 @@ def _update(
         policy_lp = token_lp[completion_mask]
         entropy_total += entropy[completion_mask].detach().sum()
         repeated_advantages = adv.unsqueeze(1).expand(-1, completion_mask.shape[1])[completion_mask]
+        if pg_skip is not None:
+            repeated_advantages = repeated_advantages * (~pg_skip[rows, : width - prompt_width])[completion_mask]
         if config.cov_clip_frac > 0 and policy_lp.numel() > 1:
             policy_lp = _cov_clip(policy_lp, repeated_advantages, config.cov_clip_frac)
         if sampler_lp is not None:
@@ -837,15 +847,43 @@ def _update(
 _GRAMMARS: dict = {}
 
 
-def _allowed_tokens(tokenizer, generated, attention, prompt_width, puzzles, think_budget: int = 0) -> list:
-    """Per row, per completion token: the ids the constrained sampler allowed there (None = free text)."""
+def _grammar(tokenizer) -> AnswerGrammar:
     key = tokenizer.name_or_path
     if key not in _GRAMMARS:
         _GRAMMARS[key] = AnswerGrammar(token_strings(tokenizer), open_token_ids(tokenizer))
-    grammar = _GRAMMARS[key]
+    return _GRAMMARS[key]
+
+
+def _allowed_tokens(tokenizer, generated, attention, prompt_width, puzzles, think_budget: int = 0) -> list:
+    """Per row, per completion token: the ids the constrained sampler allowed there (None = free text)."""
+    grammar = _grammar(tokenizer)
     valid = attention[:, prompt_width:].bool()
     completion = generated[:, prompt_width:]
     return [grammar.allowed_per_position(completion[r][valid[r]].tolist(), p.numbers, p.ops, think_budget) for r, p in enumerate(puzzles)]
+
+
+def answer_open_mask(tokenizer, generated, attention, prompt_width) -> torch.Tensor:
+    """[rows, completion width] bool: the completion tokens whose text overlaps the first OPEN ("<answer>") of their
+    row (`mask_answer_open`). Rows without OPEN are all False."""
+    grammar = _grammar(tokenizer)
+    valid = attention[:, prompt_width:].bool()
+    out = torch.zeros(valid.shape, dtype=torch.bool)
+    completion = generated[:, prompt_width:].tolist()
+    for r, cols in enumerate(valid.cpu().tolist()):
+        text, starts = "", []
+        for c, ok in enumerate(cols):
+            if not ok:
+                continue
+            starts.append((c, len(text)))
+            text += grammar.text(completion[r][c])
+            at = text.find(OPEN)
+            if at >= 0:
+                for col, start in reversed(starts):  # the tokens up to here that end after OPEN begins
+                    if start + len(grammar.text(completion[r][col])) <= at:
+                        break
+                    out[r, col] = True
+                break
+    return out.to(valid.device)
 
 
 def grpo_step(
@@ -899,9 +937,10 @@ def grpo_step(
 
     allowed = _allowed_tokens(tokenizer, generated, attention, prompt_width, expanded, config.think_budget) if config.constrain_answer else None
     replayed = _replay_batch(replay, tokenizer, config, device) if replay is not None else None
+    pg_skip = answer_open_mask(tokenizer, generated, attention, prompt_width) if config.mask_answer_open else None
     loss, kl, entropy_total, token_count, mismatch, grad_norm = _update(
         model, ref_model, generated, attention, advantages, prompt_width, prefix_len, config, optimizer, device, dist, allowed, sampler_lp,
-        replayed, lm,
+        replayed, lm, pg_skip,
     )
     for puzzle, tokens in solved_samples:  # after the update: a step never replays its own samples
         replay.add(puzzle, tokens)
