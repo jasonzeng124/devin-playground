@@ -6494,7 +6494,7 @@ Same H200 (node3200), steps 50-300, medians:
   Two `mit_normal_gpu` B200 workers, 29234617 and 29234618, run with RESERVE_MIN 75: an item is about 65 min, and the
   old 250 made r80's workers exit with 4 h left. r81 (Muon 56 min end to end, H200) stays queued for a preemptable slot.
 
-## 2026-11-15 20:10 EST: r82 closes (Muon lr 4e-3 best, -0.115 val loss against AdamW at 56 min); r78 (20k RL steps) +0.032 over r59; r83 queued
+## 2026-11-15 19:55 EST: r82 closes (Muon lr 4e-3 best, -0.115 val loss against AdamW at 56 min); r78 (20k RL steps) +0.032 over r59; r83 queued
 
 - r82, final val loss after 56 min alone on a B200 (seed 0, same data order; lower is better):
 
