@@ -1,0 +1,9 @@
+{
+ "gpu": "NVIDIA H200",
+ "pretrain_s": 3369.2290143966675,
+ "grpo_wall_s": 17538.333146095276,
+ "grpo_eval_s": 28.841777798719704,
+ "total_s": 20878.720382693224,
+ "budget_s": 21600,
+ "within_budget": true
+}

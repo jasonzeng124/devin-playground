@@ -1,0 +1,4 @@
+2026-11-16T19:11:32Z worker 29355425-1: warm start: 41 s on node4901 before records/v3/track_d/007_dm_math_sil64c05_batched_muon56 1
+2026-11-16T19:11:32Z worker 29355434-1: warm start: 41 s on node4901 before records/v3/track_d/007_dm_math_sil64c05_batched_muon56 0
+2026-11-16T19:14:11Z worker 29355445-1: warm start: 11 s on node4801 before records/v3/track_d/007_dm_math_sil64c05_batched_muon56 3
+2026-11-16T19:14:24Z worker 29355443-1: warm start: 25 s on node4602 before records/v3/track_d/007_dm_math_sil64c05_batched_muon56 2

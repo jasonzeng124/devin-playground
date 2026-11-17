@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-16 18:47 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-16 20:26 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **D 007 promotion (13:54 EST 11-16), built on self-imitation, so said here before its seeds start (INBOX 11-12).**
 Arm r81, `calibration/research_r81/d006_batched_muon56_rl17400`: D 006 (which already uses self-imitation, same limits)
@@ -22,7 +22,7 @@ A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
 **Jobs (13:54 EST 11-16).** All earlier workers have ended. A 007 is done. r81 seeds 0-2 are done (closed by
 promotion). r87 (B200, seed 0, not gated): muon1338m_s14180 final dev 0.240 against d004_ctl_s11441 0.263, one paired
-seed. Starting now: D 007 seeds 0-3 on four preemptable H200 workers.
+seed. D 007 seeds 0-3 done (20:26 EST): test 0.261 / 0.254 / 0.265 / 0.273, each about 720 s inside the budget.
 r88 (U18 answer-opening mask; B200, not gated): final dev 0.235 (seed 0) and 0.237 (seed 1); seed 0 is
 -0.028 against its control. r87's control seed 1 runs on B200 (29387381) until about 21:20 EST, for the seed 1 pair.
 **Next decisions:** D 007 seed by seed; seed 4 after the maintenance (11-17 21:00 EST); r88 seed 1 against r87's control seed 1
@@ -46,7 +46,7 @@ in their README. Hindsight relabelling stays out of records and promotion screen
 | A | `records/v3/track_a/004_ladder_constrained_h200` | 0.2671 ± 0.0565 | 0.255 | held before A 006 |
 | A | `records/v3/track_a/005_fp32_mal0_cos500_s400` | 0.3400 ± 0.0815 | 0.313 | valid, not a record (Welch vs A 004 p = 0.072) |
 | A | `records/v3/track_a/002_fp32_skip_cosine` | 0.2784 ± 0.0904 | | valid, short of A 004 (p = 0.41) |
-| D | `records/v3/track_d/007_dm_math_sil64c05_batched_muon56` | | | running (promoted from r81 on 11-16) |
+| D | `records/v3/track_d/007_dm_math_sil64c05_batched_muon56` | 0.2629 (seeds 0-3) | 0.250 (seeds 0-3) | running: seed 4 after the maintenance |
 | D | `records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05` | 0.2444 ± 0.0158 | 0.229 | **holder** (Welch vs D 005 p = 0.045; self-imitation) |
 | D | `records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6` | 0.2150 ± 0.0287 | 0.201 | held before D 006 (Welch vs D 004 p = 0.0034) |
 | D | `records/v3/track_d/004_dm_math_fp32_h200_warm` | 0.1552 ± 0.0217 | 0.159 | held before D 005 |

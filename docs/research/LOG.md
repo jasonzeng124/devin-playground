@@ -6642,3 +6642,17 @@ tokens does not help on the one complete pair; leaving when to answer at the mod
 than gain it. The verdict waits for the seed 1 pair. Seed 0's node (node5702-c1) ran about 25 min slower than seed 1's;
 both runs are step-capped at 11,441, so the scores compare.
 
+
+## 2026-11-16 20:26 EST: D 007 seeds 0-3 done, all within budget; test mean so far 0.263
+
+| seed | node | test ladder | final dev | pretrain_s | grpo_wall_s | total_s | within 21,600 s | warm start |
+|---|---|---|---|---|---|---|---|---|
+| 0 | node4901 | 0.2606 | 0.245 | 3370 | 17539 | 20880 | yes | 41 s |
+| 1 | node4901 | 0.2538 | 0.252 | 3370 | 17534 | 20879 | yes | 41 s |
+| 2 | node4602 | 0.2646 | 0.250 | 3369 | 17538 | 20879 | yes | 25 s |
+| 3 | node4801 | 0.2726 | 0.255 | 3369 | 17536 | 20875 | yes | 11 s |
+
+Four seeds: test mean 0.2629 (sd 0.0079), dev mean 0.250; D 006 holds at 0.2444, so +0.019 so far. Every seed
+ended about 720 s inside the budget: none had r81 seed 2's slow exit (QUESTIONS 11-16 13:54). Seed 4 runs after the
+maintenance (worker 29355448, pending). No GPU work fits before 00:00 on the freed H200s, so they stay idle until then.
+
