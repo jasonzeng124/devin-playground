@@ -627,3 +627,12 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     - Changes to the model itself (windowed attention, ReLU^2, untied head, value embeddings)
       need a sampler outside vLLM or a matching model class.
   - Anything that keeps the Llama weight layout can live in the training code alone.
+
+- 2026-11-17 15:02 EST (maintainer, via laptop), **why speed counts even without a score gain.** After the
+  note above, the maintainer: "more train time generally = more flexibility anyway" (also added
+  under U19 in `~/rlvr-ideas/IDEAS.md`). With the 11-15 line on ties ("if there is reason to
+  believe muon is better why not just leave it even if theres no statistical evidence"), the
+  laptop session reads it this way, and the reading is the laptop session's: a speed change whose
+  maths is unchanged does not have to win a paired screen to be kept, since the time it frees can
+  go to RL steps, pretraining, longer answers or a larger model later. Promotion to a record still
+  follows PLAN's rule.
