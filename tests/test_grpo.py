@@ -458,6 +458,31 @@ def test_share_group_prompt_gives_the_same_update_gradient(extra):
         assert torch.allclose(a, b, atol=1e-6)
 
 
+def test_update_part_timers_leave_the_gradient_and_log_each_part():
+    torch.manual_seed(3)
+    prompt_width, rows = 4, 6
+    generated = torch.randint(2, 40, (rows, prompt_width + 7))
+    attention = torch.ones_like(generated)
+    for row, length in enumerate([7, 1, 5, 3, 7, 2]):
+        attention[row, prompt_width + length :] = 0
+    advantages = torch.randn(rows)
+    base, grads, timed = _tiny_model().eval(), [], None
+    for parts in (None, {"_t": 0.0}):
+        model = copy.deepcopy(base)
+        config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=1.0, micro_batch_size=2, time_update_parts=parts is not None)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+        grpo._update(
+            model, None, generated, attention, advantages, prompt_width, 0, config, optimizer, torch.device("cpu"), grpo.SINGLE, parts=parts
+        )
+        grads.append([p.grad.clone() for p in model.parameters()])
+        timed = parts
+    for a, b in zip(*grads):
+        assert torch.equal(a, b)
+    assert timed["n_micro"] == 3
+    for name in ("setup", "micro_setup", "fwd_body", "fwd_head", "loss", "bwd", "sil", "lm", "clip", "opt"):
+        assert timed["t_part_" + name] >= 0.0
+
+
 @pytest.mark.parametrize("extra", [{"micro_batch_size": 3}, {"micro_batch_tokens": 30}])
 def test_skipping_zero_advantage_rows_gives_the_same_gradient(extra):
     torch.manual_seed(1)

@@ -54,6 +54,9 @@ class GRPOConfig:
     # the update runs each distinct prompt once (its KV cache indexed out to its group's rows) instead of once
     # per row; exact like the shared-prefix trick, fewer token positions per update (INBOX 11-17 14:59)
     share_group_prompt: bool = False
+    # synced wall-clock timers around the parts of the RL update, logged as t_part_* (INBOX 11-17 17:14); the
+    # synchronisations slow the step a little, so timing runs only
+    time_update_parts: bool = False
     adv_norm: str = "std"
     # multiplies the positive advantages (W-REINFORCE, Zhu et al. 2025): below 1 damps the push toward sampled
     # solutions, which narrows the policy, and keeps the push away from failures; 1 = unchanged
@@ -243,6 +246,7 @@ def _completion_logprobs(
     allowed=None,
     entropy_grad: bool = False,
     share_prompt: bool = False,
+    parts: dict | None = None,
 ):
     """Per-token log-probs (at the sampling temperature) and entropies of completion tokens.
 
@@ -255,6 +259,8 @@ def _completion_logprobs(
     every row: that prefix is run once and its KV cache broadcast to the batch, which
     is exact under causal attention and skips ~`(rows-1) * prefix_len` tokens of
     forward/backward compute.
+
+    `parts` (time_update_parts): forward times go to its t_part_fwd_body / _mask / _head (`_lap`).
 
     `share_prompt`: rows whose columns `[:prompt_width - 1]` (ids and mask) match, a GRPO group's, run
     those columns once; the cache is then indexed out to the rows (gradients sum back through the
@@ -302,6 +308,7 @@ def _completion_logprobs(
     else:
         hidden = model.base_model(input_ids=input_ids, attention_mask=attention_mask, position_ids=position_ids, use_cache=False).last_hidden_state
         hidden = hidden[:, start:-1]
+    _lap(parts, "fwd_body", input_ids.device)
     labels = input_ids[:, start + 1 :]
     completion_mask = attention_mask[:, start + 1 :].bool()
     # the vocabulary projection only for real completion tokens (not padding): with long,
@@ -313,6 +320,7 @@ def _completion_logprobs(
             pairs.extend((k + j, ids) for j, ids in enumerate(allowed[row][:n]) if ids is not None)
             k += n
         logits = mask_logits(logits, pairs)
+        _lap(parts, "fwd_mask", input_ids.device)
     log_z = torch.logsumexp(logits, dim=-1)
     lp = logits.gather(-1, labels[completion_mask].unsqueeze(-1)).squeeze(-1) - log_z
     if entropy_grad and torch.is_grad_enabled():  # for the entropy bonus; recomputed in the backward to keep memory flat
@@ -324,6 +332,7 @@ def _completion_logprobs(
     token_lp[completion_mask] = lp
     entropy = torch.zeros(labels.shape, dtype=ent.dtype, device=ent.device)
     entropy[completion_mask] = ent
+    _lap(parts, "fwd_head", input_ids.device)
     return token_lp, completion_mask, entropy
 
 
@@ -482,6 +491,16 @@ def _now(device: torch.device) -> float:
     if device.type == "cuda":
         torch.cuda.synchronize(device)
     return time.perf_counter()
+
+
+def _lap(parts: dict | None, name: str, device: torch.device) -> None:
+    """time_update_parts: adds the synced wall time since the previous lap (`parts["_t"]`) to parts["t_part_" + name]."""
+    if parts is None:
+        return
+    t = _now(device)
+    key = "t_part_" + name
+    parts[key] = parts.get(key, 0.0) + t - parts["_t"]
+    parts["_t"] = t
 
 
 def _is_vllm(engine) -> bool:
@@ -757,6 +776,7 @@ def _update(
     replayed: _ReplayBatch | None = None,
     lm: _LMBatch | None = None,
     pg_skip: torch.Tensor | None = None,
+    parts: dict | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
     """One optimizer step on this rank's rows; returns (loss, kl, entropy_sum, token_count) sums,
     with `sampler_lp` (the sampler's per-token log-probs, [rows, completion width]) the
@@ -770,6 +790,8 @@ def _update(
 
     `pg_skip` ([rows, completion width] bool, `answer_open_mask`) zeroes the advantage of those tokens in the
     policy-gradient term only.
+
+    `parts` (time_update_parts) collects the update's part times (`_lap`) and its micro-batch counts.
 
     `lm` (pretraining during RL) adds lm_coef * the windows' mean next-token cross-entropy, left out of the
     returned sums too; the mean is written to `lm.loss`.
@@ -791,6 +813,7 @@ def _update(
     bonus = config.entropy_coef > 0
     if bonus:  # the bonus is a mean over the updated rows' tokens
         bonus_tokens = dist.all_reduce_sum_(completion_valid[active].sum()).clamp_min(1)
+    _lap(parts, "setup", device)
     for sub in _micro_batches(completion_valid[active], prompt_width, config):
         rows = active[sub]
         width = prompt_width + int(completion_valid[rows].any(0).nonzero().max().item()) + 1 if completion_valid[rows].any() else prompt_width + 1
@@ -798,10 +821,13 @@ def _update(
         if config.grad_checkpoint:  # HF checkpoints only in train mode, and then drops the KV cache the prefix trick needs
             model.train()
         rows_allowed = None if allowed is None else [allowed[r] for r in rows.tolist()]
+        if parts is not None:
+            parts["n_micro"] = parts.get("n_micro", 0) + 1
+            _lap(parts, "micro_setup", device)
         with torch.autocast(device.type, dtype=torch.bfloat16, enabled=config.master_fp32):
             token_lp, completion_mask, entropy = _completion_logprobs(
                 model, ids, mask, prompt_width, config.temperature, 0 if config.grad_checkpoint else prefix_len, rows_allowed,
-                entropy_grad=bonus, share_prompt=config.share_group_prompt and not config.grad_checkpoint,
+                entropy_grad=bonus, share_prompt=config.share_group_prompt and not config.grad_checkpoint, parts=parts,
             )
         model.eval()
         policy_lp = token_lp[completion_mask]
@@ -830,7 +856,9 @@ def _update(
             kl_tokens = torch.exp(ref_lp - policy_lp) - (ref_lp - policy_lp) - 1
             kl = kl_tokens.sum() / token_count
             loss = policy_loss + config.kl_coef * kl
+        _lap(parts, "loss", device)
         loss.backward()
+        _lap(parts, "bwd", device)
         loss_total += loss.detach()
         kl_total += kl.detach()
     if config.skip_zero_advantage:
@@ -856,7 +884,10 @@ def _update(
             nll = -token_lp[completion_mask].sum()
             (_replay_rows(config)[1] * nll / token_count).backward()
             nll_total += nll.detach()
+            if parts is not None:
+                parts["n_micro_sil"] = parts.get("n_micro_sil", 0) + 1
         replayed.nll = (nll_total / replay_valid.sum().clamp_min(1)).item()
+    _lap(parts, "sil", device)
     if lm is not None:
         per_micro = max(1, config.micro_batch_tokens // lm.ids.shape[1] if config.micro_batch_tokens > 0 else config.micro_batch_size)
         lm_tokens = lm.ids[:, 1:].numel()
@@ -873,9 +904,12 @@ def _update(
             (config.lm_coef * ce / lm_tokens).backward()
             ce_total += ce.detach()
         lm.loss = (ce_total / lm_tokens).item()
+    _lap(parts, "lm", device)
     dist.all_reduce_grads_(model.parameters())
     grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip) if config.grad_clip > 0 else None
+    _lap(parts, "clip", device)
     optimizer.step()
+    _lap(parts, "opt", device)
     return loss_total, kl_total, entropy_total, token_count, mismatch, grad_norm
 
 
@@ -943,6 +977,7 @@ def grpo_step(
         model, tokenizer, puzzles, config, device, caches
     )
     t_sample = _now(device) - t0
+    parts = {"_t": t0 + t_sample} if config.time_update_parts else None
     hindsight, n_sampled = config.hindsight_rows > 0, len(completions)
     store = []  # (row, the puzzle it is stored with), over all sampled rows (kept group or not)
     if replay is not None and hindsight:  # every sample that misses by its value alone, with its relabelled puzzle
@@ -970,15 +1005,19 @@ def grpo_step(
     groups = rewards.reshape(kept.shape[0], config.group_size)
     advantages = group_advantages(groups, config.adv_norm, config.pos_adv_scale).reshape(-1)
 
+    _lap(parts, "select", device)  # sampling's end to here: stored samples, group selection, advantages
     allowed = _allowed_tokens(tokenizer, generated, attention, prompt_width, expanded, config.think_budget) if config.constrain_answer else None
+    _lap(parts, "allowed", device)
     replayed = _replay_batch(replay, tokenizer, config, device) if replay is not None else None
     pg_skip = answer_open_mask(tokenizer, generated, attention, prompt_width) if config.mask_answer_open else None
+    _lap(parts, "replay_batch", device)
     loss, kl, entropy_total, token_count, mismatch, grad_norm = _update(
         model, ref_model, generated, attention, advantages, prompt_width, prefix_len, config, optimizer, device, dist, allowed, sampler_lp,
-        replayed, lm, pg_skip,
+        replayed, lm, pg_skip, parts,
     )
     for puzzle, tokens in solved_samples:  # after the update: a step never replays its own samples
         replay.add(puzzle, tokens)
+    _lap(parts, "post", device)
     t_update = _now(device) - t0 - t_sample
     # global batch statistics: sums over ranks of [reward, solved, malformed, samples, informative, kept, entropy, kl, loss]
     stats = dist.all_reduce_sum_(
@@ -1015,6 +1054,9 @@ def grpo_step(
     }
     if config.process_reward:
         info["process_credit"] = sum(process_credit(t, p) for t, p in zip(completions, expanded)) / len(completions)
+    if parts is not None:
+        parts.pop("_t")
+        info.update(parts)
     if grad_norm is not None:
         info["grad_norm"] = grad_norm.item()  # before clipping; the same on every rank (grads are all-reduced)
     if mismatch is not None:

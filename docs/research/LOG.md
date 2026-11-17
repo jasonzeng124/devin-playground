@@ -6843,3 +6843,41 @@ r94 (B200, worker 29462557, queue `screens_b200`): `{start,final}_{ctl_mbt65k, s
 300-step timing. It separates the micro-batch size from the sharing and checks 65,536 tokens, which should fit an H200.
 
 GPUs: 6 counting pending (r90 H200, D 007 seed 4, three r92 H200, one B200 for r94).
+
+## 2026-11-17 17:36 EST: r94 (micro-batch size vs shared prompt): both together give the gain; 65,536 tokens shared fits the H200; r95 times the update's parts
+
+r94 (B200 worker 29462557, 300 steps each, no_save; means over steps 51-300; memory is the whole-process peak, vLLM's
+0.35 share included) with r93's 32,768-token rows for reference:
+
+| from | arm | t_update s | wall/step s | peak GB |
+|---|---|---|---|---|
+| D 007 seed 0 start | ctl, 32,768 tokens (r93) | 0.566 | 1.520 | 95.7 |
+| | share, 32,768 (r93) | 0.569 | | 94.1 |
+| | ctl, 65,536 | 0.524 | | 127.8 |
+| | share, 65,536 | 0.484 | | 121.7 |
+| | ctl, 131,072 | 0.553 | | 174.1 |
+| | share, 131,072 (r93) | 0.378 | 1.241 | 168.9 |
+| D 007 seed 0 final | ctl, 32,768 (r93) | 0.390 | 1.295 | 83.5 |
+| | share, 32,768 (r93) | 0.389 | | 76.8 |
+| | ctl, 65,536 | 0.358 | | 102.3 |
+| | share, 65,536 | 0.318 | 1.106 | 85.6 |
+| | ctl, 131,072 | 0.337 | | 112.4 |
+| | share, 131,072 (r93) | 0.267 | 1.026 | 89.0 |
+
+Step 1 losses are the same in every arm (-0.2848 start, -0.0004 final); rewards in line. Larger micro-batches alone
+save little (-7 % at 65,536, -2 % to -14 % at 131,072); the shared prompt alone nothing; together -14 % / -18 % at
+65,536 and -33 % at 131,072. Rows are length-sorted and packed, so a group's rows only share a micro-batch (and so its
+prompt) when micro-batches are large. H200 fit: at the start of RL 131,072 peaks at about 169 GB on the B200, i.e.
+about 106 GB of training memory plus vLLM's 49 GB on an H200 = 155 GB > 141 GB, which does not fit; shared 65,536 is
+about 59 + 49 = 108 GB, which does. `share_group_prompt` with `micro_batch_tokens` 65,536 is the speed setting for new
+D arms (same maths, INBOX 15:02); the records keep their configs.
+
+INBOX 17:14 (dbd2333): the update is not bound by token positions, so time its parts first. New `time_update_parts`
+(off by default): synced timers logged as `t_part_*`: group selection, `_allowed_tokens`, the replay batch, the
+forward's body / allowed-token mask / head, the loss, the backward, self-imitation, the clip and the optimizer step,
+plus micro-batch counts; a test checks the gradient is unchanged. r95 (B200 worker 29468588, queue `screens_b200`,
+150 steps each): ctl and shared-65,536 from D 007 seed 0's start and final weights, to find the largest part before
+fixing it.
+
+INBOX 17:23 (403f9af): the 6-GPU cap counts running GPUs only (2 on mit_normal_gpu, 4 on mit_preemptable); pending
+jobs do not count. My H200 jobs (D 007 seed 4, r92 seeds 0-2, r90) are still pending; B200 jobs start in minutes.
