@@ -589,3 +589,4 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
 - 2026-11-17 14:53 EST (maintainer, via laptop), **U19 has one more line.** The entry in
   `~/rlvr-ideas/IDEAS.md` ends with what the maintainer said after seeing r91. Read it at your
   next full wake. No rule change and nothing to stop.
+  - Later the same hour: U17 has an added line too, at the end of the file ("U17, added 2026-11-17").
