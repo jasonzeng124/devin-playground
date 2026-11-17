@@ -6685,3 +6685,29 @@ fuse the upcast into the loss. r89, pretraining only, 56 min, seed 0, B200, agai
 tok/s, val 2.805): `pt56_muon_lr4e-3_fused` (micro-batch 32, as r82) and `pt56_muon_lr4e-3_fused_mb64` (micro-batch
 64; the batch stays 524,288 tokens). Read by tok/s and final val loss. A clear gain in tokens per minute goes end to
 end like r81.
+
+## 2026-11-17 12:51 EST: r89 runs at +12 % and +16 % tokens per second; r90, short speed benchmarks on one H200 (INBOX 11-17 12:25)
+
+INBOX 11-17 12:25 (maintainer): a change that only affects speed is ranked by a few hundred steps after the compile
+warm-up (tokens per second), with the loss at matching steps against the old path as the check; long runs are for
+changes to the maths.
+
+r89 at about 19 min (B200), against r82's `pt56_muon_lr4e-3` at the same steps:
+
+| step | r82 train / val | r89 fused mb32 train / val | r89 fused mb64 train / val |
+|---|---|---|---|
+| 500 | 2.553 / 3.445 | 2.552 / 3.450 | 2.803 / 3.440 |
+| 1000 | 2.783 / 3.203 | 2.786 / 3.206 | 2.644 / 3.180 |
+| 1500 | 2.351 / 3.076 | 2.360 / 3.084 | 2.453 / 3.085 |
+
+Cumulative tokens per second (compile included): 602k (r82), 677k (fused, micro-batch 32), 696k (fused, micro-batch
+64). The val losses agree within the 20-batch noise (micro-batch 64 draws different rows, so its train losses differ
+batch by batch). Both arms run to 56 min for the val readout; the learning rate decays by wall time, so the faster arms
+sit at a higher lr at the same step.
+
+r90 ranks speed-only variants on one preemptable H200 (worker 29445218, queue `bench_h200`), 300 optimizer steps each
+(157M tokens, the lr schedule by step), read as tokens per second between step 50 and the last step: the default path
+at micro-batch 32 (reference), `--fused-loss` at micro-batch 32, 64 and 128, `--prefetch 4` at 64 and 128, and
+`--compile-mode max-autotune-no-cudagraphs` at 64. Two new options, off by default: `--prefetch N` gathers the next N
+training micro-batches into pinned memory on a thread (same draws from the rng; after a val eval the draws are offset),
+and `--compile-mode` passes a mode to `torch.compile`.

@@ -18,7 +18,8 @@ import json
 import math
 import os
 import time
-from concurrent.futures import ProcessPoolExecutor
+from collections import deque
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -83,14 +84,15 @@ def train(args) -> None:
     else:
         opts = [torch.optim.AdamW([{"params": decay, "weight_decay": 0.1}, {"params": no_decay, "weight_decay": 0.0}],
                                   lr=args.lr, betas=(0.9, 0.95), fused=True)]
-    compiled = torch.compile(model)
+    ckw = {"mode": args.compile_mode} if args.compile_mode else {}
+    compiled = torch.compile(model, **ckw)
 
     def _fused(x, y):  # only with --fused-loss: Inductor fuses the fp32 upcast into the loss
         with torch.autocast("cuda", dtype=torch.bfloat16):
             logits = model(input_ids=x, use_cache=False).logits
         return F.cross_entropy(logits.float().view(-1, logits.size(-1)), y.reshape(-1))
 
-    fused_loss = torch.compile(_fused) if args.fused_loss else None
+    fused_loss = torch.compile(_fused, **ckw) if args.fused_loss else None
     seq, micro = args.seq_len, args.micro_batch
     accum = max(1, args.batch_tokens // (seq * micro))
     total_steps = args.max_tokens // (seq * micro * accum)
@@ -99,6 +101,21 @@ def train(args) -> None:
     def batch(source):
         idx = rng.integers(0, len(source) - seq - 1, micro)
         x = torch.from_numpy(np.stack([source[i : i + seq + 1].astype(np.int64) for i in idx])).cuda(non_blocking=True)
+        return x[:, :-1], x[:, 1:]
+
+    # --prefetch: the same draws in the same order from rng, gathered and pinned on a thread ahead of use. Val
+    # batches still draw from rng when they run, so after the first val eval the training draws are offset.
+    pool, ahead = (ThreadPoolExecutor(max_workers=2), deque()) if args.prefetch else (None, None)
+
+    def _gather(idx):
+        return torch.from_numpy(np.stack([data[i : i + seq + 1].astype(np.int64) for i in idx])).pin_memory()
+
+    def train_batch():
+        if pool is None:
+            return batch(data)
+        while len(ahead) <= args.prefetch:
+            ahead.append(pool.submit(_gather, rng.integers(0, len(data) - seq - 1, micro)))
+        x = ahead.popleft().result().cuda(non_blocking=True)
         return x[:, :-1], x[:, 1:]
 
     def lr_at(step, frac_time):
@@ -136,7 +153,7 @@ def train(args) -> None:
             for group in opt.param_groups:
                 group["lr"] = lr_at(step, elapsed / budget)
         for _ in range(accum):
-            x, y = batch(data)
+            x, y = train_batch()
             if fused_loss is not None:
                 loss = fused_loss(x, y) / accum
             else:
@@ -190,6 +207,9 @@ def main() -> None:
     r.add_argument("--optimizer", choices=("adamw", "muon"), default="adamw")
     r.add_argument("--fused-loss", action="store_true",
                    help="compile the forward and the cross-entropy as one graph (no fp32 logits outside it); off by default")
+    r.add_argument("--compile-mode", default=None, help="torch.compile mode (e.g. max-autotune-no-cudagraphs); default: torch's default")
+    r.add_argument("--prefetch", type=int, default=0,
+                   help="gather this many training micro-batches ahead into pinned memory on a thread (0, the default: none)")
     args = parser.parse_args()
     tokenize(args) if args.cmd == "tokenize" else train(args)
 
