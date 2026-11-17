@@ -511,22 +511,34 @@ def _wants_sampler_logprobs(config: GRPOConfig) -> bool:
     return config.log_mismatch or config.tis_cap > 0
 
 
-def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.device, caches: StaticCachePool | None = None):
+def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.device, caches: StaticCachePool | None = None,
+                  parts: dict | None = None):
+    """`parts` (time_update_parts): sampling's part times go to t_part_s_* (`_lap`), and the constrained vLLM
+    processor's CPU time to t_part_s_mask_cpu (inside t_part_s_generate, not added to the sum)."""
     encoded, prefix_len = _encode_prompts(tokenizer, puzzles, config, device)
+    _lap(parts, "s_encode", device)
     sampler_lp = None  # per completion token, the sampler's log-prob (with log_mismatch / tis_cap)
     if _is_vllm(caches):
+        if parts is not None:
+            from . import vllm_constrained
+
+            vllm_constrained.APPLY_TIME = 0.0  # a float turns the processor's timer on
         sampled = caches.generate(encoded, config.group_size, config.temperature, config.max_new_tokens, tokenizer.pad_token_id,
                                   puzzles=puzzles if config.constrain_answer else None, think_budget=config.think_budget,
                                   return_logprobs=_wants_sampler_logprobs(config))
         generated, finished_at = sampled[:2]
         if _wants_sampler_logprobs(config):
             sampler_lp = sampled[2]
+        if parts is not None:
+            parts["t_part_s_mask_cpu"], vllm_constrained.APPLY_TIME = vllm_constrained.APPLY_TIME, None
     else:
         assert not _wants_sampler_logprobs(config), "log_mismatch and tis_cap need rollout_backend='vllm'"
         assert not config.constrain_answer, "constrain_answer needs rollout_backend='vllm'"
         generated, finished_at = _generate_chunked(model, tokenizer, encoded, config, caches)
+    _lap(parts, "s_generate", device)
     prompt_width = encoded["input_ids"].shape[1]
     completions = tokenizer.batch_decode(generated[:, prompt_width:], skip_special_tokens=True)
+    _lap(parts, "s_decode", device)
     expanded = [puzzle for puzzle in puzzles for _ in range(config.group_size)]
     results = [verify(text, puzzle) for text, puzzle in zip(completions, expanded)]
     if config.malformed_reward is None:
@@ -568,6 +580,7 @@ def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.d
     attention = torch.cat([prompt_attention, completion_attention], dim=1)
     malformed = torch.tensor([r.malformed for r in results], dtype=torch.bool, device=device)
     correct = torch.tensor([r.correct for r in results], dtype=torch.bool, device=device)  # the verifier's verdict per sample
+    _lap(parts, "s_reward", device)
     return generated, attention, completions, expanded, rewards, prompt_width, prefix_len, malformed, sampler_lp, correct
 
 
@@ -973,11 +986,11 @@ def grpo_step(
     the step also replays rows drawn from it, then adds this step's verifier-correct samples to it. With
     `config.hindsight_rows` (unranked screens only) it adds the samples `hindsight_puzzle` relabels instead."""
     t0 = _now(device)
+    parts = {"_t": t0} if config.time_update_parts else None
     generated, attention, completions, expanded, rewards, prompt_width, prefix_len, malformed, sampler_lp, correct = _sample_batch(
-        model, tokenizer, puzzles, config, device, caches
+        model, tokenizer, puzzles, config, device, caches, parts
     )
     t_sample = _now(device) - t0
-    parts = {"_t": t0 + t_sample} if config.time_update_parts else None
     hindsight, n_sampled = config.hindsight_rows > 0, len(completions)
     store = []  # (row, the puzzle it is stored with), over all sampled rows (kept group or not)
     if replay is not None and hindsight:  # every sample that misses by its value alone, with its relabelled puzzle

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import time
+
 from transformers import AutoTokenizer
 from vllm.v1.sample.logits_processor import AdapterLogitsProcessor
 
 from .constrained import AnswerGrammar, RequestConstraint, mask_rows_cached, open_token_ids, token_strings
+
+APPLY_TIME: float | None = None  # a float (set by grpo with time_update_parts): the batched processor's CPU seconds add up here
 
 
 class AnswerLogitsProcessor(AdapterLogitsProcessor):
@@ -32,5 +36,10 @@ class BatchedAnswerLogitsProcessor(AnswerLogitsProcessor):
     `apply` runs each request's processor on its own row, a few kernels per request per decoded token."""
 
     def apply(self, logits):
+        global APPLY_TIME
+        start = time.perf_counter() if APPLY_TIME is not None else None
         rows = [(row, lp.func.allowed_ids(*lp.args)) for row, lp in self.req_info.items()]
-        return mask_rows_cached(logits, rows, self.index_cache)
+        out = mask_rows_cached(logits, rows, self.index_cache)
+        if start is not None:
+            APPLY_TIME += time.perf_counter() - start
+        return out

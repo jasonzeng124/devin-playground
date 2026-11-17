@@ -6881,3 +6881,25 @@ fixing it.
 
 INBOX 17:23 (403f9af): the 6-GPU cap counts running GPUs only (2 on mit_normal_gpu, 4 on mit_preemptable); pending
 jobs do not count. My H200 jobs (D 007 seed 4, r92 seeds 0-2, r90) are still pending; B200 jobs start in minutes.
+
+## 2026-11-17 18:12 EST: r95 (parts of the RL update, B200): the update is GPU-bound; sampling is half the step; r96 times sampling
+
+r95 (B200 worker 29468588, queue `screens_b200`, 150 steps each, D 007 seed 0's start and final weights,
+`time_update_parts`). Means over steps 51-150, seconds per step; the parts add up to `t_update`.
+
+| arm | wall | sample | update | fwd body | bwd | SIL replay | allowed | fwd mask | replay batch | fwd head | clip+opt | micro-batches |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| start_ctl | 1.273 | 0.629 | 0.519 | 0.136 | 0.206 | 0.058 | 0.065 | 0.024 | 0.012 | 0.007 | 0.003 | 4.00 |
+| start_share_mbt65k | 1.192 | 0.646 | 0.431 | 0.108 | 0.158 | 0.055 | 0.067 | 0.017 | 0.010 | 0.006 | 0.003 | 2.55 |
+| final_ctl | 0.952 | 0.488 | 0.342 | 0.077 | 0.117 | 0.056 | 0.054 | 0.012 | 0.013 | 0.004 | 0.003 | 2.43 |
+| final_share_mbt65k | 0.850 | 0.464 | 0.260 | 0.050 | 0.071 | 0.055 | 0.050 | 0.011 | 0.012 | 0.004 | 0.003 | 1.50 |
+
+Reading (INBOX 11-17 17:14 suspects): the head and log-softmax over the vocabulary (0.004-0.007 s) and the optimizer
+(0.003 s) are negligible. The Python grammar work (`_allowed_tokens` 0.05-0.07 s, plus the mask and the replay batch)
+is 0.07-0.10 s, 7-8 % of the step: real but not the largest. The forward and backward body is the largest part of the
+update, and it already shrinks with the shared prompt and larger micro-batches. The self-imitation replay costs about one
+micro-batch (0.055 s). The largest part of the whole step is sampling (vLLM): 0.46-0.65 s, 50-55 %.
+So the next timing splits sampling: r96 (B200, queue `screens_b200`) reruns r95's two shared-prompt arms with new
+sampling laps under the same flag (encode, vLLM generate, decode, verify and rewards; plus the constrained logits
+processor's CPU time inside generate, `t_part_s_mask_cpu`). The fix then goes to whichever is largest: the processor's
+per-token grammar work, or the sampler itself (U17).
