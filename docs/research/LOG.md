@@ -6656,3 +6656,17 @@ Four seeds: test mean 0.2629 (sd 0.0079), dev mean 0.250; D 006 holds at 0.2444,
 ended about 720 s inside the budget: none had r81 seed 2's slow exit (QUESTIONS 11-16 13:54). Seed 4 runs after the
 maintenance (worker 29355448, pending). No GPU work fits before 00:00 on the freed H200s, so they stay idle until then.
 
+
+## 2026-11-16 21:26 EST: r88 (answer-opening mask) read: no effect on two paired seeds; U18 parked
+
+| seed | r87 control `d004_ctl_s11441` | r88 `d004_maskopen_s11441` | r88 - control |
+|---|---|---|---|
+| 0 | 0.263 | 0.235 | -0.028 |
+| 1 | 0.217 | 0.237 | +0.020 |
+| mean | 0.240 | 0.236 | -0.004 |
+
+Final dev, B200, step-capped at 11,441, not gated. Control seed 1 (worker 29387381, node5600-c1): best in-loop dev
+0.227, final entropy 0.070. The two pairs point in opposite directions and the control's two seeds differ by 0.047,
+so the mask shows no effect larger than seed noise. U18 is parked: no further GPU time on it unless another result
+points back to when the model answers.
+
