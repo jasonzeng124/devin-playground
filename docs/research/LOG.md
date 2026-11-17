@@ -6741,3 +6741,36 @@ r91 is r90's seven benchmarks on B200 (`screens_b200`), since the H200 worker fo
 | `bench_fused_mb32` | 701k (+14 %) | 4.311 / 3.510 / 3.279 | 3.769 |
 
 The two r89 workers exited after these (under 300 min left); worker 29448582 (B200, 1.5 h) runs the other five.
+
+## 2026-11-17 14:07 EST: r91 (speed benchmarks, B200): fused loss at micro-batch 128 is +21 %; r92 spends it as RL time (H200, end to end)
+
+r91, 300 optimizer steps each (B200, seed 0), tokens per second between step 50 and step 300, and the losses at
+matching steps as the check that only the speed changed:
+
+| arm | tok/s | vs default | step 50 at | train at 100 / 200 / 300 | val at 300 |
+|---|---|---|---|---|---|
+| `bench_base_mb32` (default path) | 615k | | 69 s | 4.296 / 3.516 / 3.278 | 3.767 |
+| `bench_fused_mb32` | 701k | +14.1 % | 58 s | 4.311 / 3.510 / 3.279 | 3.769 |
+| `bench_fused_mb64` | 730k | +18.8 % | 56 s | 4.311 / 3.461 / 3.245 | 3.765 |
+| `bench_fused_mb128` | 746k | +21.3 % | 55 s | 4.304 / 3.507 / 3.142 | 3.764 |
+| `bench_fused_mb64_pf4` | 730k | +18.8 % | 44 s | 4.308 / 3.459 / 3.245 | 3.766 |
+| `bench_fused_mb128_pf4` | 748k | +21.7 % | 43 s | 4.307 / 3.510 / 3.140 | 3.755 |
+| `bench_fused_mb64_autotune` | 742k | +20.6 % | 207 s | 4.313 / 3.457 / 3.245 | 3.766 |
+
+(Train losses at one step are one micro-batch, so they match only between arms with the same micro-batch, and do.)
+In plain words: the fused loss gives most of the gain, a bigger micro-batch adds a little (the batch stays 524,288
+tokens), prefetching adds nothing to the steady rate (only the first steps are quicker), and max-autotune adds 1.6 %
+for 2.5 min more compiling. Fastest simple path: `--fused-loss --micro-batch 128`. r90 (the same on H200) is still
+waiting for a preemptable slot; it will say whether the gain holds on the record GPU (track D pretraining runs at about
+380k tok/s there).
+
+r92 (U19 step 3) spends the speed as RL time, the way r81 spent Muon's: `calibration/research_r92/d007_fused128_pt46_rl18000`
+is r81 / D 007 with `--fused-loss --micro-batch 128`, pretraining 46 min instead of 56 (about the tokens 56 min gave on
+the old path) and RL 18,000 s instead of 17,400; the same 20,760 s total. Seeds 0-2 on H200 (queue `screens_r92`,
+preemptable workers 29450693 / 29450694 / 29450702, 12 h limit), read paired against r81's seeds 0-2 (dev 0.262 /
+0.268 / 0.275). Its pretraining log also gives the H200 tokens at 46 min against D 007's (1.288B at 56 min). If the H200
+gain proves much smaller than on B200, 46 min gives fewer tokens than D 007 and the arm is read with that in mind.
+`calibration/research_r92/pt46_muon_fused_mb128` (B200 worker 29450704, pretraining only, seed 0) checks the premise:
+46 min on the fast path against r82's 56 min (val 2.805).
+
+GPUs: 6 counting pending (r90 H200, D 007 seed 4, three r92 H200, one B200).
