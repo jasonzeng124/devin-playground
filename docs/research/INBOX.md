@@ -585,3 +585,7 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     mid-training checkpoint as well as from the start, since answer lengths change.
   - Both r89 arms are speed-only (the micro-batch changes, the batch stays 524,288 tokens).
     Whether to let them run the full 56 minutes or cut them short is your call.
+
+- 2026-11-17 14:53 EST (maintainer, via laptop), **U19 has one more line.** The entry in
+  `~/rlvr-ideas/IDEAS.md` ends with what the maintainer said after seeing r91. Read it at your
+  next full wake. No rule change and nothing to stop.
