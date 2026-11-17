@@ -361,6 +361,49 @@ def test_prefix_cache_logprobs_match_full_forward():
     assert torch.allclose(grad_full, grad_pref, atol=1e-5)
 
 
+@pytest.mark.parametrize("arch", ["gpt2", "llama"])
+@pytest.mark.parametrize("prefix_len", [0, 4])
+def test_share_prompt_matches_per_row_logprobs_and_grads(arch, prefix_len):
+    torch.manual_seed(5)
+    if arch == "gpt2":
+        model = _tiny_model().eval()
+    else:
+        from transformers import LlamaConfig, LlamaForCausalLM
+
+        model = LlamaForCausalLM(
+            LlamaConfig(vocab_size=40, hidden_size=16, intermediate_size=32, num_hidden_layers=2, num_attention_heads=2,
+                        num_key_value_heads=2, max_position_embeddings=64, pad_token_id=0, eos_token_id=1)
+        ).eval()
+    width, prompt_width = 18, 10
+    prompts = torch.randint(2, 40, (3, prompt_width))
+    prompts[:, :prefix_len] = prompts[0, :prefix_len]
+    pmask = torch.ones_like(prompts)
+    pmask[1, prefix_len : prefix_len + 2] = 0  # middle padding, as `_encode_prompts` lays prompts out
+    prompts[pmask == 0] = 0
+    rows = torch.tensor([0, 0, 0, 2, 1, 1, 2, 1])  # groups need not be contiguous (dropped rows, reordering)
+    ids = torch.cat([prompts[rows], torch.randint(2, 40, (rows.numel(), width - prompt_width))], 1)
+    mask = torch.cat([pmask[rows], torch.ones(rows.numel(), width - prompt_width, dtype=torch.long)], 1)
+    mask[2, -3:] = 0  # right-padded completions
+    mask[5, -5:] = 0
+    ids[mask == 0] = 0
+
+    def score(share):
+        model.zero_grad(set_to_none=True)
+        lp, cm, ent = grpo._completion_logprobs(model, ids, mask, prompt_width, 0.7, prefix_len, share_prompt=share)
+        (lp * cm).sum().backward()
+        grads = [p.grad.clone() for p in model.parameters() if p.grad is not None]
+        return lp.detach(), cm, ent, grads
+
+    lp_row, cm_row, ent_row, g_row = score(False)
+    lp_sh, cm_sh, ent_sh, g_sh = score(True)
+    assert torch.equal(cm_row, cm_sh)
+    assert torch.allclose(lp_row[cm_row], lp_sh[cm_sh], atol=1e-5)
+    assert torch.allclose(ent_row[cm_row], ent_sh[cm_sh], atol=1e-5)
+    assert len(g_row) == len(g_sh)
+    for a, b in zip(g_row, g_sh):
+        assert torch.allclose(a, b, atol=1e-5)
+
+
 def test_grpo_step_with_prefix_cache_path():
     torch.manual_seed(4)
     model = GPT2LMHeadModel(
@@ -388,6 +431,28 @@ def test_length_sorted_token_micro_batches_give_the_same_gradient():
         config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, **extra)
         optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
         grpo._update(model, None, generated, attention, advantages, prompt_width, 0, config, optimizer, torch.device("cpu"), grpo.SINGLE)
+        grads.append([p.grad.clone() for p in model.parameters()])
+    for a, b in zip(*grads):
+        assert torch.allclose(a, b, atol=1e-6)
+
+
+@pytest.mark.parametrize("extra", [{"micro_batch_size": 3}, {"micro_batch_tokens": 30}])
+def test_share_group_prompt_gives_the_same_update_gradient(extra):
+    torch.manual_seed(2)
+    prompt_width, group = 5, 4
+    prompts = torch.randint(2, 40, (2, prompt_width)).repeat_interleave(group, 0)
+    prompts[:, :2] = prompts[0, :2]  # the batch-wide prefix
+    generated = torch.cat([prompts, torch.randint(2, 40, (2 * group, 9))], 1)
+    attention = torch.ones_like(generated)
+    for row, length in enumerate([9, 1, 5, 3, 9, 2, 6, 4]):
+        attention[row, prompt_width + length :] = 0
+    advantages = torch.tensor([0.0, 1.0, -0.5, -0.5, 0.3, 0.0, -0.3, 0.0])
+    base, grads = _tiny_model().eval(), []
+    for share in (False, True):
+        model = copy.deepcopy(base)
+        config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, skip_zero_advantage=True, share_group_prompt=share, **extra)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+        grpo._update(model, None, generated, attention, advantages, prompt_width, 2, config, optimizer, torch.device("cpu"), grpo.SINGLE)
         grads.append([p.grad.clone() for p in model.parameters()])
     for a, b in zip(*grads):
         assert torch.allclose(a, b, atol=1e-6)

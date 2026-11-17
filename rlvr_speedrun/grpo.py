@@ -51,6 +51,9 @@ class GRPOConfig:
     vllm_engine_args: str = ""
     # constrain_answer's vLLM mask applied to the whole batch in one go instead of request by request (same mask; PLAN D7)
     constrain_batched: bool = False
+    # the update runs each distinct prompt once (its KV cache indexed out to its group's rows) instead of once
+    # per row; exact like the shared-prefix trick, fewer token positions per update (INBOX 11-17 14:59)
+    share_group_prompt: bool = False
     adv_norm: str = "std"
     # multiplies the positive advantages (W-REINFORCE, Zhu et al. 2025): below 1 damps the push toward sampled
     # solutions, which narrows the policy, and keeps the push away from failures; 1 = unchanged
@@ -239,6 +242,7 @@ def _completion_logprobs(
     prefix_len: int = 0,
     allowed=None,
     entropy_grad: bool = False,
+    share_prompt: bool = False,
 ):
     """Per-token log-probs (at the sampling temperature) and entropies of completion tokens.
 
@@ -251,10 +255,39 @@ def _completion_logprobs(
     every row: that prefix is run once and its KV cache broadcast to the batch, which
     is exact under causal attention and skips ~`(rows-1) * prefix_len` tokens of
     forward/backward compute.
+
+    `share_prompt`: rows whose columns `[:prompt_width - 1]` (ids and mask) match, a GRPO group's, run
+    those columns once; the cache is then indexed out to the rows (gradients sum back through the
+    index), exact for the same reason as the prefix.
     """
     start = max(0, prompt_width - 1)
     position_ids = (attention_mask.long().cumsum(-1) - 1).clamp_min(0)
-    if 0 < prefix_len <= start:
+    if share_prompt and prefix_len < start:
+        key = input_ids[:, :start] * 2 + attention_mask[:, :start].long()
+        _, inverse = torch.unique(key, dim=0, return_inverse=True)
+        rows = torch.arange(input_ids.shape[0], device=input_ids.device)
+        first = torch.full((int(inverse.max()) + 1,), rows.numel(), device=rows.device).scatter_reduce_(0, inverse, rows, "amin")
+        cache = None
+        if prefix_len > 0:
+            cache = model.base_model(input_ids=input_ids[:1, :prefix_len], position_ids=position_ids[:1, :prefix_len], use_cache=True).past_key_values
+            cache.batch_repeat_interleave(first.numel())
+        cache = model.base_model(
+            input_ids=input_ids[first, prefix_len:start],
+            attention_mask=attention_mask[first, :start],
+            position_ids=position_ids[first, prefix_len:start],
+            past_key_values=cache,
+            use_cache=True,
+        ).past_key_values
+        cache.batch_select_indices(inverse)
+        hidden = model.base_model(
+            input_ids=input_ids[:, start:],
+            attention_mask=attention_mask,
+            position_ids=position_ids[:, start:],
+            past_key_values=cache,
+            use_cache=True,
+        ).last_hidden_state
+        hidden = hidden[:, :-1]
+    elif 0 < prefix_len <= start:
         prefix = model.base_model(input_ids=input_ids[:1, :prefix_len], position_ids=position_ids[:1, :prefix_len], use_cache=True)
         cache = prefix.past_key_values
         cache.batch_repeat_interleave(input_ids.shape[0])
@@ -768,7 +801,7 @@ def _update(
         with torch.autocast(device.type, dtype=torch.bfloat16, enabled=config.master_fp32):
             token_lp, completion_mask, entropy = _completion_logprobs(
                 model, ids, mask, prompt_width, config.temperature, 0 if config.grad_checkpoint else prefix_len, rows_allowed,
-                entropy_grad=bonus,
+                entropy_grad=bonus, share_prompt=config.share_group_prompt and not config.grad_checkpoint,
             )
         model.eval()
         policy_lp = token_lp[completion_mask]
@@ -790,7 +823,9 @@ def _update(
             loss = policy_loss
         else:
             with torch.no_grad():
-                ref_lp, _, _ = _completion_logprobs(ref_model, ids, mask, prompt_width, config.temperature, prefix_len, rows_allowed)
+                ref_lp, _, _ = _completion_logprobs(
+                    ref_model, ids, mask, prompt_width, config.temperature, prefix_len, rows_allowed, share_prompt=config.share_group_prompt
+                )
             ref_lp = ref_lp[completion_mask]
             kl_tokens = torch.exp(ref_lp - policy_lp) - (ref_lp - policy_lp) - 1
             kl = kl_tokens.sum() / token_count
