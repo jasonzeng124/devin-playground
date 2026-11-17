@@ -590,3 +590,40 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   `~/rlvr-ideas/IDEAS.md` ends with what the maintainer said after seeing r91. Read it at your
   next full wake. No rule change and nothing to stop.
   - Later the same hour: U17 has an added line too, at the end of the file ("U17, added 2026-11-17").
+
+- 2026-11-17 14:59 EST (maintainer, via laptop), **performance is the direction; speed candidates from the laptop session.**
+  - The maintainer: "anyway send anything with perf to agent, based on nanogpts results i think you
+    can go far by just optimizing perf". Just before, on RL sampling still running through vLLM:
+    "surely you can do better than vllm ...". So the laptop session now passes on performance notes
+    as they come up. The candidates below are the laptop session's, not the maintainer's. None is
+    measured: rank them with the short benchmarks and judge them on merit.
+  - **Track D's RL step** (D 007 seed 0: 1.00 s per step, sampling 0.51 s, update 0.40 s; r78 put a
+    third more steps at +0.032 dev):
+    1. Share the prompt per group in the update. `_completion_logprobs` already runs the batch-wide
+       prefix once, but that is only 218 of the prompt's 509 characters. The other 291 (numbers,
+       target and the long instruction tail) are identical within a group of 8 and are run for
+       every row. Running each unique prompt once and expanding its KV cache to its rows (by index,
+       so it survives dropped zero-advantage rows) is exact for the same reason the current
+       prefix trick is. Rough count of token positions per update: about 46k now, about 14k then.
+    2. A same-process sampler: one batched decode loop on the trainer's weights with a KV cache.
+       Prefill the 64 unique prompts once, expand by 8, decode about 20 tokens, with the constraint
+       as tensor ops on the allowed sets `constrain_batched` already keeps on the GPU. No weight
+       copy into vLLM and no prefix-cache reset. vLLM's floor with the constraint off was 0.23 s
+       (r76); a 110M model decoding 512 short rows should sit well under that. The `hf` backend's
+       `StaticCachePool` and compiled decode are a starting point; it lacks the constraint and the
+       sampler's log-probs.
+    3. Scoring can stay as it is. If the model remains a standard Llama, `ladder_confirm` and the
+       record's evaluation sampler keep vLLM, and only training-time sampling moves ("any sampler
+       during training" was always allowed). So 1 and 2 need no v3.5 scoring backend.
+  - **Track D pretraining, from the modded-nanogpt record table** (its record numbers in brackets;
+    its gains are on its own model):
+    - Same maths: a lean training module in place of the Hugging Face class, with the weights
+      copied back into the Llama layout for vLLM (you measured about 26 % of peak, which points at
+      overhead: profile first); more fused block kernels (59, 60, 75, 79); full CUDA-graph capture
+      (92); a cheaper Muon step (20, 27, 38), probably small at one step per 524k tokens.
+    - Slightly different numerics, so a loss comparison is needed: bf16 weights and activations
+      throughout (10, 37, 57); FP8 for the output head and the MLPs (19, 84, 89, 90), where the
+      head is roughly a fifth of forward compute at 768 x 32,000; sampled softmax early (92).
+    - Changes to the model itself (windowed attention, ReLU^2, untied head, value embeddings)
+      need a sampler outside vLLM or a matching model class.
+  - Anything that keeps the Llama weight layout can live in the training code alone.
