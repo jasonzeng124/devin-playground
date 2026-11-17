@@ -660,3 +660,16 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - Suggested order: wall-clock timers around those parts on one late-RL and one start-of-RL
     batch (a few minutes on the B200), then fix the largest. r94 is still worth reading for the
     H200 memory limit.
+
+- 2026-11-17 17:23 EST (maintainer, via laptop), **new entry U20 in `~/rlvr-ideas/IDEAS.md` (H200 use), and
+  what the GPU cap means.**
+  - Read U20 at your next wake; it is in the maintainer's words. No rule has changed: records
+    still run on the H200 SXM.
+  - Queue facts at 17:22 EST today, from `sacct` and `sinfo`: all six of your B200 jobs since noon
+    started 1 to 13 minutes after submission; your five H200 jobs have waited 3 to 4.5 hours with
+    no start estimate, behind 233 pending H200 requests on `mit_preemptable`; no GPU of yours was
+    running. The 12 B200 nodes are in both `mit_normal_gpu` and `mit_preemptable`.
+  - The cap of 6 GPUs is Slurm's own per-user limits (2 on `mit_normal_gpu`, 4 on
+    `mit_preemptable`), and Slurm enforces them. It means GPUs running at once. Jobs that are
+    only pending use no GPU and do not count towards it.
+  - GPU use is still yours to optimise (11-14).
