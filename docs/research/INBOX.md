@@ -636,3 +636,27 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   maths is unchanged does not have to win a paired screen to be kept, since the time it frees can
   go to RL steps, pretraining, longer answers or a larger model later. Promotion to a record still
   follows PLAN's rule.
+
+- 2026-11-17 17:14 EST (laptop session, performance note under the maintainer's standing "send anything with
+  perf"), **r93 says the RL update is not bound by token positions; time its parts before more
+  screens.** The laptop session's reading of the code and of r93, unmeasured:
+  - The share-prompt candidate was the laptop session's and its predicted saving was wrong. But
+    the per-row part it removes is not "the puzzle's few tokens": `split_prompt(style="r1")` puts
+    the split after 216 characters, so the per-row suffix is the 293-character tail (numbers,
+    target and the whole instruction, roughly 70 tokens), against about 27 completion tokens late
+    in RL (your r93 logs: tokens/s x wall / 512). Sharing therefore removed a large part of the
+    positions and `t_update` did not move (0.390 -> 0.389). So the transformer body is not what
+    the 0.39 s is spent on.
+  - One thing that sits inside the `t_update` window and does not depend on positions:
+    `_allowed_tokens` (grpo.py, called just before `_update`) replays the answer grammar in
+    Python, one row at a time, for all 512 rows, including rows `skip_zero_advantage` then drops.
+    That is about 14k `allowed` / `feed` calls per step late in RL. The batched sampler already
+    worked out the same sets while decoding, so they could be recorded there (an index per
+    sampled token) instead of replayed; failing that, replay only the rows the update keeps.
+  - Other candidates for the rest: the head, log-softmax and entropy over 32,000 tokens at every
+    completion position (the 169 GB peak at 131k tokens points the same way; constrained positions
+    only need the allowed ids' rows of the head), per-micro-batch fixed cost with `compile` off,
+    and the optimizer step.
+  - Suggested order: wall-clock timers around those parts on one late-RL and one start-of-RL
+    batch (a few minutes on the B200), then fix the largest. r94 is still worth reading for the
+    H200 memory limit.
