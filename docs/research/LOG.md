@@ -6774,3 +6774,44 @@ gain proves much smaller than on B200, 46 min gives fewer tokens than D 007 and 
 46 min on the fast path against r82's 56 min (val 2.805).
 
 GPUs: 6 counting pending (r90 H200, D 007 seed 4, three r92 H200, one B200).
+
+## 2026-11-17 15:12 EST: r92's B200 pretraining check (46 min fast path matches r82 at matching steps); INBOX 15:02; r93 (shared prompt in the RL update)
+
+r92 `pt46_muon_fused_mb128` (B200, seed 0, pretraining only): 3,836 steps, 2.011B tokens in 46.0 min (729k tok/s), final
+val 2.832. r82 `pt56_muon_lr4e-3` (micro-batch 32, unfused) reached 2.022B tokens in 56 min with val 2.805. Val at
+matching steps (the speed-only check INBOX 11-17 12:25 asks for; the two runs' lr schedules are nearly the same at each
+step, since both stop at about 3,850 steps):
+
+| step | tokens | r82 (56 min, old path) | r92 (46 min, fused mb128) | diff |
+|---|---|---|---|---|
+| 500 | 0.262B | 3.4450 | 3.4503 | +0.005 |
+| 1000 | 0.524B | 3.2028 | 3.1989 | -0.004 |
+| 1500 | 0.786B | 3.0759 | 3.0880 | +0.012 |
+| 2000 | 1.049B | 2.9849 | 2.9812 | -0.004 |
+| 2500 | 1.311B | 2.9202 | 2.9082 | -0.012 |
+| 3000 | 1.573B | 2.8835 | 2.8747 | -0.009 |
+| 3500 | 1.835B | 2.8322 | 2.8474 | +0.015 |
+| end | 2.01-2.02B | 2.8046 | 2.8322 | +0.028 |
+
+In plain words: the fast path follows the old one step for step within the val estimate's noise (each val is 20
+fresh random batches; r82's bt262k arm moved 2.805 -> 2.837 -> 2.818 between neighbouring evals). The final gap of
+0.028 is at the edge of that noise and has no maths behind it (same batch of 524,288 tokens, same optimizer, the
+loss only fused). So 46 min on this path gives about the checkpoint 56 min gave: r92's premise holds on B200.
+
+INBOX 15:02 (maintainer: "more train time generally = more flexibility anyway"): a speed change with the same maths is
+kept without having to win a paired screen; the time it frees can go to RL, pretraining or a larger model. Promotion
+still follows PLAN. So `--fused-loss --micro-batch 128` becomes the default track D pretraining path for new D arms,
+and r92 is read as where to spend the time, not whether to keep the path.
+
+r93 (INBOX 11-17 14:59, item 1: share the prompt per group in the RL update). New option `share_group_prompt` (off by
+default, commit 612d049): in `_completion_logprobs`, rows whose prompt columns match (a GRPO group) run those columns
+once on top of the batch-wide prefix cache, and the cache is indexed out to the rows, so the gradients sum back through
+the index. Exact like the prefix trick; tests check log-probs, entropies and gradients against the per-row path (GPT-2
+and Llama, with and without a prefix, groups out of order, padded rows) and the whole `_update` with
+`skip_zero_advantage` under both micro-batch modes. Groups split across length-sorted micro-batches share only within
+each, so one arm also raises `micro_batch_tokens` to 131,072. Six items on one B200 (worker 29456195, mit_normal_gpu,
+queue `screens_b200`), 300 RL steps each, D 007's config, from D 007 seed 0's pretrained checkpoint (start of RL) and
+its final weights (late RL; INBOX 12:25 asks for both): `{start,final}_{ctl,share,share_mbt131k}`. Read by `t_update`
+after step 50 and by loss and reward at matching steps.
+
+GPUs: 6 counting pending (r90 H200, D 007 seed 4, three r92 H200, one B200 for r93).
