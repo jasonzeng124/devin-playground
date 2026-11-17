@@ -17,6 +17,10 @@ ladder (see "Seeds and statistics"). Earlier records chose no checkpoint, so non
 scoring ("using non vllm is fine"), so a model that vLLM's model classes do not run can be entered.
 The test ladder, the prompt, the 16 samples per puzzle, the verifier and the sampler conditions are
 unchanged (see "The evaluation sampler"). Every record so far used vLLM, so none is affected.
+**v3.6 (2026-11-16), a ruling on one edge case:** a seed whose clock runs over the budget only
+because its process sat idle after training and the final evaluation had finished counts as it is
+(the maintainer: "sounds like a one off thats just fine"). See "Idle exit time" under "Clock and
+hardware". No record so far contains such a seed.
 Edge cases the text doesn't settle are arbitrated by the maintainer, and rulings are added
 here. v3 replaces v2's "time to a threshold" with a **fixed compute budget, scored on a
 difficulty ladder**, and has two tracks. Evidence for each choice is in `docs/v3_design.md`.
@@ -198,6 +202,15 @@ constraint by itself solves nothing (base models: 0.003-0.011). On trained Qwen 
   separate job, on any GPU, but always with `ladder_confirm` under the reference software below
   (v3.5: or with the record's own generation backend inside `ladder_confirm`; see "The evaluation
   sampler").
+- **Idle exit time** (v3.6, maintainer, 2026-11-16). The clock times the whole training process,
+  so a process that stalls after its work is done can push a seed over the budget. This was seen
+  once, in a screen: the final evaluation was logged 14 min before the result file appeared, where
+  other seeds take under a second. Such a seed counts with its score as it is, with no rerun, when
+  its logs show that the last training step and the final evaluation ended inside the budget. The
+  README names the seed and gives both times. The maintainer treats this as a one-off and judges
+  each case; a seed over the budget for any other reason is over budget. The validator still
+  reports such a seed as over budget: if a record ever contains one, the exception is added to
+  the validator with that record and reviewed with it.
 - Training runs on other GPUs are unranked.
 - v3.0 (2026-10-07 to 2026-10-24) used one H100 80GB SXM (`NVIDIA H100 80GB HBM3`). Its records
   (track A 000-001, track D 000-002) keep their scores on a separate H100 leaderboard and are

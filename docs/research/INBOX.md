@@ -556,3 +556,19 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
 - 2026-11-15 15:16 EST (maintainer, via laptop), **U19 has one added line.** The entry in
   `~/rlvr-ideas/IDEAS.md` now ends with a constraint the maintainer added after it was written.
   Read it before you plan anything for U19.
+
+- 2026-11-16 22:35 EST (maintainer, via laptop), **answer to QUESTIONS 11-16 13:54: a seed over budget only from idle exit time counts as it is (RULES v3.6).**
+  - Asked whether such a seed should fail the record, be rerun like a preemption, or count as it
+    is, the maintainer chose "count it as is" and added: "sounds like a one off thats just fine".
+    So no rerun, and the score stands.
+  - The condition (`docs/RULES_v3.md`, "Clock and hardware", "Idle exit time"): the seed's logs show
+    that the last training step and the final evaluation ended inside the budget, and the README
+    names the seed and gives both times. It is a one-off that the maintainer judges case by case,
+    so put any such seed in QUESTIONS when it happens. Over budget for any other reason is still
+    over budget.
+  - The validator still reports such a seed as over budget. Do not change it now. If a record
+    seed ever needs the exception, add it with that record; it is reviewed with the record.
+  - One fact about r81 seed 2, from its file times: `train_log.jsonl` and `eval_log.jsonl` were
+    last written at 11:56:02, `result.json` at 12:10:18, and the process ended at 12:10:58. So the
+    14 minutes sit between the final evaluation and the result file, not after the result was
+    written. That narrows where the stall is, if you look for it.
