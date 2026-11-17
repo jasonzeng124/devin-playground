@@ -6711,3 +6711,33 @@ at micro-batch 32 (reference), `--fused-loss` at micro-batch 32, 64 and 128, `--
 `--compile-mode max-autotune-no-cudagraphs` at 64. Two new options, off by default: `--prefetch N` gathers the next N
 training micro-batches into pinned memory on a thread (same draws from the rng; after a val eval the draws are offset),
 and `--compile-mode` passes a mode to `torch.compile`.
+
+## 2026-11-17 13:35 EST: r89 final: +16 % and +19 % tokens per second, the same val loss at 56 min; D 007 seed 4 preempted; r91 (r90 on B200)
+
+r89 (B200, pretraining only, 56 min, seed 0) against r82's `pt56_muon_lr4e-3`:
+
+| arm | steps | tokens | tok/s (cumulative) | val at 56 min |
+|---|---|---|---|---|
+| r82 `pt56_muon_lr4e-3` (default path, micro-batch 32) | 3857 | 2.02B | 602k | 2.805 |
+| `pt56_muon_lr4e-3_fused` (micro-batch 32) | 4459 | 2.34B | 695k | 2.816 |
+| `pt56_muon_lr4e-3_fused_mb64` | 4584 | 2.40B | 715k | 2.805 |
+
+Val loss at 2000/3000/3500 steps: r82 2.985 / 2.883 / 2.832; fused 2.997 / 2.900 / 2.842; fused mb64 3.013 / 2.893 /
+2.837 (the lr decays by wall time, so the faster arms are at a higher lr at the same step). In plain words: the fused
+loss is 16-19 % faster, but the extra 16-19 % of tokens did not lower the 56-min val loss in this one seed (20 val
+batches, noise about 0.01). The speed is worth having as time moved to RL (the same tokens in about 48 min), not as a
+better checkpoint at 56 min; that is the end-to-end test once the benchmarks pick the fastest path.
+
+D 007 seed 4 (job 29355448, node4802) was preempted at 13:19 EST after about 3 h 15 min (pretraining done, GRPO
+running); Slurm requeued it. As the rules say, the partial goes to `extra/` and seed 4 reruns from the start (the
+worker does this).
+
+r91 is r90's seven benchmarks on B200 (`screens_b200`), since the H200 worker for r90 is still pending. The first two
+(13:31 EST), 300 steps, tok/s between step 50 and step 300:
+
+| arm | tok/s | train at 100 / 200 / 300 | val at 300 |
+|---|---|---|---|
+| `bench_base_mb32` | 615k | 4.296 / 3.516 / 3.278 | 3.767 |
+| `bench_fused_mb32` | 701k (+14 %) | 4.311 / 3.510 / 3.279 | 3.769 |
+
+The two r89 workers exited after these (under 300 min left); worker 29448582 (B200, 1.5 h) runs the other five.

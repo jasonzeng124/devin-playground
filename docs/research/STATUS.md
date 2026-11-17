@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-17 12:51 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-17 13:35 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **D 007 promotion (13:54 EST 11-16), built on self-imitation, so said here before its seeds start (INBOX 11-12).**
 Arm r81, `calibration/research_r81/d006_batched_muon56_rl17400`: D 006 (which already uses self-imitation, same limits)
@@ -25,7 +25,7 @@ promotion). r87 (B200, seed 0, not gated): muon1338m_s14180 final dev 0.240 agai
 seed. D 007 seeds 0-3 done (20:26 EST): test 0.261 / 0.254 / 0.265 / 0.273, each about 720 s inside the budget.
 r88 (U18 answer-opening mask; B200, not gated): -0.028 and +0.020 against r87's control on seeds 0 and 1
 (mean -0.004): no effect; U18 parked.
-11-17 12:17 EST: the maintenance is over; D 007 seed 4 runs (29355448, node4802, from 16:00Z). r89 (U19 step 2, pretraining throughput: `--fused-loss`, micro-batch 32 and 64; B200, pretraining only, 56 min) on workers 29441392 and 29441400: +12 % and +16 % tokens per second at the same loss. r90 (speed-only benchmarks, 300 steps each, INBOX 11-17 12:25) on H200 worker 29445218.
+11-17 12:17 EST: the maintenance is over; D 007 seed 4 runs (29355448, node4802, from 16:00Z). r89 (U19 step 2, pretraining throughput: `--fused-loss`, micro-batch 32 and 64; B200, pretraining only, 56 min) on workers 29441392 and 29441400: +12 % and +16 % tokens per second at the same loss. r90 (speed-only benchmarks, 300 steps each, INBOX 11-17 12:25) on H200 worker 29445218. 11-17 13:35 EST: D 007 seed 4 was preempted at 13:19 after about 3 h 15 min; requeued (partial to `extra/`, seed 4 reruns). r89 final val 2.816 and 2.805 at 56 min against r82's 2.805: faster, not a better 56-min checkpoint, so the use is time moved to RL. r91 (r90's benchmarks on B200, worker 29448582): fused micro-batch 32 +14 % tok/s at matching losses.
 RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
 **Next decisions:** D 007 seed by seed; seed 4 after the maintenance (11-17 21:00 EST); the 11-18 H100 box (`box_a_1118`: r85, A 007 arms; `box_d_1118`: r86, Muon
 checkpoints with more RL steps).
@@ -47,7 +47,7 @@ in their README. Hindsight relabelling stays out of records and promotion screen
 | A | `records/v3/track_a/004_ladder_constrained_h200` | 0.2671 ± 0.0565 | 0.255 | held before A 006 |
 | A | `records/v3/track_a/005_fp32_mal0_cos500_s400` | 0.3400 ± 0.0815 | 0.313 | valid, not a record (Welch vs A 004 p = 0.072) |
 | A | `records/v3/track_a/002_fp32_skip_cosine` | 0.2784 ± 0.0904 | | valid, short of A 004 (p = 0.41) |
-| D | `records/v3/track_d/007_dm_math_sil64c05_batched_muon56` | 0.2629 (seeds 0-3) | 0.250 (seeds 0-3) | running: seed 4 after the maintenance |
+| D | `records/v3/track_d/007_dm_math_sil64c05_batched_muon56` | 0.2629 (seeds 0-3) | 0.250 (seeds 0-3) | running: seed 4 rerunning after a preemption (11-17 13:19) |
 | D | `records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05` | 0.2444 ± 0.0158 | 0.229 | **holder** (Welch vs D 005 p = 0.045; self-imitation) |
 | D | `records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6` | 0.2150 ± 0.0287 | 0.201 | held before D 006 (Welch vs D 004 p = 0.0034) |
 | D | `records/v3/track_d/004_dm_math_fp32_h200_warm` | 0.1552 ± 0.0217 | 0.159 | held before D 005 |
