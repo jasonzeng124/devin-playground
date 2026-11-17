@@ -6670,3 +6670,18 @@ Final dev, B200, step-capped at 11,441, not gated. Control seed 1 (worker 293873
 so the mask shows no effect larger than seed noise. U18 is parked: no further GPU time on it unless another result
 points back to when the model answers.
 
+## 2026-11-17 12:17 EST: maintenance over; r89 (U19 step 2: pretraining throughput, fused loss) on two B200 slots
+
+INBOX 11-16 22:35 (RULES v3.6) read: a record seed over budget only because of idle exit time counts as it is, if its
+logs show the last training step and the final evaluation inside the budget and the README names the seed with both
+times; such a seed goes to QUESTIONS when it happens. D 007 seeds 0-3 did not need it. Seed 4 (29355448, node4802,
+H200) started 16:00Z after the maintenance, warm start 216 s.
+
+U19's step 2 is pretraining throughput in the Llama class. r82 ran at about 600k tok/s on B200 (370k on H200, about
+26 % of peak). The loop in `scripts/pretrain_scratch.py` upcasts the full logits to fp32 outside the compiled model
+(32 x 1024 x 32,000 floats, about 4 GB per micro-batch) before the cross-entropy. New option `--fused-loss` (off by
+default; the default path is unchanged): the forward and the cross-entropy are compiled as one graph, so Inductor can
+fuse the upcast into the loss. r89, pretraining only, 56 min, seed 0, B200, against r82's `pt56_muon_lr4e-3` (602k
+tok/s, val 2.805): `pt56_muon_lr4e-3_fused` (micro-batch 32, as r82) and `pt56_muon_lr4e-3_fused_mb64` (micro-batch
+64; the batch stays 524,288 tokens). Read by tok/s and final val loss. A clear gain in tokens per minute goes end to
+end like r81.

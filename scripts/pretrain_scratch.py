@@ -84,6 +84,13 @@ def train(args) -> None:
         opts = [torch.optim.AdamW([{"params": decay, "weight_decay": 0.1}, {"params": no_decay, "weight_decay": 0.0}],
                                   lr=args.lr, betas=(0.9, 0.95), fused=True)]
     compiled = torch.compile(model)
+
+    def _fused(x, y):  # only with --fused-loss: Inductor fuses the fp32 upcast into the loss
+        with torch.autocast("cuda", dtype=torch.bfloat16):
+            logits = model(input_ids=x, use_cache=False).logits
+        return F.cross_entropy(logits.float().view(-1, logits.size(-1)), y.reshape(-1))
+
+    fused_loss = torch.compile(_fused) if args.fused_loss else None
     seq, micro = args.seq_len, args.micro_batch
     accum = max(1, args.batch_tokens // (seq * micro))
     total_steps = args.max_tokens // (seq * micro * accum)
@@ -106,6 +113,9 @@ def train(args) -> None:
         losses = []
         for _ in range(20):
             x, y = batch(val)
+            if fused_loss is not None:
+                losses.append(fused_loss(x, y).item())
+                continue
             with torch.autocast("cuda", dtype=torch.bfloat16):
                 logits = compiled(input_ids=x).logits
             losses.append(F.cross_entropy(logits.float().view(-1, logits.size(-1)), y.reshape(-1)).item())
@@ -127,9 +137,12 @@ def train(args) -> None:
                 group["lr"] = lr_at(step, elapsed / budget)
         for _ in range(accum):
             x, y = batch(data)
-            with torch.autocast("cuda", dtype=torch.bfloat16):
-                logits = compiled(input_ids=x).logits
-                loss = F.cross_entropy(logits.float().view(-1, logits.size(-1)), y.reshape(-1)) / accum
+            if fused_loss is not None:
+                loss = fused_loss(x, y) / accum
+            else:
+                with torch.autocast("cuda", dtype=torch.bfloat16):
+                    logits = compiled(input_ids=x).logits
+                    loss = F.cross_entropy(logits.float().view(-1, logits.size(-1)), y.reshape(-1)) / accum
             loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         for opt in opts:
@@ -175,6 +188,8 @@ def main() -> None:
     r.add_argument("--minutes", type=float, default=60.0)
     r.add_argument("--seed", type=int, default=0)
     r.add_argument("--optimizer", choices=("adamw", "muon"), default="adamw")
+    r.add_argument("--fused-loss", action="store_true",
+                   help="compile the forward and the cross-entropy as one graph (no fp32 logits outside it); off by default")
     args = parser.parse_args()
     tokenize(args) if args.cmd == "tokenize" else train(args)
 

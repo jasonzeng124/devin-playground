@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-16 21:26 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-17 12:17 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **D 007 promotion (13:54 EST 11-16), built on self-imitation, so said here before its seeds start (INBOX 11-12).**
 Arm r81, `calibration/research_r81/d006_batched_muon56_rl17400`: D 006 (which already uses self-imitation, same limits)
@@ -25,6 +25,8 @@ promotion). r87 (B200, seed 0, not gated): muon1338m_s14180 final dev 0.240 agai
 seed. D 007 seeds 0-3 done (20:26 EST): test 0.261 / 0.254 / 0.265 / 0.273, each about 720 s inside the budget.
 r88 (U18 answer-opening mask; B200, not gated): -0.028 and +0.020 against r87's control on seeds 0 and 1
 (mean -0.004): no effect; U18 parked.
+11-17 12:17 EST: the maintenance is over; D 007 seed 4 runs (29355448, node4802, from 16:00Z). r89 (U19 step 2, pretraining throughput: `--fused-loss`, micro-batch 32 and 64; B200, pretraining only, 56 min) on workers 29441392 and 29441400.
+RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
 **Next decisions:** D 007 seed by seed; seed 4 after the maintenance (11-17 21:00 EST); the 11-18 H100 box (`box_a_1118`: r85, A 007 arms; `box_d_1118`: r86, Muon
 checkpoints with more RL steps).
 
