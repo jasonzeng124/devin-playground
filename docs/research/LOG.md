@@ -6815,3 +6815,31 @@ its final weights (late RL; INBOX 12:25 asks for both): `{start,final}_{ctl,shar
 after step 50 and by loss and reward at matching steps.
 
 GPUs: 6 counting pending (r90 H200, D 007 seed 4, three r92 H200, one B200 for r93).
+
+## 2026-11-17 16:32 EST: r93 (shared prompt in the RL update): exact, no faster alone; with 4x micro-batches the update is 33 % faster; r94 separates the two
+
+r93 (B200, worker 29456195, all six items ok). Means after step 50 of 300; memory is the whole process (vLLM's 0.35
+share included, 63 GB on a B200), peak.
+
+| checkpoint | arm | t_sample s | t_update s | wall s/step | peak GB |
+|---|---|---|---|---|---|
+| start | ctl (mbt 32,768) | 0.834 | 0.566 | 1.520 | 95.7 |
+| start | share | 0.837 | 0.569 | 1.533 | 94.1 |
+| start | share + mbt 131,072 | 0.741 | 0.378 | 1.241 | 168.9 |
+| final | ctl | 0.783 | 0.390 | 1.295 | 83.5 |
+| final | share | 0.676 | 0.389 | 1.203 | 76.8 |
+| final | share + mbt 131,072 | 0.639 | 0.267 | 1.026 | 89.0 |
+
+Step 1's loss is identical in every arm of a checkpoint (-0.2848 start, -0.0004 final); after that sampling differs
+and reward stays in line (start step 300: 0.386 / 0.400 / 0.418; final: 0.592 / 0.610 / 0.598). `t_sample` moves with
+answer lengths, not with the update path.
+
+In plain words: sharing the prompt is exact but saves nothing by itself. After the batch-wide prefix only the puzzle's
+few tokens are per-row, against up to 256 completion tokens, and length-sorted packing scatters a group across
+micro-batches. With 4x larger micro-batches the update is 33 % faster on both checkpoints, but that arm changed two
+things, and at the start of RL it peaks at 169 GB: on an H200 (141 GB, vLLM's share 49 GB) it would not fit.
+
+r94 (B200, worker 29462557, queue `screens_b200`): `{start,final}_{ctl_mbt65k, share_mbt65k, ctl_mbt131k}`, the same
+300-step timing. It separates the micro-batch size from the sharing and checks 65,536 tokens, which should fit an H200.
+
+GPUs: 6 counting pending (r90 H200, D 007 seed 4, three r92 H200, one B200 for r94).
