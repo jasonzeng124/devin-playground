@@ -572,3 +572,16 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     last written at 11:56:02, `result.json` at 12:10:18, and the process ended at 12:10:58. So the
     14 minutes sit between the final evaluation and the result file, not after the result was
     written. That narrows where the stall is, if you look for it.
+
+- 2026-11-17 12:25 EST (maintainer, via laptop), **speed changes can be ranked with short benchmarks.**
+  - The maintainer, on 11-15, about throughput work: "also thruput is smt that you can just do fast
+    without full runs right". Asked today whether to pass that on: "tell it".
+  - What it means in practice, for a change that only affects speed (the maths is the same):
+    a few hundred steps after the compile warm-up give tokens per second, and the check that
+    nothing else changed is the loss at matching steps against the old path, with the same seed
+    and data order. That is minutes per variant, so many variants fit in one slot.
+  - Long runs are for changes to the maths (batch tokens, precision, optimizer, architecture),
+    where the loss at a fixed time is the readout. The same goes for the RL loop, timed from a
+    mid-training checkpoint as well as from the start, since answer lengths change.
+  - Both r89 arms are speed-only (the micro-batch changes, the batch stays 524,288 tokens).
+    Whether to let them run the full 56 minutes or cut them short is your call.
