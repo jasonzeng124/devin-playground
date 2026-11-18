@@ -7166,3 +7166,24 @@ final weights, native sampler against vLLM on the same node:
     steps in the 4.7 h the last GPUs will have. The first reading comes when one run of a pair ends (about 17:24).
 - **Engaging.** r101's control (29554919) is 94 min in; 29554920 is pending with a 17:28 start estimate. D 007 seed 4 (29355448) is still
   pending.
+
+## 2026-11-18 15:33 EST: box: A control seed 0 ran out of GPU memory at step 271; requeued, it resumes from step 261
+
+- **What happened.** `calibration/research_r85/a007_ctl_h100` seed 0 failed on GPU 2 at 15:13:47 EST with
+  `torch.OutOfMemoryError` at `loss.backward()` ("Tried to allocate 3.74 GiB ... 3.67 GiB is free"), about step 271 of
+  467. Its worker recorded it FAILED and started the next queue item, `a007_ctl_h100` seed 1, at once.
+- **Why.** Every A run on the box has used 79.0-79.17 GB of the H100's 79.18 GB since its first 100 steps
+  (`gpu_mem_gb` in the train logs): the sampler's share (`vllm_gpu_memory` 0.35, 28 GB here against 49 GB on an H200)
+  plus training fills the card. One long batch is enough to fail, so the other A runs can fail the same way.
+- **Fix today.** The run's saved state from step 261 was intact (written 15:03). At 15:25 I put the item back at the
+  front of the box's `queue/box_a_1118.txt`; the next free A worker resumes it with 206 steps left (about 2.8 h at
+  49 s per step). Each wake I check `queue/done.txt` for new FAILED lines (8 now) and put failed runs back at the
+  front. I did not change the config or the scripts that the running workers read.
+- **Tail plan, adjusted.** As in the 14:14 entry, set up about 17:10, with this A order: control seed 0 (resume), seed 1
+  of the three other arms, then seed 2 of all four. Control seed 1 already runs on GPU 2 and ends about 21:37, so
+  GPU 2 takes D runs after that.
+- **For the next boxes.** The 11-25 and 12-09 H100 days need A configs that leave headroom on 80 GB (a smaller sampler
+  share, same maths), and the self-running box must retry a failed run from its saved state without anyone awake.
+- **Reservations.** `describe-capacity-reservations` showed both new blocks (`cr-03ab208e99ca6ca06`,
+  `cr-0813172fa29139b78`) as `scheduled` at 14:17 (INBOX 13:39).
+- **Box at 15:33.** All eight GPUs busy, 12 runs, queues 16 (A) and 12 (D). No AWS charge so far beyond the blocks.

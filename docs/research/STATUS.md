@@ -93,9 +93,14 @@ screen runs on the H200.
 - The 11-18 box is up until 06:30 EST 11-19: wake every 20-30 min, `box_sync.sh from box1118 calibration/research_r85
   calibration/research_r86` each wake, keep all eight GPUs busy (two D runs per GPU at most; requeue any run that
   fails), and bring every result and resume state back before 05:55. A runs take about 6.4 h (LOG 11-18 14:14), so a
-  third A round on GPUs 0-3 would not finish. About 17:10: empty the box's D queue, cut A's queue to seeds 1-2, start
-  A workers on GPUs 4-7 as each empties (A's seed 2), and put the D runs after the A lines so that each GPU takes one D
-  run when its A run ends (about 00:10-01:10).
+  third A round on GPUs 0-3 would not finish. About 17:10: empty the box's D queue, cut A's queue to its first 8
+  lines (control seed 0 to resume, seed 1 of the other three arms, seed 2 of all four), start A workers on GPUs 4-7 as
+  each empties, and put the D runs after the A lines so that each GPU takes one D run when its A run ends (about
+  00:40-01:35; GPU 2 from about 21:37).
+- A runs fill the H100 (79.1 of 79.18 GB) and can run out of memory: control seed 0 did at 15:13 on 11-18 (LOG 15:33)
+  and was put back at the front of `queue/box_a_1118.txt`, where it resumes from step 261. Each wake: look for new
+  FAILED lines in the box's `queue/done.txt` (8 at 15:33) and put failed runs back at the front of their queue. The
+  11-25 and 12-09 A arms need configs with a smaller sampler share.
 - r101 (B200, RL only from D 007's checkpoints, `mit_normal_gpu` workers 29554919/20, queue `screens_rl_b200`, seeds
   0-2): `d007rl_native_b200` (native sampler, `reuse_sampler_allowed`, shared prompt, 65,536-token micro-batches)
   against `d007rl_ctl_b200`, both 17,400 s. One item per 6 h worker: submit two more when a pair ends. Read paired
