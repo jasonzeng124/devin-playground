@@ -6960,3 +6960,17 @@ r96 (B200 worker 29471792, node5502-c1, 150 steps each, r95's shared-prompt arms
   from about 0.47 s to 0.15-0.2 s per step, about 25-30 % more RL steps in D's budget. It will be timed against
   r96's arms on B200 before any end-to-end screen.
 
+
+## 2026-11-18 01:18 EST: the same-process sampler is in (`rollout_backend: "native"`, off by default); r98 times it
+
+- `rlvr_speedrun/fast_rollout.py` (`NativeRollout`, f9cf5c2): a bf16 copy of the Llama policy with fused qkv and
+  gate/up weights, a static KV cache, each distinct prompt prefilled once and its cache copied to its n rows, the
+  decode step captured as a CUDA graph per (rows, key length) bucket, the answer grammar applied in the same process,
+  and exact sampling (exponential-noise argmax; argmax at temperature 0). It stops on EOS, on `</answer>` or at the
+  token limit, and returns what `VLLMRollout` returns. `sync` copies the weights in after each update.
+- Tests: greedy tokens equal the HF model's argmax (full and grouped KV heads, and again after `sync`); constrained
+  samples follow the grammar and stop at the token that closes the answer; `grpo.run` trains with it. 177 passed.
+- r98 (B200 job 29508506, timing only, D 007 seed 0's final weights): `profile_sampling.py --backend native` with and
+  without CUDA graphs, then vLLM on the same node. It reads wall time per call and completion lengths (the lengths
+  should match vLLM's, since both sample the same distribution). If it is well under vLLM's 0.47 s, 300-step
+  benchmarks against r96's arms follow (tok/s, loss at matching steps), then an end-to-end D arm.
