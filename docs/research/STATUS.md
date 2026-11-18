@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-18 17:56 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-18 18:23 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **D 007 promotion (13:54 EST 11-16), built on self-imitation, so said here before its seeds start (INBOX 11-12).**
 Arm r81, `calibration/research_r81/d006_batched_muon56_rl17400`: D 006 (which already uses self-imitation, same limits)
@@ -65,9 +65,9 @@ screen runs on the H200.
 | block (EST) | GPUs | ssh | launch template |
 |---|---|---|---|
 | 11-18 06:30 to 11-19 06:30 | 8x H100 | zjason@174.129.98.131 | `rlvr-box-cr-0261a6f8bb30fc123` |
-| 11-25 06:30 to 11-26 06:30 | 8x H100 | zjason@174.129.98.131 | none yet; reservation `cr-03ab208e99ca6ca06` |
-| 11-28 06:30 to 11-29 06:30 | 8x H200 (the maintainer may take it) | zjason@100.29.118.132 | `rlvr-box-cr-08927241900b5884c` |
-| 12-09 06:30 to 12-10 06:30 | 8x H100 | zjason@174.129.98.131 | none yet; reservation `cr-0813172fa29139b78` |
+| 11-25 06:30 to 11-26 06:30 | 8x H100 | zjason@174.129.98.131 | `rlvr-box-cr-03ab208e99ca6ca06` (self-running version 1) |
+| 11-28 06:30 to 11-29 06:30 | 8x H200 (the maintainer may take it) | zjason@100.29.118.132 | `rlvr-box-cr-08927241900b5884c` (self-running version 3; version 2 is the old one) |
+| 12-09 06:30 to 12-10 06:30 | 8x H100 | zjason@174.129.98.131 | `rlvr-box-cr-0813172fa29139b78` (self-running version 1) |
 
 - No scheduled launch exists yet for any block. Until one does, from the block start: `aws ec2 describe-instances
   --region us-east-1`, then `aws ec2 run-instances --region us-east-1 --launch-template LaunchTemplateName=<template>`,
@@ -80,9 +80,11 @@ screen runs on the H200.
     code and queue from S3 and started workers, results and saved states went to S3 by themselves, and a second
     instance carried on after I terminated the first. A launch while an instance holds the box's network interface is
     refused, so a launch by hand cannot clash with a scheduled one.
-  - The dry run of the real 11-28 launch under `rlvr-scheduler` passes.
-  - Still to do: the self-running version of the 11-28 template with its staged inputs and schedules; the same for
-    11-25 and 12-09; the queues; `docs/research/box_1128.md`; the check that my usage and login last through each
+  - 11-18 18:21: the three future blocks' templates have a self-running default version (`box_auto.sh template`),
+    and the dry run of each launch under `rlvr-scheduler` passes (LOG 11-18 18:23). With nothing staged in the
+    bucket such a box comes up like the 11-18 one and is run by hand.
+  - Still to do: for each block the queues and plan, `box_s3.sh stage`, `home` and `check`, and the schedules
+    (`box_auto.sh schedule`); `docs/research/box_1128.md`; the check that my usage and login last through each
     block. Do not run `scripts/aws/box_launch.sh` for a reservation set up with `box_auto.sh`.
   - Left on AWS: template `rlvr-box-test`, roles `rlvr-scheduler` and `rlvr-box`, the test's output under
     `box/rlvr-box-test/out/` in the bucket (run `box_s3.sh clear rlvr-box-test` before a re-test). No schedules.

@@ -7305,3 +7305,43 @@ final weights, native sampler against vLLM on the same node:
   pending on `mit_normal_gpu`.
 - **Box at 17:55.** All eight GPUs busy, 10 runs, 10 FAILED lines in `queue/done.txt` (8 at 17:06, plus `cos467`
   seed 0 and control seed 1).
+
+## 2026-11-18 18:23 EST: AWS: self-running launch templates for all three blocks pass the dry run; the 0.30 sampler share costs 1-3 % of sampling time
+
+- **Launch templates.** `scripts/aws/box_auto.sh template` ran for the three reservations at 18:20-18:21 (code at
+  1206dbb). Each template's default version now carries the instance profile `rlvr-box` and the self-running stage
+  (at boot it fetches `box/<template name>/in/code.tgz` from the bucket and starts `scripts/aws/box_boot.sh`). Each
+  passed `box_auto.sh dryrun`, which is the real `RunInstances` call with `--dry-run` under the `rlvr-scheduler` role.
+
+  | block | reservation | template | default version | instance | zone and network interface |
+  |---|---|---|---|---|---|
+  | 11-25 | `cr-03ab208e99ca6ca06` | `rlvr-box-cr-03ab208e99ca6ca06` (lt-0b73f76d15a2a42d2) | 1 (new) | p5.48xlarge | us-east-1f, eni-00b53b4c24ca888cd |
+  | 11-28 | `cr-08927241900b5884c` | `rlvr-box-cr-08927241900b5884c` (lt-0c1649ffec152a168) | 3 (was 2) | p5en.48xlarge | us-east-1d, eni-03f79eb9d98654069 |
+  | 12-09 | `cr-0813172fa29139b78` | `rlvr-box-cr-0813172fa29139b78` (lt-01af37ff7f391e126) | 1 (new) | p5.48xlarge | us-east-1f, eni-00b53b4c24ca888cd |
+
+  - The 11-28 template's version 2 (no self-running stage) is kept. `aws ec2 modify-launch-template
+    --launch-template-name rlvr-box-cr-08927241900b5884c --default-version 2` goes back to it.
+  - No schedule exists yet, so nothing launches by itself. With nothing staged in the bucket, a box started from
+    these versions comes up as the 11-18 one did: the fetch gives up after about 3 min and the venv is still built.
+  - No charge: templates and dry runs are free. The running total stays at about $0.03.
+  - Next: the 11-25 queues and plan (first what the 11-18 box leaves unfinished), `box_s3.sh stage`, `home` and
+    `check`, then the schedules, then `docs/research/box_1128.md`.
+- **The 0.30 sampler share on the box.** All three A runs that ran out of memory at 0.35 have resumed under the
+  `_h100m30` configs. By 18:17 `cos467` seed 0 (step 433) and control seed 0 (step 274) were past the steps where
+  they had failed (about 420 and 271). Seconds per step, the last 30 steps at 0.35 against the first steps at 0.30:
+
+  | run | resumed at step | sampling at 0.35 | sampling at 0.30 | change | update at 0.35 | update at 0.30 | steps at 0.30 |
+  |---|---|---|---|---|---|---|---|
+  | `cos467` seed 0 | 407 | 26.8 | 27.3 | +1.9 % | 20.2 | 20.7 | 26 |
+  | control seed 0 | 261 | 27.0 | 27.3 | +1.1 % | 17.5 | 18.0 | 13 |
+  | control seed 1 | 200 | 27.6 | 28.3 | +2.5 % | 21.7 | 19.4 | 12 |
+
+  Sampling is 1.1 to 2.5 % slower. The update time moves both ways and shows no cost. `nvidia-smi` still
+  shows the cards nearly full (the trainer's allocator takes what the sampler leaves), so the test of the change is
+  that no further A run fails for memory. `lr1.3e-6` seed 1 on GPU 0 still runs at 0.35.
+- **Two more finished box results (final dev; one seed each, nothing can be read from them yet).**
+  - r86 `muon1338m_s14180` seed 0: 0.2550 after 14,180 steps, -0.0150 against the control's seed 0
+    (0.2700 after 11,441 steps). `muon2676m_s11441` seed 0 was 0.2550 (-0.0150).
+  - r85 `a007_ent15_h100` seed 0: 0.4383 (`a007_lr1.3e-6_h100` seed 0 was 0.4367). The A control's seed 0 is
+    due about 21:00.
+- **Box at 18:22.** All eight GPUs busy, 10 runs, still 10 FAILED lines in `queue/done.txt`.
