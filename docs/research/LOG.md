@@ -7093,3 +7093,22 @@ final weights, native sampler against vLLM on the same node:
   items waiting), and `muon1338m_s11441` seeds 3 and 4 to its D queue (12 waiting for eight slots).
 - **Watch.** Two D runs leave about 1 GB free per GPU. A run that fails later is requeued and resumes from its saved
   state (every 600 s).
+
+## 2026-11-18 12:36 EST: Engaging: the B200 preemptable workers were preempted within 21 min each; r101 (D 007's RL with the native speed stack, RL only) on two normal B200 slots
+
+- **What happened.** Workers 29497701 and 29497702 (r97 seed 0, control and speed arm) started at 08:35 and were
+  preempted at 08:54 and 08:56. Worker 29497705 (r99 seed 0) ran 08:45-08:50 and 11:28-11:39. All three are pending
+  again and every run was still in pretraining, so r97 and r99 have no result. No Engaging GPU was running at 12:30.
+- **r101 (B200, not yet gated, RL only).** The same question as r99 in a form that fits the 6 h `mit_normal_gpu`
+  limit, where jobs are not preempted: the RL stage starts from D 007's own seed-s pretrained checkpoint
+  (`screen_pretrained`), `time_budget_s` 17,400 in both arms.
+  - `d007rl_ctl_b200`: D 007's RL unchanged (vLLM sampler, `constrain_batched`).
+  - `d007rl_native_b200`: every same-maths RL speed change so far: `rollout_backend: "native"`,
+    `reuse_sampler_allowed` (r100), `share_group_prompt` with `micro_batch_tokens` 65,536 (r94).
+- **Read.** Paired by seed: RL steps done in 17,400 s and final dev pass rate. More RL steps have helped D, so the
+  expectation is a higher pass rate from about 1.5x the steps; if the steps rise and the pass rate does not, extra
+  steps at this point of the schedule are worth less than r86's step-capped arms suggest.
+- **Workers.** 29554919 and 29554920 (`mit_normal_gpu`, 6 h, one item each), queue `screens_rl_b200`, seeds 0-2, one
+  pair per round of about 5 h. The r97 and r99 items stay queued for the preemptable workers.
+- **Box (12:36).** All eight GPUs busy, no new failure. D 1.9-2.1 s per step at steps 800-1,060. A 19-28 s per step
+  at steps 83-97 and rising, so A's per-run time is still open (2.7-3.5 h).

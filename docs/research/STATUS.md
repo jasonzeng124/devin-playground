@@ -84,6 +84,11 @@ screen runs on the H200.
 - The 11-18 box is up until 06:30 EST 11-19: wake every 20-30 min, `box_sync.sh from box1118 calibration/research_r85
   calibration/research_r86` each wake, keep all eight GPUs busy (two D runs per GPU at most; requeue any run that
   fails; check that A's rounds do not end early), and bring every result and resume state back before 05:55.
+- r101 (B200, RL only from D 007's checkpoints, `mit_normal_gpu` workers 29554919/20, queue `screens_rl_b200`, seeds
+  0-2): `d007rl_native_b200` (native sampler, `reuse_sampler_allowed`, shared prompt, 65,536-token micro-batches)
+  against `d007rl_ctl_b200`, both 17,400 s. One item per 6 h worker: submit two more when a pair ends. Read paired
+  by seed (steps and final dev pass rate). r97 and r99 (end to end) wait on preemptable B200 workers 29497701/02/05,
+  which were preempted within 21 min four times on 11-18.
 - `~/rlvr-ideas/STATUS.md`: update it whenever a verdict or a result changes.
 
 ## Notes
