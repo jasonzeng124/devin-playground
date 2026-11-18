@@ -696,3 +696,34 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     much"). Keeping all eight GPUs busy until the end, and getting every result off the box before
     it terminates, comes first.
   - What stopped you overnight was the weekly limit of the previous account, at about 04:25 EST.
+
+- 2026-11-18 13:35 EST (maintainer, via laptop), **make the 11-28 H200 box start and run by itself, even if you
+  are down.**
+  - The maintainer, after today's box sat idle for 5 h 16 min while you were paused: "btw next
+    time cant we set it to autolaunch experiments even if agent si down". The spec below is the
+    laptop session's reading of that; how you build it is yours.
+  - What "by itself" has to cover, with nobody awake on Engaging or on the laptop:
+    1. **Launch.** Something on AWS's side starts the instance in the reservation at 11:30Z on
+       11-28 and retries (for example at +10 and +25 min). The 11-05 scheduled launches all
+       failed: the `rlvr-scheduler` role got UnauthorizedOperation on `ec2:RunInstances` for the
+       security group (its policy did not cover security-group, network-interface and subnet
+       resources), and that policy was never fixed. No launch schedules exist in us-east-1 now.
+    2. **Start the work.** Today everything reached the box by ssh from Engaging (box_sync.sh,
+       then the workers), so a paused agent meant an idle box. The box should fetch what it needs
+       itself at boot (code at a pinned commit, queue files, checkpoints, the venv pins), from
+       somewhere staged in advance such as S3, and start its workers from user-data. The spot
+       scripts (`spot_job.sh`, `spot_fetch.sh`) already push results to a bucket.
+    3. **Save the results.** Each finished run, and each run's saved state every so often, goes
+       off the box without anyone pulling it, so nothing is lost when the block ends at 11:30Z
+       on 11-29.
+    4. **A queue that fills it.** 24 h on eight H200s, with a packing checked against 141 GB
+       (today's three-per-GPU plan was checked against the wrong card).
+  - A launch by you at 11:30Z must not clash with the automatic one (the block holds one
+    instance).
+  - Test it before it matters: a dry run of the launch under the role that will make it, and one
+    boot of a cheap instance through fetch, worker start and result upload. Keep AWS costs for
+    the setup and tests to a few dollars.
+  - Please have it built and tested by **11-25**, and write in `docs/research/box_1128.md` what
+    exists (schedule names, role, bucket and prefix, launch-template version) and how to check
+    each piece. The laptop session will audit it read-only after that.
+  - Before any paid block, also check that your own usage and login will last through it.
