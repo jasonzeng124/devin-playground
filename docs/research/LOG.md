@@ -6903,3 +6903,21 @@ So the next timing splits sampling: r96 (B200, queue `screens_b200`) reruns r95'
 sampling laps under the same flag (encode, vLLM generate, decode, verify and rewards; plus the constrained logits
 processor's CPU time inside generate, `t_part_s_mask_cpu`). The fix then goes to whichever is largest: the processor's
 per-token grammar work, or the sampler itself (U17).
+
+## 2026-11-17 19:16 EST: r96 (parts of sampling, B200): vLLM's generate is 95 % of sampling; the answer mask's CPU is 10-12 % of it; a sampling profile runs
+
+r96 (B200 worker 29471792, node5502-c1, 150 steps each, r95's shared-prompt arms). Means over steps 51-150, seconds:
+
+| arm | sample | encode | vLLM generate | of which mask CPU | decode | verify + rewards | update |
+|---|---|---|---|---|---|---|---|
+| start_share_mbt65k | 0.618 | 0.006 | 0.590 | 0.069 | 0.007 | 0.014 | 0.404 |
+| final_share_mbt65k | 0.482 | 0.006 | 0.459 | 0.044 | 0.004 | 0.013 | 0.273 |
+
+- Everything around the engine (prompt encoding, decoding, the verifier, rewards) is about 0.025 s. The constrained
+  processor's own CPU time is 0.04-0.07 s. The other 0.4-0.5 s is inside vLLM, for about 512 completions of 25-30
+  tokens: tens of milliseconds per decode step for a 110M model, so per-request engine overhead rather than the GPU.
+- vLLM's default `max_num_seqs` is 1,024 on both GPUs, so the 512 requests are not split into waves.
+- Next: `scripts/research/profile_sampling.py` (timing only, no training) times `generate` on fresh batches with
+  the final weights, with and without the constraint, and takes a cProfile of three calls, to find the vLLM
+  functions that cost the time (B200 job 29477068). The fix depends on it: vLLM settings if the cost is
+  detokenization and stop strings, else a same-process sampler (U17).
