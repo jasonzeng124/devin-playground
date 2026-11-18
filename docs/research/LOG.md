@@ -7073,3 +7073,23 @@ final weights, native sampler against vLLM on the same node:
   in both arms). The allowed part itself fell from 0.057 s to 0.0002 s there too.
 - **Verdict:** kept (INBOX 11-17 15:02: same maths, faster). New D arms on the native sampler set
   `reuse_sampler_allowed`. r99 is already queued without it and stays as it is.
+
+## 2026-11-18 12:09 EST: box: three D runs per GPU do not fit an 80 GB H100; seven r86 runs died at about step 100 and are requeued at two per GPU
+
+- **What failed.** Each r86 run takes about 40 GB once its update has seen a long batch (about 32 GB in PyTorch plus
+  vLLM's 6.4 GB share), not the 15 GB it showed at step 40. With three per GPU the third run to grow hit
+  `CUDA out of memory` between 12:02 and 12:05: seven runs failed (`d004_ctl_s11441` seeds 2 and 3,
+  `muon1338m_s14180` seeds 2 and 3, `muon2676m_s11441` seeds 1, 2 and 3) and five workers left after two quick
+  failures. No run had saved state yet, so nothing but 4-8 minutes of GPU time was lost. The plan's "three runs per
+  GPU" (box_1118.md) copied the H200 packing (r78, 141 GB per GPU) and was not checked against the H100's 80 GB.
+- **Fix (12:07).** The seven items went back to the front of the box's `box_d_1118` queue and a second worker started
+  on GPU 5. GPUs 4-7 now hold two D runs each (80.2-80.9 GB of 81.6 GB in use), GPUs 0-3 one A run each. All eight
+  are busy.
+- **Rates.** D: 2.15 s per step with two per GPU (1.47 alone), so 6.8 h for an 11,441-step run and
+  8.5 h for a 14,180-step run. Two rounds of eight fit before the 05:55 deadline; the last items start after
+  01:00 and will be cut. A: 25.5 s per step over the first 15 steps, which would be 3.3 h per run against the
+  plan's 5.5 h; later steps are expected to be slower.
+- **Queues.** So that no GPU runs dry: seeds 3 and 4 of the four r85 arms were appended to the box's A queue (16
+  items waiting), and `muon1338m_s11441` seeds 3 and 4 to its D queue (12 waiting for eight slots).
+- **Watch.** Two D runs leave about 1 GB free per GPU. A run that fails later is requeued and resumes from its saved
+  state (every 600 s).
