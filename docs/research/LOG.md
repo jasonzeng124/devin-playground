@@ -6940,3 +6940,23 @@ r96 (B200 worker 29471792, node5502-c1, 150 steps each, r95's shared-prompt arms
   `VLLM_USE_FLASHINFER_SAMPLER=0`, and GCC's libstdc++ first on `LD_LIBRARY_PATH` for FlashInfer's kernels, as in
   `packed_worker.sbatch`). Resubmitted with all three as B200 job 29497515.
 - The 11-18 box: `box_sync.sh to` needs the box up, so it runs after the 06:30 EST launch.
+
+## 2026-11-18 01:10 EST: r96 profile (vLLM's per-request bookkeeping is the sampling cost); a same-process sampler next
+
+- Profile job 29497515 (B200, D 007 seed 0's final weights, `profile_sampling.py`, timing only). Constrained:
+  median 0.473 s per `generate` call (mean 0.505) for 512 completions of mean length 24.7 and mean longest 36.3
+  tokens, about 13.9 ms per decode step; the constraint's own CPU time is 0.050 s. Unconstrained: median 2.18 s,
+  mean length 166, longest 256, 8.6 ms per decode step.
+- cProfile of three constrained calls (3.48 s under the profiler, 112 engine steps, about 340 live sequences per
+  step): scheduler 1.08 s (slot allocation 0.58), `update_from_output` 0.61, output processing 0.43 (detokenizer
+  0.32), the constraint 0.39, `execute_model` 0.55 (of which sampling with the logits processor 0.46). The model
+  forward itself is under about 0.1 s. Prefix-cache hashing is about 0.17 s.
+- So per-request Python bookkeeping in vLLM, not the GPU, sets the time for a 110M model with short answers.
+  Tuning vLLM (no prefix cache, no detokenizer) would remove a fifth to a third of it at most.
+- Next (INBOX 11-17 14:59, "surely you can do better than vllm"): a sampler of our own in the training process,
+  behind a new `rollout_backend` value that is off by default. It will have a bf16 Llama decode step captured in a
+  CUDA graph and a static KV cache. Each distinct prompt is prefilled once and its cache shared across the group.
+  It keeps the same `RequestConstraint` grammar and the same stop rules (`</answer>` or EOS). Expected: sampling
+  from about 0.47 s to 0.15-0.2 s per step, about 25-30 % more RL steps in D's budget. It will be timed against
+  r96's arms on B200 before any end-to-end screen.
+
