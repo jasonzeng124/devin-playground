@@ -7112,3 +7112,18 @@ final weights, native sampler against vLLM on the same node:
   pair per round of about 5 h. The r97 and r99 items stay queued for the preemptable workers.
 - **Box (12:36).** All eight GPUs busy, no new failure. D 1.9-2.1 s per step at steps 800-1,060. A 19-28 s per step
   at steps 83-97 and rising, so A's per-run time is still open (2.7-3.5 h).
+
+## 2026-11-18 13:00 EST: box: A's step time settled at 40-50 s, so three A rounds fill the box and no sixth is needed; r101's control started
+
+- **A on the box (12:59).** Steps 105-127 after about 3,450 s, 40.5-50.0 s per step over the last 40 steps (19-28 s
+  before step 100). This is the profile of A 007's seed 0 on the H200: 18.7 s per step over steps 1-100, 37.2 s over
+  steps 121-467, 15,708 s in all. Projected from each run's rate: 4.78 h (cos467), 4.99 h (ctl), 5.50 h (ent15),
+  5.98 h (lr1.3e-6), mean 5.31 h, close to the plan's 5.5 h.
+- **So.** Three rounds (seeds 0-2 of the four arms) end about 03:54 on 11-19 on average, and 05:54 if every round
+  on a GPU ran at the slowest rate. The 2.7-3.5 h in the 12:36 entry was read before the slowdown and is wrong.
+  No sixth round is needed. A fourth round will start after about 03:54 and be cut at 05:55.
+- **D on the box.** 1.6-2.0 s per step at steps 1,446-1,806: about 6.1 h per 11,441-step run and 7.5 h per
+  14,180-step run. No new failure; all eight GPUs busy.
+- **r101.** Worker 29554919 started `d007rl_ctl_b200` seed 0 at 12:39 on node5600-c1: 882 steps in the first 19 min,
+  about 13,500 steps at 17,400 s if the rate holds. Worker 29554920 (`d007rl_native_b200` seed 0) is pending, with
+  Slurm's start estimate at 19:00, so the pair will not run side by side.
