@@ -6994,3 +6994,28 @@ Job 29508506 (B200, node5601-c1; D 007 seed 0's final weights, 64 prompts x 8, 2
   `share_mbt65k` arms from D 007 seed 0's start and final weights, native against vLLM on the same node. The
   native arms turn off `constrain_batched`, which is a vLLM option. They read tok/s and step time, and loss and
   reward at matching steps.
+
+## 2026-11-18 04:18 EST: r98 benchmarks: the native sampler makes D's RL step 1.4-1.6x faster at matching reward; r99 runs it end to end
+
+Worker 29516197 (B200, node5801-c1), 300 steps each, no_save, r94's `share_mbt65k` arms from D 007 seed 0's start and
+final weights, native sampler against vLLM on the same node:
+
+| weights | sampler | wall s | tok/s | sample s/step | update s/step | reward, steps 1-100 / 101-200 / 201-300 | entropy, 201-300 | peak GB | dev at 300 |
+|---|---|---|---|---|---|---|---|---|---|
+| start | vLLM | 385.4 | 13,549 | 0.714 | 0.477 | 0.2999 / 0.3626 / 0.3887 | 0.354 | 122.0 | 0.0717 |
+| start | native | 241.4 | 25,845 | 0.157 | 0.396 | 0.2941 / 0.3588 / 0.3848 | 0.313 | 75.2 | 0.0617 |
+| final | vLLM | 246.4 | 18,569 | 0.445 | 0.257 | 0.5957 / 0.5992 / 0.5947 | 0.0911 | 85.4 | 0.2500 |
+| final | native | 175.6 | 34,693 | 0.147 | 0.287 | 0.5966 / 0.5968 / 0.5964 | 0.0875 | 39.4 | 0.2517 |
+
+- Wall time 1.60x (start) and 1.40x (final) faster; tok/s 1.91x and 1.87x (wall includes vLLM's longer start-up).
+  Sampling drops from 0.45-0.71 s to 0.15-0.16 s per step; the update is now most of the step.
+- Rewards match within noise at every 100-step window from both weights, so the maths is the same, as built.
+  The start arm's entropy (0.313 vs 0.354) and dev (0.062 vs 0.072) are a little lower with native: one seed, 300
+  steps, and the dev at step 300 of a start-weights run is noise-sized; the end-to-end arm reads it properly.
+- Peak memory drops by about 46-47 GB (no vLLM pool).
+- Speed change with the same maths (INBOX 11-17 15:02): kept. `rollout_backend: "native"` is the sampler for new D
+  arms; it stays off by default.
+- r99 (`calibration/research_r99/d007_native_b200`): r97's speed arm with the native sampler, seeds 0-2, end to end,
+  on queue `screens_d_b200` interleaved as speed / ctl / native per seed. r97's three workers take the first two
+  rounds; the third round needs workers when those end. Reads RL steps reached and final dev, paired by seed.
+- Next for speed: the grammar's 0.067 s of CPU per call runs while the GPU waits; overlapping it is the next piece.
