@@ -100,7 +100,7 @@ case $cmd in
     fi
     aws s3api put-bucket-lifecycle-configuration --bucket "$BUCKET" --lifecycle-configuration '{"Rules":[
       {"ID":"rlvr-box-state","Filter":{"Prefix":"box-state/"},"Status":"Enabled","Expiration":{"Days":7},"AbortIncompleteMultipartUpload":{"DaysAfterInitiation":2}},
-      {"ID":"rlvr-box-files","Filter":{"Prefix":"box/"},"Status":"Enabled","Expiration":{"Days":90},"AbortIncompleteMultipartUpload":{"DaysAfterInitiation":2}}]}'
+      {"ID":"rlvr-box-files","Filter":{"Prefix":"box/"},"Status":"Enabled","Expiration":{"Days":90},"AbortIncompleteMultipartUpload":{"DaysAfterInitiation":2}}]}' >/dev/null
     aws s3api get-bucket-lifecycle-configuration --bucket "$BUCKET" --query 'Rules[].[ID,Filter.Prefix,Expiration.Days]' --output text
     ;;
   template)
@@ -180,7 +180,7 @@ case $cmd in
     read -r key secret token < <(aws sts assume-role --role-arn "arn:aws:iam::$account:role/rlvr-scheduler" \
       --role-session-name box-auto-dryrun --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text)
     out=$(AWS_ACCESS_KEY_ID=$key AWS_SECRET_ACCESS_KEY=$secret AWS_SESSION_TOKEN=$token aws ec2 run-instances --dry-run \
-      --launch-template "LaunchTemplateName=$name" --min-count 1 --max-count 1 2>&1) || true
+      --launch-template "LaunchTemplateName=$name" --count 1 2>&1) || true
     if grep -q DryRunOperation <<<"$out"; then
       echo "dry run ok: the rlvr-scheduler role may launch $name"
     else
