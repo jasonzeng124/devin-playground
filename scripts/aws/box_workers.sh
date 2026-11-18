@@ -23,7 +23,7 @@ mkdir -p slurm_logs
 for k in $(seq "$FIRST" $(( FIRST + PER_GPU - 1 ))); do
   for g in $GPUS; do
     id=box-$(hostname -s)-g$g-$k
-    CUDA_VISIBLE_DEVICES=$g SLURM_JOB_ID=$id setsid nohup bash scripts/slurm/queue_worker.sbatch >"slurm_logs/$id.out" 2>&1 &
+    CUDA_VISIBLE_DEVICES=$g SLURM_JOB_ID=$id setsid nohup bash scripts/slurm/queue_worker.sbatch >>"slurm_logs/$id.out" 2>&1 &
     echo "started $id"
   done
   (( k < FIRST + PER_GPU - 1 )) && sleep "$STAGGER_S"
