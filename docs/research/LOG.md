@@ -7034,3 +7034,42 @@ final weights, native sampler against vLLM on the same node:
 - r100 (B200 worker 29521171, queue `screens_b200`, 300 steps each, `time_update_parts` on): r98's native arms from D
   007 seed 0's start and final weights, flag off against on. Reads t_update, the `allowed` part and tok/s, with reward
   at matching steps.
+
+## 2026-11-18 12:03 EST: the 11-18 H100 box is up, 5 h 16 min late; all eight GPUs run r85 and r86
+
+- Launched at 11:46 EST (i-0502d26f396883825, p5.48xlarge, 174.129.98.131) with the two allowed AWS commands, not at
+  06:30: the previous account's weekly usage limit stopped this session at about 04:25 (INBOX 11-18 11:47), so no wake
+  ran at 06:30. The box ends at 06:30 EST on 11-19 (worker deadline 05:55): about 18 h of its 24 h are left.
+- Ready at 11:49. The copy job (29551164, mit_quicktest) sat pending behind other jobs, so on the maintainer's word
+  (via the laptop session) the copy ran from the login node, niced: code, configs, queues, base model and tokenizer
+  in 42 s, then the 15 D checkpoints (3.2 GB) in 34 s. That is network-bound rsync, about a minute of light CPU. The
+  quicktest job started at the same time and finished as a second pass over the same files (SYNC_OK); a duplicate on
+  mit_normal (29551402) was cancelled before it started.
+- Workers (docs/research/box_1118.md, with `SCREEN_RESUME=1` as on the 11-05 box): A on GPUs 0-3 at 11:58
+  (`box_a_1118`, one per GPU), D on GPUs 4-7 from 11:58 to 12:01 (`box_d_1118`, three per GPU). At 12:02 all 16 runs
+  were training (vLLM's kernel warmup took about 2 min on the fresh box).
+- Left in the queues: 8 A items and 6 D items. D's second round fills only half of GPUs 4-7, so more D items go on
+  once the first rates are read. Results come back with `box_sync.sh from box1118` each wake.
+
+## 2026-11-18 12:03 EST: r100: `reuse_sampler_allowed` is bit-identical over 300 steps and cuts the update 14.5 % on the final weights; kept
+
+| weights | flag | tok/s | sample s/step | update s/step | allowed s/step |
+|---|---|---|---|---|---|
+| final | off | 29,345 | 0.152 | 0.293 | 0.0487 |
+| final | on | 32,749 | 0.150 | 0.251 | 0.0002 |
+| start | off | 20,219 | 0.245 | 0.442 | 0.0570 |
+| start | on | 16,051 | 0.440 | 0.451 | 0.0002 |
+
+(B200 node5801, worker 29521171, 300 steps each, means over steps 21-300.)
+
+- **Final weights:** reward, loss, entropy and grad norm are equal at every one of the 300 steps, flag on against off,
+  and both equal r98's native run. So the flag is the same maths in a full run, not only in the tests. The update is
+  0.043 s shorter (-14.5 %) and tok/s is +11.6 %.
+- **Start weights:** not a usable whole-step comparison. The two runs differ from step 2, but so do r98's native run
+  and r100's control, which are the same maths: at step 1 the loss is equal to every digit and the grad norm differs
+  in the fifth, and at entropy 3.2 that changes the samples one step later. The three same-maths runs average
+  21,637, 20,219 and 16,051 tok/s at equal tokens per step; the flag-on run took the
+  highest-entropy path, where sampling ran 0.44 s against 0.24 s per step (the sampler code is the same
+  in both arms). The allowed part itself fell from 0.057 s to 0.0002 s there too.
+- **Verdict:** kept (INBOX 11-17 15:02: same maths, faster). New D arms on the native sampler set
+  `reuse_sampler_allowed`. r99 is already queued without it and stays as it is.
