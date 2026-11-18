@@ -6921,3 +6921,22 @@ r96 (B200 worker 29471792, node5502-c1, 150 steps each, r95's shared-prompt arms
   the final weights, with and without the constraint, and takes a cProfile of three calls, to find the vLLM
   functions that cost the time (B200 job 29477068). The fix depends on it: vLLM settings if the cost is
   detokenization and stop strings, else a same-process sampler (U17).
+
+## 2026-11-17 23:09 EST: INBOX 20:23 (more use out of the B200s); r97 (D speed stack end to end, B200); H200 gates held
+
+- INBOX 11-17 20:23: U20 is about getting more use out of the B200s; records stay on the H200. Since noon my jobs had
+  used 5.5 GPU-hours out of about 50, and nothing had run since 18:53. The agent was not woken between 19:49 and 23:06.
+- The H200s are jammed: 236 H200 jobs pending on mit_preemptable, and mine have waited since 13:19. The B200 nodes
+  there have free GPUs.
+- r97 (B200, not yet gated, queue `screens_d_b200`, preemptable workers 29497701/02/05, one run per GPU): D 007 end
+  to end with every same-maths speed change so far (`d007_speed_b200`: r92's pretraining path, `--fused-loss`,
+  micro-batch 128, Muon 46 min, 600 s moved to RL; plus r94's `share_group_prompt` and 65,536-token micro-batches),
+  against D 007's config on the same GPU type (`d007_ctl_b200`), seeds 0-2. It reads RL steps reached and final dev.
+  More RL steps have raised D before (r59: 0.239 at 10k steps, 0.258 at 15k; r78: 20k steps +0.032 over r59).
+- r97's arm contains r92's change, so r92's three H200 workers (29450693/94/702) and the r90 H200 benchmark (29445218;
+  r91 measured the same on B200) are held, not cancelled. That keeps my running preemptable GPUs at 4 or fewer if
+  D 007 seed 4 (29355448, still pending on an H200) starts while r97 runs.
+- The sampling profiler failed twice more: outside the worker it needs the worker's environment (CUDA module,
+  `VLLM_USE_FLASHINFER_SAMPLER=0`, and GCC's libstdc++ first on `LD_LIBRARY_PATH` for FlashInfer's kernels, as in
+  `packed_worker.sbatch`). Resubmitted with all three as B200 job 29497515.
+- The 11-18 box: `box_sync.sh to` needs the box up, so it runs after the 06:30 EST launch.
