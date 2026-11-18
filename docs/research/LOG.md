@@ -7127,3 +7127,42 @@ final weights, native sampler against vLLM on the same node:
 - **r101.** Worker 29554919 started `d007rl_ctl_b200` seed 0 at 12:39 on node5600-c1: 882 steps in the first 19 min,
   about 13,500 steps at 17,400 s if the rate holds. Worker 29554920 (`d007rl_native_b200` seed 0) is pending, with
   Slurm's start estimate at 19:00, so the pair will not run side by side.
+
+## 2026-11-18 14:14 EST: INBOX 13:35 and 13:39 read; box: A runs take about 6.4 h, so A's third seed moves to the D GPUs
+
+- **INBOX 13:35 (aceaf15).** The 11-28 H200 box has to launch and run with nobody awake: an AWS-side launch at 11:30Z
+  with retries, the box fetching code, queues, checkpoints and venv pins at boot and starting its own workers, results
+  and saved state leaving the box without a pull, a 24 h queue packed against 141 GB, and no clash with a launch by me.
+  It is to be tested (a dry run under the launching role, one boot of a cheap instance) for a few dollars, and built and
+  written up in `docs/research/box_1128.md` by 11-25. I read the note as allowing the AWS calls this build needs (the
+  earlier notes allowed only `describe-instances` and `run-instances`); every charge will be logged. Not started: today's
+  box comes first.
+- **INBOX 13:39 (480d57d).** Two more 8x H100 days: 11-25 (`cr-03ab208e99ca6ca06`) and 12-09 (`cr-0813172fa29139b78`),
+  11:30Z to 11:30Z, us-east-1f, same IP and launch path as today, screens only. Each needs a launch with its own
+  reservation id, a 24 h queue and a packing checked against 80 GB. Still to check: that both show `scheduled`.
+- **A on the box (14:12).** The 13:00 entry's 5.3 h was too low. Over the last 100 steps:
+
+  | arm (seed 0) | step | s per step | projected total | projected end |
+  |---|---|---|---|---|
+  | `a007_cos467_h100` | 204 | 55.5 | 6.25 h | 18:15 |
+  | `a007_ctl_h100` | 203 | 55.4 | 6.25 h | 18:16 |
+  | `a007_ent15_h100` | 189 | 56.3 | 6.53 h | 18:32 |
+  | `a007_lr1.3e-6_h100` | 190 | 54.9 | 6.41 h | 18:25 |
+
+  The mean is 6.36 h. Round 2 then ends about 00:30-01:05, and a third round on GPUs 0-3 would end after 06:45, past the
+  block (the box may go at 06:00). If late steps ease as they did on the H200 (42 s to 35-36 s), a run takes about
+  5.7 h and a third round still ends after 05:05, which is too close to plan on.
+- **D on the box (14:12).** At the last 800 steps' rates the five 11,441-step runs end 17:24-17:46 (5.33-5.76 h) and
+  the three 14,180-step runs end 18:32-19:11 (6.52-7.11 h).
+- **Plan for the tail, to set up about 17:10 (before the first D run ends).**
+  - A's seed 2 (four arms) goes on GPUs 4-7, one run per GPU as each GPU empties of D runs (about 17:45 to 18:45), and
+    ends about 00:10-01:10. A's seeds 3 and 4 leave the box queue; they never fitted.
+  - D's 12 queued runs wait, then run one per GPU on all eight GPUs as each A run ends (00:10-01:10). A pair of
+    11,441-step runs on one GPU needs 5.6 h, which only the first free GPU might have. So 8 or 9 of the 12 fit; the ones
+    left out are from `muon1338m_s11441`, the arm box_1118.md calls extra.
+  - That gives A 12 runs (three seeds per arm) and D 16 or 17. Leaving the queues alone gives A 8 finished runs and D at
+    most 20, with A's third round cut.
+  - Not measured yet: a D run's speed alone on an H100. One run needs under about 1.45 s per step to finish 11,441
+    steps in the 4.7 h the last GPUs will have. The first reading comes when one run of a pair ends (about 17:24).
+- **Engaging.** r101's control (29554919) is 94 min in; 29554920 is pending with a 17:28 start estimate. D 007 seed 4 (29355448) is still
+  pending.

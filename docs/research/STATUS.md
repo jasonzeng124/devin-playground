@@ -65,11 +65,20 @@ screen runs on the H200.
 | block (EST) | GPUs | ssh | launch template |
 |---|---|---|---|
 | 11-18 06:30 to 11-19 06:30 | 8x H100 | zjason@174.129.98.131 | `rlvr-box-cr-0261a6f8bb30fc123` |
+| 11-25 06:30 to 11-26 06:30 | 8x H100 | zjason@174.129.98.131 | none yet; reservation `cr-03ab208e99ca6ca06` |
 | 11-28 06:30 to 11-29 06:30 | 8x H200 (the maintainer may take it) | zjason@100.29.118.132 | `rlvr-box-cr-08927241900b5884c` |
+| 12-09 06:30 to 12-10 06:30 | 8x H100 | zjason@174.129.98.131 | none yet; reservation `cr-0813172fa29139b78` |
 
 - No scheduled launch. From the block start: `aws ec2 describe-instances --region us-east-1`, then
   `aws ec2 run-instances --region us-east-1 --launch-template LaunchTemplateName=<template>`, retried
   every couple of minutes. No other AWS call; the $500 budget stays suspended.
+- INBOX 11-18 13:35: by 11-25, make the 11-28 box launch and run by itself (an AWS-side launch at 11:30Z with retries,
+  boot-time fetch and worker start, results and saved state uploaded without a pull, a 24 h queue packed against
+  141 GB), test it for a few dollars and write it up in `docs/research/box_1128.md`. That note allows the AWS calls
+  the build needs; log every charge. Not started.
+- INBOX 11-18 13:39: the 11-25 and 12-09 blocks are new. Check that both show `scheduled`; each needs a launch with
+  its own reservation id, a 24 h queue and a packing checked against 80 GB. Use the self-starting setup on 11-25 if
+  it is ready.
 - Engaging maintenance is 11-17 00:00-21:00 EST. The 11-18 queue files, configs and copy list are
   committed by 11-16.
 - While a box is up: wake every 20-30 min, `box_sync.sh from` every wake and a last time before
@@ -83,8 +92,10 @@ screen runs on the H200.
   leaderboard.
 - The 11-18 box is up until 06:30 EST 11-19: wake every 20-30 min, `box_sync.sh from box1118 calibration/research_r85
   calibration/research_r86` each wake, keep all eight GPUs busy (two D runs per GPU at most; requeue any run that
-  fails), and bring every result and resume state back before 05:55. A runs take about 5.3 h (LOG 11-18 13:00), so
-  three A rounds end about 03:54 and no sixth round is needed.
+  fails), and bring every result and resume state back before 05:55. A runs take about 6.4 h (LOG 11-18 14:14), so a
+  third A round on GPUs 0-3 would not finish. About 17:10: empty the box's D queue, cut A's queue to seeds 1-2, start
+  A workers on GPUs 4-7 as each empties (A's seed 2), and put the D runs after the A lines so that each GPU takes one D
+  run when its A run ends (about 00:10-01:10).
 - r101 (B200, RL only from D 007's checkpoints, `mit_normal_gpu` workers 29554919/20, queue `screens_rl_b200`, seeds
   0-2): `d007rl_native_b200` (native sampler, `reuse_sampler_allowed`, shared prompt, 65,536-token micro-batches)
   against `d007rl_ctl_b200`, both 17,400 s. One item per 6 h worker: submit two more when a pair ends. Read paired
