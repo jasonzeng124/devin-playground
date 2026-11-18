@@ -6974,3 +6974,23 @@ r96 (B200 worker 29471792, node5502-c1, 150 steps each, r95's shared-prompt arms
   without CUDA graphs, then vLLM on the same node. It reads wall time per call and completion lengths (the lengths
   should match vLLM's, since both sample the same distribution). If it is well under vLLM's 0.47 s, 300-step
   benchmarks against r96's arms follow (tok/s, loss at matching steps), then an end-to-end D arm.
+
+## 2026-11-18 03:00 EST: r98 profile: the native sampler is 2.2x faster than vLLM per generate call; 300-step benchmarks queued
+
+Job 29508506 (B200, node5601-c1; D 007 seed 0's final weights, 64 prompts x 8, 20 timed calls each, timing only):
+
+| sampler | constrained median s/call | mean length | mean longest | constraint s/call | unconstrained s/call (256 tokens) |
+|---|---|---|---|---|---|
+| vLLM (as in D 007) | 0.441 | 24.68 | 36.3 | 0.046 | 2.066 |
+| native, CUDA graphs | 0.199 | 24.69 | 36.25 | 0.155 (includes waiting on the GPU) | 1.479 |
+| native, no graphs | 0.239 | 24.69 | 36.25 | 0.067 | 1.748 |
+
+- Same lengths as vLLM, as expected from the same distribution. 2.22x faster constrained, 1.40x unconstrained.
+  The weight copy after each update (`sync`) takes 0.6 ms.
+- With graphs the host waits for the GPU inside the grammar step, so its 0.155 s is not CPU work. Without graphs the
+  grammar's real CPU time is 0.067 s, a third of the call. That is the next piece to overlap with the GPU.
+- Sampling was 0.48-0.62 s of a 0.95-1.0 s step in r96, so this should save roughly a quarter of the step.
+- Next, r98's benchmarks (B200 worker 29516197, queue `screens_b200`, 300 steps each, no_save): r94's
+  `share_mbt65k` arms from D 007 seed 0's start and final weights, native against vLLM on the same node. The
+  native arms turn off `constrain_batched`, which is a vLLM option. They read tok/s and step time, and loss and
+  reward at matching steps.
