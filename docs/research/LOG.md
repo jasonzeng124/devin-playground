@@ -7187,3 +7187,42 @@ final weights, native sampler against vLLM on the same node:
 - **Reservations.** `describe-capacity-reservations` showed both new blocks (`cr-03ab208e99ca6ca06`,
   `cr-0813172fa29139b78`) as `scheduled` at 14:17 (INBOX 13:39).
 - **Box at 15:33.** All eight GPUs busy, 12 runs, queues 16 (A) and 12 (D). No AWS charge so far beyond the blocks.
+
+## 2026-11-18 17:07 EST: box: the tail runs from per-GPU queues with a keeper on the box
+
+- **Why the 15:33 tail plan was dropped.** One shared tail queue with the A runs first would have started the remaining
+  D runs as pairs at about 00:40-01:35, and a paired 11,441-step D run takes about 5.6 h here, so none would have
+  finished before the box ends. After one A run (about 6.4 h) a GPU has only 4.3-5.3 h left. A shared queue cannot say
+  which GPU takes what, so each GPU now has its own queue.
+- **What is on the box now.** At 16:59 EST I moved the two old queues to hold files (`queue/hold_a_1118.txt`,
+  `queue/hold_d_1118.txt`), so each old worker exits when its run ends. At 17:06 I wrote `queue/box_g<g>_1118.txt` for
+  each GPU and a shared overflow queue `queue/box_t_1118.txt`, and started `~/tail_keeper.sh` on the box (a copy is in
+  `agent/box_tail_keeper_1118.sh`). Once a minute it looks at every GPU. When a GPU is empty on two passes and its
+  queue or the overflow queue holds an item, it starts a worker with `QUEUE=box_g<g>_1118:box_t_1118`. It starts a
+  second worker beside a lone D run only when the GPU's next item is a D run and at least 400 min remain. Workers start
+  nothing with less than 240 min left (after 01:55 EST). The workers use `scripts/aws/box_runner.sh`, which reruns a
+  failed item from its saved state (up to two tries without progress) before it is recorded FAILED.
+  Stop the keeper with `touch ~/tail_keeper.off` on the box.
+- **Plan per GPU** (times EST, projected from the run times measured so far):
+
+  | GPU | free from | its queue | projected end |
+  |---|---|---|---|
+  | 0 | 18:15 | A `lr1.3e-6` seed 1 | 00:40 |
+  | 1 | 18:25 | A `ent15` seed 1 | 00:50 |
+  | 2 | 21:37 | D `muon1338m_s14180` seeds 2, 3 (pair) | 04:40 |
+  | 3 | 18:32 | A `cos467` seed 1 | 00:55 |
+  | 4 | 19:05 | A control seed 2 | 01:30 |
+  | 5 | 17:35-17:42 | D `muon2676m_s11441` seeds 1, 2, then 3, 4 (two pairs) | 04:50 |
+  | 6 | 18:32 at the latest | A control seed 0 (resume from step 261), then A `ent15` seed 2 | 03:40 |
+  | 7 | 19:11 | A `lr1.3e-6` seed 2 | 01:35 |
+
+  Overflow queue, taken by GPUs 0, 1, 3, 4 and 7 after their A run, one D run per GPU: `d004_ctl_s11441` seed 3, then
+  `muon1338m_s11441` seeds 1, 2, 0, 3, 4. Held back: A `cos467` seed 2 and A seeds 3-4.
+- **Not known yet.** How fast one D run goes alone on an H100 (all D runs so far ran as pairs, about 1.75 s per step).
+  `muon1338m_s14180` seed 0 runs alone on GPU 6 from about 17:24, which gives the number. A single 11,441-step run has
+  to finish in 4.3-5.2 h in those slots; if it cannot, I take the overflow items out rather than start runs that
+  cannot finish.
+- **Also open.** The resumed A control seed 0 meets the same long batch at about step 271, a few minutes after it
+  starts on GPU 6. If it fails twice there, the worker goes on to the next item and I look at it again.
+- **Box at 17:06.** All eight GPUs busy, 12 runs, 8 FAILED lines in `queue/done.txt` (unchanged). No AWS charge so far
+  beyond the blocks.
