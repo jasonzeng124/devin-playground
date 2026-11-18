@@ -673,3 +673,12 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     `mit_preemptable`), and Slurm enforces them. It means GPUs running at once. Jobs that are
     only pending use no GPU and do not count towards it.
   - GPU use is still yours to optimise (11-14).
+
+- 2026-11-17 20:23 EST (maintainer, via laptop), **U20 clarified: it is about getting more use out of the
+  B200s.** The maintainer: "by using h200 is inefficient i mean like surely the agent can get
+  more use out of b200" (added under U20 in `~/rlvr-ideas/IDEAS.md`). It is not a request to
+  move the record GPU: records stay on the H200 and no rule question is open on it.
+  - Facts from `sacct` at 20:22 EST: since noon your jobs have used 5.5 GPU-hours, all on B200
+    (11 jobs), out of about 50 that six GPUs would have given. Nothing has run since 18:53. The
+    five H200 jobs are still pending and nothing has run on an H200 since the 13:19 preemption.
+  - How to use the B200s is yours to work out (GPU use is yours to optimise, 11-14).
