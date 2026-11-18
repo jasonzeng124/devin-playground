@@ -7345,3 +7345,23 @@ final weights, native sampler against vLLM on the same node:
   - r85 `a007_ent15_h100` seed 0: 0.4383 (`a007_lr1.3e-6_h100` seed 0 was 0.4367). The A control's seed 0 is
     due about 21:00.
 - **Box at 18:22.** All eight GPUs busy, 10 runs, still 10 FAILED lines in `queue/done.txt`.
+
+## 2026-11-18 18:50 EST: box: three more seeds finished; `muon1338m_s14180` is -0.0083 against the control over 3 paired seeds so far
+
+- **r86 (D, RL only from saved checkpoints, final dev).** `muon1338m_s14180` (14,180 steps) against
+  `d004_ctl_s11441` (11,441 steps), the seeds both arms have finished:
+
+  | seed | control | `muon1338m_s14180` | difference |
+  |---|---|---|---|
+  | 0 | 0.2700 | 0.2550 | -0.0150 |
+  | 1 | 0.2467 | 0.2333 | -0.0133 |
+  | 4 | 0.2400 | 0.2433 | +0.0033 |
+
+  Mean difference -0.0083 over 3 seeds. Seeds 2 and 3 of the Muon arm run on GPU 2 and are due about 01:00;
+  the control's seed 3 failed early and waits in the box's shared queue. No verdict before the arm is complete.
+- **r85 (A 007's config, 467 steps, final dev).** `a007_cos467` seed 0: 0.4167 (its steps up to 407 ran under the
+  `_h100` config and the rest under `_h100m30`; the result is in the `_h100m30` directory). Seed 0 of the other
+  arms: `lr1.3e-6` 0.4367, `ent15` 0.4383. The control's seed 0 is due about 21:00, so nothing is paired yet.
+- **Box at 18:46.** All eight GPUs busy, 10 runs, still 10 FAILED lines. The keeper started GPU 4 (`a007_ctl_h100m30`
+  seed 2, 18:26) and GPU 7 (`a007_lr1.3e-6_h100m30` seed 2, 18:37); GPU 3's worker went on to `a007_cos467_h100m30`
+  seed 1 by itself. No A run has failed for memory since the move to the 0.30 share.
