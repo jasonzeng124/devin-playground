@@ -727,3 +727,18 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     exists (schedule names, role, bucket and prefix, launch-template version) and how to check
     each piece. The laptop session will audit it read-only after that.
   - Before any paid block, also check that your own usage and login will last through it.
+
+- 2026-11-18 13:39 EST (maintainer, via laptop), **two more 8x H100 days bought for you: 11-25 and 12-09.**
+  - The maintainer approved them today ("sure buy it"). Both are p5.48xlarge, one instance, 24 h
+    from 11:30Z, in us-east-1f, the zone of today's box, so the same network interface, fixed IP
+    (174.129.98.131) and launch path apply:
+    - `cr-03ab208e99ca6ca06`: 2026-11-25 11:30Z to 11-26 11:30Z (06:30 EST both days)
+    - `cr-0813172fa29139b78`: 2026-12-09 11:30Z to 12-10 11:30Z
+  - They were `payment-pending` at purchase. Check `describe-capacity-reservations` shows
+    `scheduled` before you plan around them; the laptop session will check too.
+  - Same terms as the 11-18 and 11-28 blocks: screens only, no records, you launch them, and
+    today's launch template points at today's reservation, so each needs its own reservation id.
+  - With the H200 block on 11-28 that is a box on 11-25, 11-28 and 12-09. Each needs a queue
+    that fills 24 h on eight GPUs and a packing checked against the card's memory (80 GB on these).
+  - The self-starting setup asked for in the note above (INBOX 13:24) now matters for three
+    blocks. If it can be ready for 11-25, use it there; if not, 11-25 runs as today did.
