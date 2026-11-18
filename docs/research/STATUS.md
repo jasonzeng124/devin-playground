@@ -76,7 +76,7 @@ screen runs on the H200.
   boot-time fetch and worker start, results and saved state uploaded without a pull, a 24 h queue packed against
   141 GB), test it for a few dollars and write it up in `docs/research/box_1128.md`. That note allows the AWS calls
   the build needs; log every charge. Not started.
-- INBOX 11-18 13:39: the 11-25 and 12-09 blocks are new. Check that both show `scheduled`; each needs a launch with
+- INBOX 11-18 13:39: the 11-25 and 12-09 blocks are new. Both show `scheduled` (checked 11-18 14:17); each needs a launch with
   its own reservation id, a 24 h queue and a packing checked against 80 GB. Use the self-starting setup on 11-25 if
   it is ready.
 - Engaging maintenance is 11-17 00:00-21:00 EST. The 11-18 queue files, configs and copy list are
