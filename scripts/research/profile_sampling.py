@@ -3,9 +3,10 @@
 Loads a config (e.g. calibration/research_r96/final_share_mbt65k/config.json) and a checkpoint, builds the vLLM engine as
 grpo.run does, and times `VLLMRollout.generate` on fresh training batches: wall time per call, completion lengths, the
 constrained processor's CPU time, a cProfile of a few calls (top functions by own time), and the same calls without
-the answer constraint as a bound. Prints one JSON line per variant and the profile as text.
+the answer constraint as a bound. Prints one JSON line per variant and the profile as text. `--backend native` times the
+same-process sampler (`fast_rollout.NativeRollout`) instead, and its per-step weight copy (`sync`).
 
-    python scripts/research/profile_sampling.py --config <config.json> --model <checkpoint dir> [--reps 20]
+    python scripts/research/profile_sampling.py --config <config.json> --model <checkpoint dir> [--reps 20] [--backend native]
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ from pathlib import Path
 import torch
 
 from rlvr_speedrun import grpo, vllm_constrained
-from rlvr_speedrun.model_utils import load_tokenizer
+from rlvr_speedrun.model_utils import load_causal_model, load_tokenizer
 from rlvr_speedrun.vllm_rollout import VLLMRollout
 
 
@@ -34,14 +35,25 @@ def main() -> None:
     parser.add_argument("--reps", type=int, default=20)
     parser.add_argument("--warmup", type=int, default=5)
     parser.add_argument("--profile-reps", type=int, default=3)
+    parser.add_argument("--backend", choices=("vllm", "native"), default="vllm")
+    parser.add_argument("--no-graphs", action="store_true", help="native: decode without CUDA graphs")
     args = parser.parse_args()
     names = {f.name for f in fields(grpo.GRPOConfig)}
     loaded = json.loads(Path(args.config).read_text())
     config = replace(grpo.GRPOConfig(**{k: v for k, v in loaded.items() if k in names}), model=args.model)
     device = torch.device("cuda")
     tokenizer = load_tokenizer(config.model)
-    engine = VLLMRollout(config.model, 512 + max(config.max_new_tokens, config.eval_max_new_tokens), config.vllm_gpu_memory, config.seed,
-                         constrain_answer=config.constrain_answer, constrain_batched=config.constrain_batched)
+    max_len = 512 + max(config.max_new_tokens, config.eval_max_new_tokens)
+    native = args.backend == "native"
+    if native:
+        from rlvr_speedrun.fast_rollout import NativeRollout
+
+        model, _ = load_causal_model(config.model, "cuda", "fp32")
+        engine = NativeRollout(model, tokenizer, max_len, config.seed, constrain_answer=config.constrain_answer,
+                               cuda_graphs=not args.no_graphs)
+    else:
+        engine = VLLMRollout(config.model, max_len, config.vllm_gpu_memory, config.seed, constrain_answer=config.constrain_answer,
+                             constrain_batched=config.constrain_batched)
     stream, _ = grpo._train_streams(config)
 
     def batch():
@@ -64,15 +76,25 @@ def main() -> None:
         for _ in range(args.reps):
             vllm_constrained.APPLY_TIME = 0.0
             wall, finished = call(*batch(), constrained)
-            mask_cpu.append(vllm_constrained.APPLY_TIME)
+            mask_cpu.append(engine.mask_cpu if native else vllm_constrained.APPLY_TIME)
             vllm_constrained.APPLY_TIME = None
             walls.append(wall)
             mean_len.append(finished.float().mean().item())
             max_len.append(finished.max().item())
-        print(json.dumps({"variant": "constrained" if constrained else "unconstrained", "median_wall_s": statistics.median(walls),
+        print(json.dumps({"backend": args.backend, "variant": "constrained" if constrained else "unconstrained", "median_wall_s": statistics.median(walls),
                           "mean_wall_s": statistics.mean(walls), "mean_completion_len": statistics.mean(mean_len),
                           "mean_max_len": statistics.mean(max_len), "mask_cpu_s": statistics.mean(mask_cpu),
                           "per_decode_step_ms": 1000 * statistics.mean(w / m for w, m in zip(walls, max_len))}), flush=True)
+
+    if native:
+        syncs = []
+        for _ in range(args.reps):
+            torch.cuda.synchronize()
+            start = time.perf_counter()
+            engine.sync(model)
+            torch.cuda.synchronize()
+            syncs.append(time.perf_counter() - start)
+        print(json.dumps({"backend": "native", "sync_median_s": statistics.median(syncs)}), flush=True)
 
     profiler = cProfile.Profile()
     batches = [batch() for _ in range(args.profile_reps)]
