@@ -45,7 +45,7 @@ class GRPOConfig:
     compile: bool = False
     pad_to_multiple: int = 0
     cache_len: int = 0
-    rollout_backend: str = "hf"  # "hf" (model.generate) or "vllm" (colocated engine; rlvr_speedrun/vllm_rollout.py)
+    rollout_backend: str = "hf"  # "hf" (model.generate), "vllm" (colocated engine; rlvr_speedrun/vllm_rollout.py) or "native" (fast_rollout.py, Llama only)
     vllm_gpu_memory: float = 0.3  # share of GPU memory given to the vLLM engine (weights + KV cache)
     # extra keyword arguments for vllm.LLM, as a JSON object (e.g. '{"async_scheduling": true}'; PLAN D7); "" = none
     vllm_engine_args: str = ""
@@ -504,7 +504,8 @@ def _lap(parts: dict | None, name: str, device: torch.device) -> None:
 
 
 def _is_vllm(engine) -> bool:
-    return type(engine).__name__ == "VLLMRollout"
+    """A rollout engine with `VLLMRollout.generate`'s interface: vLLM's, or the same-process sampler (`native`)."""
+    return type(engine).__name__ in ("VLLMRollout", "NativeRollout")
 
 
 def _wants_sampler_logprobs(config: GRPOConfig) -> bool:
@@ -519,7 +520,8 @@ def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.d
     _lap(parts, "s_encode", device)
     sampler_lp = None  # per completion token, the sampler's log-prob (with log_mismatch / tis_cap)
     if _is_vllm(caches):
-        if parts is not None:
+        native = type(caches).__name__ == "NativeRollout"
+        if parts is not None and not native:
             from . import vllm_constrained
 
             vllm_constrained.APPLY_TIME = 0.0  # a float turns the processor's timer on
@@ -529,11 +531,13 @@ def _sample_batch(model, tokenizer, puzzles, config: GRPOConfig, device: torch.d
         generated, finished_at = sampled[:2]
         if _wants_sampler_logprobs(config):
             sampler_lp = sampled[2]
-        if parts is not None:
+        if parts is not None and native:
+            parts["t_part_s_mask_cpu"] = caches.mask_cpu
+        elif parts is not None:
             parts["t_part_s_mask_cpu"], vllm_constrained.APPLY_TIME = vllm_constrained.APPLY_TIME, None
     else:
         assert not _wants_sampler_logprobs(config), "log_mismatch and tis_cap need rollout_backend='vllm'"
-        assert not config.constrain_answer, "constrain_answer needs rollout_backend='vllm'"
+        assert not config.constrain_answer, "constrain_answer needs rollout_backend='vllm' or 'native'"
         generated, finished_at = _generate_chunked(model, tokenizer, encoded, config, caches)
     _lap(parts, "s_generate", device)
     prompt_width = encoded["input_ids"].shape[1]
@@ -1112,8 +1116,8 @@ def _evaluate(
                 texts = tokenizer.batch_decode(generated[: n_real * k, encoded["input_ids"].shape[1] :], skip_special_tokens=True)
                 local_completions.extend(texts[i * k : (i + 1) * k] if config.eval_samples else texts[i] for i in range(n_real))
                 continue
-            assert not config.eval_samples, "eval_samples needs rollout_backend='vllm'"
-            assert not config.constrain_answer, "constrain_answer needs rollout_backend='vllm'"
+            assert not config.eval_samples, "eval_samples needs rollout_backend='vllm' or 'native'"
+            assert not config.constrain_answer, "constrain_answer needs rollout_backend='vllm' or 'native'"
             generated = model.generate(
                 **encoded,
                 max_new_tokens=limit,
@@ -1380,8 +1384,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
                              constrain_answer=config.constrain_answer, logprobs=_wants_sampler_logprobs(config),
                              engine_args=json.loads(config.vllm_engine_args) if config.vllm_engine_args else None,
                              constrain_batched=config.constrain_batched)
-    elif config.rollout_backend != "hf":
-        raise ValueError(f"unknown rollout_backend {config.rollout_backend!r} (expected 'hf' or 'vllm')")
+    elif config.rollout_backend not in ("hf", "native"):
+        raise ValueError(f"unknown rollout_backend {config.rollout_backend!r} (expected 'hf', 'vllm' or 'native')")
     model, device = load_causal_model(config.model, config.device, "fp32" if config.master_fp32 else config.dtype)
     if config.grad_checkpoint:
         model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
@@ -1420,6 +1424,11 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
     log_mode = "a" if resumed else "w"
     train_log = (out_dir / "train_log.jsonl").open(log_mode, encoding="utf-8") if dist.is_main else None
     eval_log = (out_dir / "eval_log.jsonl").open(log_mode, encoding="utf-8") if dist.is_main else None
+    if config.rollout_backend == "native":  # after the model (and any resume), whose weights it copies
+        from .fast_rollout import NativeRollout
+
+        engine = NativeRollout(model, tokenizer, 512 + max(config.max_new_tokens, config.eval_max_new_tokens), config.seed + 1_000_003 * dist.rank,
+                               constrain_answer=config.constrain_answer)
     caches = engine if engine is not None else StaticCachePool(model, config.cache_len) if config.compile else None
     warmup_s = 0.0
     if caches is not None and engine is None:
