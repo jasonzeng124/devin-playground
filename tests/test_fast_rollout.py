@@ -80,6 +80,7 @@ def test_constrained_samples_follow_the_grammar_and_stop_at_close(tokenizer):
         tokens = sequences[r, width : width + finished[r]].tolist()
         allowed = engine.grammar.allowed_per_position(tokens, puzzle.numbers, puzzle.ops, budget)
         assert all(a is None or t in a for t, a in zip(tokens, allowed))
+        assert engine.last_allowed[r] == allowed  # what the update recomputes, recorded as sampled
         text = "".join(engine.strings[t] for t in tokens)
         assert OPEN in text  # the think budget forces the answer open
         if CLOSE in text:
@@ -90,7 +91,8 @@ def test_constrained_samples_follow_the_grammar_and_stop_at_close(tokenizer):
     assert closed > 0
 
 
-def test_grpo_run_trains_with_the_native_backend(monkeypatch, tmp_path, tokenizer):
+@pytest.mark.parametrize("reuse", [False, True])
+def test_grpo_run_trains_with_the_native_backend(monkeypatch, tmp_path, tokenizer, reuse):
     import copy
     import json
 
@@ -104,8 +106,30 @@ def test_grpo_run_trains_with_the_native_backend(monkeypatch, tmp_path, tokenize
     monkeypatch.setattr(grpo, "load_causal_model", lambda _name, _device, _dtype: (model, torch.device("cpu")))
     config = grpo.GRPOConfig(model="tiny", rollout_backend="native", constrain_answer=True, think_budget=4, group_size=2, prompts_per_step=2,
                              max_new_tokens=12, eval_max_new_tokens=12, max_steps=2, eval_every=2, eval_limit=2, kl_coef=0.0,
-                             no_save=True, out_dir=str(tmp_path / "native"))
+                             no_save=True, out_dir=str(tmp_path / "native"), reuse_sampler_allowed=reuse)
+    if reuse:  # every row's sets as the sampler recorded them equal the recomputed ones
+        real = grpo._allowed_tokens
+
+        def checked(tokenizer, generated, attention, prompt_width, puzzles, think_budget=0, sampled=None):
+            assert sampled is not None
+            out = real(tokenizer, generated, attention, prompt_width, puzzles, think_budget, sampled)
+            assert out == real(tokenizer, generated, attention, prompt_width, puzzles, think_budget)
+            return out
+
+        monkeypatch.setattr(grpo, "_allowed_tokens", checked)
     result = grpo.run(config)
     assert result["total_steps"] == 2
     assert len((tmp_path / "native" / "eval_log.jsonl").read_text().splitlines()) >= 1
     assert json.loads((tmp_path / "native" / "train_log.jsonl").read_text().splitlines()[-1])["step"] == 2
+
+
+def test_allowed_tokens_recomputes_rows_whose_valid_tokens_are_not_the_sampled_prefix(tokenizer):
+    from rlvr_speedrun import grpo
+
+    puzzles = [Puzzle((3, 7), 10, ops="+-")] * 2
+    generated = torch.tensor([[5, 6, 7, 8], [5, 6, 7, 8]])
+    attention = torch.tensor([[1, 1, 1, 0], [1, 1, 0, 1]])
+    sampled = [["a", "b"], ["c", "d"]]  # stand-ins: row 0 matches its valid prefix, row 1 does not
+    out = grpo._allowed_tokens(tokenizer, generated, attention, 1, puzzles, 0, sampled)
+    assert out[0] == ["a", "b"]
+    assert out[1] == grpo._allowed_tokens(tokenizer, generated, attention, 1, puzzles)[1]

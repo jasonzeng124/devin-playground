@@ -51,6 +51,9 @@ class GRPOConfig:
     vllm_engine_args: str = ""
     # constrain_answer's vLLM mask applied to the whole batch in one go instead of request by request (same mask; PLAN D7)
     constrain_batched: bool = False
+    # rollout_backend 'native' with constrain_answer: the update takes the allowed token sets the sampler used at each
+    # position instead of recomputing them from the tokens (`_allowed_tokens`); the same values, less Python per step
+    reuse_sampler_allowed: bool = False
     # the update runs each distinct prompt once (its KV cache indexed out to its group's rows) instead of once
     # per row; exact like the shared-prefix trick, fewer token positions per update (INBOX 11-17 14:59)
     share_group_prompt: bool = False
@@ -940,12 +943,20 @@ def _grammar(tokenizer) -> AnswerGrammar:
     return _GRAMMARS[key]
 
 
-def _allowed_tokens(tokenizer, generated, attention, prompt_width, puzzles, think_budget: int = 0) -> list:
-    """Per row, per completion token: the ids the constrained sampler allowed there (None = free text)."""
+def _allowed_tokens(tokenizer, generated, attention, prompt_width, puzzles, think_budget: int = 0, sampled: list | None = None) -> list:
+    """Per row, per completion token: the ids the constrained sampler allowed there (None = free text).
+
+    `sampled` (reuse_sampler_allowed): per row, the sets the sampler recorded as it went. A row takes them as they are
+    when its valid tokens are exactly the first len(sampled[r]) positions; any other row is recomputed."""
     grammar = _grammar(tokenizer)
     valid = attention[:, prompt_width:].bool()
     completion = generated[:, prompt_width:]
-    return [grammar.allowed_per_position(completion[r][valid[r]].tolist(), p.numbers, p.ops, think_budget) for r, p in enumerate(puzzles)]
+    reuse = [False] * len(puzzles)
+    if sampled is not None:
+        lengths = torch.tensor([len(a) for a in sampled], device=valid.device).unsqueeze(1)
+        reuse = valid.eq(torch.arange(valid.shape[1], device=valid.device).unsqueeze(0) < lengths).all(1).tolist()
+    return [sampled[r] if reuse[r] else grammar.allowed_per_position(completion[r][valid[r]].tolist(), p.numbers, p.ops, think_budget)
+            for r, p in enumerate(puzzles)]
 
 
 def answer_open_mask(tokenizer, generated, attention, prompt_width) -> torch.Tensor:
@@ -995,6 +1006,7 @@ def grpo_step(
         model, tokenizer, puzzles, config, device, caches, parts
     )
     t_sample = _now(device) - t0
+    sampler_allowed = caches.last_allowed if config.reuse_sampler_allowed else None  # per generated row
     hindsight, n_sampled = config.hindsight_rows > 0, len(completions)
     store = []  # (row, the puzzle it is stored with), over all sampled rows (kept group or not)
     if replay is not None and hindsight:  # every sample that misses by its value alone, with its relabelled puzzle
@@ -1018,12 +1030,15 @@ def grpo_step(
             sampler_lp = sampler_lp[rows]
         row_list = rows.tolist()
         completions = [completions[r] for r in row_list]
+        if sampler_allowed is not None:
+            sampler_allowed = [sampler_allowed[r] for r in row_list]
         expanded = [expanded[r] for r in row_list]
     groups = rewards.reshape(kept.shape[0], config.group_size)
     advantages = group_advantages(groups, config.adv_norm, config.pos_adv_scale).reshape(-1)
 
     _lap(parts, "select", device)  # sampling's end to here: stored samples, group selection, advantages
-    allowed = _allowed_tokens(tokenizer, generated, attention, prompt_width, expanded, config.think_budget) if config.constrain_answer else None
+    allowed = (_allowed_tokens(tokenizer, generated, attention, prompt_width, expanded, config.think_budget, sampler_allowed)
+               if config.constrain_answer else None)
     _lap(parts, "allowed", device)
     replayed = _replay_batch(replay, tokenizer, config, device) if replay is not None else None
     pg_skip = answer_open_mask(tokenizer, generated, attention, prompt_width) if config.mask_answer_open else None
@@ -1342,6 +1357,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
             raise ValueError(f"vllm_engine_args must be a JSON object, got {config.vllm_engine_args!r}")
     if config.constrain_batched and not (config.constrain_answer and config.rollout_backend == "vllm"):
         raise ValueError("constrain_batched needs constrain_answer and rollout_backend='vllm'")
+    if config.reuse_sampler_allowed and not (config.constrain_answer and config.rollout_backend == "native"):
+        raise ValueError("reuse_sampler_allowed needs constrain_answer and rollout_backend='native'")
     if config.budget_steps < 0:
         raise ValueError(f"budget_steps must be >= 0, got {config.budget_steps}")
     if config.budget_steps_time_stop and not (config.budget_steps > 0 and config.time_budget_s > 0):

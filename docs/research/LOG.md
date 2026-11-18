@@ -7019,3 +7019,18 @@ final weights, native sampler against vLLM on the same node:
   on queue `screens_d_b200` interleaved as speed / ctl / native per seed. r97's three workers take the first two
   rounds; the third round needs workers when those end. Reads RL steps reached and final dev, paired by seed.
 - Next for speed: the grammar's 0.067 s of CPU per call runs while the GPU waits; overlapping it is the next piece.
+
+## 2026-11-18 04:22 EST: `reuse_sampler_allowed` (off by default): the update takes the sampler's allowed sets; r100 times it
+
+- r95 measured the update's `allowed` part (the grammar's allowed sets recomputed in Python from each row's tokens, for
+  the constrained training mask) at 0.050-0.067 s per step. With the native sampler that is now about a fifth of the
+  update. The native sampler already computes the same sets as it samples, so it now records them per row
+  (`NativeRollout.last_allowed`), and with `reuse_sampler_allowed` the update takes them instead of recomputing. A row
+  whose valid tokens are not exactly the sampled prefix (a sampled pad token that is not EOS) is recomputed as before.
+  Same values, so the same maths; the self-imitation replay batch still recomputes (0.012 s).
+- Tests: the recorded sets equal `allowed_per_position` on every constrained row; `grpo.run` with the flag on checks
+  that the sets it uses equal the recomputed ones at every step; a row with a non-prefix valid mask is recomputed.
+  179 passed. (The first version shadowed the prompt ids in `generate`; the tests caught it before any job read it.)
+- r100 (B200 worker 29521171, queue `screens_b200`, 300 steps each, `time_update_parts` on): r98's native arms from D
+  007 seed 0's start and final weights, flag off against on. Reads t_update, the `allowed` part and tok/s, with reward
+  at matching steps.

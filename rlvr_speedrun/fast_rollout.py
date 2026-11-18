@@ -66,6 +66,7 @@ class NativeRollout:
         self.generator = torch.Generator(device=self.device)
         self.generator.manual_seed(seed)
         self.mask_cpu = 0.0  # the constraint's CPU seconds in the last `generate` call
+        self.last_allowed = None  # per row of the last constrained `generate`: the allowed ids at each position
         self.stats: dict = {}
 
         # bf16 copies of the weights; q/k/v and gate/up are fused so a layer is four matmuls
@@ -260,11 +261,14 @@ class NativeRollout:
         tails = [""] * b
         active = list(range(b))
         mask_cpu = 0.0
+        allowed_log = [[] for _ in range(b)] if constraints is not None else None  # per row, per position (None = free)
         logits = self._prefill(ids, mask, n, rows)
         for s in range(max_tokens):
             if constraints is not None:
                 start = time.perf_counter()
                 allowed = [(r, constraints[r].allowed_ids(outputs[r])) for r in active]
+                for r, row_allowed in allowed:
+                    allowed_log[r].append(row_allowed or None)
                 logits = mask_rows_cached(logits, allowed, self.index_cache)
                 mask_cpu += time.perf_counter() - start
             if temperature > 0:
@@ -292,6 +296,7 @@ class NativeRollout:
             logits = self._step(rows, keys)[:b]
             self.positions[:b] += 1
         self.mask_cpu = mask_cpu
+        self.last_allowed = allowed_log  # what the grammar allowed at each sampled position (reuse_sampler_allowed)
         lengths = [len(o) for o in outputs]
         comp = torch.full((b, max(1, max(lengths))), pad_id, dtype=torch.long)
         for r, o in enumerate(outputs):
