@@ -7226,3 +7226,82 @@ final weights, native sampler against vLLM on the same node:
   starts on GPU 6. If it fails twice there, the worker goes on to the next item and I look at it again.
 - **Box at 17:06.** All eight GPUs busy, 12 runs, 8 FAILED lines in `queue/done.txt` (unchanged). No AWS charge so far
   beyond the blocks.
+
+## 2026-11-18 17:55 EST: AWS: a box that launches and runs by itself passed its cheap test; box A runs move to a 0.30 sampler share after three ran out of memory
+
+- **Set up on AWS for INBOX 11-18 13:35** (17:09-17:16 EST, all through `scripts/aws/box_auto.sh`):
+  - `iam`: role `rlvr-scheduler` (the role whose 11-05 launches were refused) now has an inline policy `run-rlvr-box`
+    that allows RunInstances on launch templates tagged `rlvr-box=true` and on the instance, subnet, security group,
+    network interface, volume, key pair, capacity reservation, image and snapshot the launch touches, tagging at
+    launch, and passing role `rlvr-box` to EC2. Role and instance profile `rlvr-box` are new and are what the box
+    itself runs as: it can read `box/` and `box-state/` in the bucket and write only `box/<name>/out/` and
+    `box-state/`.
+  - `lifecycle`: the bucket drops `box-state/` objects after 7 days and `box/` objects after 90 days.
+  - `template test`: launch template `rlvr-box-test`, a t3.large in us-east-1d on the 11-28 box's network interface
+    with an 80 GB disk, which shuts itself down after 40 min at most.
+- **Dry runs under `rlvr-scheduler`** (`box_auto.sh dryrun`, the call that failed on 11-05): the 11-28 template
+  `rlvr-box-cr-08927241900b5884c` at 17:10:21 EST and the test template at 17:15:28 both returned "Request would have
+  succeeded, but DryRun flag is set".
+- **The test.** Queue `scripts/aws/test/box_test.txt`: seven stub items of 24 steps each on two worker slots, every
+  item built to fail once at step 6 and one item (`bad1`) built to fail always. Three one-time EventBridge schedules
+  at +3, +8 and +18 min stood in for the 11:30Z launch and its two retries. Times EST:
+
+  | time | what happened |
+  |---|---|
+  | 17:15:39 | the three schedules created (`box_auto.sh schedule test 3 8 18`) |
+  | 17:18:58 | schedule 1: RunInstances by `rlvr-scheduler` succeeded, instance 1 |
+  | 17:20:39 | `scripts/aws/box_boot.sh` started from user data; plan and queue fetched from S3 by 17:20:46; two workers started at 17:20:48 |
+  | 17:23:46 | schedule 2: RunInstances refused, `InvalidNetworkInterface.InUse` (the box's network interface was taken by instance 1) |
+  | 17:25:25 | the first two items finished ok, each after one rerun in place from its saved state; `bad1` recorded FAILED and put back once by the keeper |
+  | 17:26:39 | results, queue snapshot, logs and a status file were in S3 |
+  | 17:27:52 | the saved states of the two running items were in S3 |
+  | 17:28:06 | I terminated instance 1 with both running items at step 12 |
+  | 17:34:26 | schedule 3: RunInstances succeeded, instance 2 |
+  | 17:36:11 | instance 2 restored the queue snapshot ("restored: 2 done, 2 running, 3 queued") and both saved states |
+  | 17:43:21 | the last items finished ok and the queue was empty; status written at 17:43:53; instance 2 shut itself down |
+
+- **Result of the test.** `done.txt` ended with 6 ok and 2 FAILED (both `bad1`, as built). The two interrupted items
+  hold steps 1-24 in order, 9 written by instance 1 and 15 by instance 2 (the three steps after the last saved state
+  were run again). `scripts/aws/box_s3.sh pull rlvr-box-test boxtest calibration/box_test` brought logs and results
+  back to Engaging (the six `train_log.jsonl` are committed with this entry as the record of the test).
+  `box_auto.sh unschedule test` deleted the three schedules; no schedule, instance or loose volume remains.
+  `HOURS=2 box_auto.sh show test` lists the three scheduler calls (ok, refused, ok) and both dry runs from CloudTrail.
+- **What the test shows for each point of the INBOX note.** Launch: an AWS-side schedule under the fixed role starts
+  the instance and a later schedule starts another after the first is gone. No clash: while an instance holds the
+  network interface, any further launch from the template is refused, whoever makes it. Start of work: the box
+  fetched code, plan and queue from S3 with its own role and started workers with no ssh from anyone. Results:
+  finished runs, logs and saved states left the box by themselves, and a replacement instance carried on from them.
+- **What the test does not show.** The stub items load no model, the instance had no GPU and built no venv, and the
+  template's capacity-block settings were only dry-run. The first real boot through the venv build, the checkpoint
+  fetch and a GPU worker will be on a paid block.
+- **Charge.** Two t3.large instances for 1183 s in total and two 80 GB gp3 volumes for the same time: $0.03 by
+  the list prices ($0.0832/h and $0.08 per GB-month), plus S3 requests and a few MB of storage (under one cent).
+  Running total of AWS charges made by the agent, outside the blocks the maintainer bought: about $0.03.
+- **Left in place.** The test template, both roles, the bucket rules, and the test's output under
+  `box/rlvr-box-test/out/` in the bucket (for the laptop's audit). Before any re-test run
+  `box_s3.sh clear rlvr-box-test`; otherwise a new instance restores the finished snapshot and shuts down.
+- **Not done yet.** The self-running template version, staged inputs and schedules for the 11-28 block (and for
+  11-25 and 12-09), the queues, and `docs/research/box_1128.md`.
+- **Box: three A runs ran out of GPU memory at `vllm_gpu_memory` 0.35.** r85 control seed 0 (about step 271),
+  `cos467` seed 0 (about step 420) and control seed 1 (about step 216) each failed on a 3.7 GB allocation that was
+  20-140 MB short. Every A run on the H100 sits at 78.5-79.2 GB of the card's 79.2 GB. At 17:47 I added
+  `calibration/research_r85/a007_{ctl,lr1.3e-6,ent15,cos467}_h100m30`: the same arms with `vllm_gpu_memory` 0.30,
+  which leaves the trainer about 4 GB more. It changes speed only, so an arm's `_h100` and `_h100m30` seeds are read
+  together. Every A item that had not started was renamed to these in the box's queues, and the three failed runs'
+  saved states were moved to the new directories (a resume checks no config and takes its logs from the state
+  directory). The first of them, `cos467` seed 0, started at 17:52 and printed "resumed from ... at step 407".
+  Control seeds 0 and 1 resume at steps 261 and 200 when GPUs 6 and 1 are free. `lr1.3e-6` seed 1 (GPU 0, started
+  17:28) still runs at 0.35.
+- **D step times on the H100** (from five finished r86 runs). Two runs on one GPU: 1.88-2.53 s per step over steps
+  1-300, 1.81-2.04 s over steps 600-2000, 1.52-1.63 s after step 6000, so an 11,441-step run takes 5.2-5.6 h and a
+  14,180-step run 6.2-6.8 h. One run alone on a GPU: 1.14-1.15 s per step late in the run, so about 3.65 h and
+  4.5 h. This answers the 17:07 entry's open point: a single 11,441-step run fits the slots after the A runs.
+- **First finished box results (final dev; nothing can be read from them yet).**
+  - r86 `d004_ctl_s11441`: 0.2700 (seed 0), 0.2467 (seed 1), 0.2317 (seed 2), 0.2400 (seed 4). Seed 3 failed early and is in the overflow queue.
+  - r86 `muon2676m_s11441` seed 0: 0.2550, -0.0150 against the control's seed 0.
+  - r85 `a007_lr1.3e-6_h100` seed 0: 0.4367. The control's seed 0 is the run that resumes at step 261.
+- **r101** (B200, not yet gated). `d007rl_ctl_b200` seed 0 finished: final dev 0.2483 after
+  18,215 steps. The native arm's seed 0 is next in the queue; workers 29554920 and 29580582 are
+  pending on `mit_normal_gpu`.
+- **Box at 17:55.** All eight GPUs busy, 10 runs, 10 FAILED lines in `queue/done.txt` (8 at 17:06, plus `cos467`
+  seed 0 and control seed 1).

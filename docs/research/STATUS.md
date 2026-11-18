@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-18 04:22 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-18 17:56 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **D 007 promotion (13:54 EST 11-16), built on self-imitation, so said here before its seeds start (INBOX 11-12).**
 Arm r81, `calibration/research_r81/d006_batched_muon56_rl17400`: D 006 (which already uses self-imitation, same limits)
@@ -69,13 +69,25 @@ screen runs on the H200.
 | 11-28 06:30 to 11-29 06:30 | 8x H200 (the maintainer may take it) | zjason@100.29.118.132 | `rlvr-box-cr-08927241900b5884c` |
 | 12-09 06:30 to 12-10 06:30 | 8x H100 | zjason@174.129.98.131 | none yet; reservation `cr-0813172fa29139b78` |
 
-- No scheduled launch. From the block start: `aws ec2 describe-instances --region us-east-1`, then
-  `aws ec2 run-instances --region us-east-1 --launch-template LaunchTemplateName=<template>`, retried
-  every couple of minutes. No other AWS call; the $500 budget stays suspended.
-- INBOX 11-18 13:35: by 11-25, make the 11-28 box launch and run by itself (an AWS-side launch at 11:30Z with retries,
-  boot-time fetch and worker start, results and saved state uploaded without a pull, a 24 h queue packed against
-  141 GB), test it for a few dollars and write it up in `docs/research/box_1128.md`. That note allows the AWS calls
-  the build needs; log every charge. Not started.
+- No scheduled launch exists yet for any block. Until one does, from the block start: `aws ec2 describe-instances
+  --region us-east-1`, then `aws ec2 run-instances --region us-east-1 --launch-template LaunchTemplateName=<template>`,
+  retried every couple of minutes. The $500 budget stays suspended.
+- INBOX 11-18 13:35: by 11-25, make the 11-28 box launch and run by itself, test it for a few dollars and write it up
+  in `docs/research/box_1128.md`. State at 17:55 on 11-18 (LOG 11-18 17:55):
+  - Built and tested on a cheap instance: `scripts/aws/box_auto.sh` (roles, bucket rules, template, schedules, dry
+    run, show), `scripts/aws/box_s3.sh` (stage, check, status, pull, clear) and the on-box scripts `box_boot.sh`,
+    `box_runner.sh`, `box_queue.py`. A schedule under role `rlvr-scheduler` launched a t3.large, the box fetched its
+    code and queue from S3 and started workers, results and saved states went to S3 by themselves, and a second
+    instance carried on after I terminated the first. A launch while an instance holds the box's network interface is
+    refused, so a launch by hand cannot clash with a scheduled one.
+  - The dry run of the real 11-28 launch under `rlvr-scheduler` passes.
+  - Still to do: the self-running version of the 11-28 template with its staged inputs and schedules; the same for
+    11-25 and 12-09; the queues; `docs/research/box_1128.md`; the check that my usage and login last through each
+    block. Do not run `scripts/aws/box_launch.sh` for a reservation set up with `box_auto.sh`.
+  - Left on AWS: template `rlvr-box-test`, roles `rlvr-scheduler` and `rlvr-box`, the test's output under
+    `box/rlvr-box-test/out/` in the bucket (run `box_s3.sh clear rlvr-box-test` before a re-test). No schedules.
+- **AWS charges made by the agent** (outside the blocks the maintainer bought): 11-18, the self-launch test, about
+  $0.03 (two t3.large for 20 min in total, two 80 GB disks, S3 pennies). Running total: about $0.03.
 - INBOX 11-18 13:39: the 11-25 and 12-09 blocks are new. Both show `scheduled` (checked 11-18 14:17); each needs a launch with
   its own reservation id, a 24 h queue and a packing checked against 80 GB. Use the self-starting setup on 11-25 if
   it is ready.
@@ -90,22 +102,24 @@ screen runs on the H200.
 - D 007: check each seed's `clock.json` (`within_budget`) and `warm_start.log` as it finishes; a preempted seed's partial
   goes to `extra/` and the same seed reruns (the worker does this). After five seeds: README, validation against D 006,
   leaderboard.
-- The 11-18 box is up until 06:30 EST 11-19: wake every 20-30 min, `box_sync.sh from box1118 calibration/research_r85
-  calibration/research_r86` each wake, keep all eight GPUs busy (two D runs per GPU at most; requeue any run that
-  fails), and bring every result and resume state back before 05:55. A runs take about 6.4 h (LOG 11-18 14:14), so a
-  third A round on GPUs 0-3 would not finish. About 17:10: empty the box's D queue, cut A's queue to its first 8
-  lines (control seed 0 to resume, seed 1 of the other three arms, seed 2 of all four), start A workers on GPUs 4-7 as
-  each empties, and put the D runs after the A lines so that each GPU takes one D run when its A run ends (about
-  00:40-01:35; GPU 2 from about 21:37).
-- A runs fill the H100 (79.1 of 79.18 GB) and can run out of memory: control seed 0 did at 15:13 on 11-18 (LOG 15:33)
-  and was put back at the front of `queue/box_a_1118.txt`, where it resumes from step 261. Each wake: look for new
-  FAILED lines in the box's `queue/done.txt` (8 at 15:33) and put failed runs back at the front of their queue. The
-  11-25 and 12-09 A arms need configs with a smaller sampler share.
+- The 11-18 box is up until 06:30 EST 11-19 (AWS may end it at 06:00): wake every 20-30 min, `box_sync.sh from box1118
+  calibration/research_r85 calibration/research_r86` each wake, keep all eight GPUs busy (two D runs per GPU at most,
+  never an A beside a D), and bring every result and resume state back before 05:55. Since 17:07 a keeper on the box
+  (`~/tail_keeper.sh`, log `~/tail_keeper.log`, stop with `touch ~/tail_keeper.off`) starts a worker on any GPU that
+  is empty, from `queue/box_g<g>_1118.txt` and then the shared `queue/box_t_1118.txt`; nothing starts after 01:55.
+  Each wake: check its log, the GPUs' memory and new FAILED lines in the box's `queue/done.txt` (10 at 17:55).
+- A runs fill the H100 (79.1 of 79.18 GB) and three ran out of memory at `vllm_gpu_memory` 0.35 (control seeds 0 and
+  1, `cos467` seed 0). Since 17:47 every A item not yet started uses the `_h100m30` configs (share 0.30, about 4 GB
+  more for the trainer; same maths, read together with the arm's `_h100` seeds), and the three failed runs resume
+  under them from their saved states. Check that they stay inside the card and how much slower sampling is; the
+  11-25 and 12-09 A arms use the share that holds.
+- D on the H100: two runs per GPU take 5.2-5.6 h for 11,441 steps and 6.2-6.8 h for 14,180; one run alone takes about
+  3.65 h and 4.5 h (LOG 11-18 17:55).
 - r101 (B200, RL only from D 007's checkpoints, `mit_normal_gpu` workers 29554919/20, queue `screens_rl_b200`, seeds
   0-2): `d007rl_native_b200` (native sampler, `reuse_sampler_allowed`, shared prompt, 65,536-token micro-batches)
   against `d007rl_ctl_b200`, both 17,400 s. One item per 6 h worker: submit two more when a pair ends. Read paired
-  by seed (steps and final dev pass rate). 29554919 runs the control's seed 0 since 12:39 (ends about 17:35);
-  29554920 is pending with a 19:00 start estimate. r97 and r99 (end to end) wait on preemptable B200 workers 29497701/02/05,
+  by seed (steps and final dev pass rate). The control's seed 0 finished: final dev 0.2483 after 18,215 steps.
+  Workers 29554920 and 29580582 are pending; the native arm's seed 0 is next. r97 and r99 (end to end) wait on preemptable B200 workers 29497701/02/05,
   which were preempted within 21 min four times on 11-18.
 - `~/rlvr-ideas/STATUS.md`: update it whenever a verdict or a result changes.
 
