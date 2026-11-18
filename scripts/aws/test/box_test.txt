@@ -1,0 +1,7 @@
+calibration/box_test/t1 0
+calibration/box_test/t2 0
+calibration/box_test/bad1 0
+calibration/box_test/t3 0
+calibration/box_test/t1 1
+calibration/box_test/t2 1
+calibration/box_test/t3 1

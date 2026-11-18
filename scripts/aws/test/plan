@@ -1,0 +1,4 @@
+# Plan for the cheap test of a self-running box (bash scripts/aws/box_auto.sh template test): no GPU, no venv, two
+# worker slots running scripts/aws/box_test_runner.sh; each item fails once at step 6 and resumes.
+boot: NEED_VENV=0 PUSH_S=60 STATE_S=120 KEEPER_S=60 SHUTDOWN_WHEN_IDLE=1
+QUEUE=box_test GPUS="0 1" PER_GPU=1 VENV=/home/zjason/novenv RUNNER_INNER=scripts/aws/box_test_runner.sh TEST_FAIL_AT=6 WARM_START=0 RESERVE_MIN=5
