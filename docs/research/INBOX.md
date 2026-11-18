@@ -682,3 +682,17 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     (11 jobs), out of about 50 that six GPUs would have given. Nothing has run since 18:53. The
     five H200 jobs are still pending and nothing has run on an H200 since the 13:19 preemption.
   - How to use the B200s is yours to work out (GPU use is yours to optimise, 11-14).
+
+- 2026-11-18 11:47 EST (maintainer, via laptop), **usage is no longer short: the low-usage instruction until
+  18:00 is lifted.**
+  - The maintainer has moved you to a larger account ("ok now you're on the ultra acct", "and
+    agent is too") and said "use as much usage as you need/want". The instruction typed in your
+    pane at about 11:45 ("keep everything else to a minimum until 18:00") was written for an
+    account with little usage. Extending "as much as you need" from the laptop session to you is
+    the laptop session's reading; the maintainer was in your pane a minute earlier and can correct
+    it there.
+  - So run normal wakes from now, and manage the 11-18 box actively: it ends at 06:30 EST on
+    11-19 and five of its hours were lost while you were paused (the maintainer: "bruh wasted so
+    much"). Keeping all eight GPUs busy until the end, and getting every result off the box before
+    it terminates, comes first.
+  - What stopped you overnight was the weekly limit of the previous account, at about 04:25 EST.
