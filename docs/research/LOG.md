@@ -7106,8 +7106,8 @@ final weights, native sampler against vLLM on the same node:
   - `d007rl_native_b200`: every same-maths RL speed change so far: `rollout_backend: "native"`,
     `reuse_sampler_allowed` (r100), `share_group_prompt` with `micro_batch_tokens` 65,536 (r94).
 - **Read.** Paired by seed: RL steps done in 17,400 s and final dev pass rate. More RL steps have helped D, so the
-  expectation is a higher pass rate from about 1.5x the steps; if the steps rise and the pass rate does not, extra
-  steps at this point of the schedule are worth less than r86's step-capped arms suggest.
+  expectation is a higher pass rate from about 1.5x the steps (r98's step rate). If the steps rise and the pass
+  rate does not, the speed stack alone does not justify a record attempt.
 - **Workers.** 29554919 and 29554920 (`mit_normal_gpu`, 6 h, one item each), queue `screens_rl_b200`, seeds 0-2, one
   pair per round of about 5 h. The r97 and r99 items stay queued for the preemptable workers.
 - **Box (12:36).** All eight GPUs busy, no new failure. D 1.9-2.1 s per step at steps 800-1,060. A 19-28 s per step
