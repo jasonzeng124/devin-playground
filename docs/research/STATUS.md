@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 03:04 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 03:45 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **The speed stack turns into score (11-19, LOG 11-19 02:05).** r101 (B200, RL only, one seed each, not yet gated): the
 native arm ran 34,893 steps in 17,400 s and ended at dev 0.3033; the control ran 18,215 and ended at
@@ -131,8 +131,10 @@ screen runs on the H200.
   A native run on an H100 is slower than on the B200 only for its first 600 steps; after that it takes 0.62 s a
   step, the B200's rate. It holds 75 GB of the card until its first evaluation, then about 52 GB. An 11,441-step
   run needs about 2.0 h and a 14,180-step run 2.4 h, so the three native runs started by 02:58 end by about
-  05:00; runs started after about 03:30 (14,180 steps) end unfinished with their state in S3. A packing test (a second
-  native run beside the first) is planned on GPU 4 from about 04:05 (LOG 11-19 03:04).
+  05:00; runs started after about 03:30 (14,180 steps) end unfinished with their state in S3. No GPU that frees from
+  04:00 can finish a native run (one must start by 03:54), so they run packing tests for the 80 GB boxes of 11-25 and
+  12-09: two native runs per GPU at 32,768-token micro-batches (started together, and one after the other) and at
+  65,536 (LOG 11-19 03:45).
   Each wake: check its log, the GPUs' memory and new FAILED lines in the box's `queue/done.txt` (11 at 21:15).
   Since 19:23 a loop on the box (`~/box_push.sh`, log `~/box_push.log`) also sends results every 10 min, and
   saved states (D hourly, all from 04:40), to `box/box1118/out/` and `box-state/box1118/` in the bucket: after

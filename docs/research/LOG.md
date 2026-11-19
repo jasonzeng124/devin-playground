@@ -7756,3 +7756,48 @@ final weights, native sampler against vLLM on the same node:
     each; seed 1 is due about 03:40. The paired differences of the two finished arms have an sd of 0.017 and
     0.032 per seed, so three seeds near +0.013 would not separate it from the control either.
 - **Box at 03:04:** all eight GPUs busy (ten runs), 11 FAILED lines (none new), sync fine at 03:01.
+
+## 2026-11-19 03:45 EST: box: no GPU that frees from 04:00 can finish a native run, so they run packing tests for the 11-25 box; correction to 03:04
+
+- **Correction.** The 03:04 entry said GPU 1's next run "can now finish alone". It took `a007_ent15` seed 1 to end
+  about 03:40, an old estimate I did not re-read. At 03:43 that run was at step 443 of 467 at 50.5 s a step, so it
+  ends about 04:03. An 11,441-step native run needs 2.01 h, and the workers' deadline is 05:55, so it has to
+  start by 03:54. The first GPU frees about 04:01. No native run started from now can finish.
+
+  | GPU | run | step at 03:43 | s/step (last 200; A: last 20) | ends about |
+  |---|---|---|---|---|
+  | 4 | `d004_ctl_s11441` 3 | 10,487 of 11,441 | 1.13 | 04:01 |
+  | 5 | `muon2676m_s11441` 3 | 10,778 of 11,441 | 1.48 | 03:59 |
+  | 5 | `muon2676m_s11441` 4 | 10,533 of 11,441 | 1.51 | 04:06 |
+  | 1 | `a007_ent15_h100m30` 1 | 443 of 467 | 50.52 | 04:03 |
+  | 3 | `muon1338m_s11441` 2 | 9,251 of 11,441 | 1.18 | 04:26 |
+  | 7 | `muon1338m_native_s14180` 0 | 6,536 of 14,180 | 0.61 | 05:01 |
+  | 0 | `muon1338m_native_s11441` 2 | 3,993 of 11,441 | 0.65 | 05:03 |
+  | 6 | `muon1338m_native_s11441` 0 | 3,706 of 11,441 | 0.63 | 05:04 |
+  | 2 | `muon1338m_s11441` 0 | 7,125 of 11,441 | 1.62 | 05:39 |
+  | 2 | `muon1338m_s11441` 1 | 7,080 of 11,441 | 1.62 | 05:41 |
+
+  The three native runs still end by about 05:04; the vLLM pair on GPU 2 ends about 14 min before the
+  deadline.
+- **What the freed GPUs do instead: packing tests.** The 11-25 and 12-09 boxes are these 80 GB H100s. One native run
+  at 65,536-token micro-batches holds 52 GB after its first evaluation and 75 GB before it, so tonight one runs per
+  GPU. If two fit, each of those boxes does up to twice the track D runs; the same readings set the H200 packing for
+  11-28 (141 GB). The tests need no finished run, only 10 to 60 min of steps.
+  - New config `calibration/research_r86/muon1338m_native_mb32k_s11441`: the native 11,441-step arm with
+    `micro_batch_tokens` 32768 (the only key that differs, checked by script). The update is the same sum over tokens,
+    computed in smaller pieces (r94), so it is a memory setting. The vLLM arms here use 32,768 and take about 40 GB
+    with vLLM's share.
+  - Test 1, first GPU to free: two 32k runs started within a few minutes of each other.
+  - Test 2, second GPU: one 32k run alone until its first evaluation (step 500; this gives its alone rate and
+    memory), then a second beside it.
+  - Test 3, third GPU: one 65k run alone until its first evaluation, then a second 65k run beside it.
+  - GPU 3 (free about 04:26) and GPUs 7, 0, 6 (about 05:00): decided from the first readings.
+  - What I expect: a 32k run holds 30 to 35 GB, so two fit and a GPU does 1.3 to 1.8 times the steps of one 65k run
+    alone (0.61 to 0.65 s a step now, with the GPU at 52 to 71 % use in one sample at 03:37); the second 65k run fails for
+    memory. A pair started together may also fail in warm-up, when each holds more than later.
+  - Readings: memory per process, FAILED lines beyond the 11 so far, each run's s/step against the alone rates.
+- **How.** The tail queue (rewritten 03:38) now starts `muon1338m_native_mb32k_s11441` seeds 0 and 2, then
+  `muon1338m_native_s11441` seed 1, then the 14,180-step items; the filler starts one worker per empty GPU from it until
+  04:40. I start each second worker by hand with `agent/box_pack_start_1118.sh` (its own queue file, one item, and it
+  stops at the first failure). None of these runs can finish; their states go to S3 from 04:40 with the others'.
+- **Box at 03:45:** all eight GPUs busy (ten runs), 11 FAILED lines (none new), sync fine.
