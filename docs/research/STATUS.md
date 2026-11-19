@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-18 22:59 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 00:14 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **D 007 promotion (13:54 EST 11-16), built on self-imitation, so said here before its seeds start (INBOX 11-12).**
 Arm r81, `calibration/research_r81/d006_batched_muon56_rl17400`: D 006 (which already uses self-imitation, same limits)
@@ -90,7 +90,9 @@ screen runs on the H200.
     `box/rlvr-box-test/out/` in the bucket (run `box_s3.sh clear rlvr-box-test` before a re-test). No schedules.
 - **AWS charges made by the agent** (outside the blocks the maintainer bought): 11-18, the self-launch test, about
   $0.03 (two t3.large for 20 min in total, two 80 GB disks, S3 pennies). 11-18 19:23, S3 storage for the 11-18 box's results and
-  saved states (7 days), at most about $0.54. Running total: about $0.57 at most.
+  saved states (7 days), at most about $0.54. 11-19 00:07, the saved states of the track A runs that fill the box's
+  last hours (seven of 28.77 GB, 7 days, plus upload requests), at most about $1.72. Running total: about $2.29
+  at most.
 - INBOX 11-18 13:39: the 11-25 and 12-09 blocks are new. Both show `scheduled` (checked 11-18 14:17); each needs a launch with
   its own reservation id, a 24 h queue and a packing checked against 80 GB. Use the self-starting setup on 11-25 if
   it is ready.
@@ -110,6 +112,9 @@ screen runs on the H200.
   never an A beside a D), and bring every result and resume state back before 05:55. Since 17:07 a keeper on the box
   (`~/tail_keeper.sh`, log `~/tail_keeper.log`, stop with `touch ~/tail_keeper.off`) starts a worker on any GPU that
   is empty, from `queue/box_g<g>_1118.txt` and then the shared `queue/box_t_1118.txt`; nothing starts after 01:55.
+  Since 00:07 on 11-19 a second loop (`~/tail_fill.sh`, log `~/tail_fill.log`, stop with `touch ~/tail_fill.off`) starts
+  one worker on each GPU that is empty after that, from `queue/box_tail_1118.txt` (track A seeds 3 and 4; they cannot
+  finish, and the 11-25 box continues them from their saved states in `box-state/box1118/`; LOG 11-19 00:14).
   Each wake: check its log, the GPUs' memory and new FAILED lines in the box's `queue/done.txt` (11 at 21:15).
   Since 19:23 a loop on the box (`~/box_push.sh`, log `~/box_push.log`) also sends results every 10 min, and
   saved states (D hourly, all from 04:40), to `box/box1118/out/` and `box-state/box1118/` in the bucket: after

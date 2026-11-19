@@ -7451,3 +7451,55 @@ final weights, native sampler against vLLM on the same node:
   20 min before AWS may terminate the box (06:00). If they do not finish, their saved states are in S3 and they
   can be finished on the 11-25 box. `muon1338m_s11441` seeds 3 and 4 stay in the hold file.
 - **Engaging.** The second r101 worker, 29580582, started at 22:58 on node5800-c1 with `d007rl_ctl_b200` seed 1.
+
+## 2026-11-19 00:14 EST: box: the track A control has three seeds (mean 0.4217); GPUs that free up after the keeper's 01:55 cutoff will start track A seeds 3 and 4, to be finished on the 11-25 box
+
+- **r85 (track A, final dev; difference from the control's same seed in brackets):**
+
+  | seed | `a007_ctl` (kept step) | `a007_lr1.3e-6` | `a007_ent15` | `a007_cos467` |
+  |---|---|---|---|---|
+  | 0 | 0.4250 (step 450) | 0.4367 (+0.0117) | 0.4383 (+0.0133) | 0.4167 (-0.0083) |
+  | 1 | 0.4000 (step 300) | running | running | running |
+  | 2 | 0.4400 (step 467) | 0.4133 (-0.0267) | running | running |
+
+  - New: `a007_lr1.3e-6_h100m30` seed 2 is 0.4133 (kept step 250; its last evaluation was 0.0817, so the run
+    fell apart after the kept checkpoint; 5.19 h). The control's seed 2 is 0.4400 (kept step 467, the last one;
+    5.73 h).
+  - The control's three seeds are 0.4250, 0.4000 and 0.4400: mean 0.4217, range 0.0400. `lr1.3e-6` is +0.0117 and
+    -0.0267 on its two paired seeds (mean -0.0075). No arm has enough seeds to read yet.
+  - GPU 7's worker finished `lr1.3e-6` seed 2 at 23:49 and went on to the rest of `a007_lr1.3e-6_h100m30` seed 1 (from step
+    278 of 467). GPU 4's worker finished the control's seed 2 at 00:11 and started `d004_ctl_s11441` seed 3 (alone on
+    its GPU; 40,819 MiB in use at 00:13).
+- **The idle tails.** The tail keeper starts nothing once fewer than 240 min remain (01:55), and a worker that
+  finishes an item after that exits. By the run times so far, seven GPUs would then sit empty until the box ends
+  (06:00): GPU 7 from about 02:00, GPUs 0 and 6 from 02:10 to 03:10, GPU 1 from 03:00 to 03:55, GPUs 4, 5 and 3 from
+  about 04:00. That is roughly 17 to 19 GPU-hours. A track A run needs 5.2 to 6.1 h here, so none can finish, but one
+  can be continued elsewhere: `state.pt` holds the weights, the optimizer state and the kept-best copy (`"kept"` in
+  the saved state, `rlvr_speedrun/grpo.py`), and a run continued from a state moved to another directory already
+  worked (LOG 11-18 17:55: `cos467` seed 0 resumed at step 407 and finished). INBOX 11:47 puts keeping all eight
+  GPUs busy first, so the tails run the next track A seeds as far as they get and the 11-25 box (same card, same
+  configs) finishes them.
+- **What runs on the box for this (started 00:07):**
+  - `queue/box_tail_1118.txt`, taken out of `hold_a_1118.txt`, in this order: `a007_ctl_h100m30` 3, `a007_ent15_h100m30` 3,
+    `a007_lr1.3e-6_h100m30` 3, `a007_cos467_h100m30` 3, then seed 4 of the control, `ent15` and `lr1.3e-6`. The hold file keeps
+    `a007_cos467_h100m30` 4.
+  - `~/tail_fill.sh` (copy in `agent/box_tail_fill_1118.sh`; log `~/tail_fill.log`; stop with `touch ~/tail_fill.off`).
+    Each minute it starts one worker on a GPU that has been empty for two passes (no worker, no running file, no
+    compute process, under 2 GB in use), reading that queue, with a saved state every 20 min. So a track A run
+    never starts beside another run. It leaves a GPU to the keeper while the keeper can still start something
+    there, starts nothing with under 75 min left (04:40), and starts at most two workers per GPU.
+  - `~/box_push_res.sh` (copy in `agent/box_push_res_1118.sh`; log `~/box_push_res.log`): results, queue files and logs to
+    `box/box1118/out/` every 5 min, beside the existing push loop (every 10 min, plus the saved states).
+- **Upload speed measured.** One 28.77 GB track A state went from the box to the bucket in 5 s and 5.7 s (two
+  tries; size checked in the listing, then removed). So the push loop's last stretch (every changed state on each
+  pass from 04:40) is short even with seven track A states, and the saved states of the tail runs will be at most
+  about 30 min old when the box ends.
+- **After the box ends:** copy the tail runs' states inside the bucket from `box-state/box1118/` to the 11-25 box's
+  prefix and remove the originals, and put those seven items first in the 11-25 queues. `box_boot.sh` brings back
+  every saved state under its own prefix at boot and the queue items continue from them.
+- **AWS cost of this (estimate).** Storage: seven states of 28.77 GB for 7 days, about $1.08 (the bucket keeps
+  no old versions, and `box-state/` objects expire after 7 days). Upload requests: about $0.017 per state
+  upload if the parts are 8 MiB, so at most about $0.63 for the two test uploads and five uploads of each state.
+  New: about $1.72 at most. **Running total of AWS charges made by the agent: about $2.29 at most** (the
+  self-launch test $0.03, the 11-18 box's results and D states $0.54, this).
+- Engaging: D 007 seed 4 (29355448) has run 1 h 29 min on node4802; r101's two workers are running.
