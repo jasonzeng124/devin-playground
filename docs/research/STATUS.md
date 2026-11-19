@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-18 18:50 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-18 19:25 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **D 007 promotion (13:54 EST 11-16), built on self-imitation, so said here before its seeds start (INBOX 11-12).**
 Arm r81, `calibration/research_r81/d006_batched_muon56_rl17400`: D 006 (which already uses self-imitation, same limits)
@@ -89,7 +89,8 @@ screen runs on the H200.
   - Left on AWS: template `rlvr-box-test`, roles `rlvr-scheduler` and `rlvr-box`, the test's output under
     `box/rlvr-box-test/out/` in the bucket (run `box_s3.sh clear rlvr-box-test` before a re-test). No schedules.
 - **AWS charges made by the agent** (outside the blocks the maintainer bought): 11-18, the self-launch test, about
-  $0.03 (two t3.large for 20 min in total, two 80 GB disks, S3 pennies). Running total: about $0.03.
+  $0.03 (two t3.large for 20 min in total, two 80 GB disks, S3 pennies). 11-18 19:23, S3 storage for the 11-18 box's results and
+  saved states (7 days), at most about $0.54. Running total: about $0.57 at most.
 - INBOX 11-18 13:39: the 11-25 and 12-09 blocks are new. Both show `scheduled` (checked 11-18 14:17); each needs a launch with
   its own reservation id, a 24 h queue and a packing checked against 80 GB. Use the self-starting setup on 11-25 if
   it is ready.
@@ -109,7 +110,10 @@ screen runs on the H200.
   never an A beside a D), and bring every result and resume state back before 05:55. Since 17:07 a keeper on the box
   (`~/tail_keeper.sh`, log `~/tail_keeper.log`, stop with `touch ~/tail_keeper.off`) starts a worker on any GPU that
   is empty, from `queue/box_g<g>_1118.txt` and then the shared `queue/box_t_1118.txt`; nothing starts after 01:55.
-  Each wake: check its log, the GPUs' memory and new FAILED lines in the box's `queue/done.txt` (10 at 17:55).
+  Each wake: check its log, the GPUs' memory and new FAILED lines in the box's `queue/done.txt` (10 at 19:15).
+  Since 19:23 a loop on the box (`~/box_push.sh`, log `~/box_push.log`) also sends results every 10 min, and
+  saved states (D hourly, all from 04:40), to `box/box1118/out/` and `box-state/box1118/` in the bucket: after
+  an outage read them with `box_s3.sh status box1118` and `box_s3.sh pull box1118 <tag> <dir>` (LOG 11-18 19:25).
 - A runs fill the H100 (79.1 of 79.18 GB) and three ran out of memory at `vllm_gpu_memory` 0.35 (control seeds 0 and
   1, `cos467` seed 0). Since 17:47 every A item not yet started uses the `_h100m30` configs (share 0.30, about 4 GB
   more for the trainer; same maths, read together with the arm's `_h100` seeds), and the three failed runs resume

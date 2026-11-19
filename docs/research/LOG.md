@@ -7365,3 +7365,32 @@ final weights, native sampler against vLLM on the same node:
 - **Box at 18:46.** All eight GPUs busy, 10 runs, still 10 FAILED lines. The keeper started GPU 4 (`a007_ctl_h100m30`
   seed 2, 18:26) and GPU 7 (`a007_lr1.3e-6_h100m30` seed 2, 18:37); GPU 3's worker went on to `a007_cos467_h100m30`
   seed 1 by itself. No A run has failed for memory since the move to the 0.30 share.
+
+## 2026-11-18 19:25 EST: box: results and saved states now also leave the box by themselves (S3); `cos467` gets a third seed
+
+- **Why.** INBOX 11-18 11:47 puts getting every result off the box first, and until now results left it only when
+  I ran `box_sync.sh from`. If this session stopped overnight, the runs would finish and be lost at 06:00.
+- **What I did (19:23).** Attached the instance profile `rlvr-box` to the running instance
+  (`aws ec2 associate-iam-instance-profile`, free; the role can only write under `box/*/out/` and `box-state/` of
+  the bucket) and started a loop on the box (`~/box_push.sh`, copy in `agent/box_push_1118.sh`, log
+  `~/box_push.log`, stop with `touch ~/box_push.off`). Every 10 min it sends the r85 and r86 seeds' logs and
+  results, the queue files and the worker logs to `box/box1118/out/`, with a status file. Saved states go to
+  `box-state/box1118/` (expires after 7 days): track D states (1.3 GB) every hour, and every changed state,
+  the 28.8 GB track A ones too, on each pass from 04:40 on. Layout as `box_boot.sh` writes it, so
+  `box_s3.sh status box1118` and `box_s3.sh pull box1118 <tag> calibration/research_r85 calibration/research_r86`
+  (`STATE=1` for the states) read it from Engaging or the laptop.
+- **Checked.** The first pass took 15 s: 220 objects (143 MB) under `out/` and four D states (5.3 GB);
+  `box_s3.sh status box1118` shows the box's running list and queues. `box_sync.sh from` stays the main route.
+- **Cost.** S3 storage only: at most about 100 GB of states for 7 days, about $0.54. Agent AWS charges so
+  far: about $0.03 (the self-launch test) plus this, about $0.57 at most.
+- **Queue change (19:20).** Moved `a007_cos467_h100m30` seed 2 from the hold list to GPU 0's queue. GPU 0's worker
+  takes it when `a007_lr1.3e-6_h100` seed 1 ends (expected about 23:25) and it should end between 05:05 and 05:40,
+  inside the 05:55 deadline. Otherwise GPU 0 would have taken a single D run and sat empty for the last 1.5 h.
+  `cos467` then has three seeds planned; one `muon1338m_s11441` seed fewer runs on this box.
+- **H100 memory, measured 18:51** (cards hold 81,559 MiB). One A run at the 0.35 share: 79,836 MiB. One A run at
+  0.30: 77,996 to 80,996 MiB over five runs. Two D runs on a GPU: 39,192 to 41,172 MiB each. So for 11-25 and
+  12-09: one A run (0.30 share) or two D runs per GPU, never an A beside a D. The A runs still nearly fill the card.
+- **Plan for the rest of the night** (times are estimates). GPU 6 about 21:00 and GPU 1 about 21:54 go on to
+  `a007_ent15_h100m30` seeds 2 and 1; GPU 5 about 23:03 to `muon2676m_s11441` seeds 3 and 4; GPUs 4, 7 and 3 about
+  00:30-00:45 to single D runs from the shared list; GPU 2 about 01:07, where only one D run may start that late
+  (a pair would not finish), so I leave it one item before 01:00.
