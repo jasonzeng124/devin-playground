@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-18 19:25 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-18 21:20 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **D 007 promotion (13:54 EST 11-16), built on self-imitation, so said here before its seeds start (INBOX 11-12).**
 Arm r81, `calibration/research_r81/d006_batched_muon56_rl17400`: D 006 (which already uses self-imitation, same limits)
@@ -110,7 +110,7 @@ screen runs on the H200.
   never an A beside a D), and bring every result and resume state back before 05:55. Since 17:07 a keeper on the box
   (`~/tail_keeper.sh`, log `~/tail_keeper.log`, stop with `touch ~/tail_keeper.off`) starts a worker on any GPU that
   is empty, from `queue/box_g<g>_1118.txt` and then the shared `queue/box_t_1118.txt`; nothing starts after 01:55.
-  Each wake: check its log, the GPUs' memory and new FAILED lines in the box's `queue/done.txt` (10 at 19:15).
+  Each wake: check its log, the GPUs' memory and new FAILED lines in the box's `queue/done.txt` (11 at 21:15).
   Since 19:23 a loop on the box (`~/box_push.sh`, log `~/box_push.log`) also sends results every 10 min, and
   saved states (D hourly, all from 04:40), to `box/box1118/out/` and `box-state/box1118/` in the bucket: after
   an outage read them with `box_s3.sh status box1118` and `box_s3.sh pull box1118 <tag> <dir>` (LOG 11-18 19:25).

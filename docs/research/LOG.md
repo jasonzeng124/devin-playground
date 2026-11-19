@@ -7394,3 +7394,33 @@ final weights, native sampler against vLLM on the same node:
   `a007_ent15_h100m30` seeds 2 and 1; GPU 5 about 23:03 to `muon2676m_s11441` seeds 3 and 4; GPUs 4, 7 and 3 about
   00:30-00:45 to single D runs from the shared list; GPU 2 about 01:07, where only one D run may start that late
   (a pair would not finish), so I leave it one item before 01:00.
+
+## 2026-11-18 21:20 EST: box: the track A control's seed 0 is in (0.4250); the last 0.35-share A run failed for memory and continues at 0.30
+
+- **r85 (A 007's config, 467 steps on an H100, final dev), seed 0 of each arm:**
+
+  | arm | final dev | against the control | kept step | hours |
+  |---|---|---|---|---|
+  | `a007_ctl` | 0.4250 | | 450 | 5.97 |
+  | `a007_lr1.3e-6` | 0.4367 | +0.0117 | 350 | 5.83 |
+  | `a007_ent15` | 0.4383 | +0.0133 | 350 | 6.05 |
+  | `a007_cos467` | 0.4167 | -0.0083 | 467 | 6.09 |
+
+  One seed each, so this says nothing yet: the differences are the size of one seed's noise. Seeds 1 and 2 of all
+  four arms are running or queued for tonight. (The control's seed 0 and `cos467` seed 0 ran their first
+  steps under the `_h100` config, 0.35 sampler share, and the rest under `_h100m30`, 0.30; same maths.)
+- **`a007_lr1.3e-6_h100` seed 1 failed for memory (GPU 0).** It was the one run still at the 0.35 share. It ran
+  out of memory at 20:47, restarted from its saved state, and ran out again at 20:57, which
+  used up the runner's two tries: FAILED line 11 in the box's `queue/done.txt`. Its saved state (step 278 of 467,
+  saved 20:43) is whole. At 21:16 I moved it to `a007_lr1.3e-6_h100m30`'s resume directory and queued that seed
+  on GPU 7 behind its current run (free about 00:20; 189 steps left, about 2.5 h). To make room,
+  `muon1338m_s11441` seed 1 went to the hold file. No run at the 0.30 share has failed for memory so far.
+- **GPU 0 and GPU 6 moved on by themselves:** GPU 0 started `a007_cos467_h100m30` seed 2 at 20:57 and GPU 6
+  started `a007_ent15_h100m30` seed 2 at 21:03. Both are due about 03:00.
+- **Queue change at 20:52 (box).** The shared queue `box_t_1118` is now empty and GPUs 2, 3, 4 and 7 each got
+  one item of their own: GPU 4 `d004_ctl_s11441` seed 3, GPU 3 `muon1338m_s11441` seed 2, GPU 2
+  `muon1338m_s11441` seed 0, GPU 7 as above. Why: GPU 2 has two live workers, and both would have taken a D item
+  from the shared queue when their pair ends about 01:07; a D pair needs 5.2 h or more and the box ends at 06:00,
+  so neither would have finished. Alone a D run takes about 3.65 h. `muon1338m_s11441` seeds 1, 3 and 4 wait in
+  `queue/hold_d2_1118.txt` on the box (not run tonight).
+- **Engaging.** r101 worker 29554920 started about 21:03 on node5600-c1 (`d007rl_native_b200` seed 0).
