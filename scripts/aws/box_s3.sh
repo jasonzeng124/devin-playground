@@ -4,7 +4,10 @@
 #
 #   bash scripts/aws/box_s3.sh stage <name> <commit> <plan file> <queue file>...
 #       code.tgz of <commit> (the files scripts/aws/box_sync.sh copies), the plan, the queues (as they are in the
-#       working tree) and home.txt: the paths under ~ that the queued configs read. HOME_EXTRA="path ..." adds more.
+#       working tree) and home.txt: the paths under ~ that the queued configs read (a screen's starting checkpoint,
+#       the base model's cache, the tokenizer, and for a screen with its own pretraining the token file).
+#       HOME_EXTRA="path ..." adds more. A screen that starts from a checkpoint another queued item makes on the
+#       box is not supported: check reports its checkpoint as missing.
 #   bash scripts/aws/box_s3.sh home <name>     upload the paths of home.txt that S3 lacks. Run it as a CPU job:
 #       sbatch -p mit_normal --time=02:00:00 -c 4 --mem=8G --chdir=$PWD --wrap "bash scripts/aws/box_s3.sh home <name>"
 #   bash scripts/aws/box_s3.sh check <name>    every queued config is in the code, every file it reads is in S3, the
@@ -31,7 +34,7 @@ trap 'rm -rf "$tmp"' EXIT
 in_s3() { aws s3api head-object --bucket "$BUCKET" --key "$1" >/dev/null 2>&1; }
 items() { grep -hv -e '^$' -e '^#' "$@" || true; }  # the "<config dir> <seed>" lines of queue files
 home_paths() {  # <commit> <queue file>...: the paths under ~ that the queued runs read, and warnings on stderr
-  local commit=$1 dir seed cfg pre model tok
+  local commit=$1 dir seed cfg pre model tok data
   shift
   while read -r dir seed; do
     if ! cfg=$(git show "$commit:$dir/config.json" 2>/dev/null); then
@@ -41,11 +44,17 @@ home_paths() {  # <commit> <queue file>...: the paths under ~ that the queued ru
     pre=$(jq -r '.screen_pretrained // empty' <<<"$cfg")
     model=$(jq -r '.model // empty' <<<"$cfg")
     tok=$(jq -r '.v3.pretrain.tokenizer // empty' <<<"$cfg")
+    data=$(jq -r 'if .screen_pretrained then empty else .v3.pretrain.tokens // empty end' <<<"$cfg")
     [[ -n $pre ]] && echo "orcd/pool/rlvr-ckpts/$pre/seeds/$seed/pretrained"
     [[ $model == */* && $model != /* ]] && echo ".cache/huggingface/hub/models--${model//\//--}.tar"
     [[ $tok == "$HOME"/* ]] && echo "${tok#"$HOME"/}"
-    if [[ $dir == records/* || -z $pre && $(jq 'has("v3") and (.v3 | has("pretrain"))' <<<"$cfg") == true ]]; then
-      echo "WARNING: $dir $seed is not a screen from a saved checkpoint: the box setup does not stage its inputs" >&2
+    # A screen with its own pretraining (scripts/research/run_item.sh runs it with STAGE=train or STAGE=pretrain)
+    # reads the token file: one large file, staged as a tar of that file, which the box unpacks in place.
+    [[ $data == "$HOME"/* ]] && echo "${data#"$HOME"/}.tar"
+    if [[ $dir == records/* ]]; then
+      echo "WARNING: $dir $seed is a record seed: boxes run screens only" >&2
+    elif [[ -n $data && ( $data != "$HOME"/* || $tok != "$HOME"/* ) ]]; then
+      echo "WARNING: $dir $seed pretrains from files outside ~ ($data, $tok): the box setup does not stage them" >&2
     fi
   done < <(items "$@")
   for dir in ${HOME_EXTRA:-}; do echo "$dir"; done
@@ -82,9 +91,10 @@ case $cmd in
     aws configure set default.s3.max_concurrent_requests 16
     while read -r path; do
       [[ -n $path ]] || continue
-      if [[ $path == *.tar ]]; then  # a directory with symlinks (the Hugging Face cache) goes up as one tar file
+      if [[ $path == *.tar ]]; then  # one tar file: a directory with symlinks (the Hugging Face cache) or one large file
         in_s3 "box/home/$path" && continue
         dir=$HOME/${path%.tar}
+        [[ -e $dir ]] || { echo "MISSING on Engaging: ~/${path%.tar}" >&2; continue; }
         tar cf - -C "${dir%/*}" "${dir##*/}" | aws s3 cp --only-show-errors - "$H/$path"
       else
         [[ -d $HOME/$path ]] || { echo "MISSING on Engaging: ~/$path" >&2; continue; }

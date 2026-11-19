@@ -12,7 +12,8 @@
 #                                NEED_VENV or SHUTDOWN_WHEN_IDLE below.
 #   box/<name>/in/queue/<q>.txt  the queues
 #   box/<name>/in/home.txt       paths under ~ to copy from box/home/ (pretrained checkpoints, tokenizer); a path
-#                                ending in .tar is one tar file there, unpacked in place (the base model's cache)
+#                                ending in .tar is one tar file there, unpacked in place (the base model's cache,
+#                                a pretraining token file)
 # Written here:
 #   box/<name>/out/rlvr-screens/ finished and running seeds' files, queue/snap.tar (scripts/aws/box_queue.py),
 #                                queue/worker.log, slurm_logs/
@@ -108,7 +109,7 @@ if [[ ! -e $mark/fetched ]]; then
   [[ -e $mark/home.txt ]] && mapfile -t paths <"$mark/home.txt"
   for path in ${paths[@]+"${paths[@]}"}; do
     [[ -n $path ]] || continue
-    if [[ $path == *.tar ]]; then  # a directory staged as one tar file (the Hugging Face cache: it holds symlinks)
+    if [[ $path == *.tar ]]; then  # staged as one tar file: the Hugging Face cache (it holds symlinks), a token file
       path=${path%.tar}
       mkdir -p "$HOME/${path%/*}"
       try aws s3 cp --only-show-errors "$H/$path.tar" "$HOME/$path.tar" </dev/null \

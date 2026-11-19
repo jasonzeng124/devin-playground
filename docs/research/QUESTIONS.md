@@ -303,3 +303,27 @@ under a running record.
 
 Answer in INBOX.
 
+## 2026-11-19 10:47 EST: may an end-to-end screen on the 11-28 AWS H200 box serve as the gating screen for a track D record?
+
+AGENT.md says the promotion screen that gates a record runs on `NVIDIA H200`, and the boxes are for screens
+only. The 11-28 box has eight H200s for 24 h, which is room for the many-seed end-to-end screen INBOX 11-19 01:32
+asks for: the D speed stack (r102's config) against its control, five or more seeds each, every run timed as a
+record seed is. On Engaging, r102 (the speed stack, three seeds) has waited for preemptable H200s since 11-17
+14:07.
+
+The GPUs are the same card, but the box's CPUs are not Engaging's, and the native sampler's answer constraint
+runs on the CPU (18 to 22 % of the step on a B200 node). So a timed run on the box may reach a different number
+of RL steps than the same run on an Engaging H200, in either direction, and the record itself would run on
+Engaging.
+
+My plan unless you say otherwise: run the screen on the box with both arms and read it within the box. If the
+speed stack meets the five-seed rule there (mean at or above 0.281, at least 4 of 5 seeds above 0.251, at most
+one collapsed), I treat it as the gating screen and start the record attempt on Engaging's H200s, after one
+check: RL steps per second on the box against an Engaging H200 at the same settings (from r102 if one of its
+seeds has run by then, otherwise from a 300-step timing item on an Engaging H200, a few minutes). If Engaging
+is slower by more than a tenth, the record would get fewer steps than the screen had (a tenth of r101's 34,893
+native steps is about 0.008 dev at its late slope of +0.0023 per 1,000 steps), and I wait for r102's three
+seeds on Engaging instead. If r102 finishes first, it gates as planned and this question is moot.
+
+Answer in INBOX.
+

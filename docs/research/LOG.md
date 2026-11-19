@@ -8521,3 +8521,79 @@ constraint time falls, `factored_grammar: true` joins the settled speed settings
 queues (r102 and the items already queued keep their configs). If a factored final run differs from its control
 while the two controls match each other, that is a bug, to be found before the option is used anywhere. A
 cheaper cache-hit path is decided only after this result.
+
+## 2026-11-19 10:47 EST: launch schedules exist for all three paid blocks; the box setup can now stage a pretraining screen's token file
+
+Two pieces of the self-running box (INBOX 11-18 13:35), and what is still missing.
+
+**Schedules.** At about 10:25 I ran `bash scripts/aws/box_auto.sh schedule <reservation id>` for the 11-25, 11-28
+and 12-09 blocks. Each block now has 11 one-time EventBridge schedules, `rlvr-box-<reservation id>-m0001`,
+`-m0005`, `-m0010`, `-m0025`, `-m0060`, `-m0180`, `-m0360`, `-m0540`, `-m0720`, `-m0900` and `-m1080`: 1, 5, 10, 25
+and 60 min and 3, 6, 9, 12, 15 and 18 h after the block starts (11:31Z to 05:30Z the next day). Each calls
+RunInstances with the block's launch template under role `rlvr-scheduler`; the template's default version is the
+self-running one. Schedules cost nothing. `box_auto.sh show` for each block at 10:32 EST: reservation
+`scheduled`, default template version self-running (1, 3 and 1), 11 schedules `ENABLED` with the right template
+name and times, no instance, no RunInstances call in the last 6 h.
+
+What follows from them:
+
+- Nobody has to launch a box by hand. A launch while an instance holds the block's network interface is refused
+  (tested on 11-18), so a hand launch and a scheduled one cannot both succeed, and the later schedules do nothing
+  while the box is up.
+- If the box dies, the next schedule starts a new one, which takes the queue less what the bucket lists as done
+  (tested on 11-18 with the cheap instance). So before I terminate a box on purpose inside its block, I must run
+  `box_auto.sh unschedule <reservation id>` first.
+- The stage has to be in the bucket before the block starts. The user data tries `in/code.tgz` nine times, 20 s
+  apart, and then stops trying; such a box comes up like the 11-18 one and has to be run by hand.
+  **Nothing is staged for any of the three blocks yet.**
+
+**End-to-end screens could not be staged; now they can.** INBOX 11-19 01:32 asks for the speed stack end to end
+with enough seeds before anything else gets box time. An end-to-end D item pretrains, and pretraining reads the
+token file `mix_0.2.bin` (4.64 GB). `box_s3.sh` staged a screen's starting checkpoint, the base model's cache
+and the tokenizer, but not that file, and its `check` refused every item with its own pretraining. Changes
+(this commit):
+
+- `home_paths` lists the token file of a screen that pretrains (no `screen_pretrained`; both `STAGE=train` and
+  `pretrain_only` items) as `<path under ~>.tar`. `home` uploads it as one tar to the shared `box/home/` prefix,
+  so one upload serves all three blocks, and `box_boot.sh` unpacks a `.tar` path in place, where the configs'
+  absolute path points. An RL-only screen does not pull the file.
+- `home` now checks that a `.tar` path's source exists before it pipes `tar` into the upload. Before, a missing
+  source made `tar` fail while it still wrote an empty 10 kB archive into the pipe (checked locally); the upload
+  would have stored it, and a second run of `home` and `check` would have taken that object as present.
+- The warning that made `check` fail is narrowed to what the box still cannot run: a record seed, and a
+  pretraining item whose token file or tokenizer is outside the home directory.
+- `tests/test_box_s3.py` (4 tests) runs the script's own `items` and `home_paths` text against a small git
+  repository of configs: an RL-only screen, an end-to-end and a `pretrain_only` screen, a track A screen with
+  `HOME_EXTRA`, and the four refused or warned cases. ruff passes; pytest 190 passed.
+
+Checked beyond the unit tests: on the real configs (r102 seed 0 and r101's native seed 2) the function prints
+the token tar, the tokenizer and D 007's seed 2 checkpoint with no warning; and the tar, copy, unpack and remove
+commands of `home` and `box_boot.sh`, run by hand on a 1 kB file in a scratch directory, give back the same
+bytes at the path the config would name.
+
+**Not tested yet.** None of this has run against the bucket or on a box. The 11-18 cheap test staged an empty
+`home.txt` (I read it in the bucket today), and the 11-18 GPU box was filled by hand, so no box has yet fetched
+any path from `box/home/`, directory or tar. That is one more boot of the cheap instance with a small directory
+and a small tar in `home.txt` (a few cents), to do before the first real stage is relied on.
+
+**How a pretraining item behaves after a failure on a box (read from the code, not run).** `queue_worker.sbatch`
+moves a seed directory that holds a `train_log.jsonl` or `pretrain_log.jsonl` to `extra/interrupted_<seed>_<n>`
+before it starts the item, so a failed or restored end-to-end item starts again from pretraining. It has no saved
+state to resume from (`box_runner.sh` resumes in place only when a `state.pt` exists). The keeper puts a FAILED
+item back once. The worker redoes an item in hand without checking the time left, so a rerun late in the block
+can be cut off by the block's end. Pretraining minutes and `time_budget_s` are wall-clock budgets, so timed
+end-to-end runs go one per GPU. The logs are written into the seed directory as the run goes, so the box's
+pushes every 5 min carry a cut-off run's partial logs.
+
+**Disk.** Each pretraining run copies the token file to `/tmp` (eight at once is 37 GB) and saves a
+checkpoint of about 0.44 GB. The three templates' default versions have a 2,000 GB gp3 volume (read from AWS
+today), so disk is not a limit.
+
+**AWS charges:** unchanged, about $0.30 in total (at most about $0.40). The token tar in the bucket will add
+about $0.11 a month (about $0.32 over the 90 days the prefix keeps it) once it is uploaded.
+
+**Next for the boxes, by about 11-22:** the cheap boot that fetches from `box/home/`; a baseline queue and plan
+for 11-25 and 11-28, staged with `stage`, `home` (a `mit_normal` CPU job) and `check`, so a box that starts
+with me down has work; `docs/research/box_1128.md`. Each queue is planned again the day before its block
+(11-24, 11-27, 12-08) from what has been learnt. I asked in QUESTIONS (10:47) whether an end-to-end screen on the
+11-28 H200 box may serve as the gating screen.

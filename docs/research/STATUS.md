@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 10:12 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 10:47 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **The speed stack turns into score (11-19, LOG 11-19 02:05).** r101 (B200, RL only, one seed each, not yet gated): the
 native arm ran 34,893 steps in 17,400 s and ended at dev 0.3033; the control ran 18,215 and ended at
@@ -33,7 +33,7 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (10:12 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
+**Jobs (10:47 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
 `screens_rl_b200`): 29618971 (started 08:41; r101's control seed 2) and 29626073 (started 08:48; r101's native
 seed 1). Both items are traced and end at about 13:45 EST; neither worker has room for another item. Pending:
 29644110 and 29644111 (`mit_normal_gpu` B200, 6 h; each starts only after one of the running workers ends, so at
@@ -52,8 +52,9 @@ the native sampler (`rollout_backend: "native"`, 1.40-1.60x faster per RL step) 
 
 RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
 **Next decisions:** r102's three seeds against 0.281 (then the five-seed record attempt if the three-seed rule is
-met); r101's remaining seeds, paired by seed; the native evaluation-path test; the 11-28 self-running box (queue,
-staging, schedules, `docs/research/box_1128.md`) by about 11-22; the 11-25 box's queue, planned on 11-24.
+met); r101's remaining seeds, paired by seed; the native evaluation-path test; for the self-running boxes (the
+schedules exist) a cheap boot that fetches from `box/home/`, baseline queues staged for 11-25 and 11-28 and
+`docs/research/box_1128.md`, by about 11-22; each box's queue planned again the day before its block.
 
 **B200 first (INBOX 11-13 23:43 and 23:45).** Progress comes before records. Results on B200 are marked "not yet gated"
 until an H200 gate runs. INBOX 11-14 22:03: a gate or record may take an H200 slot when the agent judges that best.
@@ -94,9 +95,16 @@ screen runs on the H200.
 | 11-28 06:30 to 11-29 06:30 | 8x H200 (the maintainer may take it) | zjason@100.29.118.132 | `rlvr-box-cr-08927241900b5884c` (self-running version 3; version 2 is the old one) |
 | 12-09 06:30 to 12-10 06:30 | 8x H100 | zjason@174.129.98.131 | `rlvr-box-cr-0813172fa29139b78` (self-running version 1) |
 
-- No scheduled launch exists yet for any block. Until one does, from the block start: `aws ec2 describe-instances
-  --region us-east-1`, then `aws ec2 run-instances --region us-east-1 --launch-template LaunchTemplateName=<template>`,
-  retried every couple of minutes. The $500 budget stays suspended.
+- **Scheduled launches exist for all three blocks** (created 11-19 about 10:25; LOG 11-19 10:47): 11 one-time
+  EventBridge schedules per block, `rlvr-box-<reservation id>-m0001` to `-m1080`, at 1, 5, 10, 25 and 60 min and
+  3, 6, 9, 12, 15 and 18 h after the block starts. Each calls RunInstances with the block's template (its default,
+  self-running version) under role `rlvr-scheduler`. Check: `bash scripts/aws/box_auto.sh show <reservation id>`
+  (11-19 10:32: reservations `scheduled`, 11 schedules `ENABLED` each, no instance). A launch while an instance
+  is up is refused, so nothing is launched by hand; if a box dies, a later schedule starts a new one, which
+  carries on from the bucket. **Before terminating a box on purpose inside its block, run `box_auto.sh
+  unschedule <reservation id>`.** **Nothing is staged yet. Stage each block (`box_s3.sh stage`, `home`, `check`)
+  before it starts:** a box that finds no `code.tgz` in its first 3 min comes up like the 11-18 one and is run
+  by hand. The $500 budget stays suspended.
 - INBOX 11-18 13:35: by 11-25, make the 11-28 box launch and run by itself, test it for a few dollars and write it up
   in `docs/research/box_1128.md`. State at 17:55 on 11-18 (LOG 11-18 17:55):
   - Built and tested on a cheap instance: `scripts/aws/box_auto.sh` (roles, bucket rules, template, schedules, dry
@@ -108,11 +116,20 @@ screen runs on the H200.
   - 11-18 18:21: the three future blocks' templates have a self-running default version (`box_auto.sh template`),
     and the dry run of each launch under `rlvr-scheduler` passes (LOG 11-18 18:23). With nothing staged in the
     bucket such a box comes up like the 11-18 one and is run by hand.
-  - Still to do: for each block the queues and plan, `box_s3.sh stage`, `home` and `check`, and the schedules
-    (`box_auto.sh schedule`); `docs/research/box_1128.md`; the check that my usage and login last through each
-    block. Do not run `scripts/aws/box_launch.sh` for a reservation set up with `box_auto.sh`.
+  - 11-19 10:47: the schedules exist (above). `box_s3.sh` now also stages the token file of a screen that
+    pretrains (one tar under `box/home/`, unpacked in place on the box), so end-to-end D screens can be queued on
+    a box; `tests/test_box_s3.py`. **Not yet run against the bucket or on a box, and no box has yet fetched
+    anything from `box/home/`** (the 11-18 cheap test staged an empty `home.txt`). The templates' disks are
+    2,000 GB. A failed end-to-end item starts again from pretraining (no saved state).
+  - Still to do: a cheap boot that fetches a small directory and a small tar from `box/home/`; for each block
+    the queues and plan, then `box_s3.sh stage`, `home` and `check`; `docs/research/box_1128.md`; the check that
+    my usage and login last through each block. Do not run `scripts/aws/box_launch.sh` for a reservation set up
+    with `box_auto.sh`.
   - Left on AWS: template `rlvr-box-test`, roles `rlvr-scheduler` and `rlvr-box`, the test's output under
-    `box/rlvr-box-test/out/` in the bucket (run `box_s3.sh clear rlvr-box-test` before a re-test). No schedules.
+    `box/rlvr-box-test/out/` in the bucket (run `box_s3.sh clear rlvr-box-test` before a re-test), and the 33
+    schedules above (free).
+  - Asked in QUESTIONS (11-19 10:47): may an end-to-end screen on the 11-28 H200 box serve as the gating screen?
+    Unless told otherwise: yes, if an Engaging H200's RL steps per second are within a tenth of the box's.
 - **AWS charges made by the agent** (outside the blocks the maintainer bought), corrected 11-19 06:32 from the
   bucket's final contents (LOG 11-19 06:32): the 11-18 self-launch test about $0.03; S3 for the 11-18 box about
   $0.27 (saved states 25.07 GB for 7 days $0.135, results 0.355 GB for 90 days $0.025, 92 state uploads about
