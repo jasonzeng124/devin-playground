@@ -7542,3 +7542,102 @@ final weights, native sampler against vLLM on the same node:
   box (06:00); their saved states go to S3 every 10 min from 04:40 in case they do not make it. GPU 3's worker
   finished `cos467` seed 1 at 00:28 and started `muon1338m_s11441` seed 2 alone (40,621 MiB; about 3.65 h, so until
   about 04:10). All eight GPUs are busy; the box's `queue/done.txt` still has 11 FAILED lines (none new).
+
+## 2026-11-19 02:05 EST: INBOX 01:32 answered. r101's native arm ends at 0.3033 dev after 34,893 steps (control 0.2483 after 18,215); r102, its H200 promotion screen, is queued; the box's tail runs the native sampler
+
+- **INBOX 01:32 (the laptop session's critique of the 11-18 box plan), read at 01:34. I agree with its main points**:
+  the r85 arms were too small for three seeds, and the plan should have been redone on 11-17 from the speed results.
+  What changed within the hour is below; the point-by-point reply is the last item.
+- **r101 (B200, RL only from D 007's checkpoints, both arms 17,400 s, one seed each so far; not yet gated).** The
+  native arm (same-process sampler, `reuse_sampler_allowed`, `share_group_prompt`, 65,536-token micro-batches)
+  finished its seed 0 at 01:56:
+
+  | arm | seed | RL steps in 17,400 s | final dev | mean of the last 5 evals |
+  |---|---|---|---|---|
+  | `d007rl_native_b200` | 0 | 34,893 | 0.3033 | 0.2920 |
+  | `d007rl_ctl_b200` | 0 | 18,215 | 0.2483 | 0.2463 |
+
+  Dev by step (the control's seed 1 is still running, at step 12,000):
+
+  | step | native s0 | control s0 | control s1 |
+  |---|---|---|---|
+  | 2,000 | 0.1450 | 0.1317 | 0.1433 |
+  | 4,000 | 0.1733 | 0.1533 | 0.1733 |
+  | 6,000 | 0.1950 | 0.1933 | 0.1767 |
+  | 8,000 | 0.2250 | 0.2000 | 0.1883 |
+  | 10,000 | 0.2350 | 0.2267 | 0.2000 |
+  | 12,000 | 0.2450 | 0.2250 | 0.2150 |
+  | 14,000 | 0.2483 | 0.2450 |  |
+  | 16,000 | 0.2550 | 0.2533 |  |
+  | 18,000 | 0.2633 | 0.2517 |  |
+
+  The native arm alone after that: 20,000 0.2650, 22,000 0.2583, 24,000 0.2700, 26,000 0.2617, 28,000 0.2683, 30,000 0.2900, 32,000 0.2917, 34,000 0.2883; final (34,893) 0.3033.
+  - **1.92x the steps in the same time, and +0.0550 dev.** At equal steps the native arm is level with or a little above
+    the control (native minus control s0 at the nine steps above: mean +0.0117, range +0.0017 to +0.0250; the
+    control's own two seeds differ by up to 0.0267 at these steps), so most of the gain comes from the extra
+    steps, and dev was still rising at 30,000 steps. This is the first run that turns the speed work
+    into score. It is one seed on a B200; the control's seed 1 and the native arm's seed 1 (worker 29618971,
+    submitted 01:58) follow.
+- **r102, the H200 promotion screen for a D record with the speed stack (queued 01:52).** The gating screen has to
+  run on the H200 and that queue is slow, so it starts now and does not wait for more B200 seeds.
+  `calibration/research_r102/d007_speed_h200` is D 007 end to end with every same-maths speed change: pretraining
+  with Muon on the fused path for 46 min in place of 56 (r92), then RL for 18,000 s in place of 17,400 with r101's
+  native settings; the same 20,760 s in total. It is r99's arm plus `reuse_sampler_allowed`. Seeds 0-2 are in
+  `queue/screens_r92.txt` (r92's own arm is dropped: r102 contains its change), read by H200 preemptable workers
+  29450693/94/702, which I released at 01:52. B200 preemptable workers 29497701/02/05 (r97, r99) are held so that
+  no more than four preemptable GPUs run (those three and D 007's seed 4).
+  - Read against D's line, 0.259 (D 006 holds). D 007's four finished seeds have kept dev 0.2450 / 0.2517 / 0.2500 / 0.2550
+    (mean 0.2504), so the line becomes about 0.280 if D 007 lands; I read r102 against both. If
+    the three-seed rule is met, a five-seed record attempt starts (r102's config without `no_save`).
+  - Expected effect, written before it runs: +0.03 to +0.05 dev over D 007 (r101: +0.055 on one B200 seed; r78:
+    +0.032 for a third more steps). D 007's four seeds have a dev sd of 0.0042 (r77's three had 0.0278, on nodes
+    of different speed), so three seeds resolve an effect of that size only if the spread stays near D 007's.
+  - Risks: this is the native sampler's first run through pretraining and RL in one job (r99 was preempted
+    before RL each time), and the workers are preemptable.
+- **The box's tail queue changed at 01:44.** `queue/box_tail_1118.txt` held seeds 3 and 4 of the four track A arms,
+  none of which could finish. They moved to `queue/hold_a_1118.txt` (not run). The tail now holds two new r86
+  arms, `muon1338m_native_s14180` (seeds 0-4) and `muon1338m_native_s11441` (seeds 0-2): tonight's vLLM arms with
+  r101's five native settings, same checkpoints and step caps, one run alone on each GPU as it frees (first
+  start about 02:22 on GPU 7). Expected: the same dev as the vLLM arm of the same seed (it is the same maths, so
+  this is a check and not a score arm), and the step rate and memory of the native sampler on an H100, which
+  the 11-25 queue needs for its step caps and packing. A 14,180-step run should take about 2.5 h if the B200's
+  1.9x holds, so the first three or four finish; later ones end as partials with their states in S3.
+  - Why not the A seeds: the control's three seeds are 0.4250 / 0.4000 / 0.4400 (sd 0.0202), so a paired
+    difference has an sd of about 0.029 per seed, and seeing +-0.015 at two standard errors takes about
+    15 pairs at 5.7 GPU-hours a run: more than a box day for one arm.
+- **r81 against r86: I believe r86.**
+  - r81's margin was never firm. r77 (H200, timed): 0.253 / 0.218 / 0.273, mean 0.2483, sd 0.0278. r81:
+    0.262 / 0.268 / 0.275, mean 0.2683. Difference +0.0200 with a standard error of 0.0165
+    (three unpaired seeds each; r77's seeds ran 11,074 to 16,055 steps on different nodes).
+  - The same config's next four seeds, D 007's, have kept dev mean 0.2504: r77's level. Over all seven
+    seeds of the config the mean is 0.2581, +0.0098 over r77 with a standard error of 0.0166.
+  - r86 says the same with paired seeds and equal step counts: Muon for 56 min plus 24 % more RL steps against
+    AdamW for 112 min is -0.0025 (standard error 0.0072, 4 pairs), and Muon for the full 112 min
+    at equal steps is -0.0233 (3 pairs).
+  - So the Muon split is about neutral on dev: the shorter pretraining costs about what the extra RL steps give
+    back. D 007's dev gain over D 006 (0.229) is mostly the batched sampler's extra steps (r77 alone is 0.248).
+    D 007 as a record rests on its test ladder, 0.2606 / 0.2538 / 0.2646 / 0.2726 (mean 0.2629) against D 006's
+    0.2444 +- 0.0158, with seed 4 running; that comparison is unchanged.
+  - One caveat on r86: its 14,180-step cap came from r77 seed 0's rate, and D 007's seeds ran 17,359 to
+    19,735 steps on the H200, so r86's Muon arm is D 007 as a slow node would run it.
+  - My error: I promoted r81 on three seeds that cleared the line without asking what the control's spread
+    allowed. The three-seed rule permits that; the lesson is to write the expected effect and the control's
+    noise next to each arm before it runs, as the note says.
+- **Track A's clock (the note's last question), from A 007's record logs.** The five seeds reached step 467 after
+  15,708 / 15,087 / 14,737 / 15,573 / 14,994 s of a 17,400 s budget: the step cap ended every run with 1,692 to
+  2,663 s unused. A step takes 32.2 s on average: 17.7 s sampling (55 %) and 14.4 s
+  update. At each seed's own overall rate (evals included) 17,400 s would hold 517 to 551 steps, so A has
+  room for about 50 more steps before any speed work (less a margin for slow nodes), and both halves are worth timing: a short H200 run with `time_update_parts` is next for A.
+- **Reply to the four suggestions.**
+  1. Speed into score first: yes. r102 is that run on the H200, queued tonight. The 11-25 box (H100, screens
+     only) gives the speed stack seeds against its control at step caps taken from tonight's native runs.
+  2. Fewer arms, more seeds: yes. From now each arm's LOG line carries the expected effect and its control's seed
+     sd before it gets GPUs, and an arm inside the noise gets the seeds to resolve it or does not run. No more
+     small moves around A 007; `hold_a_1118` stays unrun.
+  3. The rest goes to changes that could be large: U17 and U19, and the settings that nearly twice the steps may
+     have moved (the pretraining/RL split, prompts per step, the lr schedule's length).
+  4. Each box queue is re-planned the day before from the results in hand: 11-24 for 11-25, 11-27 for 11-28,
+     12-08 for 12-09.
+- **Box at 02:05:** all eight GPUs busy (ten runs), 11 FAILED lines (none new), sync fine at 02:05. No track A state has gone
+  to S3 (the box's push log at 02:00 shows none) and none will unless an A run is still going at 04:40 (the last ends about 03:40), so the $1.72 logged at
+  00:14 is not expected to be spent; I correct the total when the box's final S3 contents are logged.

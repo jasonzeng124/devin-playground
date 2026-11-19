@@ -2,7 +2,18 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 00:36 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 02:05 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+
+**The speed stack turns into score (11-19, LOG 11-19 02:05).** r101 (B200, RL only, one seed each, not yet gated): the
+native arm ran 34,893 steps in 17,400 s and ended at dev 0.3033; the control ran 18,215 and ended at
+0.2483; level at equal steps. **r102 is its H200 promotion screen**: `calibration/research_r102/d007_speed_h200`
+(D 007 end to end with the fused pretraining for 46 min and the native RL settings for 18,000 s), seeds 0-2 in
+`queue/screens_r92.txt` on H200 preemptable workers 29450693/94/702 (released 01:52). Read against D's line 0.259
+(about 0.280 if D 007 lands); if the three-seed rule is met, start a five-seed record attempt (r102's config without
+`no_save`). Watch the first run pass from pretraining into native RL (never run end to end before).
+INBOX 11-19 01:32 (critique of the box plan) is answered in the same LOG entry: speed stack first, fewer arms and
+more seeds with the expected effect written beside the control's seed sd, the rest on U17/U19 and on settings the
+doubled step count may have moved; each box queue is re-planned the day before (11-24, 11-27, 12-08).
 
 **D 007 promotion (13:54 EST 11-16), built on self-imitation, so said here before its seeds start (INBOX 11-12).**
 Arm r81, `calibration/research_r81/d006_batched_muon56_rl17400`: D 006 (which already uses self-imitation, same limits)
@@ -92,7 +103,8 @@ screen runs on the H200.
   $0.03 (two t3.large for 20 min in total, two 80 GB disks, S3 pennies). 11-18 19:23, S3 storage for the 11-18 box's results and
   saved states (7 days), at most about $0.54. 11-19 00:07, the saved states of the track A runs that fill the box's
   last hours (seven of 28.77 GB, 7 days, plus upload requests), at most about $1.72. Running total: about $2.29
-  at most.
+  at most. (11-19 01:44: the tail no longer starts track A runs, so the $1.72 is not expected to be spent; the
+  total is corrected when the box's final S3 contents are logged.)
 - INBOX 11-18 13:39: the 11-25 and 12-09 blocks are new. Both show `scheduled` (checked 11-18 14:17); each needs a launch with
   its own reservation id, a 24 h queue and a packing checked against 80 GB. Use the self-starting setup on 11-25 if
   it is ready.
@@ -113,8 +125,9 @@ screen runs on the H200.
   (`~/tail_keeper.sh`, log `~/tail_keeper.log`, stop with `touch ~/tail_keeper.off`) starts a worker on any GPU that
   is empty, from `queue/box_g<g>_1118.txt` and then the shared `queue/box_t_1118.txt`; nothing starts after 01:55.
   Since 00:07 on 11-19 a second loop (`~/tail_fill.sh`, log `~/tail_fill.log`, stop with `touch ~/tail_fill.off`) starts
-  one worker on each GPU that is empty after that, from `queue/box_tail_1118.txt` (track A seeds 3 and 4; they cannot
-  finish, and the 11-25 box continues them from their saved states in `box-state/box1118/`; LOG 11-19 00:14).
+  one worker on each GPU that is empty after that, from `queue/box_tail_1118.txt` (since 01:44: `muon1338m_native_s14180`
+  and `muon1338m_native_s11441`, tonight's vLLM arms with the native settings, one run alone per GPU, paired by seed
+  with the vLLM runs; the track A seeds 3 and 4 sit in `queue/hold_a_1118.txt` and do not run; LOG 11-19 02:05).
   Each wake: check its log, the GPUs' memory and new FAILED lines in the box's `queue/done.txt` (11 at 21:15).
   Since 19:23 a loop on the box (`~/box_push.sh`, log `~/box_push.log`) also sends results every 10 min, and
   saved states (D hourly, all from 04:40), to `box/box1118/out/` and `box-state/box1118/` in the bucket: after
@@ -130,8 +143,12 @@ screen runs on the H200.
   0-2): `d007rl_native_b200` (native sampler, `reuse_sampler_allowed`, shared prompt, 65,536-token micro-batches)
   against `d007rl_ctl_b200`, both 17,400 s. One item per 6 h worker: submit two more when a pair ends. Read paired
   by seed (steps and final dev pass rate). The control's seed 0 finished: final dev 0.2483 after 18,215 steps.
-  Workers 29554920 and 29580582 are pending; the native arm's seed 0 is next. r97 and r99 (end to end) wait on preemptable B200 workers 29497701/02/05,
-  which were preempted within 21 min four times on 11-18.
+  The native arm's seed 0 finished: 0.3033 after 34,893 steps. Running: the control's seed 1 (29580582, ends by
+  about 04:58) and the native arm's seed 1 (29618971, submitted 01:58); then control seed 2 and native seed 2.
+  r97 and r99 (B200, end to end) are superseded by r102: their preemptable workers 29497701/02/05 are held (the
+  cap of four running preemptable GPUs goes to r102 and D 007's seed 4).
+- Track A: A 007's seeds reached step 467 with 1,700-2,700 s of the budget unused, and a step is about 55 %
+  sampling, 45 % update. Next: a short H200 run with `time_update_parts`, then an arm with more steps.
 - `~/rlvr-ideas/STATUS.md`: update it whenever a verdict or a result changes.
 
 ## Notes
