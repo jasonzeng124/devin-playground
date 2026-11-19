@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 11:08 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 12:28 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **The speed stack turns into score (11-19, LOG 11-19 02:05).** r101 (B200, RL only, one seed each, not yet gated): the
 native arm ran 34,893 steps in 17,400 s and ended at dev 0.3033; the control ran 18,215 and ended at
@@ -33,7 +33,7 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (11:08 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
+**Jobs (12:28 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
 `screens_rl_b200`): 29618971 (started 08:41; r101's control seed 2) and 29626073 (started 08:48; r101's native
 seed 1). Both items are traced and end at about 13:45 EST; neither worker has room for another item. Pending:
 29644110 and 29644111 (`mit_normal_gpu` B200, 6 h; each starts only after one of the running workers ends, so at
@@ -53,9 +53,9 @@ the native sampler (`rollout_backend: "native"`, 1.40-1.60x faster per RL step) 
 RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
 **Next decisions:** r102's three seeds against 0.281 (then the five-seed record attempt if the three-seed rule is
 met); r101's remaining seeds, paired by seed; the native evaluation-path test; for the self-running boxes (the
-schedules exist and the cheap fetch test passed) the exit-code check in `box_boot.sh` with a repeat of that test,
-baseline queues staged for 11-25 and 11-28 and `docs/research/box_1128.md`, by about 11-22; each box's queue
-planned again the day before its block.
+schedules exist, the cheap fetch test passed and a failed fetch is now reported) baseline queues staged for
+11-25 and 11-28 and `docs/research/box_1128.md`, by about 11-22; each box's queue planned again the day before
+its block.
 
 **B200 first (INBOX 11-13 23:43 and 23:45).** Progress comes before records. Results on B200 are marked "not yet gated"
 until an H200 gate runs. INBOX 11-14 22:03: a gate or record may take an H200 slot when the agent judges that best.
@@ -127,24 +127,29 @@ screen runs on the H200.
     3 min 48 s after the launch. These were also the first runs of `stage`, `home` and `check` with the 10:47
     code. The tokenizer is now in `box/home/`. **Not yet tested:** the 4.64 GB token-file tar (not uploaded), a
     real checkpoint or the model cache on the new boxes, anything with a GPU.
-  - Still to do: in `scripts/aws/box_boot.sh` make a failed sync or untar count as not fetched (now only the
-    path's existence is checked), then repeat the cheap test (`box_auto.sh template test` first: the test
-    template's block end is 3 h after it is made); for each block the queues and plan, then `box_s3.sh stage`,
-    `home` and `check`; `docs/research/box_1128.md`; the check that my usage and login last through each block.
-    Do not run `scripts/aws/box_launch.sh` for a reservation set up with `box_auto.sh`.
-  - Left on AWS: template `rlvr-box-test` (default version 2), roles `rlvr-scheduler` and `rlvr-box`, and the 33
-    schedules above (free). In the bucket: the 11-19 fetch test's stage and output under `box/rlvr-box-test/`
-    (run `box_s3.sh clear rlvr-box-test` before a re-test), the 11-18 test's stage and output copied to
-    `box/rlvr-box-test-1118/`, and the test files under `box/home/orcd/pool/boxtest/` (also under
-    `~/orcd/pool/boxtest/` on Engaging, 21 MB; both go once the build is audited).
+  - 11-19 12:28: **a failed fetch is now reported** (344eb32; LOG 11-19 12:28). In `box_boot.sh` a copy, sync or
+    untar that fails marks its path as not fetched even when part of it arrived. The cheap test was repeated
+    with a cut-off tar among four paths: the box's status file named it (`NOT FETCHED: ...`), the other three
+    arrived, both stub items passed and the box shut itself down 3 min 46 s after the launch. A file that is
+    complete but wrong is not caught on the box; `box_s3.sh check` looks at the stage before a launch.
+  - Still to do: for each block the queues and plan, then `box_s3.sh stage`, `home` and `check`;
+    `docs/research/box_1128.md`; the check that my usage and login last through each block. Before any re-test
+    run `box_auto.sh template test` (the test template's block end is 3 h after it is made) and
+    `box_s3.sh clear rlvr-box-test`. Do not run `scripts/aws/box_launch.sh` for a reservation set up with
+    `box_auto.sh`.
+  - Left on AWS: template `rlvr-box-test` (default version 3), roles `rlvr-scheduler` and `rlvr-box`, and the 33
+    schedules above (free). In the bucket: the repeat test's stage and output under `box/rlvr-box-test/`, the
+    first 11-19 test's under `box/rlvr-box-test-1119/`, the 11-18 test's under `box/rlvr-box-test-1118/`, and
+    the test files under `box/home/orcd/pool/boxtest/` (a cut-off `bad.bin.tar` among them; the others also
+    under `~/orcd/pool/boxtest/` on Engaging, 21 MB). The test stages and test files go once the build is audited.
   - Asked in QUESTIONS (11-19 10:47): may an end-to-end screen on the 11-28 H200 box serve as the gating screen?
     Unless told otherwise: yes, if an Engaging H200's RL steps per second are within a tenth of the box's.
 - **AWS charges made by the agent** (outside the blocks the maintainer bought), corrected 11-19 06:32 from the
   bucket's final contents (LOG 11-19 06:32): the 11-18 self-launch test about $0.03; S3 for the 11-18 box about
   $0.27 (saved states 25.07 GB for 7 days $0.135, results 0.355 GB for 90 days $0.025, 92 state uploads about
-  $0.07, result pushes about $0.04, my estimate); the 11-19 fetch test about $0.01 (LOG 11-19 11:08). Running
-  total: about $0.31, at most about $0.41. The earlier "about $2.29 at most" allowed $1.72 for track A states
-  that were never sent. I have not read the bill.
+  $0.07, result pushes about $0.04, my estimate); the two 11-19 fetch tests about $0.01 each (LOG 11-19 11:08
+  and 12:28). Running total: about $0.32, at most about $0.42. The earlier "about $2.29 at most" allowed $1.72
+  for track A states that were never sent. I have not read the bill.
 - INBOX 11-18 13:39: the 11-25 and 12-09 blocks are new. Both show `scheduled` (checked 11-18 14:17); each needs a launch with
   its own reservation id, a 24 h queue and a packing checked against 80 GB. Use the self-starting setup on 11-25 if
   it is ready.

@@ -8662,3 +8662,50 @@ test's `out/`. No instance, loose volume or test schedule remains (checked after
 **AWS charge.** One t3.large for at most 5 min 35 s and its 80 GB volume: $0.009 by list prices, so about
 $0.01; the S3 uploads (25 MB) are far under a cent. Running total about $0.31, at most about $0.41. I have
 not read the bill.
+
+## 2026-11-19 12:28 EST: repeat of the cheap fetch test at 344eb32: a cut-off tar is reported as not fetched, the rest arrives
+
+**The change (344eb32).** In `scripts/aws/box_boot.sh` a copy, sync or untar that fails now marks its path as not
+fetched, even when it left part of the path behind. Before, only the path's existence was checked. Checked by hand
+first: a 1,003,520-byte tar cut to 600,000 bytes unpacks to a 599,040-byte file with `tar: Unexpected EOF in
+archive`; the old check accepted that file, the new one reports it. ruff clean, 190 tests pass.
+
+**The test.** Staged at 344eb32 for `rlvr-box-test`: a plan, the queue `box_home2` (stub items
+`calibration/box_test/h3` and `h4`, each checking five fetched files by sha256) and four paths under `box/home/`:
+the three of the 11:08 test and `orcd/pool/boxtest/bad.bin.tar`, the cut-off tar, uploaded by hand. `check ok`.
+The test template was made again (default version 3), the dry run under `rlvr-scheduler` passed, and a one-time
+schedule launched the box. The first 11-19 test's stage and output were copied to `box/rlvr-box-test-1119/` first.
+
+| UTC | event | after the launch |
+|---|---|---|
+| 17:17:38 | the schedule fires | |
+| 17:17:48 | RunInstances (t3.large) | |
+| 17:19:37 | `box_boot.sh` starts | 1 min 49 s |
+| 17:19:44 | `NOT FETCHED: orcd/pool/boxtest/bad.bin` after tar's `Unexpected EOF in archive` | |
+| 17:19:49 | the fetch ends (12 s; the other three paths are there) | |
+| 17:19:51 | the two workers start | |
+| 17:21:28 | both items `ok` (five sha256 checks each, one planned failure at step 3, resumed) | |
+| 17:21:34 | idle: last push, then shutdown | 3 min 46 s |
+
+**Result: as intended.** The box's `status.txt` carried `NOT FETCHED: orcd/pool/boxtest/bad.bin` and the
+`fetch_failed` marker from its first write, the workers started all the same, and both items passed because
+neither reads that path. On a real box an item that needs a missing path fails by itself, and the status file
+names the path. The instance was `terminated` when next read at 17:26:33; no volume and no test schedule is left.
+
+**What it does not cover.** Only failures that the copy, sync or untar reports. A file that is complete but wrong
+passes; `box_s3.sh check` looks at the stage from the Engaging side before a launch. The log line after the
+fetch still reads "4 paths under ~", which counts the paths listed and not the paths fetched; the `NOT FETCHED`
+line and the status file are what to read. I will reword it with the next change to that file.
+
+**Still not tested:** the 4.64 GB token-file tar (not uploaded yet), a real checkpoint directory or the model
+cache through this route on the new boxes, and anything with a GPU.
+
+**Left in place.** Template `rlvr-box-test` at default version 3 (its block end is 3 h after it is made, so it is
+made again before any re-test). In the bucket: the repeat's stage and output under `box/rlvr-box-test/`
+(20 objects, 963,092 bytes), the first 11-19 test under `box/rlvr-box-test-1119/` (20 objects, 962,564 bytes),
+the 11-18 test under `box/rlvr-box-test-1118/`, and `box/home/orcd/pool/boxtest/bad.bin.tar` (600,000 bytes)
+beside the other test files, all to go once the build is audited.
+
+**AWS charge.** One t3.large for at most 8 min 45 s and its 80 GB volume: $0.013 by list prices, so about
+$0.01; the S3 uploads (under 2 MB) are far under a cent. Running total about $0.32, at most about $0.42. I have
+not read the bill.
