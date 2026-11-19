@@ -21,6 +21,10 @@
 # sampler_paths.json: {"models": ["<checkpoint dir; $CKPT_DIR and {seed} are expanded>", ...], "samples": 16}
 # It writes <dir>/seeds/<seed>/sampler_paths.json with scripts/research/sampler_paths_eval.py: the checkpoints
 # scored on <dir>/config.json's eval_set by the vLLM sampler and by the native one (dev only; nothing is trained).
+#
+# node_trace: if <dir>/node_trace exists (and <dir> is not a record), scripts/research/node_trace.sh runs beside
+# the item and appends GPU and node readings to <dir>/seeds/<seed>/node_trace.csv, every 30 s or every N s when
+# the file's first line is a number N. Observation only: the run and its config are untouched.
 set -euo pipefail
 dir=${1:?usage: run_item.sh <dir> <seed>}
 seed=${2:?usage: run_item.sh <dir> <seed>}
@@ -87,6 +91,13 @@ if [[ $dir == records/v3/* ]]; then
   fi
   STAGE=all LOCAL_DATA_DIR=${LOCAL_DATA_DIR:-/tmp} exec bash scripts/run_seed_v3.sh "$dir" "$seed"
 fi
+if [[ -f "$dir/node_trace" ]]; then
+  # Detached, and with nothing of the worker's open, so the worker waits for the run alone. The trace watches
+  # this shell's pid, which the `exec` lines below keep, and stops within one interval of the run's end.
+  every=$(awk 'NR == 1 && $1 ~ /^[0-9]+$/ {print $1}' "$dir/node_trace" 2>/dev/null) || true
+  (bash scripts/research/node_trace.sh "$dir/seeds/$seed/node_trace.csv" "${every:-30}" $$ </dev/null >/dev/null 2>&1 &) || true
+fi
+
 if [[ -f "$dir/sampler_paths.json" ]]; then
   out="$dir/seeds/$seed"
   [[ -e "$out/sampler_paths.json" ]] && { echo "$out already holds a sampler-paths eval" >&2; exit 1; }
