@@ -123,8 +123,8 @@ def test_grpo_run_trains_with_the_native_backend(monkeypatch, tmp_path, tokenize
     monkeypatch.setattr(grpo, "load_causal_model", lambda _name, _device, _dtype: (model, torch.device("cpu")))
     config = grpo.GRPOConfig(model="tiny", rollout_backend="native", constrain_answer=True, think_budget=4, group_size=2, prompts_per_step=2,
                              max_new_tokens=12, eval_max_new_tokens=12, max_steps=2, eval_every=2, eval_limit=2, kl_coef=0.0,
-                             no_save=True, out_dir=str(tmp_path / "native"), reuse_sampler_allowed=reuse)
-    if reuse:  # every row's sets as the sampler recorded them equal the recomputed ones
+                             no_save=True, out_dir=str(tmp_path / "native"), reuse_sampler_allowed=reuse, factored_grammar=reuse)
+    if reuse:  # every row's sets as the sampler recorded them (from its factored grammar) equal the recomputed ones
         real = grpo._allowed_tokens
 
         def checked(tokenizer, generated, attention, prompt_width, puzzles, think_budget=0, sampled=None):

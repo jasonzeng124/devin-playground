@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 09:28 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 10:12 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **The speed stack turns into score (11-19, LOG 11-19 02:05).** r101 (B200, RL only, one seed each, not yet gated): the
 native arm ran 34,893 steps in 17,400 s and ended at dev 0.3033; the control ran 18,215 and ended at
@@ -33,15 +33,16 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (09:28 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
+**Jobs (10:12 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
 `screens_rl_b200`): 29618971 (started 08:41; r101's control seed 2) and 29626073 (started 08:48; r101's native
 seed 1). Both items are traced and end at about 13:45 EST; neither worker has room for another item. Pending:
-29644110 and 29644111 (`mit_normal_gpu` B200, 6 h, one item each; each starts only after one of the running
-workers ends, so at most two normal GPUs run); 29632479 (preemptable, same queue, 14 h, room for two items;
-waiting for nodes); r102's three H200 preemptable workers (29450693/94/702, `Priority`). The queue holds, in
-order: r104's second item (about 8 min), r101's native seed 2, then r105's six items (lr 2x and 4x, seeds 0-2,
-interleaved; about 29 GPU-hours). Held: 29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and
-29445218 (H200; r90). If everything pending starts that is 4 preemptable and 2 normal GPUs, the cap of six.
+29644110 and 29644111 (`mit_normal_gpu` B200, 6 h; each starts only after one of the running workers ends, so at
+most two normal GPUs run); 29632479 (preemptable, same queue, 14 h, room for two long items; waiting for nodes);
+r102's three H200 preemptable workers (29450693/94/702, `Resources`). The queue holds, in order: r104's second
+item (about 8 min), r106's four final-weights timing items (about 3 min each), r101's native seed 2, r105's
+lr 2x seed 0, r106's two start-weights timing items (about 5 min each), then r105's other five items. Held:
+29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). If everything pending
+starts that is 4 preemptable and 2 normal GPUs, the cap of six.
 
 **Settled speed settings for new D arms (LOG 11-17 and 11-18; timed on B200; each is the same maths and off by
 default).** Pretraining: `--fused-loss --micro-batch 128` (+21 % tokens per second; 46 min gives about the old
@@ -183,10 +184,16 @@ screen runs on the H200.
   paired by seed against `d007rl_native_b200` at matched steps (block means of ten dev evals), with steps and
   node. A gain of 0.015 or more over three pairs puts that lr into the next H200 gate config; a tie closes lr
   for the native regime.
-- Next speed item (code, same maths): the native sampler's answer constraint on the CPU is 18 to 22 % of the
-  step in r100's four timing runs (0.087 s of 0.392 s at the final weights), a Python grammar call per row
-  per decoded token. To build: fewer calls with the same result (rows of a group with the same prefix share
-  one), off by default, timed as r100 was.
+- `factored_grammar` (commit 1c7883d, off by default, same maths; LOG 11-19 10:12): the native sampler's answer
+  constraint on the CPU is 18 to 22 % of the step in r100's timing runs, and on a CPU benchmark its cost is
+  building the allowed set of each new grammar state. The option builds that set from parts (tokens without a
+  digit cached per state shape, digit tokens read off the remaining numbers): equal sets on every state tested,
+  first-pass grammar time 0.30 of the walk's on the login node. **Not yet timed on a GPU.** r106 (six 300-step
+  B200 timing items under `calibration/research_r106/`, queued) reads `t_part_s_mask_cpu`, `t_sample`, tokens per
+  second and step-by-step `loss` and `mean_reward` against controls on the same node. Expected: the constraint
+  time down by a third to 70 % (+8 % to +18 % steps at the final weights). If the four final-weights logs match
+  step for step and the time falls, the option joins the settled speed settings for new D arms and the box
+  queues; r102 and the queued items keep their configs. The start-weights pair is read on timings only.
 - Track A: A 007's seeds reached step 467 with 1,700-2,700 s of the budget unused (room for about 50 more steps),
   and a step is about 55 % sampling, 45 % update. r103 (three timing runs on the H100, LOG 11-19 06:32): neither
   same-maths option helps on an 80 GB card as it is. `constrain_batched` samples 1.16 to 1.27 times slower per

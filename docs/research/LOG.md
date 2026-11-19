@@ -8448,3 +8448,76 @@ Jobs at 09:28: the two B200s still run r101's native seed 1 and control seed 2 (
 29644110 and 29644111 (`mit_normal_gpu`, B200, 6 h, one item each), each set to start only after one of the
 running workers ends, so no more than two normal GPUs run. 29632479 and r102's three H200 workers are still
 pending. The B200 queue now holds r104's second item, r101's native seed 2 and r105's six items.
+
+## 2026-11-19 10:12 EST: the answer constraint's cost is in new grammar states; `factored_grammar` builds them 3x faster on the CPU; r106 queued to time it
+
+The 09:28 entry named the native sampler's answer constraint as the next speed item (0.087 s of the 0.392 s step
+at the final weights) and planned to let rows with the same prefix share one grammar call. I measured first, and
+the measurement changed the plan. Everything here ran on the login node's CPU without a model (three scripts,
+under a minute each, two threads); nothing has run on a GPU yet.
+
+**Where the time goes (simulated GRPO steps: 64 puzzles x 8 rows, each row a random walk through the grammar,
+the track D tokenizer; about 13,972 row-tokens per step).**
+
+- The grammar call is 92 % of the constraint's CPU time (0.1017 of 0.1107 s per step). The log of allowed
+  sets, the hashing and the torch part together are 0.009 s.
+- Inside the grammar call, a state seen before is a dictionary hit, and a state seen for the first time walks
+  the trie of all 477 candidate tokens (52.7 `step` calls and 18.8 us on average, for a set of 11.1 tokens).
+  A step meets 4,412 new states. New states are 82 % of the first pass: replaying the same sequences, all
+  hits, costs 0.0185 s against 0.1014 s.
+
+So sharing a call among rows with the same prefix would save little (those are hits already). The cost is
+building a new state's set, and that is what the change makes cheaper.
+
+**The change (commit 1c7883d, `factored_grammar`, off by default; same sets, so the same maths).** Of the 477
+candidate tokens of the track D tokenizer, 457 hold no digit and 20 are single digits. Whether a token without a
+digit is allowed depends only on the state's shape (mode, how many numbers remain, bracket depth, progress
+through the closing tag, whether the last character was a space, and inside a number whether the digits so far
+complete a remaining number), not on which numbers remain. Those tokens are walked once per shape and cached.
+An all-digit token is allowed exactly when the digits so far plus the token start one of the remaining numbers,
+which is read off the numbers without a walk. Tokens that mix digits with other characters (none in this
+tokenizer) are still walked. If a puzzle's `ops` held a digit the full walk is used.
+
+Checks: on every reachable state of seven puzzles the factored set equals the walk's, with the SmolLM2 tokenizer
+and with a synthetic vocabulary that has multi-digit and mixed tokens, where both also equal a brute-force feed
+of every candidate. Two native engines with the option off and on sample the same sequences and record the same
+sets, and the GRPO-level native test now runs with it on. ruff passes; pytest 186 passed.
+
+**CPU benchmark of the change (the same sequences through both grammars, order alternated).** 35,297 states,
+every allowed set equal; 572 shapes were walked for them.
+
+| per simulated step | walk | factored |
+|---|---|---|
+| first pass, s | 0.1193 | 0.0357 |
+| a new state, us | 22.85 | 4.06 |
+| replay (all hits), s | 0.0184 | 0.0178 |
+
+The first pass takes 0.30 of the walk's time. The cache of sets per state is unbounded, as before; the two
+finished long B200 workers peaked at 12.6 and 12.2 GB of their 128 GB (one ran 34,893 native steps), so it
+needs no bound.
+
+**What I expect on the B200, written before the result.** A trained policy repeats more states than a random
+walk, so less of its constraint time is new states and the saving should be smaller than the benchmark's. The
+B200's constraint cost is 6.6 us per row-token (0.0868 s for about 13,072 tokens), between the benchmark's
+all-hits 1.3 us and its first-pass 8.5 us on a different CPU, which fits a large share of new states. At
+the benchmark's ratio the step would go from 0.392 to 0.331 s (+18 % steps); I expect `t_part_s_mask_cpu` to
+fall by between a third and 70 %, which is +8 % to +18 % steps at the final weights.
+
+**r106 (B200, timing only, 300 steps each, `time_update_parts`, traced every 10 s).** Six items copied from
+r100's `final_native_reuse` and `start_native_reuse` (D 007 seed 0's final and pretrained weights, the settled
+speed settings): `final_native_ctl`, `final_native_factored`, `final_native_factored_b`, `final_native_ctl_b`
+(the pair twice, in the order control, factored, factored, control) and `start_native_ctl`,
+`start_native_factored`. About 3 min each at the final weights and 5 min at the start weights. In
+`queue/screens_rl_b200.txt` the four final items follow r104's second item, ahead of the long items; the start
+pair sits after two long items, so a 6 h worker's 35 min of slack is never spent on short items alone.
+
+How it will be read: means over steps 51-300 of `t_part_s_mask_cpu`, `t_sample`, `t_update` and tokens per
+second, control against factored on the same node (the node and worker of each item from `queue/worker.log`), and
+`loss` and `mean_reward` step by step. At the final weights the four runs should match exactly: r100's two
+final-weights runs were equal on all 300 steps. At the start weights same-maths runs part from step 2 (LOG 11-18
+12:03: the grad norm differs in the fifth digit at step 1, and at entropy 3.2 that changes the next samples), so
+the start pair is read on its timings only, with tokens per step beside them. If the final runs match and the
+constraint time falls, `factored_grammar: true` joins the settled speed settings for new D arms and the box
+queues (r102 and the items already queued keep their configs). If a factored final run differs from its control
+while the two controls match each other, that is a bug, to be found before the option is used anywhere. A
+cheaper cache-hit path is decided only after this result.
