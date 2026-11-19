@@ -820,3 +820,8 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - So no yes or no is coming. Decide it when the time comes, on the facts you have then, and write
     the reasoning in the LOG. Their earlier remark ("speed work should be done on engaging. anything
     else that might be useful can be run on aws.") is their leaning, for you to weigh.
+- 2026-11-19 16:28 EST (maintainer, via laptop), **assume AWS and Engaging run at different speeds.**
+  - The maintainer: "in general unless proven otherwise itd be wise toa ssume aws and engaging run
+    at diff speseds".
+  - The laptop session's reading: a timing or a timed run on a box says nothing about Engaging until
+    the same item has been timed on both. Your 10:47 plan already had that check.
