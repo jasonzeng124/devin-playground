@@ -2,16 +2,20 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 12:40 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 14:35 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
-**The speed stack turns into score (11-19, LOG 11-19 02:05).** r101 (B200, RL only, one seed each, not yet gated): the
-native arm ran 34,893 steps in 17,400 s and ended at dev 0.3033; the control ran 18,215 and ended at
-0.2483 (its seed 1: 0.2383 after 20,032); level at equal steps. **r102 is its H200 promotion screen**: `calibration/research_r102/d007_speed_h200`
-(D 007 end to end with the fused pretraining for 46 min and the native RL settings for 18,000 s), seeds 0-2 in
-`queue/screens_r92.txt` on H200 preemptable workers 29450693/94/702 (released 01:52; still pending on `Priority`
-at 09:04). Read against D's line 0.281 (D 007's dev mean 0.251 + 0.03); if the three-seed rule is met, start a
-five-seed record attempt (r102's config without `no_save`). Watch the first run pass from pretraining into native
-RL (never run end to end before).
+**The speed stack turns into score (11-19, LOG 11-19 02:05 and 14:35).** r101 (B200, RL only from D 007's
+checkpoints, 17,400 s, not yet gated): the native arm's two seeds ended at dev 0.3033 (34,893 steps) and
+0.2883 (44,862); the control's three at 0.2483, 0.2383 and 0.2750 (17,608 to 20,032 steps). Pairs:
++0.055 and +0.050. At equal steps the arms are level (+0.012 and +0.005), so the gain is the extra steps: around
+step 29,000 the native seeds stood at 0.282 and 0.269, and seed 1 gained little after 35,000.
+**r102 is its H200 promotion screen**: `calibration/research_r102/d007_speed_h200` (D 007 end to end with the
+fused pretraining for 46 min and the native RL settings for 18,000 s), seeds 0-2 in `queue/screens_r92.txt` on
+H200 preemptable workers 29450693/94/702 (released 01:52; pending on `Resources` at 14:35). Read against D's line
+0.281 (D 007's dev mean 0.251 + 0.03) together with the steps each seed reaches: at the H100's 0.62 s/step it
+would reach about 29,000, where the B200 seeds are near the line and not clear of it (expected finals about
+0.27 to 0.29). If the three-seed rule is met, start a five-seed record attempt (r102's config without `no_save`).
+Watch the first run pass from pretraining into native RL (never run end to end before).
 On the 11-18 box the native sampler came out a little behind vLLM on dev at equal steps, by about 0.01 (finals
 -0.021 over three finished pairs, SE 0.009; evaluation curves -0.008 over five pairs, SE 0.003; LOG 11-19 06:32),
 against about twice the steps in the same time. Whether that gap comes from training or from the native greedy
@@ -33,16 +37,16 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (12:40 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
-`screens_rl_b200`): 29618971 (started 08:41; r101's control seed 2) and 29626073 (started 08:48; r101's native
-seed 1). Both items are traced and end at about 13:45 EST; neither worker has room for another item. Pending:
-29644110 and 29644111 (`mit_normal_gpu` B200, 6 h; each starts only after one of the running workers ends, so at
-most two normal GPUs run); 29632479 (preemptable, same queue, 14 h, room for two long items; waiting for nodes);
-r102's three H200 preemptable workers (29450693/94/702, `Resources`). The queue holds, in order: r104's second
-item (about 8 min), r106's four final-weights timing items (about 3 min each), r101's native seed 2, r105's
-lr 2x seed 0, r106's two start-weights timing items (about 5 min each), then r105's other five items. Held:
-29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). If everything pending
-starts that is 4 preemptable and 2 normal GPUs, the cap of six.
+**Jobs (14:35 EST 11-19).** No GPU is running: r101's two items on node5602-c1 ended at 13:40 and 13:42 EST.
+Pending: 29644110 and 29644111 (`mit_normal_gpu` B200, 6 h, queue `screens_rl_b200`; eligible since 13:42 and
+waiting for capacity; Slurm's estimate for both is 01:30 on 11-20; `sbatch --test-only` puts a new worker at
+11-23 on the B200 and at 11-21 or 11-23 on the H200, so they keep their place and nothing is resubmitted);
+29632479 (preemptable, same queue, 14 h, room for two long items; waiting for nodes); r102's three H200
+preemptable workers (29450693/94/702, `Resources`). The queue holds, in order: r107 (the memory of fused
+pretraining, about 6 min), r104's second item (about 8 min), r106's four final-weights timing items (about
+3 min each), r101's native seed 2, r105's lr 2x seed 0, r106's two start-weights timing items (about 5 min
+each), then r105's other five items. Held: 29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and
+29445218 (H200; r90). If everything pending starts that is 4 preemptable and 2 normal GPUs, the cap of six.
 
 **Settled speed settings for new D arms (LOG 11-17 and 11-18; timed on B200; each is the same maths and off by
 default).** Pretraining: `--fused-loss --micro-batch 128` (+21 % tokens per second; 46 min gives about the old
@@ -51,10 +55,12 @@ the native sampler (`rollout_backend: "native"`, 1.40-1.60x faster per RL step) 
 (bit-identical over 300 steps, update -14.5 %). r88 (U18): no effect, parked.
 
 RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
-**Next decisions:** r102's three seeds against 0.281 (then the five-seed record attempt if the three-seed rule is
-met); r101's remaining seeds, paired by seed; the native evaluation-path test; for the self-running boxes (built,
-tested on a cheap instance and written up in `docs/research/box_1128.md`) baseline queues staged for 11-25 and
-11-28 by about 11-22; each box's queue planned again the day before its block.
+**Next decisions:** r102's three seeds against 0.281, read with the steps each reaches (then the five-seed
+record attempt if the three-seed rule is met); r107's memory reading against the rule in LOG 11-19 13:01; r106
+(`factored_grammar`, more steps per hour) and r105 (lr in the native regime) as the two levers for a second gate
+config if r102 lands near the line; r104's second item; r101's native seed 2; for the self-running boxes
+(built, tested on a cheap instance and written up in `docs/research/box_1128.md`) baseline queues staged for
+11-25 and 11-28 by about 11-22; each box's queue planned again the day before its block.
 
 **B200 first (INBOX 11-13 23:43 and 23:45).** Progress comes before records. Results on B200 are marked "not yet gated"
 until an H200 gate runs. INBOX 11-14 22:03: a gate or record may take an H200 slot when the agent judges that best.
@@ -198,21 +204,24 @@ screen runs on the H200.
   and 12-09 A arms use share 0.30.
 - D on the H100: two runs per GPU take 5.2-5.6 h for 11,441 steps and 6.2-6.8 h for 14,180; one run alone takes about
   3.65 h and 4.5 h (LOG 11-18 17:55).
-- r101 (B200, RL only from D 007's checkpoints, queue `screens_rl_b200`, seeds 0-2, not gated):
-  `d007rl_native_b200` (native sampler, `reuse_sampler_allowed`, shared prompt, 65,536-token micro-batches) against
-  `d007rl_ctl_b200`, both 17,400 s. Done: native seed 0, 0.3033 after 34,893 steps; control seed 0, 0.2483 after
-  18,215; control seed 1, 0.2383 after 20,032. Running since 08:49: native seed 1 (29626073) and control seed 2
-  (29618971), both on node5602-c1. Queued: native seed 2, for 29632479 (preemptable, room for two). Read
-  paired by seed (steps and final dev pass rate), with the node each ran on.
+- r101 (B200, RL only from D 007's checkpoints, queue `screens_rl_b200`, seeds 0-2, not gated; LOG 11-19 02:05
+  and 14:35): `d007rl_native_b200` (native sampler, `reuse_sampler_allowed`, shared prompt, 65,536-token
+  micro-batches) against `d007rl_ctl_b200`, both 17,400 s. Done: native seed 0, 0.3033 after 34,893 steps
+  (node5600-c1); native seed 1, 0.2883 after 44,862 (node5602-c1); control seed 0, 0.2483 after 18,215;
+  control seed 1, 0.2383 after 20,032; control seed 2, 0.2750 after 17,608. Pairs +0.055 and +0.050; at
+  equal steps +0.012 and +0.005. Control finals: mean 0.254, sd 0.019. Native dev around step 29,000: 0.282
+  and 0.269. Queued: native seed 2.
   **Node speed (LOG 11-19 09:04).** Native seed 0 was still climbing at the end (+0.0023 dev per 1,000 steps from
   step 15,000) and ran a third faster from about 01:20 EST, within three minutes, when other jobs on its node
   ended (31.3k to 41.5k tok/s; update -31 %, sampling -16 %; the same tokens per step). Cause unknown. A
   time-budgeted native run's steps can move by a quarter to a third with its node (0.02-0.03 dev), so native
   results carry steps and node, and arms are compared at step caps. `scripts/research/node_trace.sh` (aa41eb8)
   writes `seeds/<seed>/node_trace.csv` (the job's GPU and node-wide readings every 30 s) for items with a
-  `node_trace` file: r101's remaining items and r102's seeds; never records. It works on a GPU node (first rows
-  08:49 on node5602-c1; pressure columns empty there). When r101's two running items end (about 13:45), read each
-  trace against its train log by time (GPU power and clock, the job's CPU clock, the spin time, load).
+  `node_trace` file: r101's remaining items and r102's seeds; never records. **First traces read (LOG 11-19
+  14:35):** from 11:00 EST the load on node5602-c1 rose from about 15 to about 153; the vLLM control ran
+  35 % slower (0.85 to 1.15 s/step, nearly all in sampling) and the native run 9 % slower (0.35 to 0.39).
+  The GPU's clock did not move and no throttle flag was set, so the cause is on the CPU side, and vLLM runs are
+  the more exposed. Native seed 0's larger jump at 01:20 (mostly in its update) is not explained by this.
   r97 and r99 (B200, end to end) are superseded by r102: their preemptable workers 29497701/02/05 stay held (the
   cap of four running preemptable GPUs goes to r102 and one r101 worker).
 - r105 (B200, RL only, not gated; LOG 11-19 09:28): `d007rl_native_lr12e-6_b200` and `d007rl_native_lr24e-6_b200`

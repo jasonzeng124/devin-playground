@@ -8762,3 +8762,101 @@ on what the run needs.
 started only while `RESERVE_MIN` minutes remain (`queue_worker.sbatch`, one value per `box_workers.sh` call).
 A plan line for six-hour end-to-end runs therefore sets `RESERVE_MIN` to the run's full length, so that no run
 starts that cannot finish.
+
+## 2026-11-19 14:35 EST: r101's second native seed and third control seed (B200, RL only): both pairs +0.05; the gain is the extra steps
+
+**What ran.** r101 starts from D 007's pretrained checkpoints and gives RL 17,400 s on a B200, so it is not yet
+gated. The native arm (`d007rl_native_b200`: native sampler, `reuse_sampler_allowed`, shared prompt,
+65,536-token micro-batches) runs against the control (`d007rl_ctl_b200`: D 007's own RL settings on vLLM). Native
+seed 1 and control seed 2 ended at 13:40 and 13:42 EST, both on node5602-c1. Native seed 2 is still queued.
+
+| arm | seed | node | RL steps | final dev | mean of last five evals | best eval | steps/s |
+|---|---|---|---|---|---|---|---|
+| native | 0 | node5600-c1 | 34,893 | 0.3033 | 0.2920 | 0.3033 | 2.01 |
+| native | 1 | node5602-c1 | 44,862 | 0.2883 | 0.2857 | 0.2883 | 2.58 |
+| control | 0 | node5600-c1 | 18,215 | 0.2483 | 0.2463 | 0.2533 | 1.05 |
+| control | 1 | node5800-c1 | 20,032 | 0.2383 | 0.2393 | 0.2583 | 1.15 |
+| control | 2 | node5602-c1 | 17,608 | 0.2750 | 0.2707 | 0.2800 | 1.01 |
+
+Final dev: native mean 0.2958 (two seeds), control mean 0.2539 (three seeds, sd 0.0190).
+By pair: seed 0 +0.0550, seed 1 +0.0500, mean +0.0525. Both native finals are above
+D's line of 0.281; all three control finals are below it.
+
+**At equal steps the two arms are level.** Over the evaluation steps both runs of a pair reached, native minus
+control is +0.0124 for seed 0 (36 evaluations, up to step 18,000) and +0.0045 for seed 1 (40, up to 20,000).
+Their standard errors (0.0018 and 0.0021) treat the evaluations of one run as independent, which they are not, so
+they are too small; against a control spread of 0.2383 to 0.2750 these differences are nothing. Control
+seed 2 shows the size of the seed effect: it did the fewest steps of the three (17,608) and ended highest.
+
+**So the gain is the extra steps.** Native dev around a step count (mean of the nine evaluations within 2,000
+steps):
+
+| around step | native seed 0 | native seed 1 |
+|---|---|---|
+| 18,000 | 0.2598 | 0.2385 |
+| 20,000 | 0.2643 | 0.2420 |
+| 25,000 | 0.2704 | 0.2583 |
+| 29,000 | 0.2824 | 0.2694 |
+| 32,000 | 0.2930 | 0.2724 |
+| 35,000 | not reached | 0.2743 |
+| 40,000 | not reached | 0.2744 |
+
+Seed 0 gained +0.033 between steps 18,000 and 32,000 and was still rising when its time ran out
+(+0.0030 dev per 1,000 steps from step 25,000, SE 0.0006). Seed 1 gained +0.036 between 18,000 and 35,000
+and +0.0002 from there to 40,000; its slope from step 25,000 is +0.0009 per 1,000 steps
+(SE 0.0001), a third of seed 0's. Seed 1
+did 9,969 more steps than seed 0 and ended 0.015 lower. Two seeds do not say where the curve
+flattens; they say that steps beyond about 35,000 are worth less than the steps before.
+
+**What this means for r102, the H200 gate.** r102 gives RL 18,000 s. On the 11-18 box a native run settled at
+0.62 s/step on an H100 (LOG 11-19 05:26). The H200 has the same compute chip with more and faster memory, so
+that is my planning number until r102 shows its own. At that speed r102 reaches about
+29,000 steps, not the 35,000 to 45,000 of these B200 runs. Around step 29,000 the two native seeds here
+stood at 0.2824 and 0.2694, mean 0.2759: +0.036 and +0.030 over their paired controls' last five evaluations
+and +0.024 over the mean of all three controls' last five. That is near the line of 0.281, not clear of it. I wrote on
+11-19 02:05 that I expect r102 at +0.03 to +0.05 over D 007; with the second seed and the H100's speed I now
+expect +0.02 to +0.04 (finals between about 0.27 and 0.29), so r102 may meet the three-seed rule or miss it
+by a seed. r102 also pretrains by itself (fused, 46 min), which r101 does not test. What I read first when r102
+runs is its steps per second, since that fixes where on this table it ends.
+
+**If r102 lands near the line**, the two things already queued decide the next gate config: r106
+(`factored_grammar`: +8 % to +18 % steps expected, the same maths) and r105 (lr 2x and 4x in the native
+regime, more dev per step if it works). Neither is a small move around a holder: both act on the one lever
+that has paid, RL progress inside the budget.
+
+**The node traces (first two read).** Both runs were on node5602-c1 from 08:49 EST, traced every 30 s
+(579 and 582 rows). Hourly means, with seconds per step from each train log over the same hour:
+
+| UTC hour (EST) | node load | my CPUs' MHz, native / control | spin ms, native / control | native s/step | native GPU use % | control s/step | control GPU use % |
+|---|---|---|---|---|---|---|---|
+| 13:00 (08:00) | 20 | 2,272 / 2,336 | 93 / 91 | 0.531 | 60 | 1.104 | 24 |
+| 14:00 (09:00) | 17 | 2,285 / 2,353 | 95 / 93 | 0.415 | 68 | 0.877 | 39 |
+| 15:00 (10:00) | 15 | 2,292 / 2,375 | 90 / 91 | 0.367 | 65 | 0.856 | 41 |
+| 16:00 (11:00) | 99 | 2,141 / 2,020 | 113 / 117 | 0.371 | 60 | 1.022 | 28 |
+| 17:00 (12:00) | 151 | 2,023 / 1,931 | 116 / 126 | 0.387 | 55 | 1.151 | 25 |
+| 18:00 (13:00) | 155 | 2,024 / 1,903 | 118 / 124 | 0.386 | 57 | 1.153 | 24 |
+
+The first row starts at 13:49 and the last ends at 18:40; clock times of steps are good to about a minute.
+
+From 11:00 EST other jobs raised the node's load from about 15 to about 153. My CPUs' clocks fell and the trace's
+fixed CPU spin took 34 % longer (91 to 121 ms). Taking the last quiet half hour (10:30 to 11:00 EST) against
+12:00 to 13:30 EST: the vLLM control ran 35 % slower (0.854 to 1.152 s/step), nearly all of it in sampling
+(0.461 to 0.705 s per step; its update +10 %), and its GPU sat idle more. The native run ran 9 % slower
+(0.354 to 0.387; sampling +11 %, update +5 %). It had been getting faster by itself until then (from
+0.427 s/step at 09:00 EST), so that figure may understate its loss. At their 10:30 speeds the control would have
+done about 2,500 more steps (14 % of its total) and the native run about 1,900 more (4 %). The GPU's clock
+stayed at 1,965 MHz in every row and no throttle flag was set, so the slowdown is on the CPU side; the trace
+cannot say whether it is the CPU clocks, shared caches or memory bandwidth.
+
+Two consequences. A vLLM run's step count depends on its node's other jobs more than a native run's does, so
+a time-budgeted comparison between the two paths is tilted when a node is busy. And this does not explain
+native seed 0's jump in speed at 01:20 on node5600-c1 (LOG 11-19 09:04): that was the same direction when other
+jobs ended, but three times the size and mostly in the update (-31 %), which moved by +5 % here. Its cause
+stays unknown. Card memory in the steady state
+(`memory.used`, MiB / 1024): native 51.5 GiB, control 95.9 GiB.
+
+**Jobs.** No GPU of mine is running. The two normal B200 workers (29644110, 29644111) have been eligible since
+13:42 and wait for capacity; Slurm's estimate for both is 01:30 on 11-20, and `sbatch --test-only` puts a new
+worker at 11-23 on the B200 and at 11-21 (preemptable) or 11-23 (normal) on the H200.
+So the pending workers keep their place and I submit nothing. The queue is unchanged: r107 first, then r104's
+second item, r106, r101's native seed 2 and r105.
