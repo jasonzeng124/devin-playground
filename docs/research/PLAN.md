@@ -236,6 +236,15 @@ each batch carries its own control arm:
 - 11-28 06:30 EST to 11-29 06:30 EST, 8x H200 (the maintainer may still take this block). The D10
   stack and track A's best A7 arm, with more seeds than Engaging gives in a day. The arms are
   fixed by 11-26.
+- Revised 2026-11-19 (INBOX 11-18 13:39, 11-19 14:29, 14:40 and 16:28; LOG 2026-11-19 16:51): three
+  blocks remain, 11-25 (8x H100), 11-28 (8x H200) and 12-09 (8x H100), each launched by schedule and
+  run from a queue staged in S3 (`docs/research/box_1128.md`). Each has a standby queue staged since
+  11-19 (r108, r109, r110: track D, RL only from D 007's checkpoints, a five-seed control and nine
+  bold arms, one run per GPU). Rule for box arms: bold changes, two or three seeds against a
+  five-seed control, the expected effect and the control's seed sd written first, the top arms
+  re-run before anything is built on them; a box's timings are not carried over to Engaging until
+  the same item is timed on both. Each queue is planned again the day before (11-24, 11-27, 12-08);
+  track A arms and end-to-end track D arms join then if ready. The two items above are history.
 
 Rough timeline for the extension:
 - 11-10 to 11-14: code in this order: the checkpoint option (A8, done), self-imitation (D11,

@@ -8860,3 +8860,185 @@ stays unknown. Card memory in the steady state
 worker at 11-23 on the B200 and at 11-21 (preemptable) or 11-23 (normal) on the H200.
 So the pending workers keep their place and I submit nothing. The queue is unchanged: r107 first, then r104's
 second item, r106, r101's native seed 2 and r105.
+
+## 2026-11-19 16:51 EST: INBOX 14:40, 14:29, 14:32 and 16:28 answered: standby queues staged for all three boxes (r108, r109, r110); bolder arms, fewer seeds
+
+**Maintainer intervention (INBOX 11-19 14:29, 14:32 and 16:28; commits 388b8f5, e74a9c1 and f48eb31; logged as
+such).** Three notes arrived between 14:13 and 14:32 EST, while the r101 entry was being written; I read them at
+about 14:37. A fourth came at 16:28 and I read it at 16:32. The 14:40 note (commit 13a347a) is the laptop
+session's own.
+
+- **14:29, the maintainer on the AWS boxes:** "also for running screens on aws i feel like you can be a bit more
+  aggressive and use less seeds?", "i think its better to make more bold changes in general", "wait speed work
+  should be done on engaging. anything else that might be useful can be run on aws." The laptop withdraws point 2
+  of its 01:32 note ("fewer arms, more seeds") in favour of this; writing each arm's expected effect and its
+  control's noise before it runs stays. The first two remarks are filed as U21. I adopt them: the rule is below.
+  The note also asks for U20's verdict in the ideas status file: written at 15:29.
+- **14:32, my 10:47 question (the 11-28 box as the gating screen):** "i think this is too early to be talking
+  about it, but its fine to just let the agent do whatever as long as it is reasonable". So the decision is mine,
+  made when the time comes, with the reasoning written here. The maintainer's leaning is speed work on Engaging.
+  Today nothing needs deciding: r102 stays the gate on Engaging, and the standby below holds no end-to-end
+  speed-stack screen, so either decision still works. QUESTIONS 10:47 is marked answered.
+- **14:40, the laptop session:** a box that starts while I am down must find work, so stage a standby queue for
+  each block now and replace it on the planning day. Done today for all three blocks; the rest of this entry says
+  what is staged and why.
+- **16:28, the maintainer:** "in general unless proven otherwise itd be wise toa ssume aws and engaging run at
+  diff speseds". Adopted as a rule: a timing on a box, or a result from a time-budgeted run there, is not carried
+  over to Engaging (or the reverse) until the same item has been timed on both. The standby fits it: each arm is
+  read only against the control on its own box, and a winning arm is re-run and then gated on an Engaging H200,
+  where its steps per second are read afresh. One number below mixes machines and is marked: the control's
+  expected score takes its step count from the 11-18 AWS H100 box and its score at that step count from r101 on an
+  Engaging B200.
+
+**The seeds rule for box screens (U21).** I take the seed sd of a native RL-only run's final dev as 0.019: that is
+r101's three B200 control seeds (0.2483, 0.2383, 0.2750). D 007's five H200 dev seeds had sd 0.0038, so 0.019 is
+the cautious figure. Every arm on a box is read against the same five-seed control mean.
+
+| seeds per arm | sd of (arm mean - control mean) | expected best of nine arms that do nothing |
+|---|---|---|
+| 1 | 0.021 | +0.028 |
+| 2 | 0.016 | +0.020 |
+| 3 | 0.014 | +0.016 |
+
+The last column is the expected largest of nine standard normals (1.485) times 0.019/sqrt(seeds). The control
+mean's own error (0.0085) moves all nine differences together and does not change which arm comes out on top. An
+effect of 0.04 to 0.05 shows in one or two seeds (r101's two pairs were +0.0550 and +0.0500), and that is the size
+an arm should be able to reach to get box time. The rule:
+
+- a bold arm gets three seeds that finish, against a five-seed control (two seeds where the queue cannot fit
+  three);
+- the top two or three arms are re-run on new seeds before anything is built on them, because the best of nine is
+  partly luck (+0.016 expected from nothing at three seeds);
+- an arm whose three-seed mean is below the control's is closed;
+- each arm's expected effect and the control's sd are written before it runs (the table below);
+- timing work stays on Engaging.
+
+**The standby: r108 (11-25, 8x H100), r109 (11-28, 8x H200), r110 (12-09, 8x H100).** The same ten configs, in one
+batch per box so that pulled results do not land on each other and arms are compared within one card type. All are
+track D, RL only from D 007's five pretrained checkpoints (seed N starts from D 007's seed N), on r101's native
+config (native sampler, shared prompt, 65,536-token micro-batches, reused allowed sets), 17,400 s, dev ladder
+only, no_save. Configs: commit ca72b2f. Plan files: 849c85c.
+
+Why arms that vary RL settings (INBOX 11-01 23:30 asks the LOG to say so when I queue them). First, the gain
+measured this week is in RL steps: r101's +0.05 came from about twice the steps. The size of self-imitation, the
+lr and its schedule, the group shape and the level mix were last tuned when sampling was the expensive part and a
+run had half the steps. Second, a standby must run with nobody awake. An RL-only item from an existing checkpoint
+saves its state every 60 min and carries on after a lost instance, and that route has run on a box. Arms that need
+their own pretraining (U17, U19, the pretraining/RL split) go through the end-to-end route, which has never run on
+a box and saves no state there. They join on a planning day if that route is ready.
+
+Why all track D. INBOX 11-10 10:40 asks for each box to be split about 50/50 between the tracks ("which screens is
+your call"). The standby does not do that, on purpose. The 11-18 box's track A half (r85) was three small moves
+around A 007 that three seeds could not read, and I have no track A arm ready today that could move the score by
+0.04. INBOX 10-31 puts track D first. Track A is a question for each planning day (11-24, 11-27, 12-08): a change
+on A that could move the score by 0.04 gets its half of the box.
+
+| arm | change against the control | seeds that finish in 24 h | expected final dev against the control (written before any run) |
+|---|---|---|---|
+| ctl | r101's native config, unchanged | 5 | final about 0.27 to 0.29 on an H100 (see below); the H200's step count is not measured |
+| long2x | 34,800 s of RL instead of 17,400 s | 2 | +0.02 to +0.04; under +0.01 would say more steps alone are used up. Not a record config |
+| sil256 | 256 replayed rows a step instead of 64 | 3 | -0.05 to +0.04; about 1.6 times the update rows late in a run, so it costs steps |
+| silc2 | self-imitation coefficient 2.0 instead of 0.5 | 3 | -0.05 to +0.04 |
+| mini3 | the mini levels M2, M3 and M6 join training (r56's setting) | 3 | -0.01 to +0.03, centre +0.01 |
+| hard2x | L2 to L5 drawn twice as often as L1 and L6 | 3 | -0.01 to +0.03 |
+| g32p16 | 16 prompts a step in groups of 32 (64 x 8 in the control) | 3 | -0.02 to +0.03 |
+| lr12cos | lr 12e-6 with cosine decay to a tenth (6e-6 constant in the control) | 3 | -0.02 to +0.04 |
+| lr24cos | lr 24e-6 with cosine decay to a tenth | 2 | -0.05 to +0.04; may collapse |
+| stack3 | mini3 + sil256 + lr12cos | 3 | -0.03 to +0.06 |
+
+The control's expectation: on the 11-18 AWS H100 box the native sampler settled at 0.62 s a step, which gives
+about 28,000 steps in 17,400 s, and r101's two native seeds on an Engaging B200 stood at 0.2824 and 0.2694 around
+step 29,000. The step count is from one machine and the score at that step count from another, so this is a
+cross-machine estimate (INBOX 16:28): good for telling a normal control from a broken one, no more.
+
+Where the ranges come from. mini3: r56 was +0.019 paired at 15,000 vLLM steps without self-imitation, all of it at
+L2. With the mini levels the replay buffer holds nine level pools instead of six and draws from the pools evenly,
+so about a third of the replayed rows in mini3 and stack3 are mini-level solves. hard2x: L1 passed 0.84 late in
+r101's native seed 0 and L2 to L5 hold the room; dropping L1 altogether cost 0.020 in r45. g32p16: groups of 16
+with 32 prompts tied 64 x 8 in r28 and r35, before self-imitation and the shared prompt; this goes one step
+further. sil256: late in r101's native seed 0 about 30 of the 64 groups were informative, about 239 rows plus 64
+replayed; with 256 replayed rows an update has about 495.
+
+By the rule above mini3, hard2x and g32p16 are the weak ones: their upper ends are +0.03, under the 0.04 an arm
+should be able to reach. They are in the standby because mini3 is a part of stack3, and the other two are one-line
+changes to the level mix and the group shape that I could vouch for today. They are the first to be replaced on a
+planning day.
+
+**Queue and packing.** Each queue has 47 lines: two long2x seeds, the control's five seeds and five seeds of each
+of the other eight arms. The seeds that finish first differ between the boxes (0, 1, 2 on 11-25; 2, 3, 4 on 11-28;
+3, 4, 0 on 12-09; the control always runs 0 to 4). One run per GPU (`PER_GPU=1`, eight workers). On an H100 a
+native run at 65,536-token micro-batches peaked at 74.2 GB before its first evaluation and settled at 51.7 GB (LOG
+11-19 05:26), so two do not fit 80 GB. Two would fit an H200's 141 GB on paper (125.9 GB) only if their starts
+were staggered, and `box_workers.sh` staggers worker index levels, not GPUs. A record config runs alone on its
+H200, so one run per card is also the like-for-like comparison. Two per H200 is a question for 11-27.
+
+Expected course, on my estimates of about 5.1 h for a 17,400 s item (training plus loading and evaluations) and
+about 9.9 h for the 34,800 s one: lines 1 to 8 start together; at about 5.1 h six GPUs take lines 9 to 14; at
+about 10 h all eight take lines 15 to 22; at about 15 h lines 23 to 30; at about 20.3 h the tail, lines 31 to 38,
+which the block's end cuts after about 2.5 to 3 h. `RESERVE_MIN=90` lets the tail start (INBOX 11-18 11:47:
+keeping all eight GPUs busy to the end comes first). A cut run still has a dev evaluation every 500 steps in
+`eval_log.jsonl`, pushed every 5 min, and can be read at matched steps. Finished in 24 h: 30 runs (five control
+seeds, two long2x, three seeds of seven arms, two of lr24cos). Lines 39 to 47 are spares for slots freed by an arm
+that fails.
+
+**Left out, and why.** `oversample` 2 or 4 and 128 prompts a step: with `skip_zero_advantage` the uninformative
+groups already cost nothing in the update, r18 found bigger batches no better, and sampling 1,024 or more
+sequences at once risks the 80 GB card. Groups of 16 with 64 prompts: memory unknown on an 80 GB card. 32 prompts
+a step: acts like a higher lr, which r105 covers on Engaging. A process reward: r49 was inside the noise.
+Temperature, the entropy floor and shaping: flat before. The LM loss: closed flat (r74), and it needs the 4.64 GB
+token file on the box. End-to-end arms (the pretraining/RL split, U17, U19): see above.
+
+**Not yet run on a GPU: r111.** `sil_rows` 256, groups of 32 with 16 prompts, the cosine schedule and
+`train_ladder_levels` have never run with the native sampler. The mini levels' three-number puzzles with reused
+allowed sets are the least certain. Card memory is unmeasured for these arms; by design the 65,536-token
+micro-batch bounds the update. So five 90 s smoke runs are queued on the B200 behind the two long items (lines 9
+to 13 of `queue/screens_rl_b200.txt`): `smoke_mini3`, `smoke_sil256`, `smoke_g32p16`, `smoke_lr12cos` and
+`smoke_stack3`, each the r108 arm's config with `time_budget_s` 90 and a node trace every 5 s. What I read from
+each: that it reaches its final evaluation without an error, the peak card memory (a B200 reading, so only
+indicative for an 80 GB card), `lr` falling in the two cosine runs, and steps per second (for Engaging only; by
+INBOX 16:28 it says nothing about the boxes). The score means nothing. Not smoked: silc2 (a coefficient), lr24cos
+(lr12cos's path), hard2x (mini3's path; a level named twice passes straight through `_train_streams`, read in the
+code) and long2x (the control with more time).
+
+If a smoke run fails, a fixed config goes into a new batch and the boxes are staged again. If an arm fails on a
+box all the same: `box_runner.sh` retries it from its saved state, the keeper retries a FAILED item once, and the
+worker moves on to the next line. An arm that fails at once uses up its five lines, and the queue still holds 42
+lines for the block's 38 slots.
+
+**Staged and checked.** `box_s3.sh stage` ran for the three box names at commit 849c85c at 20:22 to 20:23Z (15:22
+EST): 516 files in `code.tgz`, 47 items in one queue, 6 paths in `home.txt` (the tokenizer and D 007's five
+pretrained checkpoints). The first `check` runs (15:31 and 15:33) failed only on the five checkpoints not being in
+S3. The upload is a CPU job, and the one I had submitted to `mit_normal` showed a planned start of 11-26 01:00,
+after the first box starts. `sbatch --test-only` put a 15-minute job on `mit_quicktest` within a quarter of an
+hour, so the same upload went there as job 29681585 and ran from 15:47:28 to 15:47:49 EST (30 objects,
+1,113,502,953 bytes). The `mit_normal` copy (29678885) is cancelled. `check` at 15:49 and again at 16:16 EST reads
+"check ok" for all three boxes. `docs/research/box_1128.md` now has the table of what is staged and the `check`
+output.
+
+Lesson: a small CPU job goes to `mit_quicktest` when `mit_normal` shows a far start, and I read a job's planned
+start right after submitting anything a deadline depends on.
+
+Not shown yet: the self-running route (fetch, venv build, workers on real GPUs) has still not run on a GPU
+instance. The 11-25 box is its first. Each stage is replaced on its planning day.
+
+**What a standby result is for.** A winning standby arm is not a gate. It is re-run on new seeds, then goes into
+an H200 gate config together with the speed stack. Where that gate runs I decide then (INBOX 14:32); today's
+answer would be Engaging, and by INBOX 16:28 a box's step counts are not assumed to hold there.
+
+**If I am down through 12-09.** The standby runs unchanged on all three boxes. The two H100 boxes (the same AWS
+instance type; each read against its own control first) then give the seven three-seed arms all five seeds, seed 0
+twice (0, 1, 2 on 11-25 and 3, 4, 0 on 12-09), lr24cos and long2x four seeds each (0, 1 and 3, 4), and ten control
+runs.
+
+**AWS charge (by list prices; the bill is not read).** D 007's checkpoints in `box/home/`: 1.04 GiB at $0.023 per
+GB-month is $0.024 a month, about $0.07 over the 90 days until they expire. The upload's requests and the three
+stages (about 0.9 MB each) are under a tenth of a cent. Running total: about $0.39, at most about $0.50 (before:
+$0.32 and $0.42).
+
+**Jobs (16:51 EST).** No GPU is running. 29644110 and 29644111 (`mit_normal_gpu` B200, 6 h, queue
+`screens_rl_b200`): both pending, no planned start (reason `None`). Slurm's planned starts for the two have moved
+all afternoon (01:30 on 11-20 when read at 14:35, 15:56 at 15:46, 17:16 and 17:25 at 16:16, none from 16:23), so I
+plan nothing on them. 29632479 (preemptable B200, 14 h): pending, no planned start (reason `Resources`). r102's
+three H200 workers (29450693/94/702): all three pending, no planned start (reason `Resources`). Nothing more is
+submitted: the pending pair would fill the cap's two normal slots. The queue holds 20 lines: the five r111 items
+were added at lines 9 to 13 and the rest is unchanged.

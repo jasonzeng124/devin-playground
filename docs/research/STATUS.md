@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 14:35 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 16:51 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **The speed stack turns into score (11-19, LOG 11-19 02:05 and 14:35).** r101 (B200, RL only from D 007's
 checkpoints, 17,400 s, not yet gated): the native arm's two seeds ended at dev 0.3033 (34,893 steps) and
@@ -20,9 +20,13 @@ On the 11-18 box the native sampler came out a little behind vLLM on dev at equa
 -0.021 over three finished pairs, SE 0.009; evaluation curves -0.008 over five pairs, SE 0.003; LOG 11-19 06:32),
 against about twice the steps in the same time. Whether that gap comes from training or from the native greedy
 evaluation is open; the test is in "Next".
-INBOX 11-19 01:32 (critique of the box plan) is answered in the same LOG entry: speed stack first, fewer arms and
-more seeds with the expected effect written beside the control's seed sd, the rest on U17/U19 and on settings the
-doubled step count may have moved; each box queue is re-planned the day before (11-24, 11-27, 12-08).
+INBOX 11-19 01:32 (critique of the box plan) is answered in LOG 11-19 02:05, and its seeds point was replaced by
+INBOX 11-19 14:29 (LOG 11-19 16:51): speed stack first, on Engaging; on the boxes bold arms at two or three seeds
+against a five-seed control, each arm's expected effect and the control's seed sd written first, the top arms
+re-run before anything is built on them. A standby queue is staged for all three boxes; each is planned again the
+day before (11-24, 11-27, 12-08). INBOX 11-19 16:28: AWS and Engaging are assumed to run at different speeds until
+the same item has been timed on both, so a box's timings and time-budgeted results are read only against that
+box's own control.
 
 **Record D 007 is the track D holder (2026-11-19 05:40 EST).** Test 0.2644 ± 0.0076 over five seeds (0.2606 /
 0.2538 / 0.2646 / 0.2726 / 0.2703, from `confirm_v3.json`) against D 006's 0.2444 ± 0.0158: one-sided Welch
@@ -37,16 +41,17 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (14:35 EST 11-19).** No GPU is running: r101's two items on node5602-c1 ended at 13:40 and 13:42 EST.
-Pending: 29644110 and 29644111 (`mit_normal_gpu` B200, 6 h, queue `screens_rl_b200`; eligible since 13:42 and
-waiting for capacity; Slurm's estimate for both is 01:30 on 11-20; `sbatch --test-only` puts a new worker at
-11-23 on the B200 and at 11-21 or 11-23 on the H200, so they keep their place and nothing is resubmitted);
-29632479 (preemptable, same queue, 14 h, room for two long items; waiting for nodes); r102's three H200
-preemptable workers (29450693/94/702, `Resources`). The queue holds, in order: r107 (the memory of fused
-pretraining, about 6 min), r104's second item (about 8 min), r106's four final-weights timing items (about
-3 min each), r101's native seed 2, r105's lr 2x seed 0, r106's two start-weights timing items (about 5 min
-each), then r105's other five items. Held: 29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and
-29445218 (H200; r90). If everything pending starts that is 4 preemptable and 2 normal GPUs, the cap of six.
+**Jobs (16:51 EST 11-19).** No GPU is running. 29644110 and 29644111 (`mit_normal_gpu` B200, 6 h, queue
+`screens_rl_b200`): both pending, no planned start (reason `None`); Slurm's planned starts for them have moved all
+afternoon, and at 14:35 `sbatch --test-only` put a new worker days later, so they keep their place and nothing is
+resubmitted. 29632479 (preemptable, same queue, 14 h, room for two long items): pending, no planned start (reason
+`Resources`). r102's three H200 preemptable workers (29450693/94/702): all three pending, no planned start (reason
+`Resources`). The checkpoint upload for the boxes ran as a `mit_quicktest` job at 15:47 (done). The queue holds,
+in order: r107 (the memory of fused pretraining, about 6 min), r104's second item (about 8 min), r106's four
+final-weights timing items (about 3 min each), r101's native seed 2, r105's lr 2x seed 0, the five r111 smoke runs
+of standby arms (about 3 min each), r106's two start-weights timing items (about 5 min each), then r105's other
+five items. Held: 29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). If
+everything pending starts that is 4 preemptable and 2 normal GPUs, the cap of six.
 
 **Settled speed settings for new D arms (LOG 11-17 and 11-18; timed on B200; each is the same maths and off by
 default).** Pretraining: `--fused-loss --micro-batch 128` (+21 % tokens per second; 46 min gives about the old
@@ -55,12 +60,13 @@ the native sampler (`rollout_backend: "native"`, 1.40-1.60x faster per RL step) 
 (bit-identical over 300 steps, update -14.5 %). r88 (U18): no effect, parked.
 
 RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
-**Next decisions:** r102's three seeds against 0.281, read with the steps each reaches (then the five-seed
-record attempt if the three-seed rule is met); r107's memory reading against the rule in LOG 11-19 13:01; r106
+**Next decisions:** r102's three seeds against 0.281, read with the steps each reaches (then the five-seed record
+attempt if the three-seed rule is met); r107's memory reading against the rule in LOG 11-19 13:01; r106
 (`factored_grammar`, more steps per hour) and r105 (lr in the native regime) as the two levers for a second gate
-config if r102 lands near the line; r104's second item; r101's native seed 2; for the self-running boxes
-(built, tested on a cheap instance and written up in `docs/research/box_1128.md`) baseline queues staged for
-11-25 and 11-28 by about 11-22; each box's queue planned again the day before its block.
+config if r102 lands near the line; r104's second item; r101's native seed 2; the r111 smoke runs of the standby
+arms (do they run, card memory) before 11-24; each box's standby queue (staged and checked for all three blocks,
+`docs/research/box_1128.md`) planned again the day before its block (11-24, 11-27, 12-08), track A arms included
+if a bold one is ready.
 
 **B200 first (INBOX 11-13 23:43 and 23:45).** Progress comes before records. Results on B200 are marked "not yet gated"
 until an H200 gate runs. INBOX 11-14 22:03: a gate or record may take an H200 slot when the agent judges that best.
@@ -108,9 +114,9 @@ screen runs on the H200.
   (11-19 10:32: reservations `scheduled`, 11 schedules `ENABLED` each, no instance). A launch while an instance
   is up is refused, so nothing is launched by hand; if a box dies, a later schedule starts a new one, which
   carries on from the bucket. **Before terminating a box on purpose inside its block, run `box_auto.sh
-  unschedule <reservation id>`.** **Nothing is staged yet. Stage each block (`box_s3.sh stage`, `home`, `check`)
-  before it starts:** a box that finds no `code.tgz` in its first 3 min comes up like the 11-18 one and is run
-  by hand. The $500 budget stays suspended.
+  unschedule <reservation id>`.** **A standby queue is staged for every block (11-19, below) and each stage reads
+  "check ok"; a re-stage must be in place before its launch:** a box that finds no `code.tgz` in its first 3 min
+  comes up like the 11-18 one and is run by hand. The $500 budget stays suspended.
 - INBOX 11-18 13:35: by 11-25, make the 11-28 box launch and run by itself, test it for a few dollars and write it up
   in `docs/research/box_1128.md`. State at 17:55 on 11-18 (LOG 11-18 17:55):
   - Built and tested on a cheap instance: `scripts/aws/box_auto.sh` (roles, bucket rules, template, schedules, dry
@@ -142,31 +148,50 @@ screen runs on the H200.
     tested. It gets the staged commit, queues, plan and `check` output per block when each stage is made.
     **Limit:** a track D screen with its own pretraining keeps no saved state on a box (it runs through
     `run_seed_v3.sh`); after a lost instance it starts again. Track A and RL-only D screens resume.
-  - Still to do: for each block the queues and plan, then `box_s3.sh stage`, `home` and `check`, and those
-    facts into `box_1128.md`; the check that my usage and login last through each block; for 11-28, whether a
-    seed's pretrained checkpoint can be sent to S3 so a replacement instance repeats only the RL part. Before
-    any re-test run `box_auto.sh template test` (the test template's block end is 3 h after it is made) and
-    `box_s3.sh clear rlvr-box-test`. Do not run `scripts/aws/box_launch.sh` for a reservation set up with
-    `box_auto.sh`.
+  - 11-19 16:51: **standby queues are staged for all three blocks** (INBOX 11-19 14:40; LOG 11-19 16:51), at
+    commit 849c85c, 20:22-20:23Z on 11-19; `box_s3.sh check` reads "check ok" for each (16:16 EST). 11-25: box
+    `rlvr-box-cr-03ab208e99ca6ca06`, `queue/box_1125.txt`, batch r108. 11-28: `rlvr-box-cr-08927241900b5884c`,
+    `queue/box_1128.txt`, r109. 12-09: `rlvr-box-cr-0813172fa29139b78`, `queue/box_1209.txt`, r110. Each: 47
+    lines, one native RL-only track D run per GPU from D 007's pretrained checkpoints (in `box/home/` since 15:47
+    EST), a five-seed control and nine bold arms (twice the RL time, self-imitation x4 two ways, mini levels, hard
+    levels doubled, lr 2x and 4x with cosine decay, 16 prompts x groups of 32, a three-change stack). In 24 h:
+    five control seeds, two long2x seeds, three seeds of seven arms, two of lr24cos; a tail runs until the block
+    ends. All track D: no bold track A arm is ready, so the 50/50 split of INBOX 11-10 is taken up again on each
+    planning day. Not yet run on a GPU: five 90 s smoke runs (r111) are queued on the B200. Each stage is replaced
+    on its planning day (11-24, 11-27, 12-08).
+  - Still to do: the r111 smoke runs read before 11-24; each block's queue planned again the day before (11-24,
+    11-27, 12-08) and re-staged with `box_s3.sh stage`, `home` and `check` (new arms in new config batches; track
+    A arms and end-to-end track D arms join if ready); the check that my usage and login last through each block;
+    for 11-28, whether a seed's pretrained checkpoint can be sent to S3 so a replacement instance repeats only the
+    RL part, and whether two runs fit one H200. Before any re-test run `box_auto.sh template test` (the test
+    template's block end is 3 h after it is made) and `box_s3.sh clear rlvr-box-test`. Do not run
+    `scripts/aws/box_launch.sh` for a reservation set up with `box_auto.sh`.
   - Left on AWS: template `rlvr-box-test` (default version 3), roles `rlvr-scheduler` and `rlvr-box`, and the 33
     schedules above (free). In the bucket: the repeat test's stage and output under `box/rlvr-box-test/`, the
-    first 11-19 test's under `box/rlvr-box-test-1119/`, the 11-18 test's under `box/rlvr-box-test-1118/`, and
-    the test files under `box/home/orcd/pool/boxtest/` (a cut-off `bad.bin.tar` among them; the others also
-    under `~/orcd/pool/boxtest/` on Engaging, 21 MB). The test stages and test files go once the build is audited.
-  - Asked in QUESTIONS (11-19 10:47): may an end-to-end screen on the 11-28 H200 box serve as the gating screen?
-    Unless told otherwise: yes, if an Engaging H200's RL steps per second are within a tenth of the box's.
+    first 11-19 test's under `box/rlvr-box-test-1119/`, the 11-18 test's under `box/rlvr-box-test-1118/`, and the
+    test files under `box/home/orcd/pool/boxtest/` (a cut-off `bad.bin.tar` among them; the others also under
+    `~/orcd/pool/boxtest/` on Engaging, 21 MB). The test stages and test files go once the build is audited. Also
+    in the bucket since 11-19: the three blocks' stages under `box/rlvr-box-<reservation id>/in/` and, under
+    `box/home/`, the tokenizer and D 007's five pretrained checkpoints (1.04 GiB).
+  - The 10:47 question (may an end-to-end screen on the 11-28 H200 box serve as the gating screen?) is answered
+    (INBOX 11-19 14:32): the decision is mine, to be made when the time comes with the reasoning in the LOG. The
+    maintainer leans to speed work on Engaging, and says to assume AWS and Engaging run at different speeds unless
+    shown otherwise (INBOX 11-19 16:28). For now r102 stays the gate on Engaging and the standby holds no
+    end-to-end screen.
 - **AWS charges made by the agent** (outside the blocks the maintainer bought), corrected 11-19 06:32 from the
   bucket's final contents (LOG 11-19 06:32): the 11-18 self-launch test about $0.03; S3 for the 11-18 box about
   $0.27 (saved states 25.07 GB for 7 days $0.135, results 0.355 GB for 90 days $0.025, 92 state uploads about
-  $0.07, result pushes about $0.04, my estimate); the two 11-19 fetch tests about $0.01 each (LOG 11-19 11:08
-  and 12:28). Running total: about $0.32, at most about $0.42. The earlier "about $2.29 at most" allowed $1.72
+  $0.07, result pushes about $0.04, my estimate); the two 11-19 fetch tests about $0.01 each (LOG 11-19 11:08 and
+  12:28); D 007's checkpoints kept in `box/home/` for the boxes about $0.07 over their 90 days (1.04 GiB; LOG
+  11-19 16:51). Running total: about $0.39, at most about $0.50. The earlier "about $2.29 at most" allowed $1.72
   for track A states that were never sent. I have not read the bill.
 - INBOX 11-18 13:39: the 11-25 and 12-09 blocks are new. Both show `scheduled` (checked 11-18 14:17); each needs a launch with
   its own reservation id, a 24 h queue and a packing checked against 80 GB. Use the self-starting setup on 11-25 if
   it is ready.
 - While a box is up: wake every 20-30 min, `box_sync.sh from` every wake and a last time before
   06:00 EST on the end day, and bring resume state back (INBOX 11-04).
-- The plan for each box is in PLAN ("Box days") and LOG 11-10 10:33.
+- The plan for each box is in PLAN ("Box days", revised 11-19), LOG 11-19 16:51 (the standby) and
+  `docs/research/box_1128.md`.
 
 ## Next
 

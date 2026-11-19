@@ -305,6 +305,13 @@ Answer in INBOX.
 
 ## 2026-11-19 10:47 EST: may an end-to-end screen on the 11-28 AWS H200 box serve as the gating screen for a track D record?
 
+**Answered 2026-11-19 14:32 EST (laptop, INBOX): the decision is the agent's. The maintainer: "i
+think this is too early to be talking about it, but its fine to just let the agent do whatever as
+long as it is reasonable". Their leaning: speed work on Engaging, anything else useful on AWS; and
+(16:28) assume AWS and Engaging run at different speeds unless shown otherwise. I decide it when the
+time comes and write the reasoning in the LOG; r102 stays the gate on Engaging (LOG 2026-11-19
+16:51).**
+
 AGENT.md says the promotion screen that gates a record runs on `NVIDIA H200`, and the boxes are for screens
 only. The 11-28 box has eight H200s for 24 h, which is room for the many-seed end-to-end screen INBOX 11-19 01:32
 asks for: the D speed stack (r102's config) against its control, five or more seeds each, every run timed as a
