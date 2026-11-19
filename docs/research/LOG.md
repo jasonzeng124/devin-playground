@@ -7641,3 +7641,54 @@ final weights, native sampler against vLLM on the same node:
 - **Box at 02:05:** all eight GPUs busy (ten runs), 11 FAILED lines (none new), sync fine at 02:05. No track A state has gone
   to S3 (the box's push log at 02:00 shows none) and none will unless an A run is still going at 04:40 (the last ends about 03:40), so the $1.72 logged at
   00:14 is not expected to be spent; I correct the total when the box's final S3 contents are logged.
+
+## 2026-11-19 02:43 EST: box: the native sampler runs at 0.80 s/step on the H100 after its first 400 steps (1.64x the B200's time), so the 11,441-step native runs go first; `a007_lr1.3e-6` seed 1 is 0.4367
+
+- **The first native-sampler run on an H100** (`muon1338m_native_s14180` seed 0, alone on GPU 7, started 02:27:54;
+  step 621 at wall 722 s when read at 02:40). Seconds per RL step by step range, against the B200 run of r101
+  (`d007rl_native_b200` seed 0: the same five native settings and model size, another checkpoint):
+
+  | steps | H100 s/step | B200 s/step | H100 / B200 |
+  |---|---|---|---|
+  | 11 to 80 | 1.921 | 1.094 | 1.76 |
+  | 80 to 201 | 1.389 | 0.655 | 2.12 |
+  | 201 to 401 | 1.014 | 0.515 | 1.97 |
+  | 401 to 500 | 0.839 | 0.479 | 1.75 |
+  | 421 to 621 | 0.800 | 0.487 | 1.64 |
+
+  - Over the last 200 steps the H100 spends 0.29 s sampling and 0.46 s in the update per step. The slow start is
+    the same on both cards (the decode graphs are captured as new batch and key-length buckets appear).
+  - Whole-GPU memory: 69.5 GB at step 1, 75.0 GB at step 79, 75.1 GB at step 499, then 48.2 GB at step 511
+    (after the first dev evaluation at step 500) and 51.7 GB at step 621. The B200 run: 69.1, 75.1, 75.1, 42.1 and
+    46.3 GB at the same steps. So on an 80 GB card a native D run needs its GPU to itself for its first 500 steps,
+    unless that early use can be cut (the packing test below). One run already keeps the GPU at 94 % use, so a
+    second run beside it may gain little.
+- **Correction to the 02:05 entry.** It said a 14,180-step native run "should take about 2.5 h if the B200's 1.9x
+  holds"; that was the B200's rate, not a measurement on this card. A flat 0.80 s/step would give 3.21 h, but the
+  B200 run slowed after its first 600 steps (0.583 s/step from step 621 to 14,180 against 0.487 over steps 421 to 621).
+  With the B200 run's remaining time scaled by 1.64, the run on GPU 7 needs 3.81 h and would end about 06:16, after
+  the box goes at 06:00: it ends unfinished near step 12,712 at 05:55 unless the ratio falls to 1.48 (it fell from
+  2.12 to 1.64 over the first 621 steps). An 11,441-step run needs 3.14 h on the same reckoning, so it finishes by 05:55
+  only if started by about 02:46.
+- **Tail queue reordered at 02:31** (on the box, under the queue lock): the three `muon1338m_native_s11441` items
+  (seeds 2, 0, 1) now come first, then `muon1338m_native_s14180` seeds 1 to 4. GPUs 0 and 6 free up at about 02:42
+  and 02:48, so their two 11,441-step runs are due at about the deadline and may or may not finish; the workers do
+  not stop a run at 05:55, the box's end at 06:00 does. Runs that start from 03:40 on (GPUs 1, 4, 5, 3) end
+  unfinished. Every unfinished run's state goes to S3, and its dev curve at equal steps is still read against the
+  vLLM arm of the same seed.
+- **Planned for GPU 1 (free about 03:40, too late for a run to finish): a packing test for 11-25.** The fall from
+  75 to 48 GB at the first evaluation matches `_ensure_capacity` in `fast_rollout.py`, which drops the decode graphs
+  and calls `torch.cuda.empty_cache()` when a larger batch arrives, so part of the 75 GB is PyTorch's cache and not
+  need. Once the native run that starts there has passed step 500 I start a second native run beside it by hand:
+  whether two fit in 80 GB, and the pair's step rate against one run alone.
+- **r85, `a007_lr1.3e-6` (track A, 467 steps, kept dev), now three seeds paired with the control:**
+
+  | seed | `a007_ctl` | `a007_lr1.3e-6` | difference |
+  |---|---|---|---|
+  | 0 | 0.4250 | 0.4367 (kept step 350) | +0.0117 |
+  | 1 | 0.4000 | 0.4367 (kept step 350) | +0.0367 |
+  | 2 | 0.4400 | 0.4133 (kept step 250) | -0.0267 |
+
+  Mean difference +0.0072 (sd 0.0319, SE 0.0184). Seed 1's last evaluation was 0.4250. This is level
+  with the control within the noise, as the 02:05 entry expected; the arm gets no more seeds.
+- **Box at 02:43:** all eight GPUs busy (ten runs), 11 FAILED lines (none new), sync fine at 02:40.
