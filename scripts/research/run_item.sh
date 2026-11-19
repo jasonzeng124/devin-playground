@@ -5,6 +5,7 @@
 #     worker runs it (timed training, then the test ladder), with the token file copied to node-local
 #     disk for track D;
 #   - a dev-ladder sampler eval if <dir>/eval.json exists (below);
+#   - a two-sampler dev eval of saved checkpoints if <dir>/sampler_paths.json exists (below);
 #   - a track D screen with its own pretraining if <dir>/config.json has a v3 "pretrain" block and no
 #     "screen_pretrained": STAGE=train scripts/run_seed_v3.sh (pretraining + GRPO with in-loop dev
 #     evals; the test-ladder stage never runs), with the token file copied to node-local disk;
@@ -16,6 +17,10 @@
 #             "constrain": true, "think_budget": 0, "limit_per_level": 0}
 # The eval writes <dir>/seeds/<seed>/dev_confirm.json with scripts/research/dev_ladder_eval.py (the
 # reference scorer on the dev ladder; the test ladder is never read).
+#
+# sampler_paths.json: {"models": ["<checkpoint dir; $CKPT_DIR and {seed} are expanded>", ...], "samples": 16}
+# It writes <dir>/seeds/<seed>/sampler_paths.json with scripts/research/sampler_paths_eval.py: the checkpoints
+# scored on <dir>/config.json's eval_set by the vLLM sampler and by the native one (dev only; nothing is trained).
 set -euo pipefail
 dir=${1:?usage: run_item.sh <dir> <seed>}
 seed=${2:?usage: run_item.sh <dir> <seed>}
@@ -81,6 +86,24 @@ if [[ $dir == records/v3/* ]]; then
     echo "run_item.sh: $dir seed $seed stopped before its pretraining log; kept under extra/interrupted_${seed}_$n" >&2
   fi
   STAGE=all LOCAL_DATA_DIR=${LOCAL_DATA_DIR:-/tmp} exec bash scripts/run_seed_v3.sh "$dir" "$seed"
+fi
+if [[ -f "$dir/sampler_paths.json" ]]; then
+  out="$dir/seeds/$seed"
+  [[ -e "$out/sampler_paths.json" ]] && { echo "$out already holds a sampler-paths eval" >&2; exit 1; }
+  mkdir -p "$out"
+  export CKPT_DIR=${CKPT_DIR:-$HOME/orcd/pool/rlvr-ckpts}
+  mapfile -t args < <($PYTHON - "$dir/sampler_paths.json" "$seed" <<'PY'
+import json, sys
+c = json.load(open(sys.argv[1]))
+print("\n".join(["--samples", str(c.get("samples", 0)), "--models"] + [m.replace("{seed}", sys.argv[2]) for m in c["models"]]))
+PY
+  )
+  {
+    echo "=== sampler-paths eval $dir seed $seed on $(hostname) $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1) $(date -u +%FT%TZ)"
+    timeout "${SAMPLER_PATHS_TIMEOUT_S:-1500}" $PYTHON scripts/research/sampler_paths_eval.py --config "$dir/config.json" "${args[@]}" --out "$out/sampler_paths.json"
+    echo "=== done $(date -u +%FT%TZ)"
+  } 2>&1 | tee "$out/stdout.log"
+  exit 0
 fi
 if [[ ! -f "$dir/eval.json" ]]; then
   pretrain=$($PYTHON -c "import json,sys; c=json.load(open(sys.argv[1])); print(int('pretrain' in c.get('v3', {}) and not c.get('screen_pretrained')))" "$dir/config.json")
