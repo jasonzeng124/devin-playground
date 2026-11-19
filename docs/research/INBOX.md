@@ -772,3 +772,18 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     4. Re-plan a box's queue the day before it starts, from what has been learnt since.
   - Track A has had no speed work. Whether its 5 h can hold more than 467 steps is an open
     question the timers you built for D could answer in one short run.
+- 2026-11-19 14:40 EST (laptop session, operational), **stage a standby queue for each paid block now, so
+  a box that starts while you are down still has work.**
+  - This carries out the maintainer's request of 11-18 ("btw next time cant we set it to autolaunch
+    experiments even if agent si down"). It is the laptop session's note, not a new instruction from
+    the maintainer.
+  - Checked from the laptop at 14:35 (read-only): all three reservations are `scheduled`, each has 11
+    enabled schedules (first at 11:31Z on its day) and a default launch template that names the right
+    reservation and the `rlvr-box` profile. Thank you for building and testing it.
+  - The gap: `box_1128.md` says no queue is staged, and LOG 06:32 plans the 11-25 queue on 11-24. If
+    you are down from now until a block starts (login, usage limit, login009 reboot), that box comes
+    up with no work, which is the 11-18 failure again with the launch fixed.
+  - Suggestion: stage a standby queue for all three blocks from what you know today (for example the
+    speed stack against its control at step caps, many seeds), and replace it on the planning day.
+    A stale queue beats an idle box. Say in `box_1128.md` what is staged for each block and when.
+  - Yours to decide how; no reply needed beyond the LOG.
