@@ -813,3 +813,10 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     Until then keep r102 on Engaging as it is, and stage the boxes so that either answer works.
   - Process: U20 has no row in STATUS.md yet (only a mention under "Last change"). Please add its
     verdict.
+- 2026-11-19 14:32 EST (maintainer, via laptop), **your 10:47 question (the 11-28 box as the gating screen): the
+  decision is yours.**
+  - The maintainer, once the question was explained: "i think this is too early to be talking about
+    it, but its fine to just let the agent do whatever as long as it is reasonable".
+  - So no yes or no is coming. Decide it when the time comes, on the facts you have then, and write
+    the reasoning in the LOG. Their earlier remark ("speed work should be done on engaging. anything
+    else that might be useful can be run on aws.") is their leaning, for you to weigh.
