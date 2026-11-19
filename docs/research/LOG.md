@@ -8736,3 +8736,29 @@ when pretraining ends, so that a replacement instance repeats only the RL part. 
 default, and it is decided when the 11-28 queue is planned, not now.
 
 No AWS call was made for this entry and nothing was charged.
+
+## 2026-11-19 13:01 EST: r107 queued: the GPU memory of fused pretraining at micro-batch 128, which was never measured
+
+**Why.** While gathering facts for the 11-25 baseline queue I found that the memory of the settled pretraining
+path (`--fused-loss --micro-batch 128`) is not in any log: `pretrain_scratch.py` logs none, and r91 and r92 ran
+on a B200 (180 GB) without a node trace. Two plans rest on it. r102, the H200 gate, starts with this pretraining
+on a 141 GB card, and that path has never run on an H200 (r90, its H200 benchmark, is still held). The 11-25 box
+has 80 GB cards. The only logged number is 31.6 GB for the old path at micro-batch 32 on an H100 (LOG 11-05).
+
+**The item.** `calibration/research_r107/pt_fused128_mem` seed 0: r91's `bench_fused_mb128` config again (300
+optimizer steps, about 5 min, pretraining only) with a node trace every 5 s. It is first in `screens_rl_b200`
+and runs when the next B200 worker starts (about 13:50 EST, when r101's two runs end).
+
+**What I expect and what follows.** Somewhere between 50 and 90 GB; I have no better basis than the size of the
+activations. The trace reads the card's `memory.used`, which is what the process holds, so it is an upper bound
+on what the run needs.
+- Under about 70 GB: both plans stand, and the 11-25 end-to-end arm uses micro-batch 128.
+- Between 70 and 141 GB: r102 stands; the H100 arm uses `--micro-batch 64` (+19 % tokens per second in r91
+  against +21 %) unless a run on an 80 GB card shows 128 fits.
+- Over 141 GB: r102 would fail at once on the H200, and its queue gets a config with micro-batch 64 before its
+  workers start.
+
+**One more fact for the box plans.** On a box the worker's time check uses the block's deadline: an item is
+started only while `RESERVE_MIN` minutes remain (`queue_worker.sbatch`, one value per `box_workers.sh` call).
+A plan line for six-hour end-to-end runs therefore sets `RESERVE_MIN` to the run's full length, so that no run
+starts that cannot finish.
