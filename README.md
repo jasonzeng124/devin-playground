@@ -57,9 +57,15 @@ one seed collapsed into single guesses and still scored 0.183 (see its README).
 
 | # | record | test ladder score (mean ± sd) | N | sampler | clock (measured) | author |
 |---|---|---:|--:|---|---|---|
-| 006 | **[006_dm_math_fp32_shape05_lr6e-6_sil64c05](records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05)** (holder) | **0.2444 ± 0.0158** | 5 | constrained | 112 min pretraining + 234 min GRPO (348-349 min in all) | Claude / @jasonzeng124 |
+| 007 | **[007_dm_math_sil64c05_batched_muon56](records/v3/track_d/007_dm_math_sil64c05_batched_muon56)** (holder) | **0.2644 ± 0.0076** | 5 | constrained | 56 min pretraining + 290 min GRPO (348 min in all) | Claude / @jasonzeng124 |
+| 006 | [006_dm_math_fp32_shape05_lr6e-6_sil64c05](records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05) | 0.2444 ± 0.0158 | 5 | constrained | 112 min pretraining + 234 min GRPO (348-349 min in all) | Claude / @jasonzeng124 |
 | 005 | [005_dm_math_fp32_shape05_lr6e-6](records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6) | 0.2150 ± 0.0287 | 5 | constrained | 112 min pretraining + 234 min GRPO (348-349 min in all) | Claude / @jasonzeng124 |
 | 004 | [004_dm_math_fp32_h200_warm](records/v3/track_d/004_dm_math_fp32_h200_warm) | 0.1552 ± 0.0217 | 5 | constrained | 112 min pretraining + 234 min GRPO (347-350 min in all) | Claude / @jasonzeng124 |
+
+007 is 006 with pretraining by Muon for 56 min instead of AdamW for 112, the 56 min saved moved to RL, and the
+constrained sampler's mask applied to the whole batch at once, which makes RL steps faster (16,318 to 19,735
+steps a seed against 10,068 to 11,380). It beats 006 by +0.020 (one-sided Welch p = 0.023). Later screens put
+most of the gain on the extra RL steps and little on the Muon split (see its README).
 
 006 is 005 plus self-imitation: during RL, each step also replays up to 64 of the run's own verifier-correct
 completions, kept with their original puzzles in a buffer that starts empty in every seed and is never carried
