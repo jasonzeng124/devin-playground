@@ -2,46 +2,52 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 05:26 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 06:34 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **The speed stack turns into score (11-19, LOG 11-19 02:05).** r101 (B200, RL only, one seed each, not yet gated): the
 native arm ran 34,893 steps in 17,400 s and ended at dev 0.3033; the control ran 18,215 and ended at
 0.2483 (its seed 1: 0.2383 after 20,032); level at equal steps. **r102 is its H200 promotion screen**: `calibration/research_r102/d007_speed_h200`
 (D 007 end to end with the fused pretraining for 46 min and the native RL settings for 18,000 s), seeds 0-2 in
-`queue/screens_r92.txt` on H200 preemptable workers 29450693/94/702 (released 01:52). Read against D's line 0.259
-(0.281 once D 007 is validated: its five seeds are in, LOG 11-19 05:26); if the three-seed rule is met, start a five-seed record attempt (r102's config without
-`no_save`). Watch the first run pass from pretraining into native RL (never run end to end before).
+`queue/screens_r92.txt` on H200 preemptable workers 29450693/94/702 (released 01:52; still pending on `Resources`
+at 06:34). Read against D's line 0.281 (D 007's dev mean 0.251 + 0.03); if the three-seed rule is met, start a
+five-seed record attempt (r102's config without `no_save`). Watch the first run pass from pretraining into native
+RL (never run end to end before).
+On the 11-18 box the native sampler came out a little behind vLLM on dev at equal steps, by about 0.01 (finals
+-0.021 over three finished pairs, SE 0.009; evaluation curves -0.008 over five pairs, SE 0.003; LOG 11-19 06:32),
+against about twice the steps in the same time. Whether that gap comes from training or from the native greedy
+evaluation is open; the test is in "Next".
 INBOX 11-19 01:32 (critique of the box plan) is answered in the same LOG entry: speed stack first, fewer arms and
 more seeds with the expected effect written beside the control's seed sd, the rest on U17/U19 and on settings the
 doubled step count may have moved; each box queue is re-planned the day before (11-24, 11-27, 12-08).
 
-**D 007 promotion (13:54 EST 11-16), built on self-imitation, so said here before its seeds start (INBOX 11-12).**
-Arm r81, `calibration/research_r81/d006_batched_muon56_rl17400`: D 006 (which already uses self-imitation, same limits)
-plus `constrain_batched`, with Muon pretraining for 56 min instead of AdamW for 112 and the 3,360 s moved to RL. H200
-final dev 0.262 / 0.268 / 0.275 (mean 0.268), each at or above D's line 0.259: the 3-seed form. Record config
-`records/v3/track_d/007_dm_math_sil64c05_batched_muon56` is r81's minus `no_save`. Seeds 0-3 run on preemptable H200
-workers sized to end before the 11-17 maintenance; seed 4 after it. Risk: r81 seed 2's process took about 15 min to exit
-after writing its result (GRPO wall 18,430 s for 17,428 s of loop), which put its clock at 21,770 s against 21,600.
-The other 15 recent D runs had 55-220 s of overhead. See QUESTIONS 11-16 13:54.
+**Record D 007 is the track D holder (2026-11-19 05:40 EST).** Test 0.2644 ± 0.0076 over five seeds (0.2606 /
+0.2538 / 0.2646 / 0.2726 / 0.2703, from `confirm_v3.json`) against D 006's 0.2444 ± 0.0158: one-sided Welch
+p = 0.0226. D 006 (self-imitation within the 11-12 limits, as its README says) with `constrain_batched`, Muon
+pretraining for 56 min instead of AdamW for 112, and the 56 min moved to RL. In-loop dev mean 0.251, so D's line
+is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 was preempted once (partial in
+`extra/`). Most of the gain is the extra RL steps that batched masking gives (16,318-19,735 against D 006's
+10,068-11,380); the Muon split by itself is about level on dev (the record's README; r86).
 
 **Record A 007 is the new track A holder (2026-11-16 13:54 EST).** Test 0.4527 ± 0.0113 over five seeds (0.4557 /
 0.4391 / 0.4527 / 0.4693 / 0.4464, from `confirm_v3.json`) against A 006's 0.4123 ± 0.0127: one-sided Welch
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Record D 006 is the track D holder (2026-11-13).** Test 0.2444 ± 0.0158; dev mean 0.229; D's line 0.259.
+**Jobs (06:34 EST 11-19).** None of my GPUs is running. Pending: r102's three H200 preemptable workers
+(29450693/94/702, `Resources`); r101's B200 workers 29618971 and 29626073 (`mit_normal_gpu`, priority) and 29632479
+(preemptable, 14 h, room for two items). Held: 29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and
+29445218 (H200; r90). If everything pending starts that is 4 preemptable and 2 normal GPUs, the cap of six.
 
-**Jobs (13:54 EST 11-16).** All earlier workers have ended. A 007 is done. r81 seeds 0-2 are done (closed by
-promotion). r87 (B200, seed 0, not gated): muon1338m_s14180 final dev 0.240 against d004_ctl_s11441 0.263, one paired
-seed. D 007 seeds 0-3 done (20:26 EST): test 0.261 / 0.254 / 0.265 / 0.273, each about 720 s inside the budget.
-Seed 4 done 11-19 04:36: test 0.270. **Five seeds: test 0.2644 ± 0.0076, dev mean 0.2510, all within budget** (LOG 11-19 05:26).
-Next: its README, `validate_record_v3.py --compare-to` D 006, the leaderboard row; then D's line is 0.281.
-r88 (U18 answer-opening mask; B200, not gated): -0.028 and +0.020 against r87's control on seeds 0 and 1
-(mean -0.004): no effect; U18 parked.
-11-17 12:17 EST: the maintenance is over; D 007 seed 4 runs (29355448, node4802, from 16:00Z). r89 (U19 step 2, pretraining throughput: `--fused-loss`, micro-batch 32 and 64; B200, pretraining only, 56 min) on workers 29441392 and 29441400: +12 % and +16 % tokens per second at the same loss. r90 (speed-only benchmarks, 300 steps each, INBOX 11-17 12:25) on H200 worker 29445218. 11-17 13:35 EST: D 007 seed 4 was preempted at 13:19 after about 3 h 15 min; requeued (partial to `extra/`, seed 4 reruns). r89 final val 2.816 and 2.805 at 56 min against r82's 2.805: faster, not a better 56-min checkpoint, so the use is time moved to RL. r91 (r90's benchmarks on B200, worker 29448582): fused micro-batch 32 +14 % tok/s at matching losses. 14:07: r91 done: `--fused-loss --micro-batch 128` +21 % (B200). r92 (U19 step 3, H200, end to end, seeds 0-2, queue `screens_r92`, workers 29450693/94/702): r81 with that path, pretraining 46 min and RL 18,000 s, read paired against r81; plus a 46-min pretraining-only check on B200 (29450704). 15:12: that check matches r82's 56-min run step for step (final val 2.832 vs 2.805, within val noise), so 46 min on the fast path gives about the old 56-min checkpoint. INBOX 15:02: a speed change with the same maths is kept without a paired win; `--fused-loss --micro-batch 128` is the default D pretraining path for new arms. r93 (B200 worker 29456195, queue `screens_b200`): timing of `share_group_prompt` (new, off by default: the RL update runs each distinct prompt once), 300 steps from D 007 seed 0's start and final weights. 17:36: r94: the shared prompt with 65,536-token micro-batches cuts the update 14-18 % and fits the H200 (131,072 would not); that is the speed setting for new D arms. r95 (B200 worker 29468588): `time_update_parts` (new, off by default) times the update's parts (INBOX 17:14). INBOX 17:23: the 6-GPU cap counts running GPUs only; my H200 jobs are all still pending. 18:12: r95: the update is GPU-bound (head, optimizer negligible; Python grammar work 7-8 % of the step); sampling is 50-55 % of the step. r96 (B200) splits sampling's time. 20:32: r96: vLLM `generate` is 95 % of sampling (0.59 s of 0.62 s per step at the start, 0.46 of 0.48 at the end); a profile of it runs on B200 (29497515). INBOX 20:23 (U20): more use out of the B200s; records stay on the H200. 23:09: r97 (B200, not gated; queue `screens_d_b200`, preemptable workers 29497701/02/05): D 007's arm with the whole speed stack (46-min fused Muon pretraining, shared prompt, 65,536-token micro-batches) against D 007's arm, seeds 0-2, end to end. The r92 H200 workers and r90's bench are held (`scontrol hold`) to stay inside the cap; r97 contains r92's change. 11-18 01:18: r96's profile: vLLM's per-request Python bookkeeping, not the forward, is the sampling cost. A same-process sampler (`rollout_backend: "native"`, off by default, f9cf5c2) replaces it; r98: 0.20 s against vLLM's 0.44 s per generate call (B200, same completion lengths). 03:00: r98's 300-step benchmarks (native against vLLM, D 007 seed 0's start and final weights) run on B200 worker 29516197. 04:18: native is 1.40-1.60x faster per RL step at matching reward (sampling 0.15 s against 0.45-0.71 s); kept as the sampler for new D arms. r99 (`calibration/research_r99/d007_native_b200`): r97's speed arm with the native sampler, seeds 0-2, interleaved on `screens_d_b200` (its third round needs new workers). 04:22: `reuse_sampler_allowed` (new, off by default): the update takes the native sampler's allowed sets instead of recomputing them (0.05-0.07 s per step in r95); r100 times it on B200 worker 29521171. 12:03: r100: bit-identical over 300 steps on the final weights, update -14.5 %, tok/s +11.6 %; kept for new native D arms. The 11-18 H100 box (i-0502d26f396883825, 174.129.98.131) went up at 11:46, 5 h 16 min late (the previous account's usage limit stopped the session at 04:25); since 12:02 all eight GPUs run r85 (`box_a_1118`, GPUs 0-3) and r86 (`box_d_1118`, GPUs 4-7, three per GPU). It ends 06:30 EST 11-19 (worker deadline 05:55). 12:09: three D runs per GPU ran out of memory (about 40 GB per run): seven r86 runs died near step 100 and were requeued; GPUs 4-7 now run two each, at 2.15 s per step (6.8 h per 11,441-step run). The box queues got r85 seeds 3-4 and `muon1338m_s11441` seeds 3-4 so no GPU runs dry.
+**Settled speed settings for new D arms (LOG 11-17 and 11-18; timed on B200; each is the same maths and off by
+default).** Pretraining: `--fused-loss --micro-batch 128` (+21 % tokens per second; 46 min gives about the old
+56-min checkpoint). RL: the shared prompt with 65,536-token micro-batches (update 14-18 % shorter; fits the H200),
+the native sampler (`rollout_backend: "native"`, 1.40-1.60x faster per RL step) and `reuse_sampler_allowed`
+(bit-identical over 300 steps, update -14.5 %). r88 (U18): no effect, parked.
+
 RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
-**Next decisions:** D 007 seed by seed; seed 4 after the maintenance (11-17 21:00 EST); the 11-18 H100 box (`box_a_1118`: r85, A 007 arms; `box_d_1118`: r86, Muon
-checkpoints with more RL steps).
+**Next decisions:** r102's three seeds against 0.281 (then the five-seed record attempt if the three-seed rule is
+met); r101's remaining seeds, paired by seed; the native evaluation-path test; the 11-28 self-running box (queue,
+staging, schedules, `docs/research/box_1128.md`) by about 11-22; the 11-25 box's queue, planned on 11-24.
 
 **B200 first (INBOX 11-13 23:43 and 23:45).** Progress comes before records. Results on B200 are marked "not yet gated"
 until an H200 gate runs. INBOX 11-14 22:03: a gate or record may take an H200 slot when the agent judges that best.
@@ -60,15 +66,15 @@ in their README. Hindsight relabelling stays out of records and promotion screen
 | A | `records/v3/track_a/004_ladder_constrained_h200` | 0.2671 ± 0.0565 | 0.255 | held before A 006 |
 | A | `records/v3/track_a/005_fp32_mal0_cos500_s400` | 0.3400 ± 0.0815 | 0.313 | valid, not a record (Welch vs A 004 p = 0.072) |
 | A | `records/v3/track_a/002_fp32_skip_cosine` | 0.2784 ± 0.0904 | | valid, short of A 004 (p = 0.41) |
-| D | `records/v3/track_d/007_dm_math_sil64c05_batched_muon56` | 0.2629 (seeds 0-3) | 0.250 (seeds 0-3) | running: seed 4 rerunning after a preemption (11-17 13:19) |
-| D | `records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05` | 0.2444 ± 0.0158 | 0.229 | **holder** (Welch vs D 005 p = 0.045; self-imitation) |
+| D | `records/v3/track_d/007_dm_math_sil64c05_batched_muon56` | 0.2644 ± 0.0076 | 0.251 | **holder** (Welch vs D 006 p = 0.0226; self-imitation) |
+| D | `records/v3/track_d/006_dm_math_fp32_shape05_lr6e-6_sil64c05` | 0.2444 ± 0.0158 | 0.229 | held before D 007 (Welch vs D 005 p = 0.045; self-imitation) |
 | D | `records/v3/track_d/005_dm_math_fp32_shape05_lr6e-6` | 0.2150 ± 0.0287 | 0.201 | held before D 006 (Welch vs D 004 p = 0.0034) |
 | D | `records/v3/track_d/004_dm_math_fp32_h200_warm` | 0.1552 ± 0.0217 | 0.159 | held before D 005 |
 | D | `records/v3/track_d/003_dm_math_fp32_h200` | | | failed: seeds 0 and 2 over budget |
 
 The H100 board closed on 10-24 (A 001 0.2481; D 002 0.1512 ± 0.0202).
 
-Promotion lines (the holder's dev mean + 0.03): **A 0.459 (kept dev, A 007's 0.429), D 0.259 (D 006's 0.229)**.
+Promotion lines (the holder's dev mean + 0.03): **A 0.459 (kept dev, A 007's 0.429), D 0.281 (D 007's 0.251)**.
 Three-seed form: every seed at or above the line, or +0.03 over its paired gate-screen seed, none collapsed. Five-seed
 form: mean at or above the line, at least 4 of 5 seeds above the holder's dev mean, at most one collapsed. The gating
 screen runs on the H200.
@@ -77,7 +83,7 @@ screen runs on the H200.
 
 | block (EST) | GPUs | ssh | launch template |
 |---|---|---|---|
-| 11-18 06:30 to 11-19 06:30 | 8x H100 | zjason@174.129.98.131 | `rlvr-box-cr-0261a6f8bb30fc123` |
+| 11-18 06:30 to 11-19 06:30 | 8x H100 | ended about 06:00 EST 11-19 (terminated) | `rlvr-box-cr-0261a6f8bb30fc123` |
 | 11-25 06:30 to 11-26 06:30 | 8x H100 | zjason@174.129.98.131 | `rlvr-box-cr-03ab208e99ca6ca06` (self-running version 1) |
 | 11-28 06:30 to 11-29 06:30 | 8x H200 (the maintainer may take it) | zjason@100.29.118.132 | `rlvr-box-cr-08927241900b5884c` (self-running version 3; version 2 is the old one) |
 | 12-09 06:30 to 12-10 06:30 | 8x H100 | zjason@174.129.98.131 | `rlvr-box-cr-0813172fa29139b78` (self-running version 1) |
@@ -101,71 +107,61 @@ screen runs on the H200.
     block. Do not run `scripts/aws/box_launch.sh` for a reservation set up with `box_auto.sh`.
   - Left on AWS: template `rlvr-box-test`, roles `rlvr-scheduler` and `rlvr-box`, the test's output under
     `box/rlvr-box-test/out/` in the bucket (run `box_s3.sh clear rlvr-box-test` before a re-test). No schedules.
-- **AWS charges made by the agent** (outside the blocks the maintainer bought): 11-18, the self-launch test, about
-  $0.03 (two t3.large for 20 min in total, two 80 GB disks, S3 pennies). 11-18 19:23, S3 storage for the 11-18 box's results and
-  saved states (7 days), at most about $0.54. 11-19 00:07, the saved states of the track A runs that fill the box's
-  last hours (seven of 28.77 GB, 7 days, plus upload requests), at most about $1.72. Running total: about $2.29
-  at most. (11-19 01:44: the tail no longer starts track A runs, so the $1.72 is not expected to be spent; the
-  total is corrected when the box's final S3 contents are logged.)
+- **AWS charges made by the agent** (outside the blocks the maintainer bought), corrected 11-19 06:32 from the
+  bucket's final contents (LOG 11-19 06:32): the 11-18 self-launch test about $0.03; S3 for the 11-18 box about
+  $0.27 (saved states 25.07 GB for 7 days $0.135, results 0.355 GB for 90 days $0.025, 92 state uploads about
+  $0.07, result pushes about $0.04, my estimate). Running total: about $0.30, at most about $0.40. The earlier
+  "about $2.29 at most" allowed $1.72 for track A states that were never sent. I have not read the bill.
 - INBOX 11-18 13:39: the 11-25 and 12-09 blocks are new. Both show `scheduled` (checked 11-18 14:17); each needs a launch with
   its own reservation id, a 24 h queue and a packing checked against 80 GB. Use the self-starting setup on 11-25 if
   it is ready.
-- Engaging maintenance is 11-17 00:00-21:00 EST. The 11-18 queue files, configs and copy list are
-  committed by 11-16.
 - While a box is up: wake every 20-30 min, `box_sync.sh from` every wake and a last time before
   06:00 EST on the end day, and bring resume state back (INBOX 11-04).
 - The plan for each box is in PLAN ("Box days") and LOG 11-10 10:33.
 
 ## Next
 
-- D 007: check each seed's `clock.json` (`within_budget`) and `warm_start.log` as it finishes; a preempted seed's partial
-  goes to `extra/` and the same seed reruns (the worker does this). After five seeds: README, validation against D 006,
-  leaderboard.
-- The 11-18 box is up until 06:30 EST 11-19 (AWS may end it at 06:00): wake every 20-30 min, `box_sync.sh from box1118
-  calibration/research_r85 calibration/research_r86` each wake, keep all eight GPUs busy (two D runs per GPU at most,
-  never an A beside a D), and bring every result and resume state back before 05:55. Since 17:07 a keeper on the box
-  (`~/tail_keeper.sh`, log `~/tail_keeper.log`, stop with `touch ~/tail_keeper.off`) starts a worker on any GPU that
-  is empty, from `queue/box_g<g>_1118.txt` and then the shared `queue/box_t_1118.txt`; nothing starts after 01:55.
-  Since 00:07 on 11-19 a second loop (`~/tail_fill.sh`, log `~/tail_fill.log`, stop with `touch ~/tail_fill.off`) starts
-  one worker on each GPU that is empty after that, from `queue/box_tail_1118.txt` (since 01:44: `muon1338m_native_s14180`
-  and `muon1338m_native_s11441`, tonight's vLLM arms with the native settings, one run alone per GPU, paired by seed
-  with the vLLM runs; the track A seeds 3 and 4 sit in `queue/hold_a_1118.txt` and do not run; LOG 11-19 02:05).
-  A native run on an H100 is slower than on the B200 only for its first 600 steps; after that it takes 0.62 s a
-  step, the B200's rate. It holds 75 GB of the card until its first evaluation, then about 52 GB. An 11,441-step
-  run needs about 2.0 h and a 14,180-step run 2.4 h, so the three native runs started by 02:58 end by about
-  05:00; runs started after about 03:30 (14,180 steps) end unfinished with their state in S3. No GPU that frees from
-  04:00 can finish a native run (one must start by 03:54), so they run packing tests for the 80 GB boxes of 11-25 and
-  12-09: two native runs per GPU at 32,768-token micro-batches (started together, and one after the other) and at
-  65,536 (LOG 11-19 03:45).
-  Results (LOG 11-19 05:26): one native run per H100 at 65,536 stays the planning number (a pair of 32,768 runs
-  fails when started together and gains 0 to 20 % when the second starts after the first's first evaluation); the
-  native backend resumes from its saved state; r85 and r86 are read (`a007_ent15` +0.0222 over three pairs, the
-  Muon arms level with or below the AdamW control); r103, three track A timing runs, uses GPUs 0, 6 and 7 until
-  AWS ends the box at 06:00.
-  Each wake: check its log, the GPUs' memory and new FAILED lines in the box's `queue/done.txt` (11 at 21:15; 13 at 05:26 on 11-19, the two new ones from the packing test and r103).
-  Since 19:23 a loop on the box (`~/box_push.sh`, log `~/box_push.log`) also sends results every 10 min, and
-  saved states (D hourly, all from 04:40), to `box/box1118/out/` and `box-state/box1118/` in the bucket: after
-  an outage read them with `box_s3.sh status box1118` and `box_s3.sh pull box1118 <tag> <dir>` (LOG 11-18 19:25).
+- The 11-18 box ended at about 06:00 EST 11-19 (LOG 11-19 06:32). Every finished result is in the checkout: 33
+  runs ok and 13 FAILED lines in its `queue/done.txt`. What it leaves for the next boxes:
+  - One native D run per H100 at 65,536-token micro-batches is the planning number: 0.61 to 0.64 s a step, 11,441
+    steps in 2.1 h and 14,180 in 2.5 h. A pair of 32,768 runs on one GPU, the second started after the first's
+    first evaluation, gave 11 to 22 % more steps per GPU with each run 1.7-2x as long (a pair started together
+    runs out of memory). Which to use is decided with the 11-25 queue on 11-24.
+  - The native backend resumes from its saved state, and a push loop on the box gets results and states to S3 by
+    itself.
+  - r85: `a007_ent15` +0.0222 over three pairs (the track A candidate; needs five seeds or more). r86: the Muon
+    arms are level with or below the AdamW control at step caps.
+  - Six unfinished runs' states are in `box-state/box1118/` in the bucket and expire from 11-26. On 11-24 decide
+    whether any continues on the 11-25 box (copy its state to that box's prefix first). Results and logs stay
+    under `box/box1118/` for 90 days (`box_s3.sh pull box1118 <tag> <dir>`).
+- Native evaluation-path test (LOG 11-19 06:32): the box's native runs are about 0.01 behind their vLLM twins on
+  dev at equal steps, and after their first 100 steps they train at about 5 to 9 % higher entropy. A native run is
+  also evaluated by the native sampler. One saved checkpoint scored on dev by both samplers says whether the gap
+  is training or evaluation. To build and queue (dev only, `no_save`, short GPU jobs inside the cap).
 - A runs fill the H100 (79.1 of 79.18 GB) and three ran out of memory at `vllm_gpu_memory` 0.35 (control seeds 0 and
   1, `cos467` seed 0). Since 17:47 every A item not yet started uses the `_h100m30` configs (share 0.30, about 4 GB
   more for the trainer; same maths, read together with the arm's `_h100` seeds), and the three failed runs resume
-  under them from their saved states. Check that they stay inside the card and how much slower sampling is; the
-  11-25 and 12-09 A arms use the share that holds.
+  under them from their saved states. The `_h100m30` runs stayed inside the card (ten finished), so the 11-25
+  and 12-09 A arms use share 0.30.
 - D on the H100: two runs per GPU take 5.2-5.6 h for 11,441 steps and 6.2-6.8 h for 14,180; one run alone takes about
   3.65 h and 4.5 h (LOG 11-18 17:55).
-- r101 (B200, RL only from D 007's checkpoints, `mit_normal_gpu` workers 29554919/20, queue `screens_rl_b200`, seeds
-  0-2): `d007rl_native_b200` (native sampler, `reuse_sampler_allowed`, shared prompt, 65,536-token micro-batches)
-  against `d007rl_ctl_b200`, both 17,400 s. One item per 6 h worker: submit two more when a pair ends. Read paired
-  by seed (steps and final dev pass rate). The control's seed 0 finished: final dev 0.2483 after 18,215 steps.
-  The native arm's seed 0 finished: 0.3033 after 34,893 steps. The control's seed 1 finished: 0.2383 after 20,032 steps. Pending on priority: workers 29618971 and 29626073
-  (the native arm's seed 1, then control seed 2 and native seed 2).
-  r97 and r99 (B200, end to end) are superseded by r102: their preemptable workers 29497701/02/05 are held (the
-  cap of four running preemptable GPUs goes to r102 and D 007's seed 4).
-- Track A: A 007's seeds reached step 467 with 1,700-2,700 s of the budget unused, and a step is about 55 %
-  sampling, 45 % update. On the H100 a step costs about 52 s from step 120 against 19 to 24 s before step 80
-  (the completions grow threefold), so the late steps are the ones to speed up (LOG 11-19 05:26). r103 times
-  `constrain_batched` and no checkpointing with the shared prompt on the box. Next: read r103, then an arm with
-  more steps and `a007_ent15`'s setting at five seeds or more.
+- r101 (B200, RL only from D 007's checkpoints, queue `screens_rl_b200`, seeds 0-2, not gated):
+  `d007rl_native_b200` (native sampler, `reuse_sampler_allowed`, shared prompt, 65,536-token micro-batches) against
+  `d007rl_ctl_b200`, both 17,400 s. Done: native seed 0, 0.3033 after 34,893 steps; control seed 0, 0.2483 after
+  18,215; control seed 1, 0.2383 after 20,032. Queued: native seed 1, control seed 2, native seed 2, for workers
+  29618971 and 29626073 (`mit_normal_gpu`, one item per 6 h worker) and 29632479 (preemptable, room for two). Read
+  paired by seed (steps and final dev pass rate).
+  r97 and r99 (B200, end to end) are superseded by r102: their preemptable workers 29497701/02/05 stay held (the
+  cap of four running preemptable GPUs goes to r102 and one r101 worker).
+- Track A: A 007's seeds reached step 467 with 1,700-2,700 s of the budget unused (room for about 50 more steps),
+  and a step is about 55 % sampling, 45 % update. r103 (three timing runs on the H100, LOG 11-19 06:32): neither
+  same-maths option helps on an 80 GB card as it is. `constrain_batched` samples 1.16 to 1.27 times slower per
+  token (its mask is built on the CPU, 26 to 35 % of its sampling time; a mask builder that cost nothing would
+  save at most 20 % of sampling). No checkpointing with the shared prompt needs 4,096-token micro-batches to fit,
+  and its update is then 1.73 to 1.89 times slower per token. The backward pass is about two thirds of the update;
+  sampling is vLLM's `generate` (99.5 %). Leads: a faster mask builder; no checkpointing at 8,192 on an H200
+  (141 GB). Next arm: more steps with `a007_ent15`'s setting at five seeds or more, decided with the 11-25 queue
+  on 11-24.
 - `~/rlvr-ideas/STATUS.md`: update it whenever a verdict or a result changes.
 
 ## Notes

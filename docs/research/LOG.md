@@ -7960,3 +7960,187 @@ are read by the time of each part, tokens per second and loss at matching steps.
 (GPU 5). 13 FAILED lines (11 before 21:15, two from tonight's tests). The push loop has made 80 state uploads. No
 track A state exists, so none goes to S3; the AWS total is unchanged (about $2.29 at most). AWS ends the instance
 at 06:00. The next entry has the timing readout, `muon1338m_s11441` seeds 0 and 1 and the final S3 contents.
+
+## 2026-11-19 06:32 EST: D 007 is the track D holder (D's line is now 0.281); the 11-18 box has ended: native against vLLM at equal steps, track A's timing runs (r103), what is left in S3 and what it cost
+
+**D 007 is validated, on the leaderboard and committed (1b804ff, 05:40).** The validator's line:
+`new 0.2644 vs holder 0.2444: Welch t=2.55 df=5.7 one-sided p=0.0226 -> new record`. Test 0.2644 ± 0.0076 over
+five seeds against D 006's 0.2444 ± 0.0158; in-loop final dev mean 0.2510 (D 006: 0.2293). **D's
+promotion line is now 0.2810** (it was 0.2593). r102, the speed stack's H200 screen, is read against it. The
+record's README says where the gain comes from (mostly the extra RL steps of batched masking, as LOG 02:05 and
+05:26 found).
+
+**Correction to LOG 11-17 13:35.** That entry says D 007 seed 4's first attempt was preempted "after about 3 h
+15 min". It ran about 2 h 15 min: it started at 16:04:22Z (11:04 EST) and was preempted at about 18:19Z (13:19 EST),
+at RL step 3,917 with 4,550 s of RL done. The record's README and `extra/interrupted_4_1/note.txt` have the right
+times.
+
+**The box ended at about 06:00 EST**, half an hour before the block's end at 06:30, which is when a capacity
+block's instances are reclaimed. I did not stop it and no script of mine shuts a box down; the instance showed
+`shutting-down` at 06:01 and `terminated` at 06:13, with the state reason "User initiated". Its last status,
+pushed at 05:50, counted 33 runs ok and 13 FAILED lines in `queue/done.txt` (the same 13 as at 05:26). Every
+finished result was on Engaging before the end, and the last fetch of the running runs' logs was at 05:58.
+
+**r86's last vLLM arm: `muon1338m_s11441`** (the 56-min Muon checkpoint with the control's 11,441 RL steps;
+three seeds ran, final dev).
+
+| arm | seeds 0 / 1 / 2 | mean | paired with the control's seeds 0-2 |
+|---|---|---|---|
+| `d004_ctl_s11441` | 0.2700 / 0.2467 / 0.2317 | 0.2494 | |
+| `muon1338m_s11441` | 0.2533 / 0.2233 / 0.2250 | 0.2339 | -0.0167 / -0.0233 / -0.0067: -0.0156 (SE 0.0048) |
+| `muon1338m_s14180` (05:26), same seeds | 0.2550 / 0.2333 / 0.2467 | 0.2450 | -0.0150 / -0.0133 / +0.0150: -0.0044 (SE 0.0097) |
+
+- At equal RL steps the 56-min Muon checkpoint is below the 112-min AdamW one in all three pairs (-0.0156).
+  On these three seeds the 24 % more steps that the saved pretraining time pays for win back +0.0111
+  (SE 0.0058), to -0.0044. Over all five pairs `muon1338m_s14180` is -0.0110 (SE 0.0101, 05:26). This agrees
+  with the reading in D 007's README: on dev, the Muon split with its extra RL is about level with AdamW for
+  112 min, not ahead.
+- The control's five seeds have an sd of 0.0195, and one evaluation of 600 dev puzzles has a standard error of
+  about 0.017 by itself, so differences of this size need more than three pairs to be firm.
+
+**Native against vLLM at equal steps: three finished pairs** (H100, same checkpoint, seed and step cap; the 05:26
+table's row for `muon1338m_native_s11441` seed 0 had its twin still running and is replaced by the row here).
+
+| native run, seed | steps | native final | vLLM final | difference | mean difference over shared evaluations (every 500 steps from 2,000) | native wall s | vLLM wall s | native s/step from step 600 | vLLM s/step from step 600 |
+|---|---|---|---|---|---|---|---|---|---|
+| `muon1338m_native_s14180` 0 | 14,180 | 0.2333 | 0.2550 | -0.0217 | -0.0116 over 26 | 8,931 | 21,762 | 0.606 | 1.508 |
+| `muon1338m_native_s11441` 0 | 11,441 | 0.2167 | 0.2533 | -0.0366 | -0.0062 over 20 | 7,497 | 19,065 | 0.635 | 1.644 |
+| `muon1338m_native_s11441` 2 | 11,441 | 0.2200 | 0.2250 | -0.0050 | +0.0020 over 20 | 7,524 | 14,256 | 0.640 | 1.227 |
+
+The two native runs that did not finish, at their last evaluation, against the vLLM twin at the same step:
+
+| native run, seed | step | native | vLLM | difference | mean difference over shared evaluations |
+|---|---|---|---|---|---|
+| `muon1338m_native_s11441` 1 | 9,500 | 0.1917 | 0.2117 | -0.0200 | -0.0058 over 16 |
+| `muon1338m_native_s14180` 1 | 7,500 | 0.1867 | 0.1983 | -0.0117 | -0.0164 over 12 |
+
+- The three finals are all below their vLLM twin: mean -0.0211 (SE 0.0091, three pairs). Over the evaluations
+  each pair shares, the curves differ by -0.0076 on average over all five pairs (SE 0.0031;
+  -0.0116 / -0.0062 / +0.0020 / -0.0058 / -0.0164; 4 of 5 negative), and by -0.0053 over the three finished pairs.
+- My reading: the native sampler is probably a little behind vLLM at equal steps, by something like 0.01 on dev.
+  The size is not known well: five pairs from one checkpoint, a final is one evaluation (standard error about
+  0.017), and a native run and its vLLM twin do not draw the same samples from the same seed, so each pair is two
+  different runs. A deficit of that size is small against what twice the steps gave in r101 (B200, not gated;
+  seed 0: 0.3033 after 34,893 native steps against 0.2483 after 18,215 with vLLM).
+- r102 on the H200 is the test that counts: the whole stack in the record's time budget, read against 0.2810.
+- Wall time: the native runs took 0.39 to 0.53 of their twin's wall time, with one native run per GPU
+  against two vLLM runs per GPU.
+
+The twins' training logs, by step range (each cell: native / vLLM, the mean over the pairs that cover the range):
+
+| steps | pairs | mean reward | in-batch solve rate | malformed rate | entropy | pairs with the higher entropy in the native run (mean ratio) | pairs with the higher solve rate in the native run |
+|---|---|---|---|---|---|---|---|
+| 1-100 | 5 | 0.3009 / 0.2990 | 0.0234 / 0.0235 | 0.0797 / 0.0813 | 0.8216 / 0.8401 | 2 of 5 (0.983) | 3 of 5 |
+| 101-500 | 5 | 0.4032 / 0.3997 | 0.0650 / 0.0650 | 0.0004 / 0.0005 | 0.2563 / 0.2475 | 4 of 5 (1.048) | 1 of 5 |
+| 501-2,000 | 5 | 0.4678 / 0.4615 | 0.1131 / 0.1085 | 0.0001 / 0.0001 | 0.1665 / 0.1562 | 5 of 5 (1.068) | 3 of 5 |
+| 2,001-5,000 | 5 | 0.5180 / 0.5173 | 0.1598 / 0.1591 | 0.0000 / 0.0000 | 0.1328 / 0.1219 | 5 of 5 (1.091) | 2 of 5 |
+| 5,001-9,000 | 4 | 0.5532 / 0.5557 | 0.2005 / 0.2025 | 0.0000 / 0.0000 | 0.1198 / 0.1117 | 3 of 4 (1.075) | 2 of 4 |
+
+- In the first 100 steps, from the same checkpoint, the two samplers give the same reward, solve rate and
+  malformed rate, so they sample alike at the start.
+- From step 501 to 5,000 the native runs' entropy is higher in all five pairs (1.068 and 1.091 times the
+  twin's), and at 5,001-9,000 in 3 of the 4 pairs that reach it (1.075), while reward and the in-batch solve
+  rate stay level on average. So training under the native sampler seems to drift to a slightly less sharp
+  policy. I do not know why yet.
+- Open: whether the lower dev score comes from that training drift or from the evaluation. A native run also
+  evaluates with the native sampler (`_evaluate` takes whichever engine the run samples with), and no run
+  evaluates before its first 500 steps, so the logs cannot separate the two. The test is cheap: one saved
+  checkpoint, greedy dev evaluation by both paths, as two short GPU jobs. It goes in the queue next.
+
+**Unfinished D runs when the box ended** (their logs to the 05:58 fetch; their saved states are in S3, up to
+about 10 to 20 min behind these steps).
+
+| run, seed | micro-batch tokens, placement | step | wall s | s/step over the last 200 steps | last evaluation | time left at that rate |
+|---|---|---|---|---|---|---|
+| `muon1338m_native_s11441` 1 | 65,536, alone | 9,959 of 11,441 | 6,687 | 0.602 | 0.1917 at 9,500 | 0.2 h |
+| `muon1338m_native_s14180` 1 | 65,536, alone, resumed at 1,375 | 7,583 of 14,180 | 5,285 | 0.608 | 0.1867 at 7,500 | 1.1 h |
+| `muon1338m_native_mb32k_s11441` 0 | 32,768, pair on GPU 4 | 6,151 of 11,441 | 6,875 | 1.005 | 0.2133 at 6,000 | 1.5 h |
+| `muon1338m_native_mb32k_s11441` 3 | 32,768, pair on GPU 4 | 5,134 of 11,441 | 6,127 | 1.100 | 0.1833 at 5,000 | 1.9 h |
+| `muon1338m_native_mb32k_s11441` 2 | 32,768, pair on GPU 1 | 5,298 of 11,441 | 6,751 | 1.164 | 0.1933 at 5,000 | 2.0 h |
+| `muon1338m_native_mb32k_s11441` 4 | 32,768, pair on GPU 1 | 3,903 of 11,441 | 5,940 | 1.192 | 0.1550 at 3,500 | 2.5 h |
+
+- `muon1338m_native_mb32k_s11441` seed 1 has an empty log (the pair that was started together ran out of memory,
+  05:26).
+- Packing, final numbers. Over their last 200 steps the GPU 4 pair ran 1.005 and 1.100 s/step, 1.90 steps/s
+  together, against 1.56 steps/s for the 65,536 run alone over the same steps (+22 %). The GPU 1 pair ran
+  1.164 and 1.192 s/step, 1.70 steps/s together against 1.53 (+11 %). So staggered pairs at
+  32,768 gave 11 to 22 % more steps per GPU at these steps, with each run taking 1.7 to 2 times as long and a
+  failed start if the stagger slips. The planning number for 11-25 and 12-09 stays one native run per H100 at
+  65,536-token micro-batches; pairs are an option that is decided with the queue on 11-24. I do not know why
+  GPU 1's pair was slower than GPU 4's.
+- GPU 2 was empty from about 05:39 to the end: nothing that could start then would have given a result (the
+  unused `a007_time_nockpt_mb2k_h100m30` arm would only have been slower in the update than the 4,096 arm).
+
+**r103: where track A's step goes on the H100, and two same-maths speed options** (`a007_ctl_h100m30` with
+`time_update_parts`, capped at 140 steps; none reached the cap before the box ended, so there is no result file,
+only the train logs). The control reached step 124, `constrain_batched` step 106 and no checkpointing with the
+shared prompt at 4,096-token micro-batches step 97. No checkpointing at 8,192 ran out of memory in its first
+update (05:26). The arms see different completions, so the same step holds different token counts; the fair
+comparison is seconds per 1,000 tokens. Each cell: sampling s + update s per step, tokens per step, then sampling
++ update s per 1,000 tokens.
+
+| steps | control | `constrain_batched` | no checkpointing, shared prompt, 4,096 |
+|---|---|---|---|
+| 1-20 | 21.8 + 4.3, 420k, 0.052 + 0.010 | 25.4 + 5.0, 422k, 0.060 + 0.012 | 21.1 + 7.6, 409k, 0.051 + 0.019 |
+| 21-40 | 18.5 + 5.4, 376k, 0.049 + 0.014 | 20.9 + 5.6, 354k, 0.059 + 0.016 | 15.2 + 8.6, 324k, 0.047 + 0.027 |
+| 41-60 | 14.5 + 6.8, 315k, 0.046 + 0.022 | 16.6 + 6.4, 287k, 0.058 + 0.022 | 13.0 + 10.9, 275k, 0.047 + 0.040 |
+| 61-80 | 13.8 + 7.6, 298k, 0.046 + 0.026 | 19.1 + 8.9, 333k, 0.058 + 0.027 | 16.2 + 14.9, 337k, 0.048 + 0.044 |
+| 81-100 | 19.7 + 11.4, 394k, 0.050 + 0.029 | 27.3 + 14.2, 445k, 0.061 + 0.032 | 24.1 + 26.7, 487k, 0.049 + 0.055 (17 steps) |
+| 101-120 | 25.6 + 17.1, 530k, 0.048 + 0.032 | 31.9 + 17.1, 521k, 0.061 + 0.033 (6 steps) |  |
+| 121-140 | 29.6 + 19.8, 604k, 0.049 + 0.033 (4 steps) |  |  |
+
+- `constrain_batched` does not help track A as it is: its sampling costs 1.16 to 1.27 times the control's per
+  token. Building the masks takes 5.7 to 11.0 s of CPU time a step (`t_part_s_mask_cpu`, which is inside
+  `t_part_s_generate`), 26 to 35 % of its sampling time. Without the mask time its sampling would cost 0.80 to
+  0.87 times the control's per token, so a mask builder that cost nothing would save at most 20 % of the
+  sampling time (the control's own per-request masks are inside its `generate` time and are not timed
+  separately). In track D the same option was the gain behind D 007. Closed for track A as it is; open as a
+  lead: a faster mask builder.
+- No checkpointing with the shared prompt at 4,096 loses on an 80 GB card: the update costs 1.73 to 1.89 times
+  the control's per token, with 2.0 to 2.9 times as many micro-batches, and the card
+  is full either way (peak 79.0 GB against the control's 78.1). Whether it wins at 8,192 or more on an H200
+  (141 GB) is open; it is one short run there.
+- Inside the control's update at steps 121-124 the backward pass is 13.3 of 19.8 s (67 %) and the body's
+  forward 4.3 s (22 %); the head, the mask and the allowed sets are small. Sampling is still the larger part
+  of the step (29.6 s against 19.8 s), and 99.5 % of it is vLLM's `generate`.
+- Sampling costs the same per token all the way (0.046 to 0.052 s per 1,000 tokens). The update's cost per
+  token rises from 0.010 to 0.033 s as the reward rises and more groups carry a gradient. The step grows from
+  21.3 s at its low point to 49.3 s at steps 121-124 because the tokens per step double (298k to 604k)
+  and the update gets dearer.
+- So neither same-maths option tested here buys track A steps on an H100. What is left for track A's speed is
+  the sampler itself (track A cannot use the native sampler yet: it is written for the Llama model only), a
+  faster mask builder and the H200 check of no checkpointing. LOG 02:05 put the room in A 007's budget at about 50 more steps without any
+  speed change; that arm, with `a007_ent15`'s setting, is the track A candidate for 11-25 (decided 11-24).
+
+**What is left in S3 and what the box cost outside the block.**
+
+- `box/box1118/`: 408 objects, 0.355 GB (results, logs, queue files; kept 90 days). `box-state/box1118/`: 58 objects,
+  25.07 GB: 19 saved states of about 1.31 GB each with their logs (deleted after 7 days). Six belong to the
+  unfinished runs in the table above; the other 13 are states of runs that finished. The whole bucket holds 582
+  objects, 25.46 GB. The push loop made 92 state uploads; its last pass was at 05:50 EST.
+- No track A state was ever sent, so the $1.72 that LOG 00:14 allowed for them was not spent. The cost by this
+  count: states 25.07 GB for 7 days $0.135; `box/` for 90 days $0.025; the 92 multipart uploads about $0.07
+  (about 159 requests each); the result pushes every 10 min about $0.04 (my estimate); the self-launch test of
+  11-18 $0.03. **Total about $0.30, and at most about $0.40**, which replaces the "about $2.29 at most" of
+  LOG 00:14 and 05:26. I have not read the bill. Data sent out of AWS to Engaging was logs and result files (well
+  under the 100 GB a month that is free).
+- Decision on the states: the 13 finished runs' states are left to expire (deleting them would save about $0.09).
+  Whether an unfinished run continues on the 11-25 box is decided on 11-24, when that box is planned; the states
+  expire from 11-26, so a continuing run's state is copied to the new box's prefix before then. The two 65,536 runs
+  would each add a native-against-vLLM pair for 0.2 and 1.1 h of one GPU; the 32,768 runs have little value.
+
+**Committed with this entry.** For the 33 finished box runs: `config.json`, `eval_log.jsonl`, `result.json` and
+`train_log.jsonl` (132 files; the result and config files were copied from the pool beside the logs). The three
+r103 train logs. `calibration/research_r101/d007rl_ctl_b200` seed 1 (its numbers are in LOG 05:26).
+
+**Engaging at 06:32.** None of my GPUs is running. r102's three H200 preemptable workers (29450693, 29450694,
+29450702) are pending on `Resources` (05:26 said priority; 174 H200 jobs were pending in the preemptable queue at
+06:07). r101's two `mit_normal_gpu` B200 workers (29618971, 29626073) are pending on priority, so at 06:09 I added
+one preemptable B200 worker for the same queue (29632479, 14 h, room for two items). If everything starts that is
+3 + 1 preemptable and 2 normal GPUs, six in all, the cap. The r97/r99 workers and r90's stay held.
+
+**Next.** r102's three seeds against 0.2810 (three-seed form; then the five-seed record attempt if it is met).
+r101's remaining seeds, paired by seed. The 11-28 self-running box: queue, plan, staging, schedules and
+`docs/research/box_1128.md`, to be ready by 11-22. On 11-24 the 11-25 queue is planned from what is known then:
+the speed stack against its control at step caps with five seeds or more, the track A arm with more steps and
+`a007_ent15`'s setting, and U17/U19 arms; small moves around the holders are out (INBOX 01:32).
