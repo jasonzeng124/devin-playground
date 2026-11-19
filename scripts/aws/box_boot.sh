@@ -109,15 +109,17 @@ if [[ ! -e $mark/fetched ]]; then
   [[ -e $mark/home.txt ]] && mapfile -t paths <"$mark/home.txt"
   for path in ${paths[@]+"${paths[@]}"}; do
     [[ -n $path ]] || continue
+    got=1  # a copy, sync or untar that failed counts as not fetched even when it left part of the path behind
     if [[ $path == *.tar ]]; then  # staged as one tar file: the Hugging Face cache (it holds symlinks), a token file
       path=${path%.tar}
       mkdir -p "$HOME/${path%/*}"
-      try aws s3 cp --only-show-errors "$H/$path.tar" "$HOME/$path.tar" </dev/null \
-        && tar xf "$HOME/$path.tar" -C "$HOME/${path%/*}" && rm -f "$HOME/$path.tar"
+      { try aws s3 cp --only-show-errors "$H/$path.tar" "$HOME/$path.tar" </dev/null \
+        && tar xf "$HOME/$path.tar" -C "$HOME/${path%/*}"; } || got=0
+      rm -f "$HOME/$path.tar"
     else
-      try aws s3 sync --only-show-errors "$H/$path/" "$HOME/$path/" </dev/null
+      try aws s3 sync --only-show-errors "$H/$path/" "$HOME/$path/" </dev/null || got=0
     fi
-    [[ -e $HOME/$path ]] || { echo "$path" >>"$mark/fetch_failed"; log "NOT FETCHED: $path"; }
+    [[ $got == 1 && -e $HOME/$path ]] || { echo "$path" >>"$mark/fetch_failed"; log "NOT FETCHED: $path"; }
   done
   touch "$mark/fetched"
   log "fetched: the plan, $(ls queue/staged | wc -l) queues, ${#paths[@]} paths under ~"
