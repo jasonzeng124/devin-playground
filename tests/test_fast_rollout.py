@@ -91,6 +91,23 @@ def test_constrained_samples_follow_the_grammar_and_stop_at_close(tokenizer):
     assert closed > 0
 
 
+def test_factored_grammar_samples_the_same_tokens(tokenizer):
+    model = _llama(tokenizer, seed=1)
+    pad = tokenizer.pad_token_id or tokenizer.eos_token_id
+    puzzles = [Puzzle((3, 7), 10, ops="+-"), Puzzle((2, 5, 9), 1, ops="+-*/"), Puzzle((13, 1, 100, 4), 7, ops="*/")]
+    rows = [tokenizer.encode(f"Numbers {p.numbers}, target {p.target}.", add_special_tokens=False) for p in puzzles]
+    encoded = _left_padded(rows, pad)
+    runs = []
+    for factored in (False, True):
+        engine = NativeRollout(model, tokenizer, 128, seed=3, dtype=torch.float32, constrain_answer=True, cuda_graphs=False,
+                               batch_bucket=8, key_bucket=16, factored_grammar=factored)
+        assert engine.grammar.factored is factored
+        sequences, finished = engine.generate(encoded, 4, 1.0, 60, pad, puzzles=puzzles, think_budget=3)
+        runs.append((sequences, torch.as_tensor(finished), engine.last_allowed))
+    assert torch.equal(runs[0][0], runs[1][0]) and torch.equal(runs[0][1], runs[1][1])
+    assert runs[0][2] == runs[1][2] and any(a for row in runs[0][2] for a in row)
+
+
 @pytest.mark.parametrize("reuse", [False, True])
 def test_grpo_run_trains_with_the_native_backend(monkeypatch, tmp_path, tokenizer, reuse):
     import copy

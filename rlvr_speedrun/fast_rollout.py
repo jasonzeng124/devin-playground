@@ -35,7 +35,7 @@ def _unwrap(model):
 
 class NativeRollout:
     def __init__(self, model, tokenizer, max_len: int, seed: int, dtype: torch.dtype = torch.bfloat16, constrain_answer: bool = False,
-                 cuda_graphs: bool = True, batch_bucket: int = 64, key_bucket: int = 32):
+                 cuda_graphs: bool = True, batch_bucket: int = 64, key_bucket: int = 32, factored_grammar: bool = False):
         model = _unwrap(model)
         config = model.config
         if config.model_type != "llama":
@@ -61,7 +61,7 @@ class NativeRollout:
         eos.update(gen_eos if isinstance(gen_eos, (list, tuple)) else [gen_eos])
         self.eos = frozenset(e for e in eos if e is not None)
         self.strings = token_strings(tokenizer)
-        self.grammar = AnswerGrammar(self.strings, open_token_ids(tokenizer)) if constrain_answer else None
+        self.grammar = AnswerGrammar(self.strings, open_token_ids(tokenizer), factored=factored_grammar) if constrain_answer else None
         self.index_cache: dict = {}
         self.generator = torch.Generator(device=self.device)
         self.generator.manual_seed(seed)

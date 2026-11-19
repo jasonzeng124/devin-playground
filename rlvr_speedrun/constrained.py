@@ -93,10 +93,18 @@ def open_token_ids(tokenizer) -> tuple[int, ...]:
     return tuple(ids)
 
 
-class AnswerGrammar:
-    """Token-level view of the grammar for one tokenizer, with allowed sets cached per state."""
+_DIGITS = frozenset("0123456789")
 
-    def __init__(self, strings: list[str], open_ids: tuple[int, ...] = ()):
+
+class AnswerGrammar:
+    """Token-level view of the grammar for one tokenizer, with allowed sets cached per state.
+
+    `factored` builds a state's allowed set from parts instead of walking every candidate (`_allowed_factored`): the
+    same sets, at a fraction of the cost for a state not seen before. Training puzzles are new at every step and a
+    state holds the puzzle's remaining numbers, so most of a native sampling step's grammar time is such states.
+    """
+
+    def __init__(self, strings: list[str], open_ids: tuple[int, ...] = (), factored: bool = False):
         self.strings = strings
         self.open_ids = tuple(open_ids)  # the tokens of OPEN, forced once a think budget runs out
         self.candidates = [i for i, s in enumerate(strings) if s and set(s) <= _CHARS]
@@ -107,6 +115,22 @@ class AnswerGrammar:
             for ch in strings[i]:
                 node = node.setdefault(ch, {})
             node.setdefault(None, []).append(i)
+        self.factored = factored
+        if factored:  # the candidates by kind: no digit, only digits (by string), both
+            self._plain: dict = {}
+            self._plain_trie: dict = {}
+            self._mixed_trie: dict = {}
+            self._digit_ids: dict[str, list[int]] = {}
+            for i in self.candidates:
+                digits = sum(ch in _DIGITS for ch in strings[i])
+                if digits == len(strings[i]):
+                    self._digit_ids.setdefault(strings[i], []).append(i)
+                    continue
+                node = self._mixed_trie if digits else self._plain_trie
+                for ch in strings[i]:
+                    node = node.setdefault(ch, {})
+                node.setdefault(None, []).append(i)
+            self._digit_lengths = sorted({len(s) for s in self._digit_ids})
 
     def text(self, token_id: int) -> str:
         """The token's text; "" for ids past the tokenizer (models pad their embedding matrix, e.g. Qwen3)."""
@@ -115,17 +139,68 @@ class AnswerGrammar:
     def allowed(self, state: State, ops: str) -> tuple[int, ...]:
         key = (state, ops)
         if key not in self._cache:
-            # the candidates that `feed` accepts from `state`, ascending, found by walking the trie so that a prefix
-            # the grammar rejects drops every token under it at once (PLAN D7: ~11x faster than testing each one)
-            out, stack = [], [(self._trie, state)]
-            while stack:
-                node, at = stack.pop()
-                for ch, child in node.items():
-                    if ch is not None and (after := step(at, ch, ops)) is not None:
-                        out.extend(child.get(None, ()))
-                        stack.append((child, after))
-            self._cache[key] = tuple(sorted(out))
+            if self.factored and _DIGITS.isdisjoint(ops):
+                self._cache[key] = self._allowed_factored(state, ops)
+            else:
+                # the candidates that `feed` accepts from `state`, ascending, found by walking the trie so that a
+                # prefix the grammar rejects drops every token under it at once (PLAN D7: ~11x faster than testing
+                # each one)
+                self._cache[key] = tuple(sorted(self._walk(self._trie, state, ops)))
         return self._cache[key]
+
+    def _walk(self, trie: dict, state: State, ops: str) -> list[int]:
+        """The ids in `trie` whose strings `feed` accepts from `state`."""
+        out, stack = [], [(trie, state)]
+        while stack:
+            node, at = stack.pop()
+            for ch, child in node.items():
+                if ch is not None and (after := step(at, ch, ops)) is not None:
+                    out.extend(child.get(None, ()))
+                    stack.append((child, after))
+        return out
+
+    def _allowed_factored(self, state: State, ops: str) -> tuple[int, ...]:
+        """What the walk over every candidate gives, from three kinds of candidates that `step` treats differently
+        (`ops` must hold no digit):
+
+        - No digit in the token. Along such a string `step` never reads the numbers themselves, only the mode, how
+          many numbers remain, the depth, the place in CLOSE and the space flag. Inside a number it first asks
+          whether the number is complete, and then carries on as the operator state with that number used. So
+          these ids are cached per that shape and walked once for each.
+        - Only digits. `step` takes them where a number may start or go on, and then exactly when the digits so
+          far plus the token are a prefix of a remaining number, so they are read off the remaining numbers.
+        - Both (none in some vocabularies). Walked from the state as before.
+        """
+        remaining, depth, mode, partial, closed, space = state
+        if mode == "number":
+            shape = ("operator", len(remaining) - 1, depth, 0, False) if partial in remaining else None
+        else:
+            shape = (mode, len(remaining), depth, closed, space)
+        plain: tuple[int, ...] = ()
+        if shape is not None:
+            found = self._plain.get((shape, ops))
+            if found is None:
+                found = self._plain[(shape, ops)] = tuple(sorted(self._walk(self._plain_trie, state, ops)))
+            plain = found
+        out: list[int] = []
+        if mode == "operand" or mode == "number":
+            head = partial if mode == "number" else ""
+            pieces = set()
+            for number in remaining:
+                if number.startswith(head):
+                    tail = number[len(head) :]
+                    for k in self._digit_lengths:
+                        if k > len(tail):
+                            break
+                        pieces.add(tail[:k])
+            for piece in pieces:
+                out.extend(self._digit_ids.get(piece, ()))
+        if self._mixed_trie:
+            out.extend(self._walk(self._mixed_trie, state, ops))
+        if not out:
+            return plain
+        out.extend(plain)
+        return tuple(sorted(out))
 
     def forced(self, position: int, think_budget: int) -> tuple[int, ...] | None:
         """Before the answer opens: the single allowed id at `position` once the think budget is spent, else None."""

@@ -159,6 +159,63 @@ def test_allowed_equals_testing_every_candidate(grammar_and_tokenizer):
     assert checked > 200
 
 
+# a small vocabulary with every kind of candidate: no digit, only digits (one string under two ids, several lengths),
+# a leading space, digits mixed with other characters, pieces of CLOSE, and strings the grammar never allows
+_SYNTHETIC = ["", "x", "0", "1", "2", "3", "5", "7", "1", "10", "13", "25", "100", "00", "+", "-", "*", "/", "(", ")", " ", " (",
+              ") ", "((", "))", " +", "+ ", " 1", " 13", "1+", "3)", "(2", "0)", "5 ", "+(", ")*", "<", "</", "</answer>", "answer",
+              ">", "/answer>", "3</answer>", ")</", "an", "swer>", "1 +", "+1", " 7-", "2*(", "12a", "0 0", "75", "4", "6", "8"]
+_FACTORED_CASES = [((3, 7), "+-"), ((2, 50), "+*"), ((1, 13, 100), "+-*/"), ((11, 1, 111), "/"), ((4, 4, 10, 6), "-/"),
+                   ((3, 7, 8, 2, 25), "+-*/"), ((25, 5, 2, 52, 100, 10), "*-")]
+
+
+def _reachable(numbers, ops, limit=1500, walks=30):
+    """Grammar states from the puzzle's first one: breadth first by single characters up to `limit` states, then random
+    walks to the end (the deep states of a puzzle with many numbers, which the breadth-first part doesn't reach)."""
+    chars = sorted(set("0123456789+-*/() </answer>"))
+    states = [initial_state(numbers)]
+    known = set(states)
+    for state in states:
+        if len(states) >= limit:
+            break
+        for ch in chars:
+            after = feed(state, ch, ops)
+            if after is not None and after not in known:
+                known.add(after)
+                states.append(after)
+    rng = random.Random(len(numbers))
+    for _ in range(walks):
+        state = initial_state(numbers)
+        while state[2] != "done":
+            options = [after for ch in chars if (after := feed(state, ch, ops)) is not None]
+            if not options:
+                break
+            state = rng.choice(options)
+            if state not in known:
+                known.add(state)
+                states.append(state)
+    return states
+
+
+@pytest.mark.parametrize("synthetic", [False, True])
+def test_factored_allowed_equals_the_walk_over_every_candidate(grammar_and_tokenizer, synthetic):
+    strings = _SYNTHETIC if synthetic else grammar_and_tokenizer[0].strings
+    plain, factored = AnswerGrammar(strings), AnswerGrammar(strings, factored=True)
+    assert factored._digit_ids and len(factored._plain_trie) > 5
+    if synthetic:  # every kind of candidate is in play: digit strings of several lengths, and digits mixed with others
+        assert len(factored._digit_lengths) > 1 and factored._mixed_trie
+    modes, checked = set(), 0
+    for numbers, ops in _FACTORED_CASES + ([((3, 7, 2), "+2")] if synthetic else []):  # a digit in ops: the walk is used
+        for state in _reachable(numbers, ops):
+            expected = plain.allowed(state, ops)
+            assert factored.allowed(state, ops) == expected, (state, ops)
+            if synthetic:
+                assert expected == tuple(i for i in plain.candidates if feed(state, strings[i], ops) is not None)
+            modes.add(state[2])
+            checked += 1
+    assert modes == {"operand", "number", "operator", "close", "done"} and checked > 3000
+    assert len(factored._plain) < checked // 4  # the tokens without a digit were walked per shape, not per state
+
+
 def test_answer_open_mask_marks_the_tokens_that_spell_the_first_answer_open(grammar_and_tokenizer):
     grammar, tokenizer = grammar_and_tokenizer
     prompt = tokenizer.encode("Use 3 and 7.", add_special_tokens=False)

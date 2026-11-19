@@ -54,6 +54,9 @@ class GRPOConfig:
     # rollout_backend 'native' with constrain_answer: the update takes the allowed token sets the sampler used at each
     # position instead of recomputing them from the tokens (`_allowed_tokens`); the same values, less Python per step
     reuse_sampler_allowed: bool = False
+    # rollout_backend 'native' with constrain_answer: the sampler builds a new grammar state's allowed set from parts
+    # instead of walking every candidate token (`AnswerGrammar(factored=True)`); the same sets, less CPU per step
+    factored_grammar: bool = False
     # the update runs each distinct prompt once (its KV cache indexed out to its group's rows) instead of once
     # per row; exact like the shared-prefix trick, fewer token positions per update (INBOX 11-17 14:59)
     share_group_prompt: bool = False
@@ -1359,6 +1362,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         raise ValueError("constrain_batched needs constrain_answer and rollout_backend='vllm'")
     if config.reuse_sampler_allowed and not (config.constrain_answer and config.rollout_backend == "native"):
         raise ValueError("reuse_sampler_allowed needs constrain_answer and rollout_backend='native'")
+    if config.factored_grammar and not (config.constrain_answer and config.rollout_backend == "native"):
+        raise ValueError("factored_grammar needs constrain_answer and rollout_backend='native'")
     if config.budget_steps < 0:
         raise ValueError(f"budget_steps must be >= 0, got {config.budget_steps}")
     if config.budget_steps_time_stop and not (config.budget_steps > 0 and config.time_budget_s > 0):
@@ -1445,7 +1450,7 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         from .fast_rollout import NativeRollout
 
         engine = NativeRollout(model, tokenizer, 512 + max(config.max_new_tokens, config.eval_max_new_tokens), config.seed + 1_000_003 * dist.rank,
-                               constrain_answer=config.constrain_answer)
+                               constrain_answer=config.constrain_answer, factored_grammar=config.factored_grammar)
     caches = engine if engine is not None else StaticCachePool(model, config.cache_len) if config.compile else None
     warmup_s = 0.0
     if caches is not None and engine is None:
