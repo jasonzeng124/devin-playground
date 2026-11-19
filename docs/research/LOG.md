@@ -7692,3 +7692,67 @@ final weights, native sampler against vLLM on the same node:
   Mean difference +0.0072 (sd 0.0319, SE 0.0184). Seed 1's last evaluation was 0.4250. This is level
   with the control within the noise, as the 02:05 entry expected; the arm gets no more seeds.
 - **Box at 02:43:** all eight GPUs busy (ten runs), 11 FAILED lines (none new), sync fine at 02:40.
+
+## 2026-11-19 03:04 EST: box: the native run on the H100 is now as fast as the B200's (0.62 s/step) and all three native runs should finish by about 05:00; `a007_ent15` seed 2 is 0.4533, `a007_cos467` seed 2 is 0.4033
+
+- **Correction to the 02:43 entry: the H100's step time kept falling, and the native runs finish.** The run on GPU 7
+  (`muon1338m_native_s14180` seed 0) was at step 2,619 after 2078 s when read at 03:02. Seconds per RL step
+  against the B200 run of r101 at the same steps:
+
+  | steps | H100 s/step | B200 s/step | H100 / B200 |
+  |---|---|---|---|
+  | 11 to 80 | 1.921 | 1.094 | 1.76 |
+  | 80 to 201 | 1.389 | 0.655 | 2.12 |
+  | 201 to 401 | 1.014 | 0.515 | 1.97 |
+  | 401 to 621 | 0.810 | 0.486 | 1.67 |
+  | 621 to 1500 | 0.711 | 0.623 | 1.14 |
+  | 1500 to 2500 | 0.656 | 0.635 | 1.03 |
+  | 2419 to 2619 | 0.625 | 0.628 | 1.00 |
+
+  - The 02:43 entry scaled the B200 run's remaining time by 1.64, the ratio at steps 421 to 621. That ratio was still
+    falling and is now 1.00: only the first 600 steps are slower on the H100. Over the last 200 steps the run spends
+    0.19 s sampling and 0.39 s in the update per step, and the GPU holds 51.7 GB.
+  - With the B200's remaining time scaled by 1.00, the GPU 7 run needs 2.42 h in all and ends about 04:52. On the
+    same reckoning an 11,441-step run needs 2.01 h, against 3.65 to 3.8 h for a vLLM run alone on an H100 and 5.2 to 5.6 h for a
+    vLLM pair (two runs). So one native run per GPU gives 1.29 to 1.39 times the runs per GPU-hour of the vLLM pair.
+  - **The filler started the two 11,441-step runs** when the track A runs ended: `muon1338m_native_s11441` seed 2 on
+    GPU 0 (its clock started at 02:55) and seed 0 on GPU 6 (02:58). They should end about 04:55 and 04:58. Their first
+    steps were faster than GPU 7's: 1.74 and 1.77 s/step over steps 11 to 80 against 1.92, and 0.82 against
+    1.01 over steps 201 to 401 on GPU 0 (GPU 6 had not got that far).
+  - An 11,441-step run finishes by 05:55 if it starts by about 03:54, a 14,180-step run if it starts by about
+    03:30. So `muon1338m_native_s11441` seed 1 (GPU 1, free about 03:40) can finish; the four
+    `muon1338m_native_s14180` items that follow (GPUs 4, 5, 3 from about 03:51) cannot: a start at 03:55 reaches
+    about step 11,400 by 05:55, a start at 04:15 about step 9,200. They are read at equal steps against the
+    finished vLLM seeds.
+- **Dev at equal steps, native against vLLM (seed 0 of the 14,180-step arms, so far):**
+
+  | step | native | vLLM | difference |
+  |---|---|---|---|
+  | 500 | 0.0817 | 0.0883 | -0.0066 |
+  | 1000 | 0.1083 | 0.1067 | +0.0016 |
+  | 1500 | 0.1433 | 0.1283 | +0.0150 |
+  | 2000 | 0.1333 | 0.1550 | -0.0217 |
+  | 2500 | 0.1500 | 0.1600 | -0.0100 |
+
+  Mean difference -0.0043 over 5 evaluations of one seed; too few to read. The full table comes with the finished
+  runs.
+- **The packing test moves from GPU 1 to GPU 4.** GPU 1's run can now finish alone, and a second run beside it would
+  stop that. GPU 4's run (free about 03:51 to 04:00) cannot finish in any case, so the second native run goes beside
+  it once it has passed step 500. After 04:40 the filler stops; GPUs 7, 0 and 6 are then free from about
+  04:52 with an hour left, enough for a second packing test (two native runs started together on an empty GPU).
+  I decide that at 04:40 from the first test.
+- **r85 (track A, 467 steps, kept dev; difference from `a007_ctl` of the same seed in brackets).** Control: 0.4250,
+  0.4000, 0.4400.
+
+  | arm | seed 0 | seed 1 | seed 2 | mean difference |
+  |---|---|---|---|---|
+  | `a007_lr1.3e-6` | 0.4367 (+0.0117) | 0.4367 (+0.0367) | 0.4133 (-0.0267) | +0.0072 (sd 0.0319, SE 0.0184) |
+  | `a007_ent15` | 0.4383 (+0.0133) | running | 0.4533 (+0.0133) | +0.0133 (2 seeds) |
+  | `a007_cos467` | 0.4167 (-0.0083) | 0.3933 (-0.0067) | 0.4033 (-0.0367) | -0.0172 (sd 0.0169, SE 0.0097) |
+
+  - `a007_cos467` has its three seeds: all below the control, mean -0.0172 (SE 0.0097). Ending the cosine
+    at step 467 does not help; closed.
+  - `a007_ent15` seed 2 kept its last step (0.4533, the highest track A dev on this box). Two seeds at +0.0133
+    each; seed 1 is due about 03:40. The paired differences of the two finished arms have an sd of 0.017 and
+    0.032 per seed, so three seeds near +0.013 would not separate it from the control either.
+- **Box at 03:04:** all eight GPUs busy (ten runs), 11 FAILED lines (none new), sync fine at 03:01.
