@@ -8144,3 +8144,43 @@ r101's remaining seeds, paired by seed. The 11-28 self-running box: queue, plan,
 `docs/research/box_1128.md`, to be ready by 11-22. On 11-24 the 11-25 queue is planned from what is known then:
 the speed stack against its control at step caps with five seeds or more, the track A arm with more steps and
 `a007_ent15`'s setting, and U17/U19 arms; small moves around the holders are out (INBOX 01:32).
+
+## 2026-11-19 06:57 EST: r104, the native evaluation-path test, is built and queued (first in the B200 queue)
+
+The 06:32 entry left one question open: on the box the native runs ended about 0.01 behind their vLLM twins on dev
+at equal steps, and a native run is also evaluated by the native sampler, so the logs cannot say whether the gap is
+training or evaluation. r104 is the test (commit 5e5db85). Nothing has run on a GPU yet.
+
+- `scripts/research/sampler_paths_eval.py` scores saved checkpoints on the config's dev set by both in-loop
+  samplers. It builds the two engines as `grpo.run` builds them and hands each checkpoint's weights to both
+  through `sync`, as after a training step. For each checkpoint and sampler it records `_evaluate`'s own greedy
+  number, a second greedy pass that keeps every completion (so the two are compared puzzle by puzzle: identical
+  completions, vLLM-only and native-only solves, the first differing token, completions at the length limit), and
+  16 samples a puzzle at T = 1 in calls with as many rows as a training step's (512): solve rate, length, distinct
+  completions per prompt, and the mean log-prob and entropy of the sampled tokens under the fp32 weights without
+  the answer mask. It refuses an `eval_set` whose name contains "test".
+- `scripts/research/run_item.sh` runs it for an item that has a `sampler_paths.json` (checkpoint list and sample
+  count), under a 1,500 s timeout. No existing item has that file, so nothing queued changes.
+- The item is `calibration/research_r104/d007_paths_b200`: D 007's five final checkpoints (seeds 0-4; in-loop
+  vLLM dev finals 0.245 / 0.252 / 0.250 / 0.255 / 0.253) with `d007rl_ctl_b200`'s sampler settings. Dev only;
+  nothing is trained or saved. My estimate is 6 to 15 min on a B200.
+
+Checked on the login node only, without a model: a dry run of the script with stand-in engines and a stand-in
+model (two checkpoints, six puzzles) ran end to end, and the runner branch built the right command with a stub
+interpreter. ruff passes; pytest 183 passed.
+
+**How it will be read.** If the two samplers give the same greedy completions on the same weights (or differ on a
+few puzzles with no net change in solves), the box's gap is not evaluation, and it comes from training. If the
+native greedy pass solves fewer, the native runs' dev numbers are low by that much and the equal-step comparison
+is redone with it in mind. The T = 1 numbers say whether the two samplers draw alike under the answer mask: if
+solve rate, length and the log-prob and entropy per sampled token agree, they do, and then the 5 to 9 % higher
+training entropy of the native arms comes from their other settings (`micro_batch_tokens`, `share_group_prompt`,
+`reuse_sampler_allowed`, and the vLLM arm's `constrain_batched`), not from the sampler.
+
+**Where it runs.** It is the first item of `queue/screens_rl_b200.txt`, ahead of r101's three remaining items, so
+the first B200 worker to start runs it (29618971 and 29626073 on `mit_normal_gpu`, 29632479 preemptable; all
+pending at 06:57; the normal workers keep their room for one r101 item after it). I did not submit a job of its
+own: `sbatch --test-only` at about 06:54 put a new 30-minute one-GPU job on 11-21 (preemptable, B200 or H200) or
+11-23 (`mit_normal_gpu`), while Slurm's estimate for the two pending normal workers was 18:30 EST today when
+asked a little earlier (it shows no estimate now). None of my GPUs is running; r102's three H200 workers are
+still pending on `Resources`.
