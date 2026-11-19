@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 00:14 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 00:36 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **D 007 promotion (13:54 EST 11-16), built on self-imitation, so said here before its seeds start (INBOX 11-12).**
 Arm r81, `calibration/research_r81/d006_batched_muon56_rl17400`: D 006 (which already uses self-imitation, same limits)

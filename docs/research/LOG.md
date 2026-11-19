@@ -7503,3 +7503,42 @@ final weights, native sampler against vLLM on the same node:
   New: about $1.72 at most. **Running total of AWS charges made by the agent: about $2.29 at most** (the
   self-launch test $0.03, the 11-18 box's results and D states $0.54, this).
 - Engaging: D 007 seed 4 (29355448) has run 1 h 29 min on node4802; r101's two workers are running.
+
+## 2026-11-19 00:36 EST: box: `muon1338m_s14180` has all five seeds (-0.0025 against the control over 4 paired seeds); `cos467` seed 1 is 0.3933
+
+- **r86 (track D, RL only from the saved checkpoints, final dev), paired by seed against `d004_ctl_s11441`:**
+
+  | arm | seed | final dev | control | difference |
+  |---|---|---|---|---|
+  | `muon1338m_s14180` | 0 | 0.2550 | 0.2700 | -0.0150 |
+  | `muon1338m_s14180` | 1 | 0.2333 | 0.2467 | -0.0133 |
+  | `muon1338m_s14180` | 2 | 0.2467 | 0.2317 | +0.0150 |
+  | `muon1338m_s14180` | 3 | 0.2317 | running | |
+  | `muon1338m_s14180` | 4 | 0.2433 | 0.2400 | +0.0033 |
+  | `muon2676m_s11441` | 0 | 0.2550 | 0.2700 | -0.0150 |
+  | `muon2676m_s11441` | 1 | 0.2133 | 0.2467 | -0.0333 |
+  | `muon2676m_s11441` | 2 | 0.2100 | 0.2317 | -0.0217 |
+
+  - `muon1338m_s14180` (Muon pretraining stopped at 1.338B tokens, the time moved to RL: 14,180 steps against 11,441):
+    all five seeds are in, mean 0.2420 (range 0.2317 to 0.2550). Against the control on the four
+    seeds that have a pair: -0.0150, -0.0133, +0.0150, +0.0033; mean -0.0025. The control's four seeds have
+    mean 0.2471 (range 0.2317 to 0.2700). So the split gives the same dev score as the control within the
+    seed noise: no gain from it on the H100. The control's seed 3 (GPU 4, started 00:11) gives the fifth pair
+    at about 03:50.
+  - `muon2676m_s11441` is unchanged: -0.0233 over 3 seeds; seeds 3 and 4 run on GPU 5 until about 04:00.
+- **r85 (track A, final dev; difference from the control's same seed in brackets):**
+
+  | seed | `a007_ctl` (kept step) | `a007_lr1.3e-6` | `a007_ent15` | `a007_cos467` |
+  |---|---|---|---|---|
+  | 0 | 0.4250 (step 450) | 0.4367 (+0.0117) | 0.4383 (+0.0133) | 0.4167 (-0.0083) |
+  | 1 | 0.4000 (step 300) | running | running | 0.3933 (-0.0067) |
+  | 2 | 0.4400 (step 467) | 0.4133 (-0.0267) | running | running |
+
+  New: `a007_cos467_h100m30` seed 1 is 0.3933 (kept step 450, last evaluation 0.3867, 5.70 h).
+  `cos467` is -0.0083 and -0.0067 on its two paired seeds (mean -0.0075); its seed 2 runs on GPU 0.
+- **Hand-overs on the box, all by the workers themselves:** GPU 2's two workers finished `muon1338m_s14180` seeds 2
+  and 3 at 00:18 and 00:19 and started `muon1338m_s11441` seeds 0 and 1 as a pair (80,033 MiB in use at 00:35). A
+  pair of 11,441-step runs took 5.2 to 5.6 h here, so they end between 05:30 and 05:55, close to the end of the
+  box (06:00); their saved states go to S3 every 10 min from 04:40 in case they do not make it. GPU 3's worker
+  finished `cos467` seed 1 at 00:28 and started `muon1338m_s11441` seed 2 alone (40,621 MiB; about 3.65 h, so until
+  about 04:10). All eight GPUs are busy; the box's `queue/done.txt` still has 11 FAILED lines (none new).
