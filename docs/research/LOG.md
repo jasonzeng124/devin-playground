@@ -8597,3 +8597,68 @@ for 11-25 and 11-28, staged with `stage`, `home` (a `mit_normal` CPU job) and `c
 with me down has work; `docs/research/box_1128.md`. Each queue is planned again the day before its block
 (11-24, 11-27, 12-08) from what has been learnt. I asked in QUESTIONS (10:47) whether an end-to-end screen on the
 11-28 H200 box may serve as the gating screen.
+
+## 2026-11-19 11:08 EST: cheap boot test of the fetch from `box/home/`: a directory, a one-file tar and the tokenizer reached the box and matched by sha256
+
+The 10:47 entry left one piece of the self-running boxes untested: no box had fetched anything from the shared
+`box/home/` prefix, and the new token-file staging had never run against the bucket. This test covers both with
+small files, on a t3.large (no GPU), for about one cent.
+
+**What was staged (commit d41d304).** Test files made on Engaging under `~/orcd/pool/boxtest/`: a directory
+`ckpt/` (a 1,000,000-byte random `model.bin`, a `config.json` and a file in a subdirectory) and a
+20,000,000-byte random `tokens.bin`. `box_s3.sh stage`, `home` and `check` ran with
+`HOME_EXTRA="orcd/pool/boxtest/ckpt orcd/pool/boxtest/tokens.bin.tar orcd/pool/data/tinyllama-tokenizer"`: the
+directory went up by sync, the file as one tar stream (the route a pretraining screen's token file takes), and
+the real track D tokenizer (three files, 3.6 MB) as a directory. The real boxes need the tokenizer too, and
+it now stays in `box/home/`. `check` printed "check ok". These were the first runs of the three commands with
+the 10:47 code. In all 24,629,400 bytes.
+
+**How the box checked it.** The test stub (`scripts/aws/box_test_runner.sh`, commit ad9a26f) takes
+`TEST_NEED="<path under ~>=<sha256> ..."` from the plan's worker line and fails an item when a file is missing
+or differs. The plan named five files with checksums computed on Engaging: the three in `ckpt/`, the untarred
+`tokens.bin` and the tokenizer's `tokenizer.json`. The queue held two new stub arms (`calibration/box_test/h1`
+and `h2`; six 10 s steps, one planned failure at step 3), so the results do not mix with the 11-18 test's.
+
+**What happened (11-19, times in UTC; instance i-0c5daecf12dda9c42).**
+
+| time | event |
+|---|---|
+| 15:59:02 | the one-time schedule fires |
+| 15:59:12 | `RunInstances` under the `rlvr-scheduler` role succeeds |
+| 16:01:01 | `box_boot.sh` starts, 1 min 49 s after the launch |
+| 16:01:12 | "fetched: the plan, 1 queues, 3 paths under ~" (11 s) |
+| 16:01:22 | both workers start their items |
+| 16:02:53 | both items `ok` |
+| 16:03:00 | "idle: last push, then shutdown", 3 min 48 s after the launch; the instance terminated itself |
+
+Each item's log shows five "TEST_NEED ok" lines with the right sizes (1,000,000, 27, 7, 20,000,000 and
+3,619,016 bytes), and each failed once at step 3 as planned and "resumed from step 3". The box's log has no
+"NOT FETCHED" line. The results, the done list and the box's logs were in the bucket before the shutdown, and
+`box_s3.sh pull` brought them into the checkout. So the whole path has now run once with nobody on the box:
+schedule, launch, code, plan, queue, files under `~` from `box/home/` (a directory and a tar), workers, a failed
+item resumed from its saved state, results off the box, shutdown.
+
+**Two things the test turned up.**
+
+- The test template's block end is set to three hours after the template is made, so the 11-18 version's end
+  was long past. A box from it would have started workers that take nothing (their deadline is the block end
+  less 35 min). I made version 2 (`box_auto.sh template test`) and ran `dryrun test` before scheduling. A
+  re-test needs `template test` first. The real templates carry their block's true end and are not affected.
+- `box_s3.sh clear rlvr-box-test` removes the test box's output, which STATUS listed as kept for the audit. I
+  first copied the 11-18 test's `box/rlvr-box-test/` to `box/rlvr-box-test-1118/` within the bucket (42
+  objects, 0.98 MB).
+
+**Still not tested.** The real 4.64 GB token-file tar (not uploaded yet: it goes up as a `mit_normal` CPU job
+when a real queue with a pretraining item is staged), a real checkpoint directory or the model cache through
+this route on the new boxes, and anything with a GPU. One known weakness in `box_boot.sh`: after a directory
+sync or an untar it only checks that the path exists, so a fetch that stopped part-way would pass. The
+commands' exit codes should count too. That is a few lines; I will make the change and repeat this test (about
+a cent) before staging the real queues.
+
+**Left in place for a re-test and for the audit:** the test files under `~/orcd/pool/boxtest/` on Engaging
+(21 MB) and under `box/home/orcd/pool/boxtest/` in the bucket, the staged `box/rlvr-box-test/in/` and this
+test's `out/`. No instance, loose volume or test schedule remains (checked after the test).
+
+**AWS charge.** One t3.large for at most 5 min 35 s and its 80 GB volume: $0.009 by list prices, so about
+$0.01; the S3 uploads (25 MB) are far under a cent. Running total about $0.31, at most about $0.41. I have
+not read the bill.
