@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 09:04 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 09:15 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **The speed stack turns into score (11-19, LOG 11-19 02:05).** r101 (B200, RL only, one seed each, not yet gated): the
 native arm ran 34,893 steps in 17,400 s and ended at dev 0.3033; the control ran 18,215 and ended at
@@ -33,11 +33,12 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (09:04 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
+**Jobs (09:15 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
 `screens_rl_b200`): 29618971 (started 08:41; ran r104, now r101's control seed 2) and 29626073 (started 08:48;
 r101's native seed 1). Both items are traced and end at about 13:45 EST; neither worker has room for another
-item. Pending: 29632479 (preemptable, same queue, 14 h, room for two items; waiting for nodes; r101's native seed
-2 is the one item left in the queue); r102's three H200 preemptable workers (29450693/94/702, `Priority`). Held:
+item. Pending: 29632479 (preemptable, same queue, 14 h, room for two items; waiting for nodes; the queue holds
+r104's second item, about 8 min, then r101's native seed 2); r102's three H200 preemptable workers
+(29450693/94/702, `Priority`). Held:
 29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). If everything pending
 starts that is 4 preemptable and 2 normal GPUs, the cap of six. **The B200 queue needs new items today.**
 
@@ -143,9 +144,14 @@ screen runs on the H200.
   T = 1 the solve rate differs by +0.0003 (SE 0.0012) and the entropy per token by a factor of 1.0006. So the
   box's equal-step gap (about -0.01 for native, three pairs of finals) is training under the native update
   settings or chance, not evaluation, and the samplers draw alike at these weights. No GPU time goes to the gap
-  by itself. Next: read in the code whether the logged training entropy counts the same rows and mask under
-  `share_group_prompt` / `reuse_sampler_allowed` / 65,536-token micro-batches; if it does, a few short
-  step-capped runs switching one setting at a time. Result: the item's `seeds/0/sampler_paths.json`.
+  by itself. The code read is done (LOG 11-19 09:15): the logged entropy is the same quantity on the same rows
+  and mask in both arms, there is one optimizer step per GRPO step whatever the micro-batch size, and the reused
+  allowed sets and shared prompt are tested equal to the recomputed path. So the update's maths does not explain
+  the gap, and no one-setting-at-a-time runs are needed. Left: drift between runs, or a sampler difference at
+  early weights. **Second item queued, not yet run**: `calibration/research_r104/d007_pre_paths_b200 0`, first
+  in `queue/screens_rl_b200.txt` (D 007's five pretrained checkpoints, both samplers; about 8 min on a B200).
+  If the samplers agree there too, the gap is put down to drift and closed until r102's numbers; if not, fix
+  the sampler before the speed stack is the record path. Results: each item's `seeds/0/sampler_paths.json`.
 - A runs fill the H100 (79.1 of 79.18 GB) and three ran out of memory at `vllm_gpu_memory` 0.35 (control seeds 0 and
   1, `cos467` seed 0). Since 17:47 every A item not yet started uses the `_h100m30` configs (share 0.30, about 4 GB
   more for the trainer; same maths, read together with the arm's `_h100` seeds), and the three failed runs resume

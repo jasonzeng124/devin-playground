@@ -1,0 +1,10 @@
+{
+  "models": [
+    "$CKPT_DIR/records/v3/track_d/007_dm_math_sil64c05_batched_muon56/seeds/0/pretrained",
+    "$CKPT_DIR/records/v3/track_d/007_dm_math_sil64c05_batched_muon56/seeds/1/pretrained",
+    "$CKPT_DIR/records/v3/track_d/007_dm_math_sil64c05_batched_muon56/seeds/2/pretrained",
+    "$CKPT_DIR/records/v3/track_d/007_dm_math_sil64c05_batched_muon56/seeds/3/pretrained",
+    "$CKPT_DIR/records/v3/track_d/007_dm_math_sil64c05_batched_muon56/seeds/4/pretrained"
+  ],
+  "samples": 16
+}

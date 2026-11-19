@@ -8349,3 +8349,43 @@ seed 1. Both items are traced, both have a 17,400 s budget and end at about 13:4
 node-wide change should show in both traces. One item is left in the B200 queue, r101's native seed 2, for
 29632479 (preemptable, waiting for nodes). r102's three H200 workers wait on priority. The B200 queue needs new
 items today; that is the next decision.
+
+## 2026-11-19 09:15 EST: the update's code does not explain the native entropy gap; r104 gets a second item, the pretrained weights
+
+The 09:04 entry named a code read as the next step on the box's native gap (native runs train at 5 to 9 % higher
+entropy after their first 100 steps and end about 0.01 behind at equal steps). It is done, on the login node,
+with no GPU.
+
+- **The logged entropy is the same quantity in both arms.** `_entropy` in `rlvr_speedrun/grpo.py` is the entropy
+  of the policy after the answer mask. `_update` sums it over the completion tokens of the updated rows (the rows
+  with a non-zero advantage, since `skip_zero_advantage` is on in both arms) and divides by those rows' tokens.
+  The micro-batch size and the shared prompt change neither the rows nor the mask.
+- **One optimizer step per GRPO step in both arms.** Micro-batches only accumulate gradients, so 32,768 against
+  65,536 tokens changes memory and speed, not the number or size of updates.
+- **The reused allowed sets are the recomputed ones.** `_allowed_tokens` takes the sampler's sets only for a row
+  whose valid tokens are exactly the sampled prefix, and recomputes any other row. The tests assert the
+  sampler-recorded sets equal the recomputed sets, and that the shared prompt gives the same update gradient
+  (`tests/test_fast_rollout.py`, `tests/test_grpo.py`; both on a tiny model, not at scale).
+- **The box pair's configs differ in five keys only** (`muon1338m_s11441` against `muon1338m_native_s11441`):
+  `rollout_backend`, `constrain_batched`, `micro_batch_tokens`, `reuse_sampler_allowed`, `share_group_prompt`.
+  Both start from the same pretrained checkpoint.
+
+So nothing in the update's maths explains the gap, and the runs I named at 09:04 (switching one update setting at
+a time) are dropped: they would test settings that are equal by construction. Two explanations are left. One is
+drift between runs that draw different samples: the entropy is higher in 5 of 5 pairs in two step bands, but the
+bands share the same five pairs, so that is one sign test at about p = 0.06, not two. The other is a sampler
+difference that shows only at early weights. r104 scored D 007's final weights, where the policy is sharp, and
+the box's gap opened between steps 100 and 2,000 from a pretrained start.
+
+**r104's second item covers that case.** `calibration/research_r104/d007_pre_paths_b200` scores D 007's five
+pretrained (pre-RL) checkpoints by both samplers, greedy and with 16 samples a puzzle at T = 1, with the first
+item's settings. It is first in `queue/screens_rl_b200.txt` (queued 09:09) and has not run. I expect about 8
+minutes on a B200; completions may be longer at these weights, and the 1,500 s timeout applies.
+
+How it will be read: if the T = 1 solve rate, length, log-prob and entropy per sampled token and the greedy pass
+rate agree as they did at the final weights, the sampler is cleared at both ends of training, the gap is put down
+to drift, and the equal-step question is closed until r102 gives end-to-end numbers. If they differ, there is a
+sampler difference early in training, and it is fixed before the speed stack becomes the record path.
+
+Jobs at 09:15: unchanged since 09:04. Two B200s run r101's native seed 1 and control seed 2 until about 13:45.
+29632479 (preemptable B200) and r102's three H200 workers are pending. The B200 queue still needs new arms today.
