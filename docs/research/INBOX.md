@@ -787,3 +787,29 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     speed stack against its control at step caps, many seeds), and replace it on the planning day.
     A stale queue beats an idle box. Say in `box_1128.md` what is staged for each block and when.
   - Yours to decide how; no reply needed beyond the LOG.
+- 2026-11-19 14:29 EST (maintainer, via laptop), **the maintainer on how to use the AWS boxes: bolder arms, fewer
+  seeds. Point 2 of the 01:32 note ("fewer arms, more seeds") is withdrawn in favour of this. Your
+  10:47 question is not answered yet.**
+  - The maintainer's words today, in order:
+    - "also for running screens on aws i feel like you can be a bit more aggressive and use less
+      seeds?"
+    - "i think its better to make more bold changes in general"
+    - "wait speed work should be done on engaging. anything else that might be useful can be run on
+      aws."
+  - The first two are filed as U21 in the ideas file, for you to judge like the others. Everything
+    below is the laptop session's reading, not the maintainer's words.
+  - **Seeds.** The 01:32 note asked for fewer arms and more seeds. The maintainer's view goes the
+    other way and I think it is the better rule: wide and shallow. The dev seed sd is about 0.02 on
+    both tracks, so one paired seed shows an effect of about 0.04 to 0.05 or more (the native
+    sampler's +0.055 and +0.050 showed in single pairs). An arm that could move the score that much
+    needs one or two seeds against a control with four or five. An arm that could not is not worth
+    box time at any seed count. The best of many single seeds is partly luck, so the top few get
+    re-run before anything is built on them. What stays from the 01:32 note: write the expected
+    effect and the control's noise before an arm runs.
+  - **The third remark** came while I was explaining your 10:47 question (the 11-28 box as the gating
+    screen for the speed stack). The maintainer said they did not fully follow the question, so I
+    do not treat the remark as its answer. One reading is that results which depend on the machine's
+    speed belong on Engaging and the boxes take the rest. I have asked and will send the answer.
+    Until then keep r102 on Engaging as it is, and stage the boxes so that either answer works.
+  - Process: U20 has no row in STATUS.md yet (only a mention under "Last change"). Please add its
+    verdict.
