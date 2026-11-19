@@ -7801,3 +7801,162 @@ final weights, native sampler against vLLM on the same node:
   04:40. I start each second worker by hand with `agent/box_pack_start_1118.sh` (its own queue file, one item, and it
   stops at the first failure). None of these runs can finish; their states go to S3 from 04:40 with the others'.
 - **Box at 03:45:** all eight GPUs busy (ten runs), 11 FAILED lines (none new), sync fine.
+
+## 2026-11-19 05:26 EST: D 007's fifth seed is in (five seeds, test 0.2644 against D 006's 0.2444); box: r85 and r86 results, native against vLLM at equal steps, the packing and resume tests, and where track A's step goes (r103)
+
+**D 007 has its five seeds** (`records/v3/track_d/007_dm_math_sil64c05_batched_muon56`, H200, job 29355448 ended at 04:36). Every seed is within the 21,600 s
+budget.
+
+| seed | RL steps | kept dev | test ladder | total_s | test minus D 006's seed |
+|---|---|---|---|---|---|
+| 0 | 17,359 | 0.2450 | 0.2606 | 20,880 | +0.0354 |
+| 1 | 19,641 | 0.2517 | 0.2538 | 20,879 | +0.0051 |
+| 2 | 18,335 | 0.2500 | 0.2646 | 20,879 | -0.0016 |
+| 3 | 19,735 | 0.2550 | 0.2726 | 20,875 | +0.0391 |
+| 4 | 16,318 | 0.2533 | 0.2703 | 20,856 | +0.0218 |
+
+- Test mean 0.2644 ± 0.0076, against D 006's 0.2444 ± 0.0158: +0.0200. Dev mean 0.2510 (D 006: 0.2293).
+- Still to do, after the box ends at 06:00: the README, `validate_record_v3.py --compare-to` D 006, the leaderboard
+  row and the commit of the seeds' files. Until the validation passes it is not on the board. If it passes, D's
+  promotion line becomes 0.2810 (its dev mean + 0.03).
+
+**r85 (track A on the H100s, 467 steps, three seeds each; final = kept dev).**
+
+| arm | seeds 0 / 1 / 2 | mean | paired with the control | mean difference |
+|---|---|---|---|---|
+| `a007_ctl` | 0.4250 / 0.4000 / 0.4400 | 0.4217 | (sd 0.0202) | |
+| `a007_ent15` | 0.4383 / 0.4400 / 0.4533 | 0.4439 | +0.0133 / +0.0400 / +0.0133 | +0.0222 (SE 0.0089) |
+| `a007_lr1.3e-6` | 0.4367 / 0.4367 / 0.4133 | 0.4289 | +0.0117 / +0.0367 / -0.0267 | +0.0072 (SE 0.0184) |
+| `a007_cos467` | 0.4167 / 0.3933 / 0.4033 | 0.4044 | -0.0083 / -0.0067 / -0.0367 | -0.0172 (SE 0.0097) |
+
+- `a007_ent15` is the one arm whose three pairs all have the same sign. Its mean is still under A's line (0.459),
+  and +0.0222 is about one standard deviation of the control's seeds, so three pairs do not settle it (INBOX
+  01:32's point). It is not a gate. It goes into the next track A arm together with more steps, at five seeds or
+  more; that is decided when the 11-25 box is planned on 11-24.
+- `a007_lr1.3e-6` and `a007_cos467` are closed: no consistent sign, and `cos467` is below the control in all three.
+
+**r86 (track D on the H100s, step caps, five seeds; final dev).**
+
+| arm | seeds 0-4 | mean | paired with the control |
+|---|---|---|---|
+| `d004_ctl_s11441` | 0.2700 / 0.2467 / 0.2317 / 0.2767 / 0.2400 | 0.2530 | (sd 0.0195) |
+| `muon1338m_s14180` | 0.2550 / 0.2333 / 0.2467 / 0.2317 / 0.2433 | 0.2420 | -0.0110 (SE 0.0101) |
+| `muon2676m_s11441` | 0.2550 / 0.2133 / 0.2100 / 0.2333 / 0.2200 | 0.2263 | -0.0267 (SE 0.0051) |
+| `muon1338m_s11441` | seed 2: 0.2250; seeds 0 and 1 are running | | -0.0067 (one pair) |
+
+- `muon2676m_s11441` is closed (below the control in all five pairs). `muon1338m_s14180` is level with or below the
+  AdamW control with 24 % more RL steps. This is the 02:05 reading with all pairs in: at equal RL steps the Muon
+  pretraining checkpoints do not beat D 004's.
+- `muon1338m_s11441` seeds 0 and 1 (GPU 2) end at about 05:40.
+
+**The native sampler against vLLM at equal steps, same seeds** (r86's native arms; each native run alone on its
+GPU, each vLLM run with a second vLLM run beside it).
+
+| run | steps | final dev | vLLM arm, same seed | difference | mean difference at the shared evaluations from step 2,000 | wall s | s/step from step 600 | vLLM arm's s/step |
+|---|---|---|---|---|---|---|---|---|
+| `muon1338m_native_s14180` 0 | 14,180 | 0.2333 | 0.2550 | -0.0217 | -0.0116 over 26 | 8,931 | 0.606 | 1.508 |
+| `muon1338m_native_s11441` 2 | 11,441 | 0.2200 | 0.2250 | -0.0050 | +0.0020 over 20 | 7,524 | 0.640 | 1.227 |
+| `muon1338m_native_s11441` 0 | 11,441 | 0.2167 | running |  | -0.0017 over 17 | 7,497 | 0.635 | 1.654 |
+
+- The three native runs that could finish did. `muon1338m_native_s11441` seed 0's twin is still running; at step
+  10,000, the last evaluation both have, they stood at 0.2233 (native) and 0.2483 (vLLM).
+- I read the two finished pairs as level: the differences are inside the control's seed spread (0.0195),
+  and the same seed does not give the same samples under the two samplers. Seed 0 of the 14,180-step pair sits
+  below its twin through most of the run, so this is not yet shown to be zero. r101 found the two level at equal
+  steps on the B200, and r102 on the H200 is the test that counts.
+- Per GPU on the H100, one native run does 1.65 steps/s against 1.33 for a pair of vLLM runs
+  (14,180-step runs, seed 0).
+
+**r101 (B200, RL only, not yet gated).** The control's seed 1 finished: 0.2383 after 20,032 steps (seed 0:
+0.2483 after 18,215). The native arm's seed 0 was 0.3033 after 34,893. The native arm's seed 1 and
+both arms' seed 2 wait on `mit_normal_gpu` workers 29618971 and 29626073 (pending on priority). r102's three H200
+workers (29450693, 29450694, 29450702) are also pending on priority.
+
+**Packing tests on the 80 GB H100 (for 11-25 and 12-09), read at 05:12.** Correction to 03:45 first: I expected a
+32,768-token run to hold 30 to 35 GB and a pair to do 1.3 to 1.8 times the steps of one 65,536-token run. Both
+were wrong. A native run holds much more until its first evaluation at step 500, and the gain is smaller.
+
+| run alone | whole-card GB at step 1 / 10 / 500 / 501 / 600 | s/step over steps 20-80 / 80-200 / 200-400 / 400-500 / 520-600 |
+|---|---|---|
+| 32,768-token micro-batches (`mb32k` seed 0, GPU 4) | 43.2 / 47.2 / 47.3 / 30.4 / 36.3 | 1.81 / 1.22 / 1.04 / 0.97 / 0.89 |
+| 32,768 (`mb32k` seed 2, GPU 1) | 42.5 / 46.2 / 46.3 / 30.6 / 36.6 | 1.79 / 1.42 / 1.10 / 0.97 / 0.97 |
+| 65,536 (`muon1338m_native_s11441` seed 1, GPU 5) | 68.1 / 70.7 / 74.2 / 40.1 / 51.1 | 1.47 / 1.15 / 0.90 / 0.74 / 0.81 |
+
+- The memory falls at the first evaluation and settles at about 36.3 GB (32,768) and 51.7 GB (65,536). I
+  read the fall as the sampler freeing and resizing its caches there (`_ensure_capacity` in
+  `rlvr_speedrun/fast_rollout.py`); I have not checked that.
+- **Two started together: fails.** The second run died within 20 s in its first update (`torch.OutOfMemoryError`,
+  the first run holding 47.18 GiB of the card's 79.18). This is FAILED line 12 on the box.
+- **Second started after the first's first evaluation: fits, twice.** The card is full while the second warms up
+  (80.5 to 80.7 GB of 81.6), and the second run's log has allocator warnings from that time (29 on GPU 4, 42 on
+  GPU 1; none since). Neither failed. Once both are past step 500 the card holds 73.3 GB (GPU 4) and
+  74.1 GB (GPU 1).
+
+| GPU | run (step now) | s/step, last 300 | pair, steps/s | against one 65,536 run alone |
+|---|---|---|---|---|
+| 4 | `mb32k` 0 (3,556), `mb32k` 3 (2,650) | 1.094, 1.115 | 1.81 | +20 % |
+| 1 | `mb32k` 2 (3,032), `mb32k` 4 (1,763) | 1.230, 1.406 | 1.52 | +1 % |
+| 5 | the 65,536 run alone, steps 1,800 to 3,500 | 0.664 | 1.51 | |
+
+- The pair on GPU 4 gains about a fifth. The pair on GPU 1 gains nothing so far (its second run is still in its
+  slower early part, and its first run was also slower alone than GPU 4's). I do not know why the two GPUs differ.
+- **For 11-25: one native run per H100 at 65,536-token micro-batches stays the planning number.** A staggered pair
+  gains between nothing and 20 %, runs with the card full for 10 to 20 min, and failed when started together.
+- For the H200's 141 GB (11-28): two 65,536 runs, the second started after the first's first evaluation, need
+  74.2 + 51.7 = 125.9 GB on paper. That has to be checked on an H200 before the 11-28 plan uses it.
+
+**The native backend resumes from its saved state (tested on GPU 3, `muon1338m_native_s14180` seed 1).**
+
+- The first state was saved at 04:48:40 (1.31 GB, 1,200 s of training, step 1,375). I stopped the trainer with a
+  plain `kill` at 04:49:16, at step 1,427.
+- `scripts/aws/box_runner.sh` restarted it 40 s later; it printed "resumed from ... at step 1375", cut the train
+  log back to step 1,375 and went on from 1,376 with the wall clock continuous. No FAILED line.
+- One stop cost 52 steps, 40 s and a slow stretch: 0.72 s/step before the stop, then 1.35 (steps 1,380-1,400),
+  0.90 (1,400-1,500), 0.80 (1,500-1,600) and 0.67 now.
+- A resumed run skips the warm-up peak: 37.9 GB at step 1,380, 47.5 at 1,400, 47.5 at 1,500, 49.7 at 1,600, 51.6 now,
+  against 74.2 GB before the first evaluation of a fresh run.
+- This removes r102's main preemption risk, and tonight's unfinished native runs can be continued from S3.
+
+**Where track A's step goes on the H100 (INBOX 01:32's last paragraph).** From `a007_ctl_h100m30` seed 0's train
+log (467 steps, 21,464 s):
+
+| steps | sampling s | update s | wall s per step | k tokens per step (tokens/s times sampling plus update time) | informative groups of 96 | solve rate in batch |
+|---|---|---|---|---|---|---|
+| 1-40 | 18.2 | 4.9 | 23.6 | 380 | 12 | 0.02 |
+| 41-80 | 11.1 | 5.9 | 18.6 | 224 | 23 | 0.05 |
+| 81-120 | 20.2 | 13.2 | 39.6 | 406 | 36 | 0.12 |
+| 121-200 | 28.8 | 20.0 | 55.3 | 593 | 40 | 0.26 |
+| 201-300 | 27.5 | 19.0 | 51.7 | 557 | 37 | 0.37 |
+| 301-400 | 26.7 | 19.3 | 51.9 | 543 | 38 | 0.40 |
+| 401-467 | 27.2 | 18.9 | 51.0 | 550 | 36 | 0.42 |
+
+- A step costs 19 to 24 s for the first 80 steps and about 52 s from step 120. Between steps 80 and 120 the
+  completions grow from about 224k to about 593k tokens a step while the solve rate starts to climb.
+  The first 100 steps take 2,186 s; the
+  other 367 take 90 % of the run.
+- From step 121 sampling is 27.5 s and the update 19.3 s of a step. The update's cost follows the number of
+  informative groups (`skip_zero_advantage`); sampling follows the tokens.
+- So the steps that matter for "can 5 h hold more than 467" are the late ones, and both halves are worth
+  attacking. Three same-maths options exist in the code and had never been run on track A:
+  `constrain_batched` (the batched answer mask in vLLM), and `grad_checkpoint: false` with `share_group_prompt`
+  (A trains with activation checkpointing, which `rlvr_speedrun/grpo.py` documents as about 30 % more compute).
+
+**r103: track A timing runs in the box's last hour** (configs under `calibration/research_r85/`; A 007's H100
+config with `time_update_parts`, at most 140 steps, no evaluations, no saved state). Not a score comparison. They
+are read by the time of each part, tokens per second and loss at matching steps. The box ends them at about step
+100 to 125, so they reach only the start of the costly regime.
+
+- `a007_time_h100m30` (control, GPU 7, started 04:57) and `a007_time_batched_h100m30` (`constrain_batched`, GPU 0,
+  05:01) are running: steps 71 and 52 at 05:26.
+- `a007_time_nockpt_h100m30` (no checkpointing, shared prompt, 8,192-token micro-batches; GPU 6) **ran out of
+  memory in its first update** (the process, vLLM's 0.30 share included, held 77.33 GiB of the card's 79.18). This
+  is FAILED line 13. So that setting does not fit an 80 GB card at A's micro-batch size.
+- `a007_time_nockpt_mb4k_h100m30` (the same at 4,096-token micro-batches, a memory setting only; GPU 6, started
+  05:05) fits so far: step 45 at 05:26, with the card at 79.0 GB. `a007_time_nockpt_mb2k_h100m30` (2,048) is the unused fallback.
+- The readout comes in the next entry.
+
+**The box at 05:26.** All eight GPUs are busy: three track A timing runs (GPUs 0, 6, 7), the two 32,768 pairs
+(GPUs 1, 4), the vLLM pair that ends at about 05:40 (GPU 2), the resumed native run (GPU 3) and the 65,536 run
+(GPU 5). 13 FAILED lines (11 before 21:15, two from tonight's tests). The push loop has made 80 state uploads. No
+track A state exists, so none goes to S3; the AWS total is unchanged (about $2.29 at most). AWS ends the instance
+at 06:00. The next entry has the timing readout, `muon1338m_s11441` seeds 0 and 1 and the final S3 contents.
