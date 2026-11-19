@@ -2,14 +2,14 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 06:57 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 09:04 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **The speed stack turns into score (11-19, LOG 11-19 02:05).** r101 (B200, RL only, one seed each, not yet gated): the
 native arm ran 34,893 steps in 17,400 s and ended at dev 0.3033; the control ran 18,215 and ended at
 0.2483 (its seed 1: 0.2383 after 20,032); level at equal steps. **r102 is its H200 promotion screen**: `calibration/research_r102/d007_speed_h200`
 (D 007 end to end with the fused pretraining for 46 min and the native RL settings for 18,000 s), seeds 0-2 in
-`queue/screens_r92.txt` on H200 preemptable workers 29450693/94/702 (released 01:52; still pending on `Resources`
-at 06:34). Read against D's line 0.281 (D 007's dev mean 0.251 + 0.03); if the three-seed rule is met, start a
+`queue/screens_r92.txt` on H200 preemptable workers 29450693/94/702 (released 01:52; still pending on `Priority`
+at 09:04). Read against D's line 0.281 (D 007's dev mean 0.251 + 0.03); if the three-seed rule is met, start a
 five-seed record attempt (r102's config without `no_save`). Watch the first run pass from pretraining into native
 RL (never run end to end before).
 On the 11-18 box the native sampler came out a little behind vLLM on dev at equal steps, by about 0.01 (finals
@@ -33,11 +33,13 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (06:57 EST 11-19).** None of my GPUs is running. Pending: r102's three H200 preemptable workers
-(29450693/94/702, `Resources`); the B200 workers for queue `screens_rl_b200` (r104 first, then r101), 29618971 and
-29626073 (`mit_normal_gpu`, priority; Slurm's estimate at about 06:50 was 18:30 EST 11-19) and 29632479
-(preemptable, 14 h, room for two items). Held: 29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and
-29445218 (H200; r90). If everything pending starts that is 4 preemptable and 2 normal GPUs, the cap of six.
+**Jobs (09:04 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
+`screens_rl_b200`): 29618971 (started 08:41; ran r104, now r101's control seed 2) and 29626073 (started 08:48;
+r101's native seed 1). Both items are traced and end at about 13:45 EST; neither worker has room for another
+item. Pending: 29632479 (preemptable, same queue, 14 h, room for two items; waiting for nodes; r101's native seed
+2 is the one item left in the queue); r102's three H200 preemptable workers (29450693/94/702, `Priority`). Held:
+29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). If everything pending
+starts that is 4 preemptable and 2 normal GPUs, the cap of six. **The B200 queue needs new items today.**
 
 **Settled speed settings for new D arms (LOG 11-17 and 11-18; timed on B200; each is the same maths and off by
 default).** Pretraining: `--fused-loss --micro-batch 128` (+21 % tokens per second; 46 min gives about the old
@@ -135,15 +137,15 @@ screen runs on the H200.
   - Six unfinished runs' states are in `box-state/box1118/` in the bucket and expire from 11-26. On 11-24 decide
     whether any continues on the 11-25 box (copy its state to that box's prefix first). Results and logs stay
     under `box/box1118/` for 90 days (`box_s3.sh pull box1118 <tag> <dir>`).
-- r104, the native evaluation-path test (LOG 11-19 06:32 and 06:57): the box's native runs are about 0.01 behind
-  their vLLM twins on dev at equal steps, and after their first 100 steps they train at about 5 to 9 % higher
-  entropy. A native run is also evaluated by the native sampler. **Built and queued, not yet run**: item
-  `calibration/research_r104/d007_paths_b200 0`, first in `queue/screens_rl_b200.txt` (D 007's five final
-  checkpoints scored on dev by both samplers with `scripts/research/sampler_paths_eval.py`, greedy and 16 samples
-  a puzzle at T = 1; 6 to 15 min on a B200, 1,500 s timeout). The result lands in that item's
-  `seeds/0/sampler_paths.json` and `stdout.log`. Read: the two greedy pass rates and the puzzles on which they
-  differ say whether the gap is evaluation; the T = 1 log-prob and entropy per sampled token say whether the two
-  samplers draw from the same distribution. If it fails, read the log, fix and requeue once.
+- r104, the native evaluation-path test: **done (LOG 11-19 09:04); the evaluation is cleared.** D 007's five
+  final checkpoints scored on dev by both samplers on the same weights (B200): greedy, native minus vLLM is
+  -0.0013 (SE 0.0013; 2,860 of 3,000 completions identical, 10 solved by vLLM only, 6 by native only); at
+  T = 1 the solve rate differs by +0.0003 (SE 0.0012) and the entropy per token by a factor of 1.0006. So the
+  box's equal-step gap (about -0.01 for native, three pairs of finals) is training under the native update
+  settings or chance, not evaluation, and the samplers draw alike at these weights. No GPU time goes to the gap
+  by itself. Next: read in the code whether the logged training entropy counts the same rows and mask under
+  `share_group_prompt` / `reuse_sampler_allowed` / 65,536-token micro-batches; if it does, a few short
+  step-capped runs switching one setting at a time. Result: the item's `seeds/0/sampler_paths.json`.
 - A runs fill the H100 (79.1 of 79.18 GB) and three ran out of memory at `vllm_gpu_memory` 0.35 (control seeds 0 and
   1, `cos467` seed 0). Since 17:47 every A item not yet started uses the `_h100m30` configs (share 0.30, about 4 GB
   more for the trainer; same maths, read together with the arm's `_h100` seeds), and the three failed runs resume
@@ -154,9 +156,18 @@ screen runs on the H200.
 - r101 (B200, RL only from D 007's checkpoints, queue `screens_rl_b200`, seeds 0-2, not gated):
   `d007rl_native_b200` (native sampler, `reuse_sampler_allowed`, shared prompt, 65,536-token micro-batches) against
   `d007rl_ctl_b200`, both 17,400 s. Done: native seed 0, 0.3033 after 34,893 steps; control seed 0, 0.2483 after
-  18,215; control seed 1, 0.2383 after 20,032. Queued: native seed 1, control seed 2, native seed 2, for workers
-  29618971 and 29626073 (`mit_normal_gpu`, one item per 6 h worker) and 29632479 (preemptable, room for two). Read
-  paired by seed (steps and final dev pass rate).
+  18,215; control seed 1, 0.2383 after 20,032. Running since 08:49: native seed 1 (29626073) and control seed 2
+  (29618971), both on node5602-c1. Queued: native seed 2, for 29632479 (preemptable, room for two). Read
+  paired by seed (steps and final dev pass rate), with the node each ran on.
+  **Node speed (LOG 11-19 09:04).** Native seed 0 was still climbing at the end (+0.0023 dev per 1,000 steps from
+  step 15,000) and ran a third faster from about 01:20 EST, within three minutes, when other jobs on its node
+  ended (31.3k to 41.5k tok/s; update -31 %, sampling -16 %; the same tokens per step). Cause unknown. A
+  time-budgeted native run's steps can move by a quarter to a third with its node (0.02-0.03 dev), so native
+  results carry steps and node, and arms are compared at step caps. `scripts/research/node_trace.sh` (aa41eb8)
+  writes `seeds/<seed>/node_trace.csv` (the job's GPU and node-wide readings every 30 s) for items with a
+  `node_trace` file: r101's remaining items and r102's seeds; never records. It works on a GPU node (first rows
+  08:49 on node5602-c1; pressure columns empty there). When r101's two running items end (about 13:45), read each
+  trace against its train log by time (GPU power and clock, the job's CPU clock, the spin time, load).
   r97 and r99 (B200, end to end) are superseded by r102: their preemptable workers 29497701/02/05 stay held (the
   cap of four running preemptable GPUs goes to r102 and one r101 worker).
 - Track A: A 007's seeds reached step 467 with 1,700-2,700 s of the budget unused (room for about 50 more steps),

@@ -8184,3 +8184,168 @@ own: `sbatch --test-only` at about 06:54 put a new 30-minute one-GPU job on 11-2
 11-23 (`mit_normal_gpu`), while Slurm's estimate for the two pending normal workers was 18:30 EST today when
 asked a little earlier (it shows no estimate now). None of my GPUs is running; r102's three H200 workers are
 still pending on `Resources`.
+
+## 2026-11-19 09:04 EST: r104: on the same weights the two samplers score alike, so the box's native gap is not evaluation; r101's native run ran a third faster once its node emptied; a node trace runs beside r101 and r102
+
+**r104 (the native evaluation-path test).** It ran from 08:41 to 08:49 EST on a B200 (node5602-c1, worker
+29618971; 193 s of scoring). The 06:32 entry had the box's native runs about 0.01 behind their vLLM twins on dev
+at equal steps, with a native run also evaluated by the native sampler. Here D 007's five final checkpoints are
+scored on the 600 dev puzzles by both samplers, with the same weights handed to both. Greedy, as the in-loop
+evaluation runs:
+
+| D 007 checkpoint | in-loop final (H200, vLLM) | vLLM here | native here | native - vLLM | identical completions of 600 | solved by vLLM only | solved by native only |
+|---|---|---|---|---|---|---|---|
+| seed 0 | 0.2450 | 0.2450 | 0.2417 | -0.0033 | 572 | 2 | 0 |
+| seed 1 | 0.2517 | 0.2550 | 0.2517 | -0.0033 | 564 | 3 | 1 |
+| seed 2 | 0.2500 | 0.2517 | 0.2517 | +0.0000 | 576 | 1 | 1 |
+| seed 3 | 0.2550 | 0.2567 | 0.2533 | -0.0033 | 572 | 3 | 1 |
+| seed 4 | 0.2533 | 0.2550 | 0.2583 | +0.0033 | 576 | 1 | 3 |
+| mean or total | 0.2510 | 0.2527 | 0.2513 | -0.0013 | 2,860 | 10 | 6 |
+
+- Native minus vLLM is -0.0013 (SE 0.0013 over the five checkpoints), under one puzzle of 600. Of the 3,000
+  completions 2,860 are the same token for token. The 140 that differ part ways at token 11 (median; 3 to
+  25) and mostly end with the same verdict: 10 are solved by vLLM only and 6 by the native sampler only
+  (sign test on the 16: p = 0.45). An example: `(21-7) - 6 + 2` against `(21-6) - 7 + 2`, both correct. I take
+  them for near-ties that the two engines' arithmetic breaks differently; that is not checked.
+- The vLLM sampler here on a B200 is +0.0017 from the same checkpoints' in-loop finals on the H200 (0 to
+  2 puzzles per checkpoint), so one sampler on another GPU differs by as much as the two samplers do.
+- No greedy completion was malformed or ran to the length limit under either sampler, and each sampler's
+  `_evaluate` number equals the kept-completions pass.
+
+Sampled at T = 1, 16 completions a puzzle (9,600 per checkpoint and sampler; each cell vLLM / native; log-prob and
+entropy are per sampled token under the fp32 weights without the answer mask):
+
+| D 007 checkpoint | solve rate | native - vLLM (SE over puzzles) | tokens | distinct per prompt | log-prob | entropy |
+|---|---|---|---|---|---|---|
+| seed 0 | 0.2414 / 0.2372 | -0.0042 (0.0024) | 24.78 / 24.79 | 4.78 / 4.96 | -2.309 / -2.316 | 0.966 / 0.966 |
+| seed 1 | 0.2414 / 0.2418 | +0.0004 (0.0022) | 21.64 / 21.64 | 4.37 / 4.32 | -2.773 / -2.775 | 0.712 / 0.710 |
+| seed 2 | 0.2487 / 0.2499 | +0.0011 (0.0021) | 21.75 / 21.77 | 4.54 / 4.55 | -2.677 / -2.677 | 0.885 / 0.886 |
+| seed 3 | 0.2521 / 0.2553 | +0.0032 (0.0023) | 22.40 / 22.41 | 4.21 / 4.14 | -2.409 / -2.412 | 0.725 / 0.729 |
+| seed 4 | 0.2499 / 0.2505 | +0.0006 (0.0022) | 23.73 / 23.73 | 3.90 / 4.01 | -2.695 / -2.693 | 0.732 / 0.734 |
+| mean | 0.2467 / 0.2469 | +0.0003 (0.0012, over checkpoints) | 22.86 / 22.87 | 4.36 / 4.40 | -2.573 / -2.574 | 0.804 / 0.805 |
+
+- Solve rate differs by +0.0003 (SE 0.0012 over checkpoints; -0.0042 to +0.0032, none beyond 1.7 of its own SEs).
+- Entropy per token: native / vLLM = 1.0006 (0.997 to 1.004 by checkpoint). Log-prob per token differs by
+  -0.0018 (SE 0.0015). Native completions are +0.011 tokens longer (SE 0.004), 0.05 % of their length.
+
+**What r104 means.**
+
+- The evaluation is cleared. A native run's dev numbers are not low because the native sampler scores it.
+- At these weights the two samplers also draw alike under the answer mask. So the native arms' 5 to 9 % higher
+  training entropy on the box is not the sampler drawing differently, at least at weights like these. The train
+  log's entropy is the model's entropy over the rows the update uses, and the native arms differ from their twins
+  in update settings too (`share_group_prompt`, `reuse_sampler_allowed`, 65,536-token micro-batches), which r104
+  does not run. What is left for the box's gap is training under those settings, or chance: the gap rests on
+  three pairs of finals (-0.021, SE 0.009) and five pairs of curves (-0.008, SE 0.003).
+- Limits: only D 007's final weights (the box's entropy gap opened between steps 100 and 2,000 from a pretrained
+  start, while the policy was still sharpening), one GPU type, and no update. r104's entropy (0.80) is taken
+  without the answer mask, so it is not the train log's number (0.11 to 0.13 after step 2,000 on the box); it
+  compares the two samplers' draws and nothing more.
+- Decision: no GPU time for the equal-step gap by itself. At equal time the native stack is far ahead (r101 seed
+  0: 0.3033 after 34,893 steps against 0.2483 after 18,215), and a gap of 0.01 in finals needs tens of seeds to
+  measure. The entropy difference is the cheap handle: it showed in all five pairs within 5,000 steps. Next, on
+  the login node, I read whether the logged entropy counts the same rows and mask under the native update
+  settings as under the control's. If it does, a few short step-capped runs that switch one update setting at a
+  time would say which one moves it; they can ride on a box or the B200 queue.
+
+**r101's native seed 0, read more closely from its train log** (B200, node5600-c1, 21:05 EST 11-18 to 01:56 EST
+11-19, 34,893 steps, final dev 0.3033).
+
+**It was still climbing at the end.** Dev pass rate by level, means of ten evaluations of 600 puzzles:
+
+| steps | pass | L1 | L2 | L3 | L4 | L5 | L6 |
+|---|---|---|---|---|---|---|---|
+| 500-5,000 | 0.152 | 0.555 | 0.096 | 0.056 | 0.021 | 0.013 | 0.173 |
+| 5,500-10,000 | 0.216 | 0.686 | 0.161 | 0.127 | 0.058 | 0.026 | 0.240 |
+| 10,500-15,000 | 0.248 | 0.729 | 0.187 | 0.163 | 0.072 | 0.057 | 0.279 |
+| 15,500-20,000 | 0.259 | 0.762 | 0.213 | 0.175 | 0.083 | 0.041 | 0.280 |
+| 20,500-25,000 | 0.270 | 0.795 | 0.224 | 0.183 | 0.083 | 0.046 | 0.286 |
+| 25,500-30,000 | 0.275 | 0.826 | 0.200 | 0.184 | 0.091 | 0.057 | 0.291 |
+| 30,500-34,893 | 0.294 | 0.838 | 0.226 | 0.208 | 0.111 | 0.085 | 0.299 |
+| control seed 0, 15,500-18,215 (7 evaluations) | 0.248 | 0.721 | 0.186 | 0.133 | 0.099 | 0.051 | 0.299 |
+| control seed 1, 15,500-20,032 (11 evaluations) | 0.240 | 0.806 | 0.172 | 0.130 | 0.047 | 0.026 | 0.258 |
+
+A straight line through the 41 evaluations from step 15,000 rises 0.0023 per 1,000 steps (SE 0.0002; the
+evaluations scatter 0.008 around it), so 30 % more steps at this length (about 10,500) would be worth
+about +0.024. From steps 15,500-20,000 to the last block every level gained:
+L1 +0.076, L5 +0.044, L3 +0.033, L4 +0.028, L6 +0.019, L2 +0.013. One seed; the two controls' last
+blocks are there for scale.
+
+**The update is the larger part of a native step and shortens by itself.**
+
+| steps | sampling s | update s | update share | informative groups of 64 | solve rate in batch | tok/s |
+|---|---|---|---|---|---|---|
+| 100-4,999 | 0.172 | 0.381 | 0.69 | 49.4 | 0.149 | 22,828 |
+| 5,000-14,999 | 0.169 | 0.336 | 0.67 | 36.6 | 0.243 | 25,240 |
+| 15,000-24,999 | 0.166 | 0.269 | 0.62 | 31.8 | 0.284 | 29,346 |
+| 25,000-34,893 | 0.145 | 0.201 | 0.58 | 29.9 | 0.313 | 37,490 |
+
+`skip_zero_advantage` is already on in D 007's config and in r101's and r102's, so groups without an advantage
+signal are already left out of the update, and the update shortens as the informative groups fall from 49 to 30.
+That is not a new lever.
+
+**The speed changed by a third within three minutes, with nothing changed inside the run.**
+
+| | steps 24,000-28,000 | steps 29,000-34,893 | after / before |
+|---|---|---|---|
+| tokens per second | 31,256 | 41,491 | 1.33 |
+| sampling, s per step | 0.161 | 0.135 | 0.84 |
+| update, s per step | 0.249 | 0.171 | 0.69 |
+| tokens per step | 12,363 | 12,449 | 1.01 |
+| informative groups | 30.6 | 29.5 | 0.96 |
+| wall per step with evaluations, s | 0.459 | 0.337 | 0.73 |
+
+By 250-step block the rate was 31.3k tok/s at 01:15 and 01:17 EST, 30.5k at 01:19, 37.2k at 01:21 and 41.1k at
+01:22:34, then 41.1k to 41.9k to the end. GPU memory stayed at about 52 GB. Slurm's accounting for the node shows
+two other one-GPU jobs ending at 01:19:32 and 01:20:58 (and one at 01:09); longer multi-GPU jobs stayed, and a
+two-GPU job that ran from 01:26 to 02:28 did not slow the run again. My run shared its GPU with nothing.
+
+What this rules out: the run's own work (tokens per step, informative groups and memory are the same on both
+sides) and another user on the same cores (the cluster gives out whole cores, `CR_CORE_MEMORY`). What is left is
+the GPU side (power or thermal limits, or clocks, while neighbouring GPUs are busy) or the CPU side (the clock of
+the one busy core on a loaded socket, cache and memory bandwidth): a native step is many short GPU calls from one
+Python thread, and the run used about one of its 16 cores (sacct: 4:47:55 of CPU over 4:52:10), though that alone
+proves little because CUDA waits spin. The cause is not known.
+
+Older logs do not say which state is the normal one. Update time per informative group: 6.9 ms in r100's
+`final_native_reuse` timing run (node5801-c1, 11-18, steps 100-300), 8.1 ms here before the change and 5.8 ms
+after, the fastest native rate seen so far.
+
+**What it means.**
+
+- A time-budgeted native run's step count can move by a quarter to a third with the state of its node. At the
+  late slope that is 0.02 to 0.03 dev, as large as the promotion margin. Had the later rate held from the start,
+  this run would have made about 47,000 steps (a rough upper figure: the earlier wall time divided by 1.36).
+- So each native result is reported with its steps and its node, arms are compared at step caps (PLAN's box rule
+  already), and r102's three H200 seeds, which are time-budgeted as a record would be, are read with their step
+  counts beside them.
+- The vLLM controls are steadier: from one 250-step block to the next their rate moved by at most about 1.10 up
+  and 0.85 down.
+- If the cause turns out to be something a job can choose (a node, a core, a power state), it is worth up to a
+  third more steps at no cost. That is the reason for the trace below.
+
+**The node trace (commit aa41eb8).** `scripts/research/node_trace.sh` appends one csv row every 30 s beside a
+run: the job's own GPU from `nvidia-smi` (utilisation, power, temperature, memory, and whichever clock and
+throttle fields the driver answers) and node-wide numbers that name nobody (1-min load, runnable tasks, the mean
+CPU clock over the job's cores and over all cores, the wall time of a fixed shell loop as a single-core speed
+reading, the pressure averages, the job cgroup's CPU seconds). It reads no other process and no other user's job.
+`run_item.sh` starts it detached for an item whose directory holds a `node_trace` file, never for a record; the
+run and its config are untouched. The file is in r101's two item directories and in r102's, so r101's three
+remaining items and r102's seeds write `seeds/<seed>/node_trace.csv` (r102's only if its workers run items
+through `run_item.sh`, which I expect and check when the first one starts).
+
+Tested first on the login node with stand-ins for `nvidia-smi` and for the trainer: the runner returned when the
+trainer ended, rows were written at the set interval, no trace process was left, and without the trigger file
+nothing was written. ruff passes; pytest 183 passed. Its first real rows came at 08:49 on node5602-c1, beside
+both r101 runs: the driver answers all eight optional fields (GPU clock, the throttle and event reasons, the
+power-cap and slowdown flags, the enforced power limit, the performance state), the cgroup CPU seconds are filled
+(they count the whole Slurm job, so a worker's second item starts above zero), and the three pressure columns are
+empty because the compute node has no pressure files.
+
+**Jobs at 09:04.** Two GPUs are running, both B200s on node5602-c1 under `mit_normal_gpu`, hours before Slurm's
+estimates (which ranged from 09:57 to 18:30 when read between 06:50 and 08:45). Worker 29618971 started at 08:41,
+ran r104 and has run r101's control seed 2 since 08:49. Worker 29626073 started at 08:48 and runs r101's native
+seed 1. Both items are traced, both have a 17,400 s budget and end at about 13:45, and the two share a node, so a
+node-wide change should show in both traces. One item is left in the B200 queue, r101's native seed 2, for
+29632479 (preemptable, waiting for nodes). r102's three H200 workers wait on priority. The B200 queue needs new
+items today; that is the next decision.
