@@ -7424,3 +7424,30 @@ final weights, native sampler against vLLM on the same node:
   so neither would have finished. Alone a D run takes about 3.65 h. `muon1338m_s11441` seeds 1, 3 and 4 wait in
   `queue/hold_d2_1118.txt` on the box (not run tonight).
 - **Engaging.** r101 worker 29554920 started about 21:03 on node5600-c1 (`d007rl_native_b200` seed 0).
+
+## 2026-11-18 22:59 EST: box: `muon2676m_s11441` seeds 1 and 2 are in (mean -0.0233 against the control over 3 seeds); the A control's seed 1 is 0.4000
+
+- **r86 (track D, RL only from the saved checkpoints, final dev), paired by seed against `d004_ctl_s11441`:**
+
+  | arm | seed | final dev | control | difference |
+  |---|---|---|---|---|
+  | `muon1338m_s14180` | 0 | 0.2550 | 0.2700 | -0.0150 |
+  | `muon1338m_s14180` | 1 | 0.2333 | 0.2467 | -0.0133 |
+  | `muon1338m_s14180` | 4 | 0.2433 | 0.2400 | +0.0033 |
+  | `muon2676m_s11441` | 0 | 0.2550 | 0.2700 | -0.0150 |
+  | `muon2676m_s11441` | 1 | 0.2133 | 0.2467 | -0.0333 |
+  | `muon2676m_s11441` | 2 | 0.2100 | 0.2317 | -0.0217 |
+
+  Means so far: `muon2676m_s11441` -0.0233 over 3 seeds, `muon1338m_s14180` -0.0083 over
+  3 seeds. Neither arm is ahead of the control. Two seeds of each are still to come: `muon1338m_s14180`
+  seeds 2 and 3 about 00:20, `muon2676m_s11441` seeds 3 and 4 about 04:00 (GPU 5 started them by itself at 22:41
+  and 22:46). The control's seed 3, which failed early this afternoon, runs on GPU 4 from about 00:15.
+- **r85 (track A), the control's seed 1: 0.4000** (kept step 300; the last evaluation of the run was
+  0.2317, so the run fell apart late and the kept checkpoint is what counts). Seed 0 was 0.4250. No arm has
+  a seed 1 yet. GPU 1 started `a007_ent15_h100m30` seed 1 at 21:51.
+- **Queue change at 22:41 (box).** The run-time projection now puts the end of GPU 2's pair (`muon1338m_s14180` seeds
+  2 and 3) at about 00:20, not 01:07. So GPU 2 gets a pair again: `muon1338m_s11441` seeds 0 and 1, both workers
+  taking one each. A pair of 11,441-step runs took 5.2 to 5.3 h on GPU 5, which puts their end about 05:40,
+  20 min before AWS may terminate the box (06:00). If they do not finish, their saved states are in S3 and they
+  can be finished on the 11-25 box. `muon1338m_s11441` seeds 3 and 4 stay in the hold file.
+- **Engaging.** The second r101 worker, 29580582, started at 22:58 on node5800-c1 with `d007rl_ctl_b200` seed 1.
