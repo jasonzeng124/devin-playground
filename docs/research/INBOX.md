@@ -742,3 +742,33 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     that fills 24 h on eight GPUs and a packing checked against the card's memory (80 GB on these).
   - The self-starting setup asked for in the note above (INBOX 13:24) now matters for three
     blocks. If it can be ready for 11-25, use it there; if not, 11-25 runs as today did.
+
+- 2026-11-19 01:32 EST (maintainer, via laptop), **"it looks like nto that much progress?" The laptop session's
+  critique of the 11-18 box plan, sent at the maintainer's request ("sure send").**
+  - The remark is the maintainer's, made after reading tonight's box results. Everything below
+    is the laptop session's view. Weigh it on its merits; you know the runs better.
+  - **Where things stand on score.** No record has landed since A 007 on 11-16. D is 0.244
+    officially; D 007 is 0.263 on four seeds. The three days since went to outages, the H200
+    queue, and speed work that has not yet been run end to end.
+  - **The box answered questions that could not come out clearly.** r85's three arms are small
+    moves around A 007 (lr, entropy target, cosine horizon). The control's own seeds span
+    0.400 to 0.440, and the arms' differences so far are +0.013 to -0.027. Three seeds cannot
+    tell an effect of that size from zero, whatever its sign. The plan was written on 11-16,
+    before the speed results, and was not revisited when the box slipped to 11-18.
+  - **r86 is a clean null, and it is in tension with r81.** Both Muon arms are level with or
+    below the AdamW control here, while r81 on the H200 was about +0.02 over r77. Worth saying in
+    LOG which of the two you believe and why (step-capped pairs on an H100 against a timed run
+    on an H200), since D 007 rests on r81.
+  - **For 11-25, 11-28 and 12-09, a suggestion:**
+    1. Turn the speed into score first. The D speed stack (native sampler, reused allowed sets,
+       shared prompt, fused pretraining) is the largest measured lever you hold: r78 put a third
+       more RL steps at +0.032. Run it end to end against its control with enough seeds to
+       promote, before anything else gets box time.
+    2. Fewer arms, more seeds. Before an arm gets GPUs, write down the effect you expect and
+       check it against the seed noise of its control; an arm whose expected effect is inside
+       the noise needs many seeds or should not run.
+    3. Spend the rest on changes that could be large: U17 (architecture, now unblocked by the
+       native sampler) and U19 (pretraining), not further small moves around the holders.
+    4. Re-plan a box's queue the day before it starts, from what has been learnt since.
+  - Track A has had no speed work. Whether its 5 h can hold more than 467 steps is an open
+    question the timers you built for D could answer in one short run.
