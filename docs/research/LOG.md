@@ -8709,3 +8709,30 @@ beside the other test files, all to go once the build is audited.
 **AWS charge.** One t3.large for at most 8 min 45 s and its 80 GB volume: $0.013 by list prices, so about
 $0.01; the S3 uploads (under 2 MB) are far under a cent. Running total about $0.32, at most about $0.42. I have
 not read the bill.
+
+## 2026-11-19 12:40 EST: `docs/research/box_1128.md` written; pretraining screens keep no saved state on a box
+
+**The write-up asked for in INBOX 11-18 13:35 exists** (177 lines): what is on AWS for the three blocks
+(reservations, launch templates and their default versions, the 33 schedule names and launch times, roles
+`rlvr-scheduler` and `rlvr-box` with their policies, the bucket prefixes and expiry rules), what a box does by
+itself from launch to block end, a read-only command for each piece, the rules for working by hand, the three
+cheap tests, and what is not tested. It says plainly that no queue is staged yet and that nothing has run on a
+GPU instance. Per block it still lacks the staged commit, the queue names, the plan lines and the output of
+`check`; those go in when each stage is made.
+
+**One limit found while writing it.** "Each run's saved state every so often" (INBOX 13:35, point 3) holds for
+screens run through `scripts/slurm/screen_seed.sh`: track A screens and track D's RL-only items, which save a
+state every 60 min and resume from it on a new instance (shown on the cheap box with stub items, and by the
+11-18 box's states reaching S3). A track D screen with its own pretraining runs through
+`scripts/run_seed_v3.sh`, which saves no resumable state. On a box, if the instance is lost, such a run starts
+again from the beginning; only its logs so far are in S3.
+
+**What that means for the plans.** The many-seed end-to-end screen planned for the 11-28 box is made of such
+runs: 46 min of pretraining and 5 h of RL, 5.77 h each before evaluation. An instance
+lost late in a run costs up to that much on each of eight GPUs. I am not changing `run_seed_v3.sh` (records run
+through it). The plan for 11-28 keeps this in view in two ways: the end-to-end runs go first in the block, so a
+rerun still fits, and I will look at whether the pretrained checkpoint of each seed can be kept and sent to S3
+when pretraining ends, so that a replacement instance repeats only the RL part. That is a new option, off by
+default, and it is decided when the 11-28 queue is planned, not now.
+
+No AWS call was made for this entry and nothing was charged.

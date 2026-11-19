@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 12:28 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 12:40 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **The speed stack turns into score (11-19, LOG 11-19 02:05).** r101 (B200, RL only, one seed each, not yet gated): the
 native arm ran 34,893 steps in 17,400 s and ended at dev 0.3033; the control ran 18,215 and ended at
@@ -33,7 +33,7 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (12:28 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
+**Jobs (12:40 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
 `screens_rl_b200`): 29618971 (started 08:41; r101's control seed 2) and 29626073 (started 08:48; r101's native
 seed 1). Both items are traced and end at about 13:45 EST; neither worker has room for another item. Pending:
 29644110 and 29644111 (`mit_normal_gpu` B200, 6 h; each starts only after one of the running workers ends, so at
@@ -52,10 +52,9 @@ the native sampler (`rollout_backend: "native"`, 1.40-1.60x faster per RL step) 
 
 RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
 **Next decisions:** r102's three seeds against 0.281 (then the five-seed record attempt if the three-seed rule is
-met); r101's remaining seeds, paired by seed; the native evaluation-path test; for the self-running boxes (the
-schedules exist, the cheap fetch test passed and a failed fetch is now reported) baseline queues staged for
-11-25 and 11-28 and `docs/research/box_1128.md`, by about 11-22; each box's queue planned again the day before
-its block.
+met); r101's remaining seeds, paired by seed; the native evaluation-path test; for the self-running boxes (built,
+tested on a cheap instance and written up in `docs/research/box_1128.md`) baseline queues staged for 11-25 and
+11-28 by about 11-22; each box's queue planned again the day before its block.
 
 **B200 first (INBOX 11-13 23:43 and 23:45).** Progress comes before records. Results on B200 are marked "not yet gated"
 until an H200 gate runs. INBOX 11-14 22:03: a gate or record may take an H200 slot when the agent judges that best.
@@ -132,9 +131,15 @@ screen runs on the H200.
     with a cut-off tar among four paths: the box's status file named it (`NOT FETCHED: ...`), the other three
     arrived, both stub items passed and the box shut itself down 3 min 46 s after the launch. A file that is
     complete but wrong is not caught on the box; `box_s3.sh check` looks at the stage before a launch.
-  - Still to do: for each block the queues and plan, then `box_s3.sh stage`, `home` and `check`;
-    `docs/research/box_1128.md`; the check that my usage and login last through each block. Before any re-test
-    run `box_auto.sh template test` (the test template's block end is 3 h after it is made) and
+  - 11-19 12:40: **`docs/research/box_1128.md` is written** (LOG 11-19 12:40): what exists on AWS, what a box does
+    by itself, a read-only check for each piece, the rules for working by hand, the tests and what is not
+    tested. It gets the staged commit, queues, plan and `check` output per block when each stage is made.
+    **Limit:** a track D screen with its own pretraining keeps no saved state on a box (it runs through
+    `run_seed_v3.sh`); after a lost instance it starts again. Track A and RL-only D screens resume.
+  - Still to do: for each block the queues and plan, then `box_s3.sh stage`, `home` and `check`, and those
+    facts into `box_1128.md`; the check that my usage and login last through each block; for 11-28, whether a
+    seed's pretrained checkpoint can be sent to S3 so a replacement instance repeats only the RL part. Before
+    any re-test run `box_auto.sh template test` (the test template's block end is 3 h after it is made) and
     `box_s3.sh clear rlvr-box-test`. Do not run `scripts/aws/box_launch.sh` for a reservation set up with
     `box_auto.sh`.
   - Left on AWS: template `rlvr-box-test` (default version 3), roles `rlvr-scheduler` and `rlvr-box`, and the 33
