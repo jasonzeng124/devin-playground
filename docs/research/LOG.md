@@ -8389,3 +8389,62 @@ sampler difference early in training, and it is fixed before the speed stack bec
 
 Jobs at 09:15: unchanged since 09:04. Two B200s run r101's native seed 1 and control seed 2 until about 13:45.
 29632479 (preemptable B200) and r102's three H200 workers are pending. The B200 queue still needs new arms today.
+
+## 2026-11-19 09:28 EST: r105 queued (lr 2x and 4x on the native RL-only item, B200); where the native step's time goes
+
+**The arms.** `calibration/research_r105/d007rl_native_lr12e-6_b200` and `..._lr24e-6_b200` are r101's
+`d007rl_native_b200` with lr 1.2e-5 and 2.4e-5 (2x and 4x D 007's 6e-6, constant as there). Nothing else differs:
+the same D 007 seed-n pretrained checkpoint, 17,400 s, the speed settings and a node trace. Seeds 0-2 of each are
+queued after r101's native seed 2, which is their control's third seed.
+
+**Why lr, and what I expect (written before any of it runs, as INBOX 01:32 asks).** The earlier lr results were
+ties, but in a regime that had stopped learning: r29's arms were flat from step 4,500, and r34 (lr 1e-5 against
+6e-6 over 15,000 steps, before self-imitation) gave -0.010, -0.007 and +0.025 by seed. r29's reading was that a
+higher lr gets to the same level sooner. The native control is not flat: seed 0 still gained 0.0023 dev per 1,000
+steps over its last 20,000 steps. If a higher lr again gets to a given level sooner, on a curve that is still
+rising it ends higher. My expectation for 2x is about +0.02, with a range of -0.02 to +0.05 (the top is twice the
+steps at the late slope with some flattening; the bottom is a lower plateau from noisier updates or an earlier
+entropy collapse). 4x is there for the shape of the response: it may fail, and that is information too.
+
+**Against the noise.** The vLLM control's two finished seeds have last-block dev means of 0.248 and 0.240, D 007's
+five finals have an SD of 0.004, and single evals scatter by 0.008 around the native curve's fit. For block means
+of ten evals, paired by seed, three pairs give an SE of about 0.005 (my estimate from those numbers). An effect
+of +0.02 is four of those; anything inside +-0.01 reads as a tie.
+
+**How it is read.** Paired by seed against `d007rl_native_b200` at matched steps on the dev curves (block means of
+ten evals), since a time-budgeted run's steps move with its node; the finals, steps and node are reported beside
+that. A gain of 0.015 or more over the three pairs puts that lr into the next H200 gate config. A tie closes lr
+for the native regime, and no further lr arm runs. Cost: six runs of 4.83 h, about 29 GPU-hours.
+
+**Considered and not queued.** `oversample` (the uninformative groups are sampled either way, so it is a larger
+batch by another name; r18 and r71 found nothing there); level weights (r45, r57 and r73 were flat or worse);
+groups of 16 (r35 tied); seeds 3-4 of r101 (they wait for the first three pairs).
+
+**Where the native step's time goes (r100's timing runs, B200, 300 steps each with `time_update_parts`; means of
+steps 51-300; no new GPU time).** At the final weights with `reuse_sampler_allowed` (`final_native_reuse`):
+
+| part | s per step |
+|---|---|
+| step (sampling + update) | 0.392 |
+| sampling | 0.148 |
+| - of which the answer constraint (CPU) | 0.087 |
+| update | 0.244 |
+| - forward, body | 0.068 |
+| - backward | 0.083 |
+| - self-imitation replay | 0.054 |
+| - mask in the forward pass | 0.015 |
+| - replay batch | 0.014 |
+
+The constraint is 22 % of the step there and 18 to 22 % across r100's four runs. It is 59 % of
+sampling: one Python grammar call per row per decoded token (512 rows), then the mask. The model's own decoding
+is the smaller part. It is the largest single piece left that is not the model's forward and backward pass, and
+it is CPU work, which fits a run whose speed moved when its node's other jobs ended (the traces will say).
+**Next code item:** fewer grammar calls with the same result (rows of a group that share a prefix share one
+call), behind an option that is off by default, timed as r100 was. Halving the constraint's cost would give
+about 12 % more steps and removing it 28 % (by the 09:04 slope about +0.010 and +0.023 dev on a
+35,000-step run; to be measured, not assumed).
+
+Jobs at 09:28: the two B200s still run r101's native seed 1 and control seed 2 (to about 13:45). Submitted
+29644110 and 29644111 (`mit_normal_gpu`, B200, 6 h, one item each), each set to start only after one of the
+running workers ends, so no more than two normal GPUs run. 29632479 and r102's three H200 workers are still
+pending. The B200 queue now holds r104's second item, r101's native seed 2 and r105's six items.

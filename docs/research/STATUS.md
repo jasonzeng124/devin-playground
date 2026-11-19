@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 09:15 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 09:28 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **The speed stack turns into score (11-19, LOG 11-19 02:05).** r101 (B200, RL only, one seed each, not yet gated): the
 native arm ran 34,893 steps in 17,400 s and ended at dev 0.3033; the control ran 18,215 and ended at
@@ -33,14 +33,15 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (09:15 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
-`screens_rl_b200`): 29618971 (started 08:41; ran r104, now r101's control seed 2) and 29626073 (started 08:48;
-r101's native seed 1). Both items are traced and end at about 13:45 EST; neither worker has room for another
-item. Pending: 29632479 (preemptable, same queue, 14 h, room for two items; waiting for nodes; the queue holds
-r104's second item, about 8 min, then r101's native seed 2); r102's three H200 preemptable workers
-(29450693/94/702, `Priority`). Held:
-29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). If everything pending
-starts that is 4 preemptable and 2 normal GPUs, the cap of six. **The B200 queue needs new items today.**
+**Jobs (09:28 EST 11-19).** Two GPUs running, both B200s on node5602-c1 (`mit_normal_gpu`, queue
+`screens_rl_b200`): 29618971 (started 08:41; r101's control seed 2) and 29626073 (started 08:48; r101's native
+seed 1). Both items are traced and end at about 13:45 EST; neither worker has room for another item. Pending:
+29644110 and 29644111 (`mit_normal_gpu` B200, 6 h, one item each; each starts only after one of the running
+workers ends, so at most two normal GPUs run); 29632479 (preemptable, same queue, 14 h, room for two items;
+waiting for nodes); r102's three H200 preemptable workers (29450693/94/702, `Priority`). The queue holds, in
+order: r104's second item (about 8 min), r101's native seed 2, then r105's six items (lr 2x and 4x, seeds 0-2,
+interleaved; about 29 GPU-hours). Held: 29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and
+29445218 (H200; r90). If everything pending starts that is 4 preemptable and 2 normal GPUs, the cap of six.
 
 **Settled speed settings for new D arms (LOG 11-17 and 11-18; timed on B200; each is the same maths and off by
 default).** Pretraining: `--fused-loss --micro-batch 128` (+21 % tokens per second; 46 min gives about the old
@@ -176,6 +177,16 @@ screen runs on the H200.
   trace against its train log by time (GPU power and clock, the job's CPU clock, the spin time, load).
   r97 and r99 (B200, end to end) are superseded by r102: their preemptable workers 29497701/02/05 stay held (the
   cap of four running preemptable GPUs goes to r102 and one r101 worker).
+- r105 (B200, RL only, not gated; LOG 11-19 09:28): `d007rl_native_lr12e-6_b200` and `d007rl_native_lr24e-6_b200`
+  (r101's native item with lr 2x and 4x D 007's 6e-6; nothing else changed), seeds 0-2, queued after r101's
+  native seed 2. Expected: about +0.02 at 2x (range -0.02 to +0.05) against a paired SE of about 0.005. Read
+  paired by seed against `d007rl_native_b200` at matched steps (block means of ten dev evals), with steps and
+  node. A gain of 0.015 or more over three pairs puts that lr into the next H200 gate config; a tie closes lr
+  for the native regime.
+- Next speed item (code, same maths): the native sampler's answer constraint on the CPU is 18 to 22 % of the
+  step in r100's four timing runs (0.087 s of 0.392 s at the final weights), a Python grammar call per row
+  per decoded token. To build: fewer calls with the same result (rows of a group with the same prefix share
+  one), off by default, timed as r100 was.
 - Track A: A 007's seeds reached step 467 with 1,700-2,700 s of the budget unused (room for about 50 more steps),
   and a step is about 55 % sampling, 45 % update. r103 (three timing runs on the H100, LOG 11-19 06:32): neither
   same-maths option helps on an 80 GB card as it is. `constrain_batched` samples 1.16 to 1.27 times slower per
