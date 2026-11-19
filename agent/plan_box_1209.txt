@@ -1,0 +1,3 @@
+# Standby plan of the 12-09 box (8x H100, cr-0813172fa29139b78), staged 2026-11-19 (LOG 2026-11-19): one native RL-only track D run per GPU from queue/box_1209.txt (r110). Replaced on the planning day.
+boot: PUSH_S=300 STATE_S=3600 KEEPER_S=600 NEED_VENV=1 SHUTDOWN_WHEN_IDLE=0
+QUEUE=box_1209 GPUS="0 1 2 3 4 5 6 7" PER_GPU=1 RESERVE_MIN=90
