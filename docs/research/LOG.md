@@ -9489,3 +9489,114 @@ against jobs submitted later (it does nothing against jobs already ahead, which 
 eleventh long item is for 29632479 (preemptable, 14 h) or a later worker. The running pair is unchanged: 29644110
 (r101's native seed 2, to about 08:00) and 29644111 (r105 lr 12e-6 seed 0, to about 08:26). r102's three H200 gate
 workers are pending at priority 39,220 and 29632479 at 37,949. INBOX is unchanged since 11-19 20:45.
+
+## 2026-11-20 09:23 EST: full wake: r101's native seed 2 (0.2833 after 44,987 steps; three native seeds 0.292 against the vLLM control's 0.254); r105's first pair (lr 12e-6 level with its control, not the gain I expected); no GPU from 08:11 until a worker started at 09:14; r113 moved ahead of r105's later seeds
+
+**What finished.** The first B200 pair ran its two long items and left. r101's native seed 2
+(`d007rl_native_b200`, worker 29644110, node5600-c1) ran 02:51 to 07:42 EST and r105's lr 12e-6 seed 0
+(`d007rl_native_lr12e-6_b200`, worker 29644111, node5602-c1) ran 03:20 to 08:11. Each took 4 h 51 min from start
+to "ok" for a 17,400 s budget (17,464 s and 17,463 s), so a native RL-only item costs about a minute beyond its
+budget, not the 5.1 h I had in STATUS. Both workers then exited on their reserve (less than 325 min left). No
+failures. Both results are B200, RL only from D 007's pretrained checkpoints, and not yet gated.
+
+**r101, all six runs (native sampler against the vLLM control, 17,400 s each).**
+
+| arm | seed | node | RL steps | final dev | mean of last five evals | best eval | steps/s |
+|---|---|---|---|---|---|---|---|
+| native | 0 | node5600-c1 | 34,893 | 0.3033 | 0.2920 | 0.3033 | 2.01 |
+| native | 1 | node5602-c1 | 44,862 | 0.2883 | 0.2857 | 0.2883 | 2.58 |
+| native | 2 | node5600-c1 | 44,987 | 0.2833 | 0.2803 | 0.2917 | 2.59 |
+| control | 0 | node5600-c1 | 18,215 | 0.2483 | 0.2463 | 0.2533 | 1.05 |
+| control | 1 | node5800-c1 | 20,032 | 0.2383 | 0.2393 | 0.2583 | 1.15 |
+| control | 2 | node5602-c1 | 17,608 | 0.2750 | 0.2707 | 0.2800 | 1.01 |
+
+Final dev: native mean 0.2917 (sd 0.0104), control mean 0.2539 (sd 0.0190). By pair: seed 0 +0.0550, seed 1
++0.0500, seed 2 +0.0083; mean +0.0378, sd 0.0256, SE 0.0148. The third pair is small because the control's seed 2
+ended high (0.2750, the best of the three controls on the fewest steps), not because the native run was low:
+native seed 2 sits with seed 1. All three native finals are above D's line of 0.281 (0.3033, 0.2883, 0.2833) and
+all three control finals are below it. That is not a gate: these runs start from D 007's checkpoints and ran on a
+B200. Native seed 2's final by level: L1 0.90, L2 0.19, L3 0.20, L4 0.06, L5 0.03, L6 0.32; malformed 0.0000.
+
+**At equal steps the arms are still level.** Over the evaluation steps both runs of a pair reached, native minus
+control is +0.0124 for seed 0 (36 evaluations), +0.0045 for seed 1 (40) and -0.0157 for seed 2 (35, up to step
+17,500); mean +0.0004. So the gain is still the extra steps, as on 11-19 14:35. Native dev around a step count
+(mean of the nine evaluations within 2,000 steps):
+
+| around step | native seed 0 | native seed 1 | native seed 2 |
+|---|---|---|---|
+| 18,000 | 0.2598 | 0.2385 | 0.2328 |
+| 20,000 | 0.2643 | 0.2420 | 0.2424 |
+| 25,000 | 0.2704 | 0.2583 | 0.2504 |
+| 29,000 | 0.2824 | 0.2694 | 0.2633 |
+| 32,000 | 0.2930 | 0.2724 | 0.2698 |
+| 35,000 | not reached | 0.2743 | 0.2743 |
+| 40,000 | not reached | 0.2744 | 0.2804 |
+| 43,000 | not reached | 0.2822 | 0.2802 |
+
+Seeds 1 and 2 had the same node speed (2.58 and 2.59 steps/s) and their curves agree to within 0.01 all the way.
+From around step 35,000 to around 43,000 they gained +0.0080 and +0.0059: 8,000 steps for about half a point. Seed
+0, on a slower day of the same node as seed 2 (2.01 steps/s on node5600-c1 against 2.59), stood 0.01 to 0.03 above
+the other two at every step count and ended highest on the fewest steps. So among the native seeds the seed
+matters more than 10,000 extra steps, and steps beyond about 35,000 are worth little with these settings. For r102
+(about 29,000 steps expected on an H200) the three seeds around step 29,000 are 0.2824, 0.2694 and 0.2633, mean
+0.2717: under the line of 0.281 by about 0.01 in the mean. My expectation for r102 stays at finals of about 0.27
+to 0.29, so the three-seed rule may be missed by a seed or two, and what is needed next is more dev per step,
+which is what r105 and r113 test.
+
+**r105, first pair: lr 12e-6 against the native control, seed 0.** The arm did 36,808 steps on node5602-c1 (2.12
+steps/s) and ended at 0.2900 (best 0.3050, mean of the last five evals 0.2903); the control's seed 0 did 34,893 on
+node5600-c1 (2.01 steps/s) and ended at 0.3033. The two happen to have nearly the same steps, so the block means
+line up over the whole run:
+
+| steps (ten evals to) | lr 12e-6 seed 0 | control seed 0 | difference |
+|---|---|---|---|
+| 5,000 | 0.1557 | 0.1523 | +0.0033 |
+| 10,000 | 0.2143 | 0.2163 | -0.0020 |
+| 15,000 | 0.2387 | 0.2478 | -0.0092 |
+| 20,000 | 0.2435 | 0.2590 | -0.0155 |
+| 25,000 | 0.2598 | 0.2695 | -0.0097 |
+| 30,000 | 0.2767 | 0.2748 | +0.0018 |
+| 35,000 | 0.2893 | 0.2945 | -0.0052 |
+
+Mean of the 7 block differences -0.0052; over the 69 shared evaluations (steps 500 to 34,500) the mean difference
+is -0.0051 (sd 0.0112). Final: -0.0133 with 1,915 more steps. Final by level, arm minus control: L1 -0.05, L2
+-0.06, L3 +0.00, L4 +0.01, L5 -0.04, L6 +0.06. I expected about +0.02 (range -0.02 to +0.05) and wrote that a gain
+of 0.015 or more over the three pairs puts the lr into the next gate config and a tie closes lr for the native
+regime. This pair is a tie that leans slightly down: twice the lr bought nothing per step at any point of the run,
+early or late. One pair against a seed sd of about 0.01 to 0.02 at the final does not close it, and the control's
+seed 0 is the highest of its three, so seeds 1 and 2 stay queued; but I no longer expect a gain from lr 12e-6, and
+I lower what I expect from the two cosine arms that carry it (`lr12cos` and `stack3`: the upper ends of their
+ranges, +0.04 and +0.06, now look too high; the schedule itself is untested). lr 24e-6 seed 0 is the next long
+item and says whether a larger step hurts or is also level.
+
+**Jobs.** No GPU of mine ran from 08:11 to 09:14. Then 29715907 started on node5800-c1 (09:14:52, 12 h 16 min
+after its submission at 20:58 on 11-19) and took r111's five smoke runs; r105's lr 24e-6 seed 0 follows them in
+its block (4 h 51 min, so to about 14:20). The other nine normal B200 workers (29715908 to 29715910, priority
+364,902; 29755538 to 29755543, priority 362,726) are pending on `Priority`, no longer on the per-user limit. The
+scheduler's planned starts are estimates and they move: at 08:43 the first read 10:00, at 08:52 it read 11:30, at
+09:10 none of the ten had one (four minutes before one started), and at 09:23 all nine read between 10:53 and
+17:00 today. I use them only to pick the next wake. My fair-share part of the priority fell from 1,287 to 1,223
+(of 150,000) since last night. 29632479 (preemptable B200) and r102's three H200 gate workers are pending at
+priority 39,324 and 40,595 with no planned start; nothing of mine has started on `mit_preemptable` since D 007's
+last record seed on 11-18. The line at 08:38, as counts only: 88 H200 and 42 H100 requests pending on `Priority`
+on `mit_normal_gpu`; 116 H200 and 12 B200 requests pending on `mit_preemptable`.
+
+**Decisions.** (1) No native control seeds 3 and 4: the arms pair against seeds 0 to 2 and the GPU time is scarce.
+(2) **Queue order changed at 09:02** (under the lock; nothing added or dropped): r113's arms now run before r105's
+later seeds. The long items in order: r105 lr 24e-6 seed 0; r113 silc2, sil256 and stack3 seed 0; r105 lr 12e-6
+seed 1; r113 silc2, sil256 and stack3 seed 1; r105 lr 24e-6 seed 1, lr 12e-6 seed 2, lr 24e-6 seed 2. Why: lr
+12e-6's first pair is not a gain, the box queues for 11-25 are planned on 11-24 and r113's three arms are box arms
+whose result changes that plan, and INBOX 11-19 14:29 asks for bold arms on few seeds. r105's three-pair rule is
+unchanged; its later seeds only run later. The first two long items a worker can reach (lr 24e-6 and silc2) need
+no r111 smoke; sil256 and stack3 come after the smokes are read. (3) **The gate's place in the line is the next
+decision.** r102 and any track D record need more than the 6 h of `mit_normal_gpu`, so they sit on
+`mit_preemptable` at a priority near 40,000, behind every normal job on the shared nodes, and r102 has now waited
+31 h. A gate that fits a 6 h normal H200 worker (46 min of fused pretraining and a shorter RL budget, on its own
+queue) would wait at about 362,000 like the B200 workers, which do start. Before I queue one I am checking that an
+end-to-end item fits 6 h with its loading and evaluation time, and what budget a record run of the same config
+could have, because a record adds the test ladder and `run_item.sh` wants the budgets plus 30 min left before it
+starts one. If it holds up it gets its own entry with expectations and a rule before anything is submitted; r102's
+workers stay pending either way.
+
+**Checks.** The message of the day has no maintenance or outage line. Quota at 08:39: home 47 %, pool 64 % (660 of
+1,024 GB), under the 80 % line. INBOX is unchanged since 11-19 20:45 (e66970b).
