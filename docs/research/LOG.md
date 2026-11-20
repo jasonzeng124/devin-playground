@@ -9042,3 +9042,59 @@ plan nothing on them. 29632479 (preemptable B200, 14 h): pending, no planned sta
 three H200 workers (29450693/94/702): all three pending, no planned start (reason `Resources`). Nothing more is
 submitted: the pending pair would fill the cap's two normal slots. The queue holds 20 lines: the five r111 items
 were added at lines 9 to 13 and the rest is unchanged.
+
+## 2026-11-19 21:02 EST: INBOX 20:45 answered: the next two pairs of B200 workers are queued now so that they gain age (29715907 to 29715910); a dependency stops age
+
+**INBOX 11-19 20:45 (laptop session, operational; a suggestion).** The note explains why my Engaging jobs wait: a
+job's priority is partition + fair share + age, my fair-share part is 1,287 of 150,000, and age (up to 50,000
+after seven days pending) is the one part I control. It suggests submitting the next pair of workers while the
+current pair runs or waits, because Slurm's per-user limit holds them. Adopted, with one correction to my own
+practice (the third point below). No GPU of mine has run since about 14:35 today, so the wait for a card is the
+main limit on the work now.
+
+**What I checked (read-only, 20:55 to 21:00).**
+
+- The per-user limits are Slurm's own: 2 GPUs, 32 CPUs and 515 GB on `mit_normal_gpu` (64 submitted jobs), 4 GPUs
+  on `mit_preemptable` (256 submitted jobs). Together they are the cap of six running GPUs, so extra pending
+  workers cannot break it. Two 16-CPU workers are exactly the 32-CPU limit.
+- The weights are as the note says: fair share up to 150,000, age up to 50,000 over 7 days, job size up to 10,000,
+  and the partition's part (360,000 normal, 30,000 preemptable). Age grows by 298 an hour, 7,143 a day.
+- `PriorityFlags` is empty, so a job gains age only while it is free to run: a held job, or one waiting on a
+  dependency, gains none. The pending pair shows it. They were submitted at 09:23:27 with `--dependency=afterany`
+  on the two workers then running (LOG today, jobs at 09:28), and their `AccrueTime` is 13:43:47, when the
+  dependency cleared: 4.3 h of age lost, about 1,291 points.
+- `sprio` at 21:02: the pair stands at 363,444 (age 2,153, fair share 1,287, partition 360,000) and the four new
+  workers at 361,291 (age 0). The preemptable workers have age 4,398 (29632479) and 5,669 (r102's first) on a
+  partition part of 30,000; their reason is `Resources`, not `Priority`.
+- My own `sbatch --test-only` at 18:54 (nothing submitted) put a new normal worker at about 01:28 on 11-24 on a
+  B200 and 01:08 on an H200, 103 h away, the same with 8 CPUs or a 2 h limit. That agrees with the note's test:
+  the worker's size, time limit and card are not levers.
+
+**Submitted at 20:58: 29715907, 29715908, 29715909 and 29715910.** They have the pending pair's form
+(`mit_normal_gpu`, one B200, 6 h, 16 CPUs, 128 GB, queue `screens_rl_b200`, `RESERVE_MIN=325`) and no dependency.
+Why four: the queue's 20 lines hold 7 long items (about 5.1 h each). A 6 h worker takes the short items and then
+one long one; the pending pair takes two and the 14 h preemptable worker at most two, so at least three more
+worker starts are needed, and four makes two full pairs. A worker that starts on an empty queue exits at once and
+loses only its place.
+
+**What to expect (not measured).** By the note's reading of the B200 line, the heavy users' jobs sit at 362,000 to
+370,000 and the light users' at 506,000 to 520,000. A day of age lifts a worker over most of the first group and
+two days over all of it; no age reaches the second group. So queueing early shortens the wait behind the heavy
+group only. The check is each worker's time from submission to start, which I log as they start.
+
+**Practice from now.**
+
+- Early workers carry no `--dependency`; the per-user limit does the holding. Still to see: that a worker held
+  only by that limit keeps gaining age (the note saw one such job at the top of the line). I read `sprio` for it
+  once a pair of mine runs.
+- Two pairs stay pending behind the running or next pair on `mit_normal_gpu` while the queue has work for them,
+  topped up at the wake where a pair starts.
+- Not changed: the workers' 16 CPUs and 128 GB (timed arms are compared within one worker shape, and a smaller
+  worker starts no sooner); the preemptable side, where each of the cap's four slots already has a pending worker;
+  the held jobs (r97/r99 and r90, superseded). Fair share is charged by CPUs and most of the account's usage is
+  not this project's (the note), so that part stays as it is.
+
+**Jobs (21:02 EST).** No GPU is running. Normal B200 workers: 29644110 and 29644111 both pending, planned start
+11-20 11:30; 29715907 to 29715910 all four pending, no planned start (reason `None`). 29632479 (preemptable B200,
+14 h): pending, no planned start (reason `Resources`). r102's three H200 workers (29450693/94/702): all three
+pending, no planned start (reason `Resources`). The queue is unchanged at 20 lines; the four held jobs stay held.

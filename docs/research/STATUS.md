@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-19 16:51 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-19 21:02 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **The speed stack turns into score (11-19, LOG 11-19 02:05 and 14:35).** r101 (B200, RL only from D 007's
 checkpoints, 17,400 s, not yet gated): the native arm's two seeds ended at dev 0.3033 (34,893 steps) and
@@ -41,17 +41,22 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (16:51 EST 11-19).** No GPU is running. 29644110 and 29644111 (`mit_normal_gpu` B200, 6 h, queue
-`screens_rl_b200`): both pending, no planned start (reason `None`); Slurm's planned starts for them have moved all
-afternoon, and at 14:35 `sbatch --test-only` put a new worker days later, so they keep their place and nothing is
-resubmitted. 29632479 (preemptable, same queue, 14 h, room for two long items): pending, no planned start (reason
-`Resources`). r102's three H200 preemptable workers (29450693/94/702): all three pending, no planned start (reason
-`Resources`). The checkpoint upload for the boxes ran as a `mit_quicktest` job at 15:47 (done). The queue holds,
-in order: r107 (the memory of fused pretraining, about 6 min), r104's second item (about 8 min), r106's four
-final-weights timing items (about 3 min each), r101's native seed 2, r105's lr 2x seed 0, the five r111 smoke runs
-of standby arms (about 3 min each), r106's two start-weights timing items (about 5 min each), then r105's other
-five items. Held: 29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). If
-everything pending starts that is 4 preemptable and 2 normal GPUs, the cap of six.
+**Jobs (21:02 EST 11-19).** No GPU is running (none since about 14:35). Six `mit_normal_gpu` B200 workers are
+pending on queue `screens_rl_b200` (6 h each: the short items, then one long one): 29644110 and 29644111 (both
+pending, planned start 11-20 11:30), and 29715907 to 29715910, submitted at 20:58 with no dependency so that they
+gain age while they wait (INBOX 11-19 20:45, LOG 11-19 21:02): all four pending, no planned start (reason `None`).
+Priority here is partition + fair share + age; my fair-share part is 1,287 of 150,000 and age adds 298 an hour, so
+the pair stands at 363,444 and a new worker at 361,291. Slurm's own per-user limit (2 GPUs and 32 CPUs on
+`mit_normal_gpu`, 4 GPUs on `mit_preemptable`) holds the cap. **Practice:** keep two pairs pending behind the
+running or next pair while the queue has work for them, and never chain them with `--dependency` (a job waiting on
+a dependency or a hold gains no age here). 29632479 (preemptable, same queue, 14 h, room for two long items):
+pending, no planned start (reason `Resources`). r102's three H200 preemptable workers (29450693/94/702): all three
+pending, no planned start (reason `Resources`). The queue holds, in order: r107 (the memory of fused pretraining,
+about 6 min), r104's second item (about 8 min), r106's four final-weights timing items (about 3 min each), r101's
+native seed 2, r105's lr 2x seed 0, the five r111 smoke runs of standby arms (about 3 min each), r106's two
+start-weights timing items (about 5 min each), then r105's other five items. Held: 29497701/02/05 (B200
+preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). At most 2 normal and 4 preemptable GPUs run at
+once, the cap of six.
 
 **Settled speed settings for new D arms (LOG 11-17 and 11-18; timed on B200; each is the same maths and off by
 default).** Pretraining: `--fused-loss --micro-batch 128` (+21 % tokens per second; 46 min gives about the old
@@ -66,7 +71,8 @@ attempt if the three-seed rule is met); r107's memory reading against the rule i
 config if r102 lands near the line; r104's second item; r101's native seed 2; the r111 smoke runs of the standby
 arms (do they run, card memory) before 11-24; each box's standby queue (staged and checked for all three blocks,
 `docs/research/box_1128.md`) planned again the day before its block (11-24, 11-27, 12-08), track A arms included
-if a bold one is ready.
+if a bold one is ready. Also: `sprio` once a pair runs, to see that workers held only by the per-user limit keep
+gaining age, and each worker's time from submission to start.
 
 **B200 first (INBOX 11-13 23:43 and 23:45).** Progress comes before records. Results on B200 are marked "not yet gated"
 until an H200 gate runs. INBOX 11-14 22:03: a gate or record may take an H200 slot when the agent judges that best.
