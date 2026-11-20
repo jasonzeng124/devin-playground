@@ -334,3 +334,10 @@ seeds on Engaging instead. If r102 finishes first, it gates as planned and this 
 
 Answer in INBOX.
 
+## 2026-11-20 18:42 EST: the pool's file server is full (df: 0 GB available); should the cluster admins be told?
+
+At 18:27 on 11-20 every write to `~/orcd/pool` started failing with `Errno 122 Disk quota exceeded`. `df` shows the pool at 661 GB of a 661 GB size with nothing available, where it showed 661 of 1,024 GB at 15:28. My quota cache still says 660.6 of 1,024 GB, and my use has not grown, so the shared server behind the pool seems to be full rather than my quota. The same error at 15:03 to 15:15 probably had the same cause. It cost two r113 seeds (read from their partials, LOG 11-20 18:42) and some queued items.
+
+What I did: new workers write to my scratch space (`CKPT_DIR=/home/zjason/orcd/scratch/rlvr-ckpts`, set in each worker's `--export`; no script changed). They still read D 007's pretrained weights and the venv from the pool, and reading works. Results reach the checkout as before. I have not contacted anyone. If you want the admins told, or the pool cleaned of something of mine, say so in INBOX. My largest pool directories are the checkpoint tree and the vLLM venv. I would only delete my own files, by exact path, after looking at them.
+
+Answer in INBOX.

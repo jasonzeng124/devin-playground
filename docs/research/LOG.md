@@ -9840,3 +9840,42 @@ Over all 69 shared evals (to step 34,500) the mean difference is -0.0248 (sd 0.0
 **The order on `mit_normal_gpu`, and r114.** Seed 0 ended under 0.281, so by the 11:48 rule the B200 workers keep their order. I also take r114 off. It is the same config in a 6 h normal form with 16,440 s of GRPO, which on r102 seed 0's curve is step 35,541, where its evals average 0.2746 (n 4). With the spread of r101's three native seeds (sd 0.0104), one seed reaches 0.281 with probability 0.145 at a mean of 0.270 and 0.269 at 0.2746, so three of three is 0.003 to 0.019: not worth about 18 normal GPU hours. r114's three items are out of `gate_r114_h200` and its workers 29777239-41 are cancelled. r102 seeds 1 and 2 still run (preemptable) to give the speed config's three-seed mean. The INBOX order (4a72abc) was speed into score first, then large changes; speed alone has given about +0.02 on one seed against the +0.03 a record needs, so the normal slots go to the queued B200 screens and then to the bold item that replaces r105's two seed-2 items, written at the next full wake, before those items can start.
 
 **Jobs.** Running: 29755539 and 29755540 (r113 silc2 seed 1 and sil256 seed 1, node5801-c1, since 15:24). Pending: six normal B200 workers (29755541-43, 29808850-52) and preemptable 29632479 for the seven `screens_rl_b200` items; preemptable H200 workers 29450694 (r102 seed 1, its resume state kept) and 29808853 (r102 seed 2). 29450693 exited after r102 seed 0 (less than 380 min left). GPUs in use: 2 of 6. INBOX is unchanged since 11-19 20:45 (e66970b).
+
+## 2026-11-20 18:42 EST: the pool's file server filled up at 18:27 and failed r113 silc2 and sil256 seed 1 at about 3 h of their 4 h 51 min, and four queued items; both read from their partials (silc2 behind at every step, sil256 closing); new workers write to scratch
+
+**The second failure.** At 18:27:26 and 18:27:28 both running B200 items failed with `OSError: [Errno 122] Disk quota exceeded` on their pool train logs: r113 sil256 seed 1 at train step 19,362 (10,948 s) and silc2 seed 1 at step 22,761 (10,944 s), both on node5801-c1 since 15:24. Their workers (29755540 and 29755539) then exited with less than 325 minutes left. At 18:31 two more normal workers (29755541 and 29755542) started on the same node and each failed two items within seconds at the pool: sil256 seed 0 and stack3 seed 0 were dropped, and lr12e-6 seed 1 and stack3 seed 1 were put back after second quick failures. This time `df` on the pool shows a size of 661 GB with 661 GB used and 0 available (18:33 to 18:39), where at 15:28 it showed 661 of 1,024 GB. The quota cache still shows 660.6 of 1,024 GB (64.5 %), and my use has not changed since 15:28, so the shared file server behind the pool is full rather than my quota. That is outside my control. Whether to tell the cluster admins is the maintainer's call (QUESTIONS). The 15:03 failure probably had the same cause.
+
+**Recovery.** I held the seven pending workers that write to the pool, and cancelled them at 18:40:
+- normal B200 29755543 and 29808850-52;
+- preemptable B200 29632479;
+- preemptable H200 29450694, whose in-hand r102 seed 1 is back at the front of `screens_r92`;
+- preemptable H200 29808853.
+
+sil256 seed 0 and stack3 seed 0 are back at the front of `screens_rl_b200`, which now holds seven long items.
+
+New workers write to my scratch space instead. Each gets `CKPT_DIR=/home/zjason/orcd/scratch/rlvr-ckpts` in its `--export`. `queue_worker.sbatch`, `screen_seed.sh` and `run_seed_v3.sh` all take `CKPT_DIR` from the environment, so no script changed. The RL screens read their starting weights through symlinks in that tree to D 007's three `pretrained` directories in the pool, since reading from the pool still works. r102 pretrains into scratch. The new workers are:
+- six normal B200 workers (29837202, 29837204, 29837206, 29837208, 29837209 and 29837211) and preemptable B200 29837212, for the seven `screens_rl_b200` items;
+- preemptable H200 29837213 and 29837214, for r102 seeds 1 and 2.
+
+r102 seed 1's stdout and node trace from its preempted start are kept in its seed directory as `*.interrupted.1795218024.*`. Its pool directory holds a partial `pretrained` and no resume state, so it starts over. The older held workers (29445218, 29497701, 29497702 and 29497705) are unchanged. Scratch holds 31.7 of 1,024 GB.
+
+**r113 seed 1 partials against the native control's seed 1** (dev means over shared eval steps; both arms on node5801-c1, the control on node5602-c1; the control ended at 0.2883 after 44,862 steps):
+
+| arm | steps | evals | arm mean | control | difference |
+|---|---|---|---|---|---|
+| silc2 | 0 to 5,000 | 10 | 0.1093 | 0.1478 | -0.0385 |
+| silc2 | 5,001 to 10,000 | 10 | 0.1640 | 0.2062 | -0.0422 |
+| silc2 | 10,001 to 20,000 | 20 | 0.2003 | 0.2311 | -0.0308 |
+| silc2 | 20,001 to 22,500 | 5 | 0.2207 | 0.2457 | -0.0250 |
+| sil256 | 0 to 5,000 | 10 | 0.1318 | 0.1478 | -0.0160 |
+| sil256 | 5,001 to 10,000 | 10 | 0.1917 | 0.2062 | -0.0145 |
+| sil256 | 10,001 to 20,000 | 18 | 0.2271 | 0.2300 | -0.0029 |
+
+silc2 seed 1 trails the control at every point: -0.0344 over 45 evals (sd 0.0125) to step 22,500. Its last five evals (steps 20,500 to 22,500) average 0.2207 against the control's 0.2457 at the same steps. sil256 seed 1 is -0.0094 over 38 evals (sd 0.0143) to step 19,000, with the gap closing from about -0.015 before step 10,000 to about -0.003 after it. Its last five evals average 0.2360 against 0.2397. In the same 10,944 s the control reached step 28,148; silc2 ran 19 % fewer steps and sil256 31 % fewer. sil256's extra update rows were expected to cost about 38 % more per step. silc2 adds no rows, so its shortfall is more likely the node or the two runs sharing one, but I have not checked that.
+
+**What this means under the r113 rule** (LOG 11-20 04:34).
+- **silc2** is behind at matched steps in both pairs: -0.0248 for seed 0 and -0.0344 for seed 1. The third-seed bar, +0.02 at the final in both pairs *and* ahead at matched steps, cannot be met. It is not closed under the rule's wording either, because seed 0 was level at the end, so it falls in "between", which the rule leaves to the box's seeds. I don't rerun seed 1 here. When I plan the 11-25 box on 11-24, it is a weak candidate against the other arms.
+- **sil256** seed 0 reruns in full (first in the queue). I expect it to end level with the control's seed 0, between -0.02 and +0.01 (seed sd about 0.010 to 0.019). Seed 1 reruns only if seed 0 ends at least +0.02 over the control's 0.3033 and ahead at matched steps, since the rule needs both pairs. Otherwise its reading is this partial, which saves about 4.8 B200 hours.
+- **stack3** has not started; both of its seeds are queued.
+
+**Jobs.** Nothing of mine is running. Pending: the nine scratch workers above and the four older held workers. GPUs in use: 0 of 6. INBOX is unchanged since 11-19 20:45 (e66970b). Each wake checks the pool's `df` and the slurm logs for `Disk quota exceeded`. The workers stay on scratch until the pool has room again and I have checked it with a write probe.
