@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-20 11:48 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-20 14:24 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -46,7 +46,7 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (11:48 EST 11-20).** Two B200s run on `mit_normal_gpu`, the cap's two normal GPUs: 29715907 (node5800-c1;
+**Jobs (14:24 EST 11-20).** Since 11:48: 29715907 ended after r105's lr 24e-6 seed 0 (14:16) and 29715909 started at 14:18 on node5801-c1 with r113 sil256 seed 0, so the normal pair is now 29715908 and 29715909; seven normal B200 workers and 29632479 are pending for the eight long items left. As at 11:48: two B200s run on `mit_normal_gpu`, the cap's two normal GPUs: 29715907 (node5800-c1;
 started 09:14, 12 h 16 min after submission) ran r111's five smoke runs and has run r105's lr 24e-6 seed 0 since
 09:25 (to about 14:20); 29715908 (node5701-c1; started 10:04, 13 h 05 min after submission) ran r106's
 start-weights pair and three r112 size smokes and has run r113 silc2 seed 0 since 10:19 (to about 15:15). One H200
@@ -88,9 +88,9 @@ against the 0.281 line, LOG 11-20 11:48); then, at that reading, which goes firs
 workers take the 14:20 and 15:15 slots by priority anyway): r114's three gate workers if seed 0 ends at or above
 0.281, otherwise the eight pending B200 workers keep their order;
 r102's three seeds and r114's against 0.281, each read with the steps it reaches (then the five-seed record
-attempt if the three-seed rule is met); r105 (lr in the native regime) as the lever for a second gate config if
-r102 lands near the line (r106's `factored_grammar` gave no speed at the final weights and is not one); r105's lr
-24e-6 seed 0 (lr 12e-6's first pair was level, not a gain; due about 14:20); where the fixed part of a native step
+attempt if the three-seed rule is met); no lr lever for a second gate config: r105's two seed-0 pairs are level at equal steps (lr 12e-6 -0.005, lr
+24e-6 +0.002; LOG 11-20 14:24), so seeds 1 stay and the two seed-2 items are replaced by a bold item at the next
+full wake (r106's `factored_grammar` gave no speed at the final weights and is not a lever either); where the fixed part of a native step
 goes (r112: 640x10 ran 1.10x and 0.77x the control in two blocks, so model size is closed; a 90 s step
 rate follows the starting weights, so the timing item compares runs from one checkpoint on one node and logs each
 batch's longest completion, LOG 11-20 11:48; the constraint timer's 0.087 s at the final weights is its largest named part, and whether that is
@@ -291,8 +291,9 @@ screen runs on the H200.
   (r101's native item with lr 2x and 4x D 007's 6e-6; nothing else changed), seeds 0-2. **First pair (LOG 11-20
   09:23):** lr 12e-6 seed 0 ended at 0.2900 after 36,808 steps (node5602-c1) against the control seed 0's 0.3033
   after 34,893 (node5600-c1): -0.005 at matched steps (mean of 7 block differences) and -0.013 at the final, so
-  level and not the gain expected. The other five are queued: lr 24e-6 seed 0 is the next long item, the rest come
-  after r113's arms. Expected: about +0.02 at 2x (range -0.02 to +0.05) against a paired SE of about 0.005. Read
+  level and not the gain expected. **Second pair (LOG 11-20 14:24):** lr 24e-6 seed 0 ended at 0.2967 after 45,636
+  steps (node5800-c1): +0.002 over the 69 shared evals, -0.007 at the final, so also level, with no order by dose.
+  Seeds 1 of both doses stay queued after r113's arms; the two seed-2 items are to be replaced by a bold item. Expected: about +0.02 at 2x (range -0.02 to +0.05) against a paired SE of about 0.005. Read
   paired by seed against `d007rl_native_b200` at matched steps (block means of ten dev evals), with steps and
   node. A gain of 0.015 or more over three pairs puts that lr into the next H200 gate config; a tie closes lr for
   the native regime.

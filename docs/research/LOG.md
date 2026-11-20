@@ -9795,3 +9795,24 @@ loses their age, or by a nice on them, untested here); if it ends near the 0.275
 keep their order.
 
 INBOX is unchanged since 11-19 20:45 (e66970b).
+
+## 2026-11-20 14:25 EST: r105's second pair (lr 24e-6 against the native control, seed 0): level over the whole run; with lr 12e-6 also level, I expect no gain from the lr in the native regime
+
+r105's lr 24e-6 seed 0 ran on node5800-c1 (worker 29715907) and ended at 0.2967 after 45,636 steps (2.62 steps/s; best 0.3167, mean of the last five evals 0.3060). The control's seed 0 (LOG 11-20 09:23) did 34,893 steps on node5600-c1 (2.01 steps/s) and ended at 0.3033 (last five 0.2920). Block means at equal steps, with lr 12e-6 seed 0 beside them:
+
+| steps (ten evals to) | lr 24e-6 seed 0 | control seed 0 | difference | lr 12e-6 seed 0 |
+|---|---|---|---|---|
+| 5,000 | 0.1583 | 0.1523 | +0.0060 | 0.1557 |
+| 10,000 | 0.2182 | 0.2163 | +0.0018 | 0.2143 |
+| 15,000 | 0.2427 | 0.2478 | -0.0052 | 0.2387 |
+| 20,000 | 0.2627 | 0.2590 | +0.0037 | 0.2435 |
+| 25,000 | 0.2757 | 0.2695 | +0.0062 | 0.2598 |
+| 30,000 | 0.2825 | 0.2748 | +0.0077 | 0.2767 |
+
+Over the 69 shared evaluations (steps 500 to 34,500) the mean difference is +0.0020 (sd 0.0113); lr 12e-6's was -0.0051 over its 69. Final: -0.0067 with 10,743 more steps; the last five evals +0.0140. Final by level, arm minus control: L1 +0.00, L2 -0.07, L3 -0.03, L4 +0.01, L5 -0.02, L6 +0.07. I expected a step past the useful range to show early as faster gains then a fall, or as instability; neither happened: entropy and grad norm fell smoothly, and the arm is within 0.008 of the control at every block. Four times the control's lr and twice it both sit within about 0.005 of the control at equal steps, with no order by dose (-0.005 at 2x, +0.002 at 4x), so in the native regime the lr is not what limits the score per step. The rule (a gain of 0.015 over three pairs puts the lr into the next gate config; a tie closes it) needs the later pairs to close formally; I no longer expect a gain. Decision: seeds 1 of both doses stay in the queue (one more pair each); the two seed-2 items are replaced at the next full wake by a bold item, keeping one pending worker for each long item (INBOX 11-19 14:29: one or two seeds against the control, wide and shallow).
+
+**Step rates.** The three arms started from the same seed-0 weights on three nodes and ran at 2.01, 2.12 and 2.62 steps/s overall (control, 12e-6, 24e-6). Within a run the update time falls as the informative groups fall (the control: 0.360 s at 61 informative groups of 64 over steps 1 to 1,000, 0.170 s at 30 over 30,000 to 31,000, at about the same tokens per step, 12,721 and 12,460), but at steps 5,000 to 6,000 the control and lr 24e-6 had the same count (40 and 41) and update times of 0.374 s and 0.256 s on different nodes. So part of the rate gap is the node, as in r112's two blocks (LOG 11-20 11:48); the arm's 10,743 extra steps are not credited to the lr, and the comparison above is at equal steps.
+
+**r102 seed 0** (H200 gate, native RL from fused pretraining): dev 0.2717 at step 29,500, the last six evals 0.258 to 0.282 (mean 0.2678; train step 29,643 at 14,200 s of 18,000, about 63 min to go), against the 0.281 line; the final dev at about 15:35 is the reading, and the order on `mit_normal_gpu` (LOG 11-20 11:48) is decided then.
+
+**Jobs.** 29715907 exited after the item (less than 325 min left). 29715909 started at 14:18 on node5801-c1 and took r113 sil256 seed 0 (the item 29632479 gave back at 11:46). Running: 29715908 (r113 silc2 seed 0, to about 15:15), 29715909 and r102 seed 0 (29450693). INBOX is unchanged since 11-19 20:45 (e66970b).
