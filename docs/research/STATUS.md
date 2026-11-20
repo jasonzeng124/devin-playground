@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-20 14:24 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-20 15:32 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -15,7 +15,7 @@ fused pretraining for 46 min and the native RL settings for 18,000 s), seeds 0-2
 H200 preemptable workers 29450693/94/702 (released 01:52 on 11-19). Seed 0 started at 09:40 on 11-20 (node4802);
 its fused pretraining runs at about 473k tokens a second, so 46 min gives about D 007's 56-minute checkpoint. Seed
 1 started at 09:54 (node4603) and was preempted at 10:04 in its pretraining; the requeued worker redoes it, but
-the requeue reset its age (priority 31,298). Seed 2's worker is pending (LOG 11-20 10:26). Read against D's line
+the requeue reset its age (priority 31,298). Seed 0 ended at 0.270 after 38,914 steps (2.16 steps a second; best 0.2817), +0.019 over D 007's dev mean and under the line (LOG 11-20 15:32). Seed 2's first worker failed it in the pool quota failure of 11-20 15:15; it is requeued with worker 29808853. Read against D's line
 0.281 (D 007's dev mean 0.251 + 0.03) together with the steps each seed reaches: at the H100's 0.62 s/step it
 would reach about 29,000, where the B200 seeds are near the line and not clear of it (expected finals about 0.27
 to 0.29). If the three-seed rule is met, start a five-seed record attempt (r102's config without `no_save` on
@@ -46,7 +46,7 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (14:24 EST 11-20).** Since 11:48: 29715907 ended after r105's lr 24e-6 seed 0 (14:16) and 29715909 started at 14:18 on node5801-c1 with r113 sil256 seed 0, so the normal pair is now 29715908 and 29715909; seven normal B200 workers and 29632479 are pending for the eight long items left. As at 11:48: two B200s run on `mit_normal_gpu`, the cap's two normal GPUs: 29715907 (node5800-c1;
+**Jobs (15:32 EST 11-20).** A pool quota failure (Errno 122 from 15:03 to 15:15; the pool reads 65 % full and the cause is not found; LOG 11-20 15:32) failed r113 silc2 seed 0 422 s before its end (read from its partial, not rerun) and sil256 seed 0 at step 4,100, and three queued items at `mkdir` (stack3 seed 0, lr 12e-6 seed 1, r102 seed 2). Those four are requeued, with new workers 29808850-52 (normal B200) and 29808853 (preemptable H200). Running: 29755539 and 29755540 (node5801-c1, r113 silc2 and sil256 seed 1, since 15:24, to about 20:20). r102 seed 0's worker 29450693 exited at 15:29. Each wake checks the slurm logs for `Disk quota exceeded`. History as at 11:48 (the workers named there have all run): two B200s run on `mit_normal_gpu`, the cap's two normal GPUs: 29715907 (node5800-c1;
 started 09:14, 12 h 16 min after submission) ran r111's five smoke runs and has run r105's lr 24e-6 seed 0 since
 09:25 (to about 14:20); 29715908 (node5701-c1; started 10:04, 13 h 05 min after submission) ran r106's
 start-weights pair and three r112 size smokes and has run r113 silc2 seed 0 since 10:19 (to about 15:15). One H200
@@ -58,9 +58,7 @@ and requeued; the requeue reset its age (priority 31,298), and its marker in `qu
 so my jobs wait on age (298 an hour; LOG 11-19 21:02 and 11-19 23:29). Eight more normal B200 workers are pending
 on queue `screens_rl_b200` (6 h each: the short items, then one long one): 29715909 and 29715910 (submitted 20:58
 on 11-19, priority 365,199) and 29755538 to 29755543 (submitted 04:21 on 11-20, priority 363,023); none can start
-before a running one ends, whatever their planned starts say. r114's three normal H200 gate workers 29777239 to
-29777241 (queue `gate_r114_h200`, submitted 09:50 on 11-20, priority 361,387) come after them in my two-GPU cap;
-their planned starts read the evening of 11-25 at some readings and none at others (LOG 11-20 10:26). Pending
+before a running one ends, whatever their planned starts say. r114's three gate workers 29777239 to 29777241 were cancelled at 15:32 (r114 is off; LOG 11-20 15:32). Pending
 workers gain age under the per-user limit too (LOG 11-20 04:12); a requeued one starts again from zero. The B200
 workers exclude only the drained `node5500-c1`. **Practice (11-20 04:34):** one pending worker for each queued
 long item, submitted when the item is queued, and never chained with `--dependency` (a job waiting on a dependency
@@ -69,9 +67,9 @@ preempted at 11:46, 22 minutes into r113 sil256 seed 0; it is pending again with
 that item back at the front of the queue (LOG 11-20 11:48). Below 50,000 the scheduler plans no start (`bf_min_prio_reserve`), so preemptable workers start only when
 a GPU is free as it tries them, as r102 seed 0's did at 09:40. The H200 workers exclude node5100 (the pool
 filesystem hangs there), node2500 and node4900 (slow) among others. **Maintenance: every node is reserved from
-00:00 to 21:00 on 12-15**; a 6 h worker must start by 18:00 on 12-14. The B200 queue holds 9 long items (4 h 51 min each;
-r112's smokes have all run): r113 sil256 and stack3 seed 0, r105 lr 12e-6 seed 1, r113's three seed-1 items and
-r105's last three, for the eight pending normal workers and 29632479. Held: 29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). At most 2
+00:00 to 21:00 on 12-15**; a 6 h worker must start by 18:00 on 12-14. The B200 queue holds 7 long items (4 h 51 min each):
+r113 sil256 and stack3 seed 0, r105 lr 12e-6 seed 1, stack3 seed 1 and r105's last three, for six pending
+normal workers (29755541-43, 29808850-52) and 29632479. Held: 29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). At most 2
 normal and 4 preemptable GPUs run at once, the cap of six.
 
 **Settled speed settings for new D arms (LOG 11-17 and 11-18; timed on B200; each is the same maths and off by
@@ -83,12 +81,10 @@ holds 52,866 MiB on a B200 (r107, LOG 11-20 04:12), so it fits an 80 GB H100. `f
 these: timed in r106, same maths, no speed at trained weights.
 
 RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
-**Next decisions:** r102 seed 0's final dev (about 15:35; native RL at 1.85 steps a second on the H200, so 0.275 expected
-against the 0.281 line, LOG 11-20 11:48); then, at that reading, which goes first on `mit_normal_gpu` (the B200
-workers take the 14:20 and 15:15 slots by priority anyway): r114's three gate workers if seed 0 ends at or above
-0.281, otherwise the eight pending B200 workers keep their order;
-r102's three seeds and r114's against 0.281, each read with the steps it reaches (then the five-seed record
-attempt if the three-seed rule is met); no lr lever for a second gate config: r105's two seed-0 pairs are level at equal steps (lr 12e-6 -0.005, lr
+**Next decisions:** r102 seeds 1 and 2 (preemptable H200) for the speed config's three-seed mean against 0.281
+(seed 0 ended at 0.270, +0.019 over D 007's dev mean; the B200 workers keep their order and r114 is off, LOG
+11-20 15:32; a five-seed record attempt only if the three-seed rule is met); the bold item that replaces r105's
+two seed-2 items, written at the next full wake (about 21:30) before those items can start; no lr lever for a second gate config: r105's two seed-0 pairs are level at equal steps (lr 12e-6 -0.005, lr
 24e-6 +0.002; LOG 11-20 14:24), so seeds 1 stay and the two seed-2 items are replaced by a bold item at the next
 full wake (r106's `factored_grammar` gave no speed at the final weights and is not a lever either); where the fixed part of a native step
 goes (r112: 640x10 ran 1.10x and 0.77x the control in two blocks, so model size is closed; a 90 s step
@@ -306,7 +302,13 @@ screen runs on the H200.
   estimate). Read at matched steps and at the final, with steps and node: +0.02 or more at the final in both pairs
   and ahead at matched steps gets a third seed, box seeds and a place in the next gate config; below the control
   in both pairs both ways is closed and replaced in the box queues; anything between is left to the box's seeds.
-- r114 (H200 gate in a 6 h form; LOG 11-20 10:26): `calibration/research_r114/d007_speed_h200_6h`, r102's config
+  **silc2 seed 0 (LOG 11-20 15:32):** stopped by the pool quota error 422 s before its end and read from its
+  partial: -0.025 against the control over 69 shared evals (-0.05 to step 10,000, level after 20,000), last eval
+  0.305 against the control's final 0.3033, so a third seed for silc2 is off; not rerun. sil256 seed 0 failed at
+  step 4,100 (-0.043 by then) and reruns.
+- r114 (H200 gate in a 6 h form; LOG 11-20 10:26): **Taken off at 15:32 on 11-20 (LOG 11-20 15:32):** r102 seed 0
+  ended at 0.270, so three of three at or above 0.281 is 0.3 to 2 %; its items are out of the queue and its
+  workers cancelled. As planned: `calibration/research_r114/d007_speed_h200_6h`, r102's config
   with `time_budget_s` 16,440 instead of 18,000 (46 + 274 min, 350 with `run_item.sh`'s 30-minute margin, so a
   seed fits a 6 h `mit_normal_gpu` worker as a screen and, without `no_save`, as a record seed; it cannot be
   preempted there). Seeds 0-2 in `queue/gate_r114_h200.txt`; workers 29777239 to 29777241 (normal, 6 h,
