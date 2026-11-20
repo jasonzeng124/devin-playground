@@ -9726,3 +9726,72 @@ r105 lr 24e-6 seed 0 (to about 14:20) and 29715908. Eight normal B200 workers ar
 the three r114 workers at 361,387; the preemptable B200 worker 29632479 at 39,621; r102's seed 1 and 2 workers at
 31,298 and 40,892. Fair-share part 1,222. The B200 queue has 12 lines, 9 of them long items; held as before:
 29497701/02/05 and 29445218. INBOX is unchanged since 11-19 20:45 (e66970b).
+
+## 2026-11-20 11:48 EST: r112's second block: the control ran 1.44x faster from its seed-1 checkpoint than from seed 0's, so a 90 s size ratio follows the starting weights; model size stays closed; 768x24 needs 116,730 MiB; 29632479 preempted after 28 minutes and its item put back at the front of the queue; r102 seed 0 at 1.85 RL steps a second on the H200
+
+**What ran.** The preemptable B200 worker 29632479 started at 11:18 on node5600-c1 (priority about
+39,600, under the 50,000 at which the scheduler plans starts, so it started when a card was free as it was
+tried). It ran r112's second block of 90 s size smokes (the control and 640x10 from the seed-1 checkpoints of D 005
+and r50, 768x24 from r53's seed 0), then started r113 sil256 seed 0 at 11:24, and was preempted at 11:46. All six
+r112 runs (steps a second from step 20 on; median GPU use, my CPUs' clock in MHz and the node's running tasks from
+the 5 s trace):
+
+| node | model | seed | steps | steps/s | against the control on that node | `t_sample` s | `t_update` s | tokens a step | GPU use | my CPUs MHz | running tasks | trace peak (MiB) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| node5701-c1 | `ctl_w768_l12` 768x12 (control) | 0 | 71 | 0.916 | 1.00x | 0.3576 | 0.5528 | 11,965 | 34 % | 2,360 | 15 | 75,988 |
+| node5701-c1 | `w640_l10` 640x10 | 0 | 75 | 1.004 | 1.10x | 0.3250 | 0.4675 | 11,550 | 54 % | 2,011 | 60 | 62,674 |
+| node5701-c1 | `w1024_l12` 1024x12 | 0 | 51 | 0.688 | 0.75x | 0.5689 | 0.6710 | 11,987 | 52 % | 1,992 | 60 | 91,662 |
+| node5600-c1 | `ctl_w768_l12` 768x12 (control) | 1 | 93 | 1.317 | 1.00x | 0.2134 | 0.3971 | 11,902 | 56 % | 2,332 | 12 | 74,826 |
+| node5600-c1 | `w640_l10` 640x10 | 1 | 80 | 1.018 | 0.77x | 0.3799 | 0.4533 | 12,475 | 30 % | 2,496 | 24 | 62,982 |
+| node5600-c1 | `w768_l24` 768x24 | 0 | 37 | 0.465 | 0.35x | 1.0935 | 0.8695 | 12,776 | 92 % | 2,322 | 14 | 116,730 |
+
+**What it means.** The second block does not repeat the first. 640x10 ran at the same rate in both blocks
+(1.004 and 1.018 steps a second), but the control ran 1.317 from D 005's seed-1 weights
+against 0.916 from seed 0's, so 640x10 was 0.77x the control in the second block and 1.10x
+in the first. The two control runs had the same tokens a step (11,965 and 11,902), the same CPU
+clock and about as many running tasks on the node, so CPU contention does not explain the gap; the faster run kept
+the GPU busier (56 % against 34 %). With two nodes and two checkpoints in
+two runs I cannot tell node from weights apart. My guess, untested: the native sampler decodes until the longest
+row of a batch is done, so a step's sampling time follows the longest completion, not the mean, and how often one
+row runs long depends on the weights. The train log has no field for the longest completion, so this cannot be
+read from these runs. Three consequences:
+
+- **Model size stays closed, more firmly.** 640x10 never reached the rule's 1.4x (1.10x and 0.77x). No
+  small-model seeds and no 512x8 pretraining item.
+- **The 0.68 s / 62 % fixed part of a step from 10:26 is not a measurement to build on.** It came from one set of
+  starting weights. The second block puts 69M slower than 110M, so no straight line fits it. That a native step is
+  mostly not compute per parameter still stands (GPU use 30-56 % for the two smaller models); how
+  much is fixed does not.
+- **The timing item for the fixed part** has to compare runs from one checkpoint on one node, and log the longest
+  completion of each batch (the number of decode steps) next to `t_sample`. Speed smokes from different seeds'
+  checkpoints are not comparable at 90 s; the speed pairs of r101 and r106 started from the same seed's weights.
+
+768x24 (about 195M) ran 0.465 steps a second, 0.35x the control on its node (0.51x the first
+block's control), under the 0.55x-0.70x I expected, at 116,730 MiB: over an 80 GB H100 and inside a
+141 GB H200. Its GPU use was 92 %, the only run near full use. No arm comes from it.
+
+**29632479's preemption.** It was preempted at 11:46:07, 22 minutes into r113 sil256 seed 0, and requeued; its
+age starts from zero again (priority 31,226). Its marker in `queue/running/` would have made it redo that item
+whenever it starts again, which could be days. I put the item back at the front of `screens_rl_b200` under the
+queue lock (what the worker's own `give_back` does) and removed the marker, so the next of the nine workers pending
+on that queue (eight normal at 363,400 to 365,600, and 29632479) takes it. The queue has 9 long items for those 9
+workers. The partial run's files stay in its seed directory; the worker sets an interrupted run's log aside
+before it reruns.
+
+**r102 seed 0 (H200, node4802).** In RL since about 10:29: step 8,446 after 4,799 s,
+1.760 steps a second overall, 1.313 over the first 1,000 steps and 1.847 since. At that rate it ends
+its 18,000 s near step 32,827, against D 007's 16,318 to 19,735. Dev at step 8,000 is
+0.1917; D 007's five seeds read 0.225, 0.185, 0.195, 0.195, 0.205 there (mean 0.2010), so it is
+inside their range at equal steps, a little under their mean, with a pretraining loss of 2.905 against their 2.883.
+On the table of LOG 11-20 10:26 (1.61 steps a second gives 0.273, 2.0 gives 0.277), 1.85 reads
+0.275 for r102 and a little less for r114's 16,440 s: both under the 0.281 line. That is the expectation;
+the reading is seed 0's final dev at about 15:35.
+
+**The order on `mit_normal_gpu`.** The next two normal slots open at about 14:20 and 15:15; the B200 workers'
+priority (363,400 to 365,600) is above r114's (361,774), and all age at the same rate, so the B200 workers take
+both. r114 cannot start before r102 seed 0 finishes, so the decision moves to 15:35 at no cost: if seed 0 ends at
+or above 0.281, I let r114's three workers go ahead of the remaining B200 workers (by holding B200 workers, which
+loses their age, or by a nice on them, untested here); if it ends near the 0.275 expected, the B200 workers
+keep their order.
+
+INBOX is unchanged since 11-19 20:45 (e66970b).
