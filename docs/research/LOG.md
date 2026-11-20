@@ -9281,3 +9281,152 @@ workers.
 **Jobs (01:21 EST).** No GPU is running. Normal B200 workers 29644110, 29644111 and 29715907 to 29715910: pending
 at priority 364,746 and 362,569, planned starts as above. 29632479 (preemptable B200, 14 h) and r102's three H200
 workers (29450693/94/702): pending at 36,991 and 38,262, no planned start. The four held jobs stay held.
+
+## 2026-11-20 04:12 EST: the first B200 pair started 13 h after submission; r107: fused pretraining at micro-batch 128 holds 51.6 GiB; r104's second item: the samplers agree at the pretrained weights too; r106: `factored_grammar` gives no speed at the final weights
+
+**Full wake (03:25 to 04:12 EST), because both workers of the first pair started and six short items finished.**
+The message of the day has no maintenance or outage line. Quota (03:04): home 94.1 of 200 GB, pool 660.4 of 1,024
+GB (64.5 %). INBOX is unchanged (e66970b, answered). No item failed.
+
+**The first pair started, 38 minutes apart.** 29644110 started at 02:30:07 on node5600-c1, 12 h 46 min after it
+was submitted (13:43:47 on 11-19), and 29644111 at 03:08:16 on node5602-c1, 13 h 24 min after. So each started
+alone, which the 01:21 entry allowed for, and the block order of the queue did its job. 29644110 ran r107 (7.7
+min, of which 133 s was the first warm start) and r104's second item (13.4 min; I had estimated 8), and took
+r101's native seed 2 at 02:51, 21 minutes into its 35-minute window. 29644111 ran r106's four final-weights items
+(11.7 min in all; warm starts of 6 to 8 s) and took r105's lr 12e-6 seed 0 at 03:20, 12 minutes in. The two long
+items should end about 08:00 and 08:26.
+
+**A worker that waits only on the per-user limit keeps gaining age (the open point of INBOX 11-19 20:45).** Since
+03:08 the four pending normal workers (29715907 to 29715910) wait with the reason `QOSMaxCpuPerUserLimit`: the
+partition allows 32 CPUs per user and the running pair holds 16 each. Their age part read 1,885 at about 03:25,
+1,935 at 03:33 and 2,112 at 04:12 (priority 363,403). Had it stopped when the limit began to bind, it would still
+read about 1,814. That is the usual 298 an hour. So workers queued early behind a running pair do build age, and
+the practice of 11-19 21:02 stands as written.
+
+**r107 (card memory of fused pretraining at micro-batch 128).** `calibration/research_r107/pt_fused128_mem` seed 0
+ran alone on a B200 (node5600-c1) from 02:30 to 02:37 for 300 optimizer steps, with the node trace every 5 s.
+`memory.used` rose to 52,866 MiB and stayed there: all 40 readings with the GPU more than half busy show 52,866
+MiB (51.6 GiB; 55.4 GB in decimal units). Between steps 50 and 300 it ran at 749k tokens a second (r92 on a B200:
+729k) and the train loss fell to 3.14 by step 300 (157M tokens), so this was the real pretraining path and not an
+idle allocation. The rule (LOG 11-19 13:01) expected 50 to 90 GB and said that under about 70 GB both plans stand.
+They stand: r102 keeps `--micro-batch 128` on the H200, and an end-to-end arm on the 80 GB H100 boxes (81,559 MiB)
+can use it with about 28 GiB to spare. The reading is from a B200; I have not checked that an H100 allocates the
+same.
+
+**r104's second item (the two samplers on D 007's five pretrained checkpoints, before any RL).** It ran from 02:37
+to 02:51 EST on the same B200 (worker 29644110; 660 s of scoring). The settings are the first item's (LOG 11-19
+09:04): the 600 dev puzzles, at most 256 new tokens, the answer constraint on in both paths. Greedy, as the
+in-loop evaluation runs:
+
+| D 007 pretrained checkpoint | vLLM | native | native - vLLM | identical completions of 600 | solved by vLLM only | solved by native only |
+|---|---|---|---|---|---|---|
+| seed 0 | 0.0000 | 0.0017 | +0.0017 | 323 | 0 | 1 |
+| seed 1 | 0.0000 | 0.0000 | +0.0000 | 383 | 0 | 0 |
+| seed 2 | 0.0017 | 0.0000 | -0.0017 | 508 | 1 | 0 |
+| seed 3 | 0.0033 | 0.0050 | +0.0017 | 453 | 0 | 1 |
+| seed 4 | 0.0000 | 0.0000 | +0.0000 | 565 | 0 | 0 |
+| mean or total | 0.0010 | 0.0013 | +0.0003 | 2,232 | 1 | 2 |
+
+- Native minus vLLM is +0.0003 (SE 0.0006). Both pass rates are near zero, as they should be for weights that have
+  had no RL: vLLM solves 3 of 3,000 puzzles and native 4.
+- 2,232 of 3,000 completions are identical token for token, against 2,860 at the final weights. The 768 that
+  differ part at token 4 in the median (range 1 to 224). The sign test on the 3 puzzles solved by one path only
+  gives p = 1.0.
+- Why so many more differ here than at the final weights: untrained weights put near-equal probability on many
+  tokens, so the argmax flips on small differences in the two engines' arithmetic, and after the first flipped
+  token the completions go separate ways. That is my reading and it is not checked. The sampled statistics below
+  do not depend on it.
+- The five checkpoints write very different completions (mean greedy length by seed, vLLM/native: 147/152,
+  250/249, 22/23, 25/25, 6/6 tokens; malformed rate 0.515/0.537, 0.962/0.965, 0.000/0.000, 0.000/0.000,
+  0.972/0.970), and the two paths agree on that checkpoint by checkpoint.
+
+Sampled at T = 1, 16 completions a puzzle (9,600 per checkpoint and sampler; each cell vLLM / native; log-prob and
+entropy are per sampled token under the fp32 weights without the answer mask):
+
+| D 007 pretrained checkpoint | solve rate | native - vLLM (SE over puzzles) | tokens | distinct per prompt | log-prob | entropy |
+|---|---|---|---|---|---|---|
+| seed 0 | 0.0023 / 0.0011 | -0.0011 (0.0006) | 138.87 / 138.71 | 15.72 / 15.73 | -3.326 / -3.308 | 3.307 / 3.290 |
+| seed 1 | 0.0002 / 0.0003 | +0.0001 (0.0002) | 208.61 / 205.78 | 16.00 / 16.00 | -3.568 / -3.560 | 3.563 / 3.555 |
+| seed 2 | 0.0004 / 0.0005 | +0.0001 (0.0003) | 197.40 / 200.28 | 16.00 / 16.00 | -3.547 / -3.546 | 3.541 / 3.541 |
+| seed 3 | 0.0029 / 0.0023 | -0.0006 (0.0008) | 153.58 / 154.89 | 15.95 / 15.95 | -3.359 / -3.347 | 3.343 / 3.334 |
+| seed 4 | 0.0011 / 0.0011 | +0.0000 (0.0005) | 141.33 / 145.75 | 15.61 / 15.71 | -3.576 / -3.575 | 3.567 / 3.569 |
+| mean | 0.0014 / 0.0011 | -0.0003 (0.0002, over checkpoints) | 167.96 / 169.08 | 15.85 / 15.88 | -3.475 / -3.467 | 3.464 / 3.458 |
+
+- Solve rate: native minus vLLM is -0.0003 (SE 0.0002 over the five checkpoints; -0.0011 to +0.0001). The rates
+  are near zero, so this says little.
+- Entropy per token: native / vLLM = 0.9981 (0.9949 to 1.0005 by checkpoint), a difference of -0.0065 (SE 0.0034).
+  Log-prob per token differs by +0.0080 (SE 0.0032). Native completions are +1.12 tokens longer (SE 1.25).
+- So at these weights the native sampler's draws are, if anything, a touch less spread than vLLM's: 0.2 % lower
+  entropy, about 1.9 standard errors over five checkpoints (2.5 for the log-prob). I do not call that zero, and I
+  do not call it a finding either: there are five checkpoints, and in two of them most completions run into the
+  token limit.
+
+**What r104's second item means.**
+
+- The rule (LOG 11-19 09:15) asked whether the T = 1 solve rate, length, log-prob and entropy per sampled token
+  and the greedy pass rate agree at the pretrained weights as they did at the final ones. They do, to within 0.2
+  %. The gap the test was looking for is native runs training at 5 to 9 % higher entropy after their first 100
+  steps. What shows here is 0.2 % in the other direction, some 26 to 48 times smaller.
+- By the rule the sampler is cleared at both ends of training, the box's equal-step gap (about 0.01 on dev) is put
+  down to drift between runs, and the question is closed until r102 gives end-to-end numbers. No GPU time goes to
+  it.
+- Limits: one GPU type; no update step; the entropy is taken without the answer mask, so it is not the train log's
+  number; and with a quarter of the greedy completions differing, a greedy evaluation of an untrained checkpoint
+  cannot be compared completion by completion between the two paths (the pass rates can, and are near zero in
+  both).
+
+**r106, the four final-weights items (`factored_grammar` timed on a GPU). My expectation failed.** Four 300-step
+runs from D 007's seed-0 final weights on one B200 (node5602-c1, worker 29644111), in the order control, factored,
+factored, control, from 03:08 to 03:20. The only config difference is `factored_grammar`. Means over steps 51 to
+300 (steps/s from `train_s` over the same steps):
+
+| run, in the order run | `factored_grammar` | `t_part_s_mask_cpu`, mean (median) s | `t_sample` s | `t_update` s | steps/s | tokens/s | dev at step 300 |
+|---|---|---|---|---|---|---|---|
+| `final_native_ctl` | off | 0.0868 (0.0868) | 0.1481 | 0.2445 | 2.108 | 33,276 | 0.2517 |
+| `final_native_factored` | on | 0.0903 (0.0849) | 0.1523 | 0.2386 | 2.056 | 33,390 | 0.2517 |
+| `final_native_factored_b` | on | 0.0865 (0.0866) | 0.1502 | 0.2428 | 2.107 | 33,255 | 0.2517 |
+| `final_native_ctl_b` | off | 0.0875 (0.0873) | 0.1509 | 0.2537 | 2.045 | 32,266 | 0.2517 |
+
+- **Same maths: yes.** `loss`, `mean_reward`, `entropy`, `grad_norm`, the batch solve rate and the self-imitation
+  loss are equal on all 300 steps in all four runs, and all four end at dev 0.2517. By the rule's test the option
+  is safe.
+- **Faster: no.** I expected the constraint timer to fall by a third to 70 %. It reads 0.0868 and 0.0875 s a step
+  in the controls and 0.0903 and 0.0865 in the factored runs, and the whole step runs at 2.108 and 2.045 steps a
+  second against 2.056 and 2.107. The two controls differ from each other by more than the arms do. Factored is
+  lower only in the first 50 steps (0.0921 and 0.0921 s against 0.0993 and 0.0986); from step 51 on there is
+  nothing. (The first factored run reads 0.0986 and 0.0998 over steps 101 to 200, which is why its mean is above
+  its median; I take that for something else on the node and have not checked it.)
+- **By the rule** (LOG 11-19 10:12: the option joins the settled settings "if the final runs match and the
+  constraint time falls"), `factored_grammar` does not join the settled speed settings. It stays in the code, off
+  by default.
+- **Why the CPU benchmark did not carry over.** The option changes only how the allowed set of a grammar state is
+  built the first time that state is seen (the cache-miss branch of `AnswerGrammar.allowed`). My benchmark walked
+  the grammar at random and met mostly new states. A trained policy meets the same states again and again, so
+  after the first steps nearly every call is a dictionary hit and the option has nothing left to speed up; the
+  difference in the first 50 steps fits that. I had read the distance between the B200's 6.6 us per row-token and
+  the benchmark's 1.3 us for hits as misses. That was a guess, and a count of hits and misses in one real run
+  would have tested it before I wrote an expectation on it.
+- **What the 0.087 s is, then, is not established.** For each token step the timer wraps the Python that feeds
+  each row's new token to its grammar state and looks up the allowed set, and `mask_rows_cached`, which joins one
+  cached index tensor per row on the GPU and masks the logits. The benchmark puts the Python part at about 0.018 s
+  a step when every lookup is a hit (on the login node's CPU). Two candidates for the other 0.07 s: (a) one of the
+  torch calls waits for the previous forward step to finish on the GPU, so the timer is partly forward time under
+  another name and a faster constraint gains nothing; (b) overhead of the per-row torch work (hundreds of small
+  GPU tensors joined at every token step), which one index built on the CPU and copied once would remove. I do not
+  know which.
+- **How it gets decided, at no extra GPU time.** r112's size smokes (queued) log the same timer for 640x10,
+  768x12, 1024x12 and 768x24 models on one node. Read per sampled token (the checkpoints write completions of
+  different lengths): if the timer grows with the model it is mostly a wait for the forward step (a); if it is
+  flat across sizes it is overhead (b), and a same-maths change to `mask_rows_cached` is worth writing and timing.
+  r106's start-weights pair (queued) shows whether new states matter early in training, the one place the option
+  could still earn its keep. No code change before those two readings.
+
+**Jobs (04:12 EST).** Running on `mit_normal_gpu`: 29644110 (node5600-c1; r101's native seed 2, to about 08:00)
+and 29644111 (node5602-c1; r105 lr 12e-6 seed 0, to about 08:26). Each exits after its long item. Pending there:
+29715907 to 29715910 (priority 363,403; the first two can start when the running pair ends). Pending on
+`mit_preemptable` with the reason `Resources` and no planned start: 29632479 (B200, priority 37,825) and r102's
+three H200 gate workers 29450693/94/702 (priority 39,096; 50,000 about 16:00 on 11-21). Held as before:
+29497701/02/05 and 29445218. The queue has 18 lines: the five r111 smokes, then r105 lr 24e-6 seed 0; r106's
+start-weights pair and three r112 smokes, then r105 lr 12e-6 seed 1; the other three r112 smokes, then r105's last
+three items. That is five long items for the five pending B200 workers and it runs out about 20:00 today, so more
+work is queued next in this wake, in its own entry with the expectations written first.

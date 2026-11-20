@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-20 01:21 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
+Updated 2026-11-20 04:12 EST. The run ends 2026-12-19. The agent runs on Fable 5.2.
 
 **The speed stack turns into score (11-19, LOG 11-19 02:05 and 14:35).** r101 (B200, RL only from D 007's
 checkpoints, 17,400 s, not yet gated): the native arm's two seeds ended at dev 0.3033 (34,893 steps) and
@@ -18,8 +18,9 @@ would reach about 29,000, where the B200 seeds are near the line and not clear o
 Watch the first run pass from pretraining into native RL (never run end to end before).
 On the 11-18 box the native sampler came out a little behind vLLM on dev at equal steps, by about 0.01 (finals
 -0.021 over three finished pairs, SE 0.009; evaluation curves -0.008 over five pairs, SE 0.003; LOG 11-19 06:32),
-against about twice the steps in the same time. Whether that gap comes from training or from the native greedy
-evaluation is open; the test is in "Next".
+against about twice the steps in the same time. r104 then scored D 007's final and pretrained checkpoints with
+both samplers on the same weights, and they agree at both ends (LOG 11-19 09:04 and 11-20 04:12), so the gap is
+put down to drift between runs and is closed until r102's end-to-end numbers.
 INBOX 11-19 01:32 (critique of the box plan) is answered in LOG 11-19 02:05, and its seeds point was replaced by
 INBOX 11-19 14:29 (LOG 11-19 16:51): speed stack first, on Engaging; on the boxes bold arms at two or three seeds
 against a five-seed control, each arm's expected effect and the control's seed sd written first, the top arms
@@ -41,47 +42,53 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (01:21 EST 11-20).** No GPU is running (none since about 14:35): the cluster is full, and my fair-share
-part is 1,299 of 150,000, so my jobs wait on age (298 an hour; LOG 11-19 21:02 and 11-19 23:29). Six
-`mit_normal_gpu` B200 workers are pending on queue `screens_rl_b200` (6 h each: the short items, then one long
-one): 29644110, 29644111 and 29715907 to 29715910, planned starts 05:30, 05:30, 10:30, 11:30, 11:30, 11:30 on
-11-20 at 01:21 (rough; they come and go), priority 364,746 and 362,569. The starts differ by worker, so a worker
-may start alone; the queue is in blocks for that (below). They exclude only the drained `node5500-c1` since 23:08
-(the old `node5501-c1` exclusion is dropped; it goes back if a worker fails on CUDA there). **Practice:** keep two
-pairs pending behind the running or next pair while the queue has work for them, and never chain them with
+**Jobs (04:12 EST 11-20).** Two B200s run on `mit_normal_gpu`, the first GPUs since 14:35 on 11-19: 29644110
+(node5600-c1; started 02:30, 12 h 46 min after submission; r101's native seed 2, to about 08:00) and 29644111
+(node5602-c1; started 03:08, 13 h 24 min after; r105 lr 12e-6 seed 0, to about 08:26). Each exits after its long
+item. The cluster is full and my fair-share part is 1,287 of 150,000, so my jobs wait on age (298 an hour; LOG
+11-19 21:02 and 11-19 23:29). Four more normal B200 workers are pending on queue `screens_rl_b200` (6 h each: the
+short items, then one long one): 29715907 to 29715910, priority 363,403, waiting on the per-user limit of 32 CPUs.
+**They gain age while they wait there** (read three times between 03:25 and 04:12; LOG 11-20 04:12). A worker may
+start alone; the queue is in blocks for that (below). They exclude only the drained `node5500-c1` (the old
+`node5501-c1` exclusion is dropped; it goes back if a worker fails on CUDA there). **Practice:** keep two pairs
+pending behind the running or next pair while the queue has work for them, and never chain them with
 `--dependency` (a job waiting on a dependency or a hold gains no age here). 29632479 (preemptable B200, same
 queue, 14 h, room for two long items) and r102's three H200 preemptable workers (29450693/94/702) are pending at
-priority 36,991 and 38,262. Below 50,000 the scheduler plans no start (`bf_min_prio_reserve`), so they start only
-when a GPU is free as it tries them; 74 requests stood above the gate workers at 23:09, and age alone takes them
-to 50,000 on 11-21 about 16:00. The gate workers no longer exclude node5200 (a probe job read the venv there at
-23:18); node5100 stays excluded (the pool filesystem still hangs there, by the same probe), with node2500 and
-node4900 (slow). **Maintenance: every node is reserved from 00:00 to 21:00 on 12-15**; a 6 h worker must start by
-18:00 on 12-14. The queue (26 lines, reordered 11-20 01:13) is in blocks, each a few short items (under about 20
-min in all, by my estimates) and then one long item (about 5.1 h), so a worker that starts alone still gets a long
-item inside its 35-minute window: r107 and r104's second item, then r101's native seed 2; r106's four
-final-weights timing items, then r105 lr 12e-6 seed 0; the five r111 smoke runs, then r105 lr 24e-6 seed 0; r106's
-two start-weights timing items and three r112 size smokes, then r105 lr 12e-6 seed 1; the other three r112 size
-smokes, then r105's last three items. Held: 29497701/02/05 (B200 preemptable; r97/r99, superseded by r102) and
-29445218 (H200; r90). At most 2 normal and 4 preemptable GPUs run at once, the cap of six.
+priority 37,825 and 39,096. Below 50,000 the scheduler plans no start (`bf_min_prio_reserve`), so they start only
+when a GPU is free as it tries them; age alone takes the gate workers to 50,000 on 11-21 about 16:00. The gate
+workers no longer exclude node5200 (a probe job read the venv there at 23:18 on 11-19); node5100 stays excluded
+(the pool filesystem still hangs there, by the same probe), with node2500 and node4900 (slow). **Maintenance:
+every node is reserved from 00:00 to 21:00 on 12-15**; a 6 h worker must start by 18:00 on 12-14. The queue (18
+lines) is in blocks, each a few short items and then one long item (about 5.1 h), so a worker that starts alone
+still gets a long item inside its 35-minute window (the first two blocks took 21 and 12 min): the five r111 smoke
+runs, then r105 lr 24e-6 seed 0; r106's two start-weights timing items and three r112 size smokes, then r105 lr
+12e-6 seed 1; the other three r112 size smokes, then r105's last three items. That is five long items for the five
+pending B200 workers; it runs out about 20:00 on 11-20, and more work is being queued. Held: 29497701/02/05 (B200
+preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). At most 2 normal and 4 preemptable GPUs run at
+once, the cap of six.
 
 **Settled speed settings for new D arms (LOG 11-17 and 11-18; timed on B200; each is the same maths and off by
 default).** Pretraining: `--fused-loss --micro-batch 128` (+21 % tokens per second; 46 min gives about the old
 56-min checkpoint). RL: the shared prompt with 65,536-token micro-batches (update 14-18 % shorter; fits the H200),
 the native sampler (`rollout_backend: "native"`, 1.40-1.60x faster per RL step) and `reuse_sampler_allowed`
-(bit-identical over 300 steps, update -14.5 %). r88 (U18): no effect, parked.
+(bit-identical over 300 steps, update -14.5 %). r88 (U18): no effect, parked. Fused pretraining at micro-batch 128
+holds 52,866 MiB on a B200 (r107, LOG 11-20 04:12), so it fits an 80 GB H100. `factored_grammar` is not one of
+these: timed in r106, same maths, no speed at trained weights.
 
 RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
 **Next decisions:** r102's three seeds against 0.281, read with the steps each reaches (then the five-seed record
-attempt if the three-seed rule is met); r107's memory reading against the rule in LOG 11-19 13:01; r106
-(`factored_grammar`, more steps per hour) and r105 (lr in the native regime) as the two levers for a second gate
-config if r102 lands near the line; r104's second item; r101's native seed 2; the r111 smoke runs of the standby
-arms (do they run, card memory) before 11-24; r112's steps per second by model size with the native sampler,
-against the rule in LOG 11-20 01:21 (640x10 at 1.4x the 768x12 control or more opens a small-model arm; 1.2x or
-less closes size in this regime too); each box's standby queue (staged and checked for all three blocks,
-`docs/research/box_1128.md`) planned again the day before its block (11-24, 11-27, 12-08), track A arms included
-if a bold one is ready. Also: `sprio` once a pair runs, to see that workers held only by the per-user limit keep
-gaining age, and each worker's time from submission to start; and, in the idle wakes before 11-24, bold end-to-end
-track D arms (U17, U19) for the 11-25 box.
+attempt if the three-seed rule is met); r105 (lr in the native regime) as the lever for a second gate config if
+r102 lands near the line (r106's `factored_grammar` gave no speed at the final weights and is not one); r101's
+native seed 2 and r105's first seed, about 08:00 to 08:30 on 11-20; the r111 smoke runs of the standby arms (do
+they run, card memory) before 11-24; r112's steps per second by model size with the native sampler, against the
+rule in LOG 11-20 01:21 (640x10 at 1.4x the 768x12 control or more opens a small-model arm; 1.2x or less closes
+size in this regime too), and its constraint timer per sampled token by model size (if the 0.087 s a step grows
+with the model it is a wait for the forward step; if it is flat it is overhead that a same-maths change to
+`mask_rows_cached` could remove; LOG 11-20 04:12); r106's start-weights pair; more B200 work for the evening of
+11-20 onwards; each box's standby queue (staged and checked for all three blocks, `docs/research/box_1128.md`)
+planned again the day before its block (11-24, 11-27, 12-08), track A arms included if a bold one is ready; each
+worker's time from submission to start; and, in the idle wakes before 11-24, bold end-to-end track D arms (U17,
+U19) for the 11-25 box.
 
 **B200 first (INBOX 11-13 23:43 and 23:45).** Progress comes before records. Results on B200 are marked "not yet gated"
 until an H200 gate runs. INBOX 11-14 22:03: a gate or record may take an H200 slot when the agent judges that best.
@@ -223,20 +230,22 @@ screen runs on the H200.
   - Six unfinished runs' states are in `box-state/box1118/` in the bucket and expire from 11-26. On 11-24 decide
     whether any continues on the 11-25 box (copy its state to that box's prefix first). Results and logs stay
     under `box/box1118/` for 90 days (`box_s3.sh pull box1118 <tag> <dir>`).
-- r104, the native evaluation-path test: **done (LOG 11-19 09:04); the evaluation is cleared.** D 007's five
-  final checkpoints scored on dev by both samplers on the same weights (B200): greedy, native minus vLLM is
-  -0.0013 (SE 0.0013; 2,860 of 3,000 completions identical, 10 solved by vLLM only, 6 by native only); at
-  T = 1 the solve rate differs by +0.0003 (SE 0.0012) and the entropy per token by a factor of 1.0006. So the
-  box's equal-step gap (about -0.01 for native, three pairs of finals) is training under the native update
-  settings or chance, not evaluation, and the samplers draw alike at these weights. No GPU time goes to the gap
-  by itself. The code read is done (LOG 11-19 09:15): the logged entropy is the same quantity on the same rows
-  and mask in both arms, there is one optimizer step per GRPO step whatever the micro-batch size, and the reused
-  allowed sets and shared prompt are tested equal to the recomputed path. So the update's maths does not explain
-  the gap, and no one-setting-at-a-time runs are needed. Left: drift between runs, or a sampler difference at
-  early weights. **Second item queued, not yet run**: `calibration/research_r104/d007_pre_paths_b200 0`, first
-  in `queue/screens_rl_b200.txt` (D 007's five pretrained checkpoints, both samplers; about 8 min on a B200).
-  If the samplers agree there too, the gap is put down to drift and closed until r102's numbers; if not, fix
-  the sampler before the speed stack is the record path. Results: each item's `seeds/0/sampler_paths.json`.
+- r104, the native evaluation-path test: **done (LOG 11-19 09:04); the evaluation is cleared.** D 007's five final
+  checkpoints scored on dev by both samplers on the same weights (B200): greedy, native minus vLLM is -0.0013 (SE
+  0.0013; 2,860 of 3,000 completions identical, 10 solved by vLLM only, 6 by native only); at T = 1 the solve rate
+  differs by +0.0003 (SE 0.0012) and the entropy per token by a factor of 1.0006. So the box's equal-step gap
+  (about -0.01 for native, three pairs of finals) is training under the native update settings or chance, not
+  evaluation, and the samplers draw alike at these weights. No GPU time goes to the gap by itself. The code read
+  is done (LOG 11-19 09:15): the logged entropy is the same quantity on the same rows and mask in both arms, there
+  is one optimizer step per GRPO step whatever the micro-batch size, and the reused allowed sets and shared prompt
+  are tested equal to the recomputed path. So the update's maths does not explain the gap, and no
+  one-setting-at-a-time runs are needed. Left: drift between runs, or a sampler difference at early weights.
+  **Second item done (LOG 11-20 04:12)**: D 007's five pretrained checkpoints, both samplers. At T = 1 the entropy
+  per token is native / vLLM = 0.9981 (log-prob +0.0080, SE 0.0032; solve rate -0.0003, SE 0.0002). Greedy pass
+  rates are near zero in both (0.0010 and 0.0013), with 2,232 of 3,000 completions identical (near-ties at
+  untrained weights, my reading). The training gap was native 5 to 9 % higher in entropy; this is 0.2 % lower. By
+  the rule the sampler is cleared at both ends, the gap is put down to drift, and the question is closed until
+  r102's numbers. Results: each item's `seeds/0/sampler_paths.json`.
 - A runs fill the H100 (79.1 of 79.18 GB) and three ran out of memory at `vllm_gpu_memory` 0.35 (control seeds 0 and
   1, `cos467` seed 0). Since 17:47 every A item not yet started uses the `_h100m30` configs (share 0.30, about 4 GB
   more for the trainer; same maths, read together with the arm's `_h100` seeds), and the three failed runs resume
@@ -265,21 +274,22 @@ screen runs on the H200.
   r97 and r99 (B200, end to end) are superseded by r102: their preemptable workers 29497701/02/05 stay held (the
   cap of four running preemptable GPUs goes to r102 and one r101 worker).
 - r105 (B200, RL only, not gated; LOG 11-19 09:28): `d007rl_native_lr12e-6_b200` and `d007rl_native_lr24e-6_b200`
-  (r101's native item with lr 2x and 4x D 007's 6e-6; nothing else changed), seeds 0-2, queued after r101's
-  native seed 2. Expected: about +0.02 at 2x (range -0.02 to +0.05) against a paired SE of about 0.005. Read
-  paired by seed against `d007rl_native_b200` at matched steps (block means of ten dev evals), with steps and
-  node. A gain of 0.015 or more over three pairs puts that lr into the next H200 gate config; a tie closes lr
-  for the native regime.
+  (r101's native item with lr 2x and 4x D 007's 6e-6; nothing else changed), seeds 0-2; lr 12e-6 seed 0 has run
+  since 03:20 on 11-20 and the other five are queued. Expected: about +0.02 at 2x (range -0.02 to +0.05) against a
+  paired SE of about 0.005. Read paired by seed against `d007rl_native_b200` at matched steps (block means of ten
+  dev evals), with steps and node. A gain of 0.015 or more over three pairs puts that lr into the next H200 gate
+  config; a tie closes lr for the native regime.
 - `factored_grammar` (commit 1c7883d, off by default, same maths; LOG 11-19 10:12): the native sampler's answer
   constraint on the CPU is 18 to 22 % of the step in r100's timing runs, and on a CPU benchmark its cost is
   building the allowed set of each new grammar state. The option builds that set from parts (tokens without a
   digit cached per state shape, digit tokens read off the remaining numbers): equal sets on every state tested,
-  first-pass grammar time 0.30 of the walk's on the login node. **Not yet timed on a GPU.** r106 (six 300-step
-  B200 timing items under `calibration/research_r106/`, queued) reads `t_part_s_mask_cpu`, `t_sample`, tokens per
-  second and step-by-step `loss` and `mean_reward` against controls on the same node. Expected: the constraint
-  time down by a third to 70 % (+8 % to +18 % steps at the final weights). If the four final-weights logs match
-  step for step and the time falls, the option joins the settled speed settings for new D arms and the box
-  queues; r102 and the queued items keep their configs. The start-weights pair is read on timings only.
+  first-pass grammar time 0.30 of the walk's on the login node. **Timed on a B200 at the final weights (r106, LOG
+  11-20 04:12): same maths on all 300 steps, no speed.** The constraint timer reads 0.0868 and 0.0875 s a step in
+  the two controls and 0.0903 and 0.0865 in the two factored runs (expected: down by a third to 70 %). The option
+  only speeds up the first visit to a grammar state, and a trained policy revisits the same states. It does not
+  join the settled settings and stays off by default. What the timer's 0.087 s is (a wait for the forward step, or
+  per-row overhead in `mask_rows_cached`) is open: r112's smokes give the timer by model size, and r106's
+  start-weights pair (queued) gives it early in training. No code change before those.
 - Track A: A 007's seeds reached step 467 with 1,700-2,700 s of the budget unused (room for about 50 more steps),
   and a step is about 55 % sampling, 45 % update. r103 (three timing runs on the H100, LOG 11-19 06:32): neither
   same-maths option helps on an 80 GB card as it is. `constrain_batched` samples 1.16 to 1.27 times slower per
