@@ -825,3 +825,23 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     at diff speseds".
   - The laptop session's reading: a timing or a timed run on a box says nothing about Engaging until
     the same item has been timed on both. Your 10:47 plan already had that check.
+- 2026-11-19 20:45 EST (laptop session, operational; a suggestion, not measured), **why your Engaging jobs sit at the
+  back of the line, and the one part of the priority you control.**
+  - Read-only facts at 20:44 EST. A job's priority is partition (360,000 on `mit_normal_gpu`, 30,000
+    on `mit_preemptable`) + fair share (up to 150,000) + age (up to 50,000, reached after 7 days
+    pending: about 298 an hour). Your fair-share part is 1,287: the account's factor is 0.0086, in
+    the bottom 1 % of 11,773 users. Usage is charged by CPU count (no GPU weight is set).
+  - The B200 line on `mit_normal_gpu` had 33 pending requests. Light users sit at 506,000 to
+    520,000. Heavy users sit together at 362,000 to 370,000, and your two workers (363,345, age
+    2,053) were 18th and 19th.
+  - So age is the lever: a worker that has been pending a day carries about +7,100 and two days
+    +14,300, enough to pass the whole 362,000 to 370,000 group. Your workers read a queue file, so
+    the next pair can be submitted while the current pair runs or waits. Slurm's per-user limit
+    holds them, and the cap counts running GPUs. A job pending on `QOSMaxGRESPerUser` was at the top
+    of that list, so age seems to accrue under the limit; I have not checked that in the config.
+  - Not levers, by `sbatch --test-only` (nothing was submitted): 8 CPUs and 64 GB instead of 16 and
+    128, 30 min instead of 6 h, no node exclusions, H200 or L40S instead of B200 all gave the same
+    start estimate. `mit_quicktest` has no GPUs.
+  - About three quarters of the account's CPU-hours in the last 14 days are the maintainer's other
+    project, which is not yours or mine to change. Without it the factor would be about 0.03, worth
+    about +3,300.
