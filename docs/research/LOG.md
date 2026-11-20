@@ -9600,3 +9600,129 @@ workers stay pending either way.
 
 **Checks.** The message of the day has no maintenance or outage line. Quota at 08:39: home 47 %, pool 64 % (660 of
 1,024 GB), under the 80 % line. INBOX is unchanged since 11-19 20:45 (e66970b).
+
+## 2026-11-20 10:26 EST: r111's five smoke runs pass; r106: `factored_grammar` saves constraint time only early; r112: 640x10 runs 1.10x the control, model size closed; r102 seed 0 runs on an H200 and seed 1 was preempted; r114 queued (the gate in a form that fits a 6 h normal worker); STATUS
+
+The second part of the 08:36 full wake (the first is the 09:23 entry). From this entry on the agent runs on Opus
+5.5.
+
+**r111: the five standby-arm smoke runs pass.** 29715907 started at 09:14 on node5800-c1 and ran r111's five 90 s
+items (RL only, native sampler, D 007 seed 0's pretrained checkpoint, each the r108 box arm with `time_budget_s`
+90) from 09:14 to 09:25. Every one reached its final evaluation (n = 600) with no error line in `stdout.log`:
+
+| smoke (B200, 90 s) | steps | steps/s (rows 6+) | final dev | `gpu_mem_gb` max | trace peak (MiB) | max `sil_rows` | tokens/s | lr first / middle / last |
+|---|---|---|---|---|---|---|---|---|
+| `smoke_mini3` | 55 | 0.66 | 0.0233 | 70.69 | 72,384 | 62 | 10,402 | constant |
+| `smoke_sil256` | 51 | 0.59 | 0.0533 | 74.98 | 76,780 | 140 | 10,648 | constant |
+| `smoke_g32p16` | 65 | 0.74 | 0.0233 | 72.40 | 74,134 | 60 | 11,794 | constant |
+| `smoke_lr12cos` | 60 | 0.71 | 0.0083 | 70.85 | 72,544 | 55 | 11,416 | 1.2e-5 / 5.0e-6 / 1.2e-6 |
+| `smoke_stack3` | 56 | 0.64 | 0.0317 | 70.70 | 72,398 | 184 | 8,736 | 1.2e-5 / 5.8e-6 / 1.2e-6 |
+
+The control (r101's native seeds 0-2, other B200 nodes) over the same first 65 steps: steps/s 0.82, 0.78 and 0.69;
+`gpu_mem_gb` max 75.07, 75.11 and 74.26. What it means: all five code paths run with the native sampler (the mini
+levels, groups of 32 with 16 prompts, the cosine falling from 1.2e-5 to 1.2e-6 as set, 256 self-imitation rows);
+no arm held more card memory in its first steps than the control; steps per second this early say little (the long
+runs settle later and differ by node), and the 90 s scores mean nothing. One limit: sil256 and stack3 drew at most
+140 and 184 self-imitation rows in about 55 steps, so a full 256-row draw has not been measured (by design the
+65,536-token micro-batch bounds the update); r113's 17,400 s B200 runs of both measure it, before 11-24 if a
+worker reaches them. So no r113 item is pulled (LOG 11-20 04:34), the three box queues stay as staged, and one run
+per H100 stands.
+
+**r106, the start-weights pair.** After r111, the second normal worker 29715908 ran r106's last two timing items
+on node5701-c1: 300 steps each from D 007 seed 0's pretrained (start) weights with the settled speed settings and
+`time_update_parts`, the control (10:04 to 10:09) and then `factored_grammar` (10:09 to 10:13). At these weights
+two same-maths runs part early (the grad norm at step 1 is 0.050677 against 0.050673, and the loss differs from
+step 2), so the pair is read on its timings, means over steps 51 to 300:
+
+| run (B200, 300 steps from the start weights) | `t_part_s_mask_cpu` s, mean (median) | per sampled token | `t_sample` s | `t_update` s | steps/s | tokens a step | mask s, steps 1-50 | trace peak (MiB) |
+|---|---|---|---|---|---|---|---|---|
+| `start_native_ctl` | 0.1271 (0.1137) | 10.4 us | 0.2543 | 0.4432 | 1.283 | 12,278 | 0.3109 | 72,514 |
+| `start_native_factored` | 0.0991 (0.0870) | 8.2 us | 0.1936 | 0.3943 | 1.489 | 12,148 | 0.2861 | 77,138 |
+
+The constraint timer is lower with the option: 0.0991 against 0.1271 s a step (-22 %), 8.2 against 10.4 us per
+sampled token, and lower in the first 50 steps too. So early in training new grammar states do cost time and the
+option saves part of it, as the CPU benchmark said; at the final weights (LOG 11-20 04:12) there was nothing left
+to save. The whole run was +16 % in steps a second, but most of that is not the option: `t_update`, which it does
+not touch, was -11 % too, so the two runs differ in their samples or the node's state, and one pair in one order
+cannot split those. What the option could be worth in a run: the saving fades as the policy settles, and even 0.03
+s a step over the first 2,000 steps would be about a minute of a 4.8 h run. The factored run also peaked 4,624 MiB
+higher on the card, which I cannot separate from its samples either. So `factored_grammar` stays off by default
+and out of the settled settings; no arm is built on it.
+
+**r112, the first block of size smokes** (29715908 on node5701-c1, 10:14 to 10:19: RL only, native sampler, 90 s
+each from checkpoints pretrained with D 005's recipe, D 007's RL settings; steps a second from step 20 on):
+
+| model (B200, 90 s, from step 20) | parameters | steps | steps/s | against the control | `t_sample` s | `t_update` s | tokens a step | `gpu_mem_gb` max | trace peak (MiB) |
+|---|---|---|---|---|---|---|---|---|---|
+| `ctl_w768_l12`: 768x12 (control) | 110M | 71 | 0.916 | 1.00x | 0.3576 | 0.5528 | 11,965 | 74.21 | 75,988 |
+| `w640_l10`: 640x10 | 69M | 75 | 1.004 | 1.10x | 0.3250 | 0.4675 | 11,550 | 61.21 | 62,674 |
+| `w1024_l12`: 1024x12 | 182M | 51 | 0.688 | 0.75x | 0.5689 | 0.6710 | 11,987 | 89.51 | 91,662 |
+
+Expected (LOG 11-20 01:21): 640x10 at 1.25x to 1.5x and 1024x12 at 0.6x to 0.75x. 1024x12 came at the top of its
+range and 640x10 well under its own. A straight line through the three step times leaves 0.68 s of a step that
+does not grow with the model, 62 % of the control's step at this point of a run: with the native sampler a step is
+mostly a fixed cost, not compute per parameter. **By the rule** (1.2x or less), model size stays closed with the
+native sampler too: no small-model seeds and no 512x8 pretraining item. The speed work goes to the parts of a step
+that do not depend on the model. 1024x12 also held 91,662 MiB at these micro-batches, more than an 80 GB H100 has.
+The second block (control and 640x10 seed 1, 768x24 seed 0; about 6 minutes of a worker's slack before its long
+item) stays queued as a check on another node. One thing I wrote at 04:12 was wrong: r112's configs do not set
+`time_update_parts`, so they give no constraint timer by model size, and what the timer's 0.087 s at the final
+weights is (a wait for the forward step, or per-row overhead in `mask_rows_cached`) is still open. The next speed
+item finds where the fixed part of a native step goes, timed before any code changes; I write it at a quiet wake.
+
+**r102 on the H200.** Seed 0 (29450693) started at 09:40 on node4802, 31 h 49 min after the three workers were
+released at 01:52 on 11-19: the first of my preemptable jobs to start since 11-18. The fused pretraining
+(micro-batch 128) stood at step 2,300 after 43.4 min, 1.206B tokens, 463k tokens a second so far and 473k over the
+last 100 steps; at that pace 46 min gives about 1.28B tokens, against 1.325B in 56 min for D 007's unfused
+pretraining (394k a second on the H200; mean of five seeds, final validation loss 2.883) and 2.011B in 46 min on
+the B200 (r92). So on the H200 the 46-minute checkpoint is about D 007's, as planned. The pass into native RL
+(never run end to end before) is due about 10:30; its RL steps per second on the H200 decide the expected score
+(below) and are read at the next wake. Seed 1 (29450694) started at 09:54 on node4603 and was preempted at
+10:04:16 at pretraining step 400 (210M tokens, about 10 GPU-minutes lost). Slurm requeued the job; the worker's
+marker in `queue/running/` makes it redo seed 1 when it starts again (the seed directory holds no training log, so
+nothing moves to `extra/`). The requeue reset the job's age: its priority is now 31,298, against 40,892 for seed
+2's worker 29450702 (pending, with 32 h of age). Each r102 item will end `FAILED` at `run_seed_v3.sh`'s final `mv`
+by construction (`no_save` writes no `final` directory), with every result written, as r81 did.
+
+**r114: the gate in a form that fits a 6 h normal worker.** r102's items need 46 min of pretraining, 300 of RL and
+`run_item.sh`'s 30-minute margin for a record seed: 376 min, more than a 6 h `mit_normal_gpu` worker. So r102 runs
+only on `mit_preemptable` (priority about 31,000 to 41,000 there, about 361,000 to 365,000 on `mit_normal_gpu`),
+where a 5.8 h run can be preempted, as seed 1 was today, and a requeued job starts its wait again. r114
+(`calibration/research_r114/d007_speed_h200_6h`) is r102's config with `time_budget_s` 16,440 instead of 18,000
+and nothing else changed: 46 + 274 + 30 = 350 min, so a seed fits a 6 h normal worker as a screen and, without
+`no_save`, as a record seed (320 min of the 360-minute budget). The cost is 1,560 s of RL, about 9 % of the steps;
+on r101's native curves that is worth little at these step counts (dev around step 33,000 was 0.277 and around
+36,000 0.277). Seeds 0-2 are in `queue/gate_r114_h200.txt`, and at 09:50 I submitted one normal H200 worker for
+each (29777239 to 29777241: 6 h, 16 CPUs, 128 GB, `RESERVE_MIN` 335, `REQUIRE_GPU` NVIDIA H200, the H200 workers'
+node exclusions). Their planned starts read the evening of 11-25 at some readings and none at others; on
+`mit_normal_gpu` they share my two-GPU cap with the eight pending B200 workers, which are ahead of them (priority
+361,387 against 363,023 and more). So r114 is not yet a faster gate; it is the record form gaining age. Which goes
+first on the normal cap, the gate or the B200 items, I decide once r102 seed 0 shows the H200's native RL rate,
+before the next normal slot opens (about 14:20).
+
+Expected final dev, from r101's native seeds (RL only on the B200 from D 007's checkpoints, not gated), averaged
+over the evaluations within 1,000 steps of the step count a rate gives:
+
+| H200 native RL rate | r114 (16,440 s of RL) | r102 (18,000 s) |
+|---|---|---|
+| 1.61 steps/s (the AWS H100's, 11-18) | about 26,500 steps: 0.262 | about 29,000: 0.273 |
+| 2.0 steps/s | about 32,900: 0.277 | about 36,000: 0.277 (two seeds) |
+| 2.6 steps/s | about 42,700: 0.279 (two seeds) | about 46,800: past the B200 runs (about 0.28) |
+
+At any of these rates the gate sits near the line 0.281 and not clear of it, so the three-seed form (every seed at
+or above 0.281) needs a faster card than these or some luck. The end-to-end runs also differ from r101 in the
+checkpoint (46 min fused, not D 007's 56 min) and the card. **Rule, written before any r114 seed runs:** each
+seed's final dev is read against 0.281 with its steps and node. Three seeds at or above 0.281: a five-seed record
+attempt with r114's config without `no_save`, on 6 h normal H200 workers. Short of that, the gap says how much an
+arm must add, and r114's queued seeds can be swapped for a stronger config in a new directory before a worker
+starts them (or the workers cancelled). No end-to-end smoke ran first: r102 seed 0 is that test, and if its
+hand-off into RL fails, a 2-minute end-to-end smoke on the B200 checks the fix before any more gate seeds start.
+
+**Jobs.** The second normal B200 worker, 29715908, started at 10:04 on node5701-c1, 13 h 05 min after its
+submission at 20:58 on 11-19. It ran r106's start-weights pair and r112's first three size smokes (above), and
+since 10:19 it runs r113 silc2 seed 0 (to about 15:15). So both normal GPUs of the cap are busy: 29715907 with
+r105 lr 24e-6 seed 0 (to about 14:20) and 29715908. Eight normal B200 workers are pending on
+`QOSMaxCpuPerUserLimit` (none can start before one of the two running ones ends) at priority 365,199 and 363,023;
+the three r114 workers at 361,387; the preemptable B200 worker 29632479 at 39,621; r102's seed 1 and 2 workers at
+31,298 and 40,892. Fair-share part 1,222. The B200 queue has 12 lines, 9 of them long items; held as before:
+29497701/02/05 and 29445218. INBOX is unchanged since 11-19 20:45 (e66970b).
