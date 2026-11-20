@@ -9182,3 +9182,102 @@ also carry the gate stays my decision for 11-27 (INBOX 14:32); tonight's reading
 planned starts as above. 29632479 (preemptable B200, 14 h) and r102's three H200 workers (29450693/94/702):
 pending, no planned start. Both probes are finished. The queue is unchanged at 20 lines; the four held jobs stay
 held.
+
+## 2026-11-20 01:21 EST: r112 queued: seconds per RL step by model size with the native sampler; the B200 queue put into short blocks so that a worker starting alone still gets a long item
+
+**State.** No GPU of mine is running (none since about 14:35 on 11-19); every job is pending. INBOX is unchanged
+since 11-19 20:45. This entry is design work in an idle wake (LOG 11-19 16:51): it queues one measurement and
+changes the order of the B200 queue. It holds no new result.
+
+**Why model size is open again.** r50, r52 and r53 closed model size (PLAN D5): against D 005's 768x12 model,
+640x10 was at -0.008, 1024x12 at +0.002, 1280x12 at +0.004 and 768x24 at +0.007. All four ran through vLLM at
+11,000 to 14,000 RL steps, where sampling was about 70 % of a step (PLAN D7), so a smaller model bought few extra
+steps and a bigger one lost few. The native sampler changed that. In r101's two native runs (B200, RL only from D
+007's checkpoints) the update is the larger of the two timed parts of a step. The update is the model's forward
+and backward pass, so it grows with the model.
+
+| seed | part of the run | `t_sample` s | `t_update` s | the update's share |
+|---|---|---|---|---|
+| 0 | steps 50 to 400 | 0.187 | 0.336 | 64 % |
+| 0 | the middle 1,000 steps | 0.166 | 0.289 | 63 % |
+| 0 | the last 1,000 steps | 0.138 | 0.168 | 55 % |
+| 1 | steps 50 to 400 | 0.176 | 0.313 | 64 % |
+| 1 | the middle 1,000 steps | 0.135 | 0.176 | 57 % |
+| 1 | the last 1,000 steps | 0.141 | 0.201 | 59 % |
+
+The whole runs made 2.01 and 2.58 steps per second; at steps 50 to 400 the two timed parts alone allow 1.91 and
+2.05. Dev was also still rising when those runs ended (mean of the evaluations in each window of 5,000 steps: ten,
+or nine in a run's last window):
+
+| seed | steps | 0-5k | 5-10k | 10-15k | 15-20k | 20-25k | 25-30k | 30-35k | 35-40k | 40-45k | final |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 34,893 | 0.152 | 0.216 | 0.248 | 0.259 | 0.269 | 0.275 | 0.294 |  |  | 0.3033 |
+| 1 | 44,862 | 0.148 | 0.206 | 0.225 | 0.237 | 0.249 | 0.267 | 0.273 | 0.274 | 0.281 | 0.2883 |
+
+So with the native sampler more steps still buy score, and the model's size sets a large part of the time a step
+takes. How far the step rate moves with size has not been measured in this regime.
+
+**r112.** Six 90 s smoke runs on a B200 in r111's form: RL only, native sampler, D 007's RL settings (64
+self-imitation rows), `no_save`, a node trace every 5 s, and one final dev evaluation whose score means nothing.
+They start from checkpoints that already exist, all pretrained with D 005's recipe (AdamW, 112 min), so nothing is
+pretrained for this:
+
+- `ctl_w768_l12`: D 005's own 768x12 model (110M), seeds 0 and 1: the control;
+- `w640_l10`: r50's 640x10 (69M), seeds 0 and 1;
+- `w1024_l12`: r50's 1024x12 (182M), seed 0;
+- `w768_l24`: r53's 768x24 (about 195M), seed 0.
+
+Each config differs from r101's native config only in the checkpoint it starts from, the pretraining block that
+describes that checkpoint, and the 90 s budget (checked by the script that wrote them). I read `t_sample`,
+`t_update` and steps per second over steps 20 on, and the peak card memory from the trace. The control and 640x10
+run twice, once in each of two blocks of the queue, so each block has its own pair on one node. Each run should
+cost a worker about 3 minutes, taken from the minutes before its long item.
+
+**Expected, written before it runs.** The compute for a token is about proportional to the parameter count, less
+the parts of a step that do not depend on the model. Against the control's steps per second on the same node I
+expect 640x10 at 1.25x to 1.5x, 1024x12 at 0.6x to 0.75x and 768x24 at 0.55x to 0.7x. The two bigger models may
+run out of card memory at 65,536-token micro-batches; that would be their answer. They are in the batch to fix the
+slope and to read memory. I do not expect an arm from them.
+
+**Rule.** 640x10 at 1.4x or more: size moves the step count for real here, and a small model gets seeds: 640x10
+against 768x12 from these same checkpoints (RL only, native, 17,400 s on the B200), and a 512x8 model (41M), which
+has no checkpoint and so needs a pretraining item first. 1.2x or less: size stays closed with the native sampler
+too, and the work goes to the parts of a step that do not depend on the model. In between: decided with the memory
+reading.
+
+**What a win would be worth.** The control's seed sd on dev is 0.019. In the table above, seed 1's dev rose by
+0.008 from the 30-35k window to the 40-45k window (about 30 % more steps), and 640x10 was 0.008 below 768x12 at
+equal time in r50. So I expect 640x10 at -0.01 to +0.02 against the control, inside the noise: by the seeds rule
+of LOG 11-19 16:51 it is not a bold arm by itself. A 41M model at about twice the steps is the bold form, -0.03 to
++0.04, never measured. r112 is the cheap reading that says whether that pretraining item is worth a slot.
+
+**Limits.** A 90 s run reads the start of a run. In r101 a step got faster and the update's share fell as the run
+went on (first table), so a ratio at the start is a first reading only. Timings are compared within one node and
+one card type, and none is carried over to the AWS boxes (INBOX 11-19 16:28).
+
+**The queue order.** The old order was written for workers that start in pairs. The six normal workers' planned
+starts now differ by worker (05:30, 05:30, 10:30, 11:30, 11:30, 11:30 on 11-20), so a worker may start alone. A
+worker takes items only in its first 35 minutes (`RESERVE_MIN=325` in a 6 h job). One that is still on short items
+at minute 35 exits without a long item, and the GPU it waited a day for is lost. By my estimates the old order had
+about 26 and 25 minutes of short items before a long one, and r112 would have added to that. The new order (26
+lines) is in blocks, each a few short items and then one long item (an RL-only run of 17,400 s, about 5.1 h):
+
+- lines 1-2: r107 (memory of fused pretraining) and r104's second item, about 15 min; line 3: r101's native seed 2
+  (long);
+- lines 4-7: r106's four final-weights timing items, about 13 min; line 8: r105 lr 12e-6 seed 0 (long);
+- lines 9-13: the five r111 smoke runs, 10 to 15 min; line 14: r105 lr 24e-6 seed 0 (long);
+- lines 15-19: r106's two start-weights timing items, then r112's control, 1024x12 and 640x10 (seed 0 each), about
+  19 min; line 20: r105 lr 12e-6 seed 1 (long);
+- lines 21-23: r112's control (seed 1), 768x24 and 640x10 (seed 1), about 8 min; lines 24-26: r105's last three
+  items (long).
+
+The times are my estimates from earlier items of the same kind on a B200 (r96 and r100: 3 to 5.5 min each; r104's
+first item 7.4 min); the 90 s smokes have not run yet. Two more rules shaped the order. r106's four final-weights
+items stay together, because they are an ABBA pairing on one node. And a worker that sees two failures of under
+300 s in a row puts the item back and exits, so each bigger-model smoke sits between two items I expect to pass.
+No worker was running, so the change touched nothing in flight. The seven long items match the seven pending B200
+workers.
+
+**Jobs (01:21 EST).** No GPU is running. Normal B200 workers 29644110, 29644111 and 29715907 to 29715910: pending
+at priority 364,746 and 362,569, planned starts as above. 29632479 (preemptable B200, 14 h) and r102's three H200
+workers (29450693/94/702): pending at 36,991 and 38,262, no planned start. The four held jobs stay held.
