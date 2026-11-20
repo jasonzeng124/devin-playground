@@ -9098,3 +9098,87 @@ group only. The check is each worker's time from submission to start, which I lo
 11-20 11:30; 29715907 to 29715910 all four pending, no planned start (reason `None`). 29632479 (preemptable B200,
 14 h): pending, no planned start (reason `Resources`). r102's three H200 workers (29450693/94/702): all three
 pending, no planned start (reason `Resources`). The queue is unchanged at 20 lines; the four held jobs stay held.
+
+## 2026-11-19 23:29 EST: why no GPU has started since 14:35: the cluster is full and my jobs wait on age; two stale node exclusions dropped; all nodes are reserved for maintenance on 12-15
+
+Full wake. INBOX is unchanged since 20:45 (answered at 21:02). No job of mine is running; nothing finished or
+failed. The message of the day has no notice. Quota at 23:00: pool 64.47 % of 1 TB, home 47.06 %. Since no GPU of
+mine has run for almost nine hours, I looked at why (all read-only, 23:05 to 23:10) and whether anything but
+waiting helps.
+
+**What the cluster looks like.**
+
+- B200 (`mit_normal_gpu`): of 12 nodes, 3 are out of service and 2 are inside a reservation of other users until
+  10:00 on 11-20. Of the seven B200 GPUs that `sinfo` showed as free at 23:05, six were on those two reserved
+  nodes, which are not open to me, and one was on an open node. 7 nodes are open to normal jobs now, and 7 after
+  10:00 on 11-20 (one node comes back, another is reserved until 11-22). One more node is reserved from 11-30 to
+  12-07.
+- H200 on `mit_normal_gpu`: 72 GPUs, none free. Pending there with reason `Priority`: 9 B200 requests (6 of them
+  mine), 132 for an H200, 103 for an L40S, 45 for an H100 and 78 for any GPU.
+- H200 on `mit_preemptable` (r102's line): one GPU free at 23:09. 182 pending requests could run on an H200 there;
+  74 of them stood above my three gate workers (37,617 then), the highest at 49,839. On B200 the same count is 7
+  of 24 above 29632479's line. My first count of free preemptable H200s (8) was a parsing error from narrow
+  `sinfo` columns; the re-count with wide columns gave one.
+
+**How the scheduler treats these jobs (from `scontrol show config`).**
+
+- `bf_min_prio_reserve=50000`: as I read Slurm's documentation, the scheduler holds a place (a planned start) only
+  for jobs at priority 50,000 or more. Every normal job is above that (partition part 360,000). My preemptable
+  workers are below it (37,716 for r102's three, 36,445 for 29632479), so they never show a planned start: they
+  start only when a GPU they may use is free at the moment the scheduler tries them. With age alone r102's workers
+  reach 50,000 on 11-21 about 16:00 (41 h from now), and from then they should be given a planned start like the
+  normal jobs. That is the clearest date I have for the gate, and it is not soon.
+- Preemption is by partition (`preempt/partition_prio`, mode `REQUEUE`), as known: a preemptable run is requeued
+  when a normal job needs its GPU.
+- `sbatch --test-only` (nothing submitted) gave one answer for a new normal B200 worker, 05:22 on 11-24, at every
+  time limit from 30 min to 6 h and with half the CPUs and memory; an L40S, an H200 or an H100 came out later, and
+  every preemptable request at 11-22. So no other card, shorter limit or smaller worker gets a job in sooner (the
+  20:45 note found the same). The estimate itself is four days later than the planned starts my pending workers
+  have shown tonight, so I do not plan by it.
+
+**First change: the exclusion of `node5501-c1` is dropped on the seven B200 workers.** The node was excluded after
+a GPU failed on it on 10-29 (LOG 10-30). At 23:07 all eight of its GPUs were allocated, to jobs that had run from
+6 minutes to 23 hours, so it reads as repaired. I set `ExcNodeList=node5500-c1` (the drained node stays excluded)
+with `scontrol update` on 29715910 first: its `AccrueTime` and age were unchanged. Then on 29644110, 29644111,
+29715907, 29715908, 29715909 and 29632479. My workers can now use all 7 open B200 nodes instead of 6. The risk is
+small: on a bad GPU the worker puts its item back at the front of the queue and exits (it did so on that node on
+10-30), which costs one worker's place and no item. If it happens the exclusion goes back. New B200 workers are
+submitted with `--exclude=node5500-c1` only.
+
+**Planned starts of the six normal workers.** At 21:02 only the pair had one (11:30 on 11-20). At 23:08, after the
+change: 11:30, 11:30, 14:30, 14:30, 16:00 and 17:30. At 23:17: 05:00, 05:00, 07:00, 10:00, 11:00 and 11:00. At
+23:22 and 23:24: none (reason `Priority`). At 23:29: 06:30, 07:00, 10:00, 11:00, 11:30, 11:30. All times are on
+11-20. They come and go with every pass of the scheduler, so I read them as rough and do not credit the earlier
+times to the change.
+
+**Second change: node5200 comes off the exclusions of r102's H200 workers, after a probe.** The three workers
+excluded 50 of the 258 preemptable H200 GPUs that are in service. 18 are on AGENT.md's list. 32 were my additions,
+four nodes of eight GPUs: node2500 and node4900 ran my jobs slowly (node2500 about 3x on 10-30) and stay excluded
+because the gate is a timed run; node5100 and node5200 hung on reading the venv on 11-14 (LOG 11-14). I tested
+those two with probe jobs 29727371 (node5100) and 29727372 (node5200): one CPU and at most 6 minutes each on
+`mit_preemptable`, script `agent/probe_venv_1119.sh` (a `stat` of two venv files and of one file in home, then one
+`import torch`, each under a timeout). Both started at 23:18, 111 s or less after submission. node5200 passed: the
+venv files were read in 0.008 s or less and `import torch` took 28 s. node5100 failed: both venv files timed out
+at 30 s while the file in home took 0.003 s, and the import was killed at its limit (155 s). So the pool
+filesystem still hangs on node5100, and that node stays excluded. node5200 is off the three workers' list since
+23:23 (`AccrueTime` and age unchanged), which leaves 42 of 258 excluded. The worker script also guards against
+this case since 11-14: on a node where the venv cannot be read within 60 s it exits holding no item.
+
+**Maintenance on 12-15.** A reservation covers every node from 00:00 to 21:00 on 2026-12-15 (the message of the
+day does not announce it yet). Nothing runs then, and a job whose time limit reaches past 00:00 on 12-15 does not
+start before it: a 6 h worker must start by 18:00 on 12-14, a 12 h or 14 h preemptable worker by 12:00 or 10:00
+(later if its `--time-min` lets it shrink). A record's five seeds must be planned around that day; with the run's
+end on 12-19 it leaves four days after it.
+
+**What this means for the plan.** On Engaging, age is the only lever and it is already in use: six normal workers
+(age 2,897 and 720), one preemptable B200 worker (5,142) and the three gate workers (6,413). Nothing else I could
+find starts a job sooner. The three paid boxes (11-25, 11-28, 12-09) are therefore most of the GPU time this run
+can count on, and their queues deserve the idle wakes: before the planning day of 11-24 I prepare bold end-to-end
+track D arms (U17, U19) to replace part of the RL-only standby, which needs the pretraining token file in
+`box/home/` (it goes up with the `home` job once such an arm is in a queue). Whether the 11-28 H200 box should
+also carry the gate stays my decision for 11-27 (INBOX 14:32); tonight's reading of r102's line is a fact for it.
+
+**Jobs (23:29 EST).** No GPU is running. Normal B200 workers 29644110, 29644111 and 29715907 to 29715910: pending,
+planned starts as above. 29632479 (preemptable B200, 14 h) and r102's three H200 workers (29450693/94/702):
+pending, no planned start. Both probes are finished. The queue is unchanged at 20 lines; the four held jobs stay
+held.
