@@ -9430,3 +9430,62 @@ three H200 gate workers 29450693/94/702 (priority 39,096; 50,000 about 16:00 on 
 start-weights pair and three r112 smokes, then r105 lr 12e-6 seed 1; the other three r112 smokes, then r105's last
 three items. That is five long items for the five pending B200 workers and it runs out about 20:00 today, so more
 work is queued next in this wake, in its own entry with the expectations written first.
+
+## 2026-11-20 04:34 EST: r113 queued (three RL-only arms on the B200 from D 007's checkpoints: sil256, silc2, stack3; expectations and rule written first); one pending worker for each queued long item
+
+**What.** r113 is three RL-only arms with the native sampler, 17,400 s each, seeds 0 and 1, from D 007's
+pretrained checkpoints. Each config is the r101 native control (`calibration/research_r101/d007rl_native_b200`)
+with only the named settings changed (checked by the script that wrote them): `d007rl_native_sil256_b200` has
+`sil_rows` 256 against 64; `d007rl_native_silc2_b200` has `sil_coef` 2.0 against 0.5; `d007rl_native_stack3_b200`
+has three changes at once, lr 12e-6 on a cosine schedule, `sil_rows` 256, and the mini levels M2, M3 and M6 in the
+training mix. They are the B200 copies of the staged box arms `d007rl_sil256`, `d007rl_silc2` and `d007rl_stack3`
+under `calibration/research_r108/` (the settings are equal, also checked). Each has a 5 s node trace. The results
+are B200 results, not yet gated.
+
+**Why these three.** They are the arms of the standby table (LOG 11-19 16:51) that are not weak by that table and
+are not yet on Engaging. The lr arms have their constant-lr forms in r105. `long2x` (34,800 s) does not fit a 6 h
+worker. `mini3`, `hard2x` and `g32p16` were the table's weak arms, and `mini3` runs inside `stack3`. An end-to-end
+item (pretraining and RL, about 6.1 h) does not fit the 6 h normal workers that share this queue, so the bold
+end-to-end arms stay for the boxes. A B200 reading of these three before 11-24 lets the 11-25 box be planned
+around what the arms do, not around the standby guess.
+
+**Why RL settings again (INBOX 11-01 asks for the reason).** The native sampler about doubles the RL steps in the
+budget: the control reached 34,893 and 44,862 steps against D 007's 16,318 to 19,735. `sil_rows` 64, `sil_coef`
+0.5 and lr 6e-6 were chosen at about half the steps. These are 4x and 2x moves, not small ones, and each has a
+written range that includes a loss. In the second half of the control's runs 30.6 and 28.6 of the 64 groups a step
+had a non-zero advantage, so about 301 rows went into an update (those groups times the group size of 8, plus the
+64 replayed rows). The final dev by level (seed 0, seed 1): L1 0.84 and 0.88, L2 0.26 and 0.16, L3 0.24 and 0.16,
+L4 0.09 and 0.09, L5 0.08 and 0.10, L6 0.31 and 0.34. L2 to L5 are where the score is lost, and the replay buffer
+(4,096 completions a level) is where solved hard puzzles are seen again.
+
+**Expected, written before any item runs.** Final dev against the control at the same seed (the standby table's
+ranges): sil256 -0.05 to +0.04; silc2 -0.05 to +0.04; stack3 -0.03 to +0.06. The control's noise: the vLLM
+control's seed sd is 0.019, and the native control's two seeds ended at 0.3033 and 0.2883, on nodes that ran 2.01
+and 2.58 steps a second. Cost per step, an estimate only: sil256 takes an update from about 301 to about 493 rows,
+and if the update time grows with the rows (the control's timers read 0.149 s of sampling and 0.213 s of update a
+step) a step costs about 38 % more, so sil256 and stack3 would end about 27 % short of the control's steps on an
+equal node. silc2 changes a weight only and should cost nothing per step.
+
+**Rule for reading.** Each arm seed is read against the control's same seed two ways: at matched steps (block
+means of ten dev evals), and at the final, with the steps and the node of both runs. The B200 nodes differ in
+speed, so the matched-steps reading judges the setting and the final is the score the budget gives on that node.
+For sil256 and stack3 a gain at matched steps is not enough: it has to be larger than what the control gains over
+the steps the arm loses, read from the control's own curve. An arm that is +0.02 or more at the final in both
+pairs, and ahead at matched steps too, gets a third seed here and more seeds on the 11-25 box, and is a candidate
+for the next H200 gate config. An arm below the control in both pairs, both ways, is closed and its box arm is
+replaced on the planning day. Anything between stays in the box queue and the box's seeds decide. If the
+`smoke_sil256` or `smoke_stack3` run of r111 fails, the matching r113 items are pulled before a worker pops them;
+silc2 has no smoke because it changes a weight and no code path.
+
+**Queue and workers.** The six items were appended at 04:21 EST (seed 0 of each arm, then seed 1), so
+`screens_rl_b200` has 24 lines and 11 long items: r105's five, then r113's six. If each pair starts as the one
+before ends, the queue lasts to about 14:00 on 11-21; the first pair waited 13 h, so it may last longer. Six more
+normal B200 workers were submitted at 04:21 EST, in the same form as the four of 11-19 20:58 and with no
+dependency: 29755538 to 29755543 (priority 361,351 at age 60; the older four are at 363,527). All ten wait on the
+per-user limit and gain age there. **This changes the practice of 11-19 21:02** (two pairs pending): now one
+pending worker for each queued long item, submitted when the item is queued. A pending job costs nothing and takes
+no node, a worker that starts on an empty queue exits at once, and with waits of 13 h the age gained early counts
+against jobs submitted later (it does nothing against jobs already ahead, which age at the same rate). The
+eleventh long item is for 29632479 (preemptable, 14 h) or a later worker. The running pair is unchanged: 29644110
+(r101's native seed 2, to about 08:00) and 29644111 (r105 lr 12e-6 seed 0, to about 08:26). r102's three H200 gate
+workers are pending at priority 39,220 and 29632479 at 37,949. INBOX is unchanged since 11-19 20:45.

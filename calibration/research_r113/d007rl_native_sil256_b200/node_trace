@@ -1,0 +1,3 @@
+5
+Seconds between readings. scripts/research/run_item.sh starts scripts/research/node_trace.sh beside each seed of
+this item and writes seeds/<seed>/node_trace.csv (GPU and node readings; observation only; LOG 2026-11-19).
