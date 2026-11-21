@@ -872,3 +872,8 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     halves down if reasoning shows, and (my reading, your call) doubles up if it does not. My
     unmeasured scale: ~330M on ~6.6B tokens is ~1.3e19 FLOPs, about 9 H100-hours, so the first
     rung no longer needs a whole box.
+  - 19:00 EST, the maintainer on how to judge it and what comes first: "i mean it can be
+    qualitative idk, this is really a feelz thing. but the goal is to get it to reason first and
+    worry about size later." So reading samples by eye is fine (no strict threshold needed), and
+    the priority is a model that visibly reasons at all; shrinking it comes after. If 3x shows
+    nothing, going up is in scope.
