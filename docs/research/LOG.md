@@ -10007,3 +10007,81 @@ I let seed 1 run rather than stop it, since the rule needs both pairs.
 - **Queue:** the B200 queue holds r115 p32 seeds 0 and 1 and r105 lr 24e-6 seed 1.
 - **Storage:** pool 65 % (df 364 GB available); scratch 3 % of space and 65 % of its file limit; no quota errors in the slurm logs.
 - **INBOX:** unchanged since 11-19 20:45 (e66970b).
+
+## 2026-11-21 07:39 EST: r105 lr 12e-6 seed 1 ends ahead of the native control (0.3233 against 0.2883; +0.0243 at matched steps, ahead at 85 of 89 evals); over two pairs +0.0096, so seed 2 is queued again for r105's three-pair rule; r113 stack3 seed 1 is level at matched steps, so stack3 is between (weak), not closed
+
+Both seeds ran on normal B200 workers from scratch and are read by script against r101's native control seed 1 (node5602-c1).
+
+**r105 lr 12e-6 seed 1** (lr 2x D 007's 6e-6, nothing else changed; node5702-c1, 02:06 to 06:57):
+
+| | lr 12e-6 seed 1 | control seed 1 | lr 12e-6 seed 0 | control seed 0 |
+|---|---|---|---|---|
+| final dev (n = 600) | 0.3233 | 0.2883 | 0.2900 | 0.3033 |
+| steps in 17,400 s | 48,070 | 44,862 | 36,808 | 34,893 |
+| steps/s | 2.763 | 2.578 | 2.115 | 2.005 |
+| mean `t_sample` / `t_update` (s) | 0.138 / 0.191 | 0.141 / 0.210 | 0.180 / 0.250 | 0.163 / 0.286 |
+| mean of the last five evals | 0.3223 | 0.2857 | 0.2903 | 0.2920 |
+
+| steps (seed 1) | shared evals | seed 1: arm minus control | seed 0, same block |
+|---|---|---|---|
+| 1 to 5,000 | 10 | +0.0035 | +0.0033 |
+| 5,001 to 10,000 | 10 | +0.0140 | -0.0020 |
+| 10,001 to 20,000 | 20 | +0.0268 | -0.0123 |
+| 20,001 to 30,000 | 20 | +0.0202 | -0.0039 |
+| 30,001 to 44,500 | 29 | +0.0360 | -0.0044 |
+
+Over all 89 shared evals, seed 1's arm is +0.0243 (sd 0.0140, se 0.0015), ahead at 85 and behind at 3. The lead grows from about +0.004 in the first 5,000 steps to about +0.036 after step 30,000. At the control's last step (44,862) the arm stood at 0.3150, so the gain at the final is not only from its 3,208 extra steps. Seed 0's pair was -0.0051 over 69 evals and -0.0133 at the final (LOG 11-20 09:23).
+
+**What this means under r105's rule** (LOG 11-19 09:28). The rule needs a gain of 0.015 or more at matched steps over three pairs to put lr 12e-6 into the next H200 gate config. A tie closes lr for the native regime. Over two pairs the mean is +0.0096 at matched steps and +0.0108 at the final, so the rule is neither met nor closed. The seed-2 pair would need +0.0258 or more at matched steps. That is about seed 1's size, so I give it well under even odds. The two pairs differ by 0.029, more than the paired noise I assumed (SE about 0.005 over three pairs). So the lr effect, if real, varies by seed, or one pair is noise. I expected about +0.02 at 2x (range -0.02 to +0.05), and the two-pair mean is inside that range, below its centre.
+
+The seed-2 item was dropped at 02:00 for r115. It goes back into the queue now, ahead of lr 24e-6 seed 1, because only it can complete the rule for the one dose with a large pair. lr 24e-6 seed 2 stays out. lr 24e-6 seed 0 was +0.0020, so its seed 2 counts only if its seed 1 is large too.
+
+**r113 stack3 seed 1** (lr 12e-6 cosine, `sil_rows` 256, mini levels M2, M3, M6; node5501-c1, 02:36 to 07:26):
+
+| | stack3 seed 1 | control seed 1 |
+|---|---|---|
+| final dev | 0.2733 | 0.2883 |
+| steps / steps/s | 38,299 / 2.201 | 44,862 / 2.578 |
+| mean `t_sample` / `t_update` (s) | 0.127 / 0.298 | 0.141 / 0.210 |
+| mean of the last five evals | 0.2800 | 0.2857 |
+
+| steps | shared evals | arm minus control |
+|---|---|---|
+| 1 to 5,000 | 10 | -0.0013 |
+| 5,001 to 10,000 | 10 | -0.0048 |
+| 10,001 to 20,000 | 20 | -0.0039 |
+| 20,001 to 30,000 | 20 | +0.0036 |
+| 30,001 to 38,000 | 16 | +0.0046 |
+
+Over 76 shared evals: +0.0001 (sd 0.0104), ahead at 36 and behind at 33. At the arm's last step the control stood at 0.2683, so the arm's final is +0.0050 at equal steps. The final is -0.0150 at equal time, because the 256 self-imitation rows lengthen the update.
+
+**Under the r113 rule** (LOG 11-20 04:34). Seed 0 was below both ways (-0.0300 at the final, -0.0081 at matched steps; LOG 11-21 02:39). Seed 1 is below at the final but level at matched steps. "Closed" needs below both ways in both pairs, so stack3 is between, not closed. Among r113's arms it is the weakest candidate for the 11-25 box, behind sil256.
+
+On the same seed, stack3 is -0.0217 against lr 12e-6 at matched steps (76 shared evals). stack3 peaks at the same lr, uses a cosine schedule, and adds sil256 and the mini levels. One seed cannot say which part takes back lr 12e-6's lead, so I draw no cause from it.
+
+**Queue** (`queue/screens_rl_b200.txt`, edited under the lock at 07:38):
+1. r105 lr 12e-6 seed 2
+2. r105 lr 24e-6 seed 1
+
+Workers:
+- normal B200 29942141 (submitted 07:38 for the re-added item);
+- preemptable 29837212.
+
+**Jobs.**
+- **Ran and exited:** 29837206 (lr 12e-6 seed 1) and 29837208 (stack3 seed 1) exited after their items.
+- **Running:**
+  - 29837209: r115 p32 seed 0 on node5701-c1, since 07:10, to about 12:00;
+  - 29837211: r115 p32 seed 1 on node5800-c1, since 07:35, to about 12:30.
+- **Pending:**
+  - the two B200 workers above;
+  - preemptable H200 29837213 and 29837214 (r102 seeds 1 and 2);
+  - the four held workers.
+- **GPUs in use:** 2 of 6.
+- **Queue depth:** less than a day of B200 work is queued, to about 17:30 if the workers start at 12:00. The next items depend on r115 seed 0's step rate, which sets the speed timing item. I add them at the wake after it ends.
+
+**Storage.**
+- Pool: 64.5 % (df: 661G used, 364G free).
+- Scratch: 3.2 % of space and 69.6 % of its file limit (696K files, up from 652K at 02:22). Each seed directory these runs leave on scratch holds four files, so the growth is not from their outputs. I watch it. Above 85 %, the workers go back to the pool after a write probe there.
+- The slurm logs show no quota errors.
+
+**INBOX:** unchanged since 11-19 20:45 (e66970b).

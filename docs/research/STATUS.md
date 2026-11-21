@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-21 02:39 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-21 07:40 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -46,15 +46,16 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (02:40 EST 11-21).** Workers write to scratch (`CKPT_DIR` in `--export`) since the pool's file server
+**Jobs (07:39 EST 11-21).** Workers write to scratch (`CKPT_DIR` in `--export`) since the pool's file server
 filled up at 18:27 on 11-20 (LOG 11-20 18:42; QUESTIONS 11-20 18:42). The pool shows room again (65 %), but the
 workers stay on scratch until a write probe there passes. Scratch holds 3 % of its space and 65 % of its 1.0M file
-limit (watch the files). Running: 29837206 (normal B200, node5702-c1) with r105 lr 12e-6 seed 1 since 02:06 (to
-about 07:00) and 29837208 (normal B200, node5501-c1) with r113 stack3 seed 1 since 02:35 (to about 07:30). 29837204
-ran stack3 seed 0 (21:37 to 02:28; LOG 11-21 02:37) and exited. Pending on `screens_rl_b200`: normal B200 29837209
-and 29837211 and preemptable 29837212, one for each of the three queued long items (4 h 51 min each): r115 p32 seeds
-0 and 1, r105 lr 24e-6 seed 1. Pending
-on `screens_r92`: preemptable H200 29837213 and 29837214 for r102 seeds 1 and 2. Held: 29497701/02/05 (B200
+limit (70 % at 07:29 on 11-21, up from 65 % at 02:22; not from these runs' outputs, four files a seed; above 85 %
+the workers go back to the pool after a write probe). Running: 29837209 (normal B200, node5701-c1) with r115 p32 seed
+0 since 07:10 (to about 12:00) and 29837211 (normal B200, node5800-c1) with r115 p32 seed 1 since 07:35 (to about
+12:30). 29837206 and 29837208 ran r105 lr 12e-6 seed 1 and r113 stack3 seed 1 (LOG 11-21 07:39) and exited. Pending
+on `screens_rl_b200`: normal B200 29942141 and preemptable 29837212, one for each of the two queued long items (4 h
+51 min each): r105 lr 12e-6 seed 2 (queued again at 07:38) and lr 24e-6 seed 1. Less than a day of B200 work is
+queued; the next items follow r115 seed 0's step rate (the speed timing item). Pending on `screens_r92`: preemptable H200 29837213 and 29837214 for r102 seeds 1 and 2. Held: 29497701/02/05 (B200
 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). My jobs wait on age (298 an hour; LOG 11-19
 21:02 and 11-19 23:29); a requeue resets it. **Practice (11-20 04:34):** one pending worker for each queued long
 item, submitted when the item is queued, and never chained with `--dependency` (a job waiting on a dependency or a
@@ -75,9 +76,10 @@ these: timed in r106, same maths, no speed at trained weights.
 RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
 **Next decisions:** workers go back to the pool only after a write probe there passes (QUESTIONS 11-20 18:42);
 r102 seeds 1 and 2 (preemptable H200) for the speed config's three-seed mean against 0.281 (seed 0 ended at 0.270;
-a five-seed record attempt only if the three-seed rule is met); r113 stack3 seed 1 (ends about 07:30; seed 0 is
-below both ways, LOG 11-21 02:37) against the rule in LOG 11-20 04:34 (sil256 and silc2 are both between and left to the box); r105's two seeds 1
-(both seed-0 pairs level, LOG 11-20 14:24); r115 p32 seeds 0 and 1 against the rule written first in LOG 11-21
+a five-seed record attempt only if the three-seed rule is met); r105 lr 12e-6 seed 2 against r105's three-pair
+rule (two pairs +0.0096 at matched steps; seed 2 needs +0.026 or more for the 0.015 bar; LOG 11-21 07:39) and lr
+24e-6 seed 1 (its seed 2 only if seed 1 is large); r113's three arms are all between and left to the box (sil256
+the strongest, stack3 the weakest); r115 p32 seeds 0 and 1 against the rule written first in LOG 11-21
 02:00, read at the final and at matched train time, with its step rate going to the speed work; the speed work
 itself (LOG 11-21 02:00): a timing item first, then the answer grammar and stop checks as GPU tables with a sync
 every k tokens, then the CPU-bound update, each the same maths and off by default (r112 closed model size; a 90 s
@@ -278,7 +280,11 @@ screen runs on the H200.
   after 34,893 (node5600-c1): -0.005 at matched steps (mean of 7 block differences) and -0.013 at the final, so
   level and not the gain expected. **Second pair (LOG 11-20 14:24):** lr 24e-6 seed 0 ended at 0.2967 after 45,636
   steps (node5800-c1): +0.002 over the 69 shared evals, -0.007 at the final, so also level, with no order by dose.
-  Seeds 1 of both doses stay queued after r113's arms; the two seed-2 items were dropped for r115 (LOG 11-21 02:00). Expected: about +0.02 at 2x (range -0.02 to +0.05) against a paired SE of about 0.005. Read
+  The two seed-2 items were dropped for r115 (LOG 11-21 02:00). **lr 12e-6 seed 1 (LOG 11-21 07:39):** 0.3233
+  after 48,070 steps (node5702-c1) against the control seed 1's 0.2883 after 44,862 (node5602-c1): +0.0243 over 89
+  shared evals (ahead at 85), +0.035 at the final. Two pairs: +0.0096 at matched steps, +0.011 at the final, so
+  neither met nor closed; lr 12e-6 seed 2 is queued again (it needs +0.026 or more at matched steps for the
+  three-pair mean to reach 0.015). lr 24e-6 seed 1 stays queued; its seed 2 only if seed 1 is large. Expected: about +0.02 at 2x (range -0.02 to +0.05) against a paired SE of about 0.005. Read
   paired by seed against `d007rl_native_b200` at matched steps (block means of ten dev evals), with steps and
   node. A gain of 0.015 or more over three pairs puts that lr into the next H200 gate config; a tie closes lr for
   the native regime.
@@ -303,10 +309,12 @@ screen runs on the H200.
   the final against the control's 0.3033, after 29,892 steps against 34,893 (1.718 against 2.005 steps/s; node5602-c1
   against node5600-c1); -0.001 over 59 shared evals (-0.03 before step 10,000, +0.026 after 20,000). Between, as
   expected: seed 1 does not rerun, and sil256 is left to the box as the strongest r113 arm so far. **stack3 seed 0
-  (LOG 11-21 02:37):** 0.2733 at the final against 0.3033, after 31,122 steps against 34,893; -0.008 over 62 shared
+  (LOG 11-21 02:39):** 0.2733 at the final against 0.3033, after 31,122 steps against 34,893; -0.008 over 62 shared
   evals (behind at 42). Below both ways, at the bottom of the expected range (-0.03 to +0.06); its parts alone were
-  level, so on one seed the stack does not add. Seed 1 runs (to about 07:30): below both ways again closes stack3,
-  otherwise it is between.
+  level, so on one seed the stack does not add. **stack3 seed 1 (LOG 11-21 07:39):** 0.2733 against 0.2883 at the
+  final after 38,299 steps against 44,862, but +0.0001 over 76 shared evals (+0.005 after step 20,000), so not below
+  both ways: stack3 is between, the weakest r113 arm for the box; on seed 1 it is -0.022 against lr 12e-6 alone at
+  matched steps.
 - r115 (B200, RL only, not gated; LOG 11-21 02:00): `d007rl_native_p32_b200`, r101's native control with half the
   prompts per step (`prompts_per_step` 32, `group_size` 8, so 256 rows a step), `sil_rows` 32 and `eval_every`
   1000; seeds 0 and 1, in place of r105's two seed-2 items. Expected: 1.45x to 1.6x the control's step rate; score
