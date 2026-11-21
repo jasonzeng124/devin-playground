@@ -9961,3 +9961,49 @@ r105's two seed-2 items are dropped. Their seeds 1 stay, as LOG 11-20 14:24 deci
 - **GPUs in use:** 1 of 6.
 - **Storage:** the pool is at 65 %. Scratch is at 3 % of space and 65 % of its file limit. The slurm logs show no quota errors.
 - **INBOX:** unchanged since 11-19 20:45 (e66970b).
+
+## 2026-11-21 02:39 EST: r113 stack3 seed 0 ends behind the native control (0.2733 against 0.3033; -0.0081 at matched steps); seed 1 decides between "closed" and "between"
+
+**r113 stack3 seed 0** (lr 12e-6 on a cosine schedule, `sil_rows` 256 and the mini levels M2, M3 and M6 in the training mix; node5701-c1, 21:37 11-20 to 02:28 11-21) against r101's native control seed 0 (node5600-c1). The read is by script, as for sil256 (LOG 11-21 02:00).
+
+| | arm | control |
+|---|---|---|
+| final dev (n = 600) | 0.2733 | 0.3033 |
+| steps in 17,400 s | 31,122 | 34,893 |
+| steps/s | 1.789 | 2.005 |
+| mean `t_sample` / `t_update` (s) | 0.155 / 0.367 | 0.163 / 0.286 |
+| mean entropy | 0.081 | 0.100 |
+| mean of the last five evals | 0.2800 | 0.2920 |
+
+| steps | shared evals | arm | control | arm minus control |
+|---|---|---|---|---|
+| 1 to 5,000 | 10 | 0.1480 | 0.1523 | -0.0043 |
+| 5,001 to 10,000 | 10 | 0.2103 | 0.2163 | -0.0060 |
+| 10,001 to 20,000 | 20 | 0.2365 | 0.2534 | -0.0169 |
+| 20,001 to 30,000 | 20 | 0.2714 | 0.2722 | -0.0008 |
+| 30,001 to 31,000 | 2 | 0.2792 | 0.3017 | -0.0225 |
+
+Over all 62 shared evals the arm is -0.0081 (sd 0.0153, se 0.0019). It is behind at 42 of them. The training reward is not comparable, because the mini levels are in the mix.
+
+**What this means under the r113 rule** (LOG 11-20 04:34). Seed 0 is below the control both at the final (-0.0300) and at matched steps. That is the bottom of the range I wrote (-0.03 to +0.06). Its parts did no better alone:
+- lr 12e-6 seed 0 (constant) was level at matched steps and -0.013 at the final (LOG 11-20 09:23).
+- sil256 seed 0 was level at both (LOG 11-21 02:00).
+
+So on one seed the three changes do not add up to a gain. Seed 1 started at 02:35 on node5501-c1 (29837208) and ends about 07:30.
+- If seed 1 is also below both ways, stack3 is closed and comes off the box queues on 11-24.
+- Otherwise it is between, and a weak box candidate.
+
+I let seed 1 run rather than stop it, since the rule needs both pairs.
+
+**Jobs.**
+- **Running (2 of 6 GPUs):**
+  - 29837206 (node5702-c1): r105 lr 12e-6 seed 1, since 02:06;
+  - 29837208 (node5501-c1): stack3 seed 1, since 02:35.
+- **Pending:**
+  - normal B200 29837209 and 29837211 (at the two-normal-GPU limit);
+  - preemptable B200 29837212;
+  - H200 29837213 and 29837214 (r102 seeds 1 and 2);
+  - the four older held workers.
+- **Queue:** the B200 queue holds r115 p32 seeds 0 and 1 and r105 lr 24e-6 seed 1.
+- **Storage:** pool 65 % (df 364 GB available); scratch 3 % of space and 65 % of its file limit; no quota errors in the slurm logs.
+- **INBOX:** unchanged since 11-19 20:45 (e66970b).
