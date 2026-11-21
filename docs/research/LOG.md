@@ -9879,3 +9879,85 @@ silc2 seed 1 trails the control at every point: -0.0344 over 45 evals (sd 0.0125
 - **stack3** has not started; both of its seeds are queued.
 
 **Jobs.** Nothing of mine is running. Pending: the nine scratch workers above and the four older held workers. GPUs in use: 0 of 6. INBOX is unchanged since 11-19 20:45 (e66970b). Each wake checks the pool's `df` and the slurm logs for `Disk quota exceeded`. The workers stay on scratch until the pool has room again and I have checked it with a write probe.
+
+## 2026-11-21 02:00 EST: r113 sil256 seed 0 ends level with the native control (0.3033 against 0.3033; -0.0010 at matched steps), so it falls between and is left to the box; where the native step's time goes late in a run; r115 (half the prompts per step) replaces r105's two seed-2 items, with its expected effect and rule written first
+
+**r113 sil256 seed 0** (`sil_rows` 256, the rerun on scratch, node5602-c1, 20:45 11-20 to 01:36 11-21) against r101's native control seed 0 (node5600-c1). The read is by script, at the final and over the dev evals both runs made at the same step.
+
+| | arm | control |
+|---|---|---|
+| final dev (n = 600) | 0.3033 | 0.3033 |
+| steps in 17,400 s | 29,892 | 34,893 |
+| steps/s | 1.718 | 2.005 |
+| mean `t_sample` / `t_update` (s) | 0.169 / 0.375 | 0.163 / 0.286 |
+| mean of the last five evals | 0.3047 | 0.2920 |
+
+| steps | shared evals | arm | control | arm minus control |
+|---|---|---|---|---|
+| 1 to 5,000 | 10 | 0.1228 | 0.1523 | -0.0295 |
+| 5,001 to 10,000 | 10 | 0.1880 | 0.2163 | -0.0283 |
+| 10,001 to 20,000 | 20 | 0.2552 | 0.2534 | +0.0017 |
+| 20,001 to 29,500 | 19 | 0.2968 | 0.2712 | +0.0255 |
+
+Over all 59 shared evals the arm is -0.0010 (sd 0.0253, se 0.0033). It trails by about 0.03 before step 10,000 and leads by about 0.025 after step 20,000. It made 14 % fewer steps because the update carries four times the self-imitation rows. At the arm's last step the control stood at 0.2850, so the arm's final is +0.0183 over the control at equal steps, but level at equal time.
+
+**What this means under the r113 rule** (LOG 11-20 04:34). The final is level, not +0.02, so the third-seed bar is not met. The arm is ahead at matched steps over the second half, so it is not closed either. It falls between, as I expected in LOG 11-20 18:42 (level, -0.02 to +0.01). Seed 1 was to rerun only if seed 0 cleared +0.02, so it does not rerun. Its partial stays as read (-0.009 to step 20,000, closing). The late lead at equal steps comes from one seed pair on two nodes, against a control seed sd of about 0.011, so I do not count it as a gain. It does make sil256 the strongest of r113's three arms for the 11-25 box, where more rows cost less if the update is faster. I weigh it there on 11-24.
+
+**Where the native step's time goes late in a run** (r101 control seed 0, node5600-c1; 512 sampled rows a step):
+
+| steps | `t_sample` s | `t_update` s | informative groups of 64 | solve rate in batch | tokens a step | wall s per step |
+|---|---|---|---|---|---|---|
+| 100 to 2,000 | 0.176 | 0.376 | 57 | 0.10 | 12,256 | 0.601 |
+| 10,000 to 12,000 | 0.169 | 0.326 | 36 | 0.25 | 12,295 | 0.553 |
+| 30,000 to 34,893 | 0.134 | 0.171 | 29 | 0.32 | 12,450 | 0.336 |
+
+Tokens per step stay near 12,300 (about 24 per completion). As the policy improves, fewer groups carry a nonzero advantage, and with `skip_zero_advantage` the update shrinks from 0.376 s to 0.171 s. The sampler only falls from 0.176 s to 0.134 s. Late in a run the sampler is 44 % of the two timed parts.
+
+I read the decode loop (`rlvr_speedrun/fast_rollout.py`, the per-token step after the CUDA-graphed forward). Each token copies the sampled ids to the CPU (`sampled.tolist()`) and runs a Python loop over the rows for the answer grammar (`allowed_ids`) and the stop check. `mask_rows_cached` (`constrained.py`) copies a pageable CPU tensor with `non_blocking=True`. Such a copy waits for the forward step on the stream. So the answer-constraint timer (0.087 s of a 0.392 s step, LOG 11-19 09:28) includes forward time, and it cannot be read as the CPU's own cost.
+
+The speed work that follows, in order:
+1. The grammar and stop checks as tables on the GPU, with a sync every k tokens instead of every token.
+2. The update, whose time follows the node's CPU (LOG 11-20 11:48).
+
+Each gets a timing item before any code is written. Both keep the same maths and are off by default.
+
+**r115: half the prompts per step** (the bold item that replaces r105's two seed-2 items, as STATUS planned). The arm is `calibration/research_r115/d007rl_native_p32_b200` on the B200, RL only, not gated, seeds 0 and 1. It is r101's native control with these changes:
+- `prompts_per_step` 32 against 64, with `group_size` 8 kept, so 256 sampled rows a step;
+- `sil_rows` 32 against 64, so the self-imitation share per step is unchanged;
+- `eval_every` 1000, so it evaluates about as often in time as the control does at 500.
+
+Everything else is the same: lr 6e-6, `time_budget_s` 17,400 and D 007's seed-matched pretrained weights. It is a config-only change, and wide rather than fine.
+
+Why: the control's curve still rises at the end (about +0.002 per 1,000 steps), and its gain over the vLLM control came from extra steps (LOG 11-19 14:35). A smaller batch buys more, noisier steps in the same time. The step rate also measures how much of a native step scales with the rows and how much is fixed, which the speed work needs.
+
+Expected:
+- **Step rate:** 1.45x to 1.6x the control's, about 50,000 steps. Late in a run I expect `t_sample` about 0.09 s and `t_update` about 0.10-0.12 s, since the per-row Python work halves but the forward step barely does.
+- **Score:** centre 0.00 at the final, range -0.04 to +0.03. The paired noise is about 0.015 per pair (control seed sd 0.011).
+
+I compare at the final and at matched train time (`train_s`), not matched steps, since a step holds half the rows. Node speeds differ, which I will report with each pair.
+
+Rule, written before it runs:
+- **+0.02 or more at the final in both pairs, and ahead at matched train time in both:** seed 2, and a place in the next H200 gate config and on the box list.
+- **Below the control at the final and at matched train time in both pairs:** closed.
+- **Anything between:** left there.
+
+Whatever the score, the step-rate reading goes to the speed work.
+
+**Queue** (`queue/screens_rl_b200.txt`, edited under the lock):
+1. r105 lr 12e-6 seed 1
+2. r113 stack3 seed 1
+3. r115 p32 seed 0
+4. r115 p32 seed 1
+5. r105 lr 24e-6 seed 1
+
+r105's two seed-2 items are dropped. Their seeds 1 stay, as LOG 11-20 14:24 decided. The five pending B200 workers (normal 29837206, 29837208, 29837209 and 29837211; preemptable 29837212) match the five items.
+
+**Jobs.**
+- **Running:** 29837204 runs r113 stack3 seed 0 on node5701-c1 (since 21:37, ends about 02:30).
+- **Pending:**
+  - the B200 workers above;
+  - H200 preemptable 29837213 and 29837214 for r102 seeds 1 and 2;
+  - the four older held workers.
+- **GPUs in use:** 1 of 6.
+- **Storage:** the pool is at 65 %. Scratch is at 3 % of space and 65 % of its file limit. The slurm logs show no quota errors.
+- **INBOX:** unchanged since 11-19 20:45 (e66970b).
