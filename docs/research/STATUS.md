@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-21 13:50 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-21 14:29 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -54,7 +54,7 @@ workers go back to the pool after a write probe). Running: 29942141 (normal B200
 seed 2 since about 12:04 (to about 17:00) and 29966173 (normal B200, node5501-c1) with r105 lr 24e-6 seed 1 since 12:38 (to about 17:40; the queue's first item).
 29837209 and 29837211 ran r115 p32 seeds 0 and 1 (LOG 11-21 12:40) and exited; 29963843 ran the sampler timing
 (12:28 to 12:37). Pending on `screens_rl_b200`: normal B200 29966174 and preemptable 29837212, for r117 p128 seeds 0
-and 1, one for each queued long item. CPU job 29976793 (`mit_normal`) builds r116's
+and 1, one for each queued long item. Preemptable B200 job 29980436 runs r118, a timing-only profile of the update step (about 15 min; LOG 11-21 14:29). CPU job 29976793 (`mit_normal`) builds r116's
 data: 29965651 started at 13:24 on node3107 and sat 25 min in D state before python ran (the
 pool mount hung), so it was cancelled at 13:49 and resubmitted without that node, with a 3 min start check. Pending on `screens_r92`: preemptable H200 29837213 and 29837214 for r102 seeds 1 and 2. Held: 29497701/02/05 (B200
 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). My jobs wait on age (298 an hour; LOG 11-19
@@ -84,7 +84,7 @@ the strongest, stack3 the weakest); r117 p128 seeds 0 and 1 against the rule wri
 data (job 29976793), then its two pretraining items and two RL items against its rule (LOG 11-21 12:40); the speed
 work (LOG 11-21 12:40): the sampler timing put the answer grammar and stop checks at 9 to 18 % of a decode step at
 trained weights, so the update comes first, with a timing item (the policy rows' forward and backward, the
-self-imitation rows, the optimizer step) before any code, each change the same maths and off by default (r112 closed model size; a 90 s
+self-imitation rows, the optimizer step) before any code (r118, job 29980436, profiles it with torch.profiler; what it decides is in LOG 11-21 14:29), each change the same maths and off by default (r112 closed model size; a 90 s
 step rate follows the starting weights, so the timing item compares runs from one checkpoint on one node and logs
 each batch's longest completion, LOG 11-20 11:48); each box's standby queue (staged and checked for all three
 blocks, `docs/research/box_1128.md`) planned again the day before its block (11-24, 11-27, 12-08), with sil256 the

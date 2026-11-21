@@ -10301,3 +10301,59 @@ written on 11-24.
 - The slurm logs show no quota errors.
 
 **INBOX:** unchanged since 11-19 20:45 (e66970b).
+
+## 2026-11-21 14:29 EST: r118 profiles the update step (timing only) at r106's final-weights settings; the expected result and what it decides are written first
+
+**Why.** A native-control step takes about 0.39 s on the B200: about 0.24 s in the update and 0.15 s in the sampler
+(r106 at D 007's final weights; the sampler timing in LOG 11-21 12:40). The update's parts in r106, in seconds per step:
+
+| part | s per step |
+|---|---|
+| body forward | 0.068 |
+| mask | 0.015 |
+| head | 0.004 |
+| backward | 0.082 |
+| SIL pass | 0.055 |
+| replay batch | 0.014 |
+| optimizer | 0.002 |
+
+The SIL pass holds 64 rows, an eighth of the 512 policy rows, but takes about a third of their time. So the update
+is dominated by a fixed cost per call, not by the tokens. r106's node trace showed GPU utilisation between 28 and 93 %
+and power between 340 and 530 W.
+
+**r118.** `scripts/research/profile_update.py` runs grpo with r106 `final_native_ctl`'s config (D 007 seed 0's final
+weights; no saving, no evals, the parts timing off). It times 20 updates, then profiles 8 more one at a time with
+torch.profiler (CPU and CUDA), and stops. It reports:
+- the GPU's busy fraction in the update (device activity over wall time);
+- kernel launches, synchronisations and device-to-host copies per update;
+- the top ops by self CUDA time and by self CPU time.
+
+Nothing is saved or scored. One preemptable B200 job, 29980436, about 15 minutes; results go to
+`calibration/research_r118/final_native_ctl/seeds/0/profile.json`.
+
+**Expected, written first.**
+- Busy fraction 0.3 to 0.6 of the update's wall time.
+- Over 2,000 kernel launches per update.
+- A handful of syncs: one `.item()` per micro-batch and a few more.
+
+The profiler slows the CPU side, so profiled updates run longer than the 20 unprofiled ones. The busy fraction is
+read against both.
+
+**What it decides.**
+- **Busy under 0.6, with many launches:** the next arm captures the training forward and backward (CUDA graphs or
+  `torch.compile`, off by default). Removing half the idle time would cut the update by about 0.06 s, about 15 %
+  more steps in the same time. The maths is the same, so a timing check keeps it without a paired win (INBOX); the
+  loss comparison applies if the precision changes.
+- **Busy over 0.8:** the update is compute-bound, so the work is cut instead: the padding in the micro-batches, or
+  the separate SIL pass.
+- **Host waits on syncs over 10 % of the update:** those syncs go first, as the cheapest change.
+
+**Jobs.**
+- **Running:** 29942141 (r105 lr 12e-6 seed 2, to about 17:00) and 29966173 (r105 lr 24e-6 seed 1, to about 17:40).
+- **Pending:**
+  - 29980436 (r118, preemptable B200);
+  - 29966174 and 29837212 (r117 seeds 0 and 1);
+  - 29837213 and 29837214 (r102 seeds 1 and 2, H200);
+  - CPU 29976793 (r116 data; its time limit was cut to 2 h after its planned start moved to 11-26);
+  - the four held workers.
+- **GPUs:** 2 in use. If every pending GPU job started, that would be 6.
