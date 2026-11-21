@@ -10439,3 +10439,73 @@ known to mount the pool, and one job carries both.
   - 29837213 (r102 seed 1, preempted at 11:20 after 32 min);
   - the four held workers.
 - **GPUs:** 3 in use. If every pending GPU job started, that would be 6.
+
+## 2026-11-21 17:13 EST: r105 lr 12e-6 meets its rule (+0.016 over three pairs at matched steps); r120 written first: r102's H200 gate with lr 1.2e-5
+
+**r105 lr 12e-6 seed 2** (normal B200 29942141, node5701-c1, ended 16:55): 0.3067 after 40,426 steps against the
+native control's seed 2, 0.2833 after 44,987 (node5600-c1).
+- Matched steps: +0.0290 over 80 shared evals (ahead at 77, behind at 2). By step block: 0-5k +0.0073, 5-10k
+  +0.0193, 10-20k +0.0368, 20-30k +0.0361, 30-40k +0.0299. Last five evals: 0.3123 against 0.2803.
+- The control stood at 0.2733 at step 40,000, so the arm is +0.0333 at equal steps at its final.
+- The arm took 2.32 steps a second against the control's 2.59 (mean t_sample 0.147 s against 0.141, t_update
+  0.240 s against 0.209). Seeds 0 and 1 took more steps than their controls, so I put this down to the node, not
+  the lr.
+
+All three pairs (computed by script from the eval logs):
+
+| seed | lr 12e-6 final (steps) | control final (steps) | final diff | matched steps (shared evals) |
+|---|---|---|---|---|
+| 0 | 0.2900 (36,808) | 0.3033 (34,893) | -0.0133 | -0.0051 (69) |
+| 1 | 0.3233 (48,070) | 0.2883 (44,862) | +0.0350 | +0.0243 (89) |
+| 2 | 0.3067 (40,426) | 0.2833 (44,987) | +0.0233 | +0.0290 (80) |
+| mean | 0.3067 | 0.2917 | +0.0150 (SE 0.0146) | +0.0161 (SE 0.0107) |
+
+The rule (LOG 11-19 09:28): "A gain of 0.015 or more over the three pairs puts that lr into the next H200 gate
+config. A tie closes lr for the native regime." **Met, at the bar:** +0.0161 at matched steps and +0.0150 at the
+finals, with seed 0 behind. The arm's finals also spread more (sd 0.0167 against the control's 0.0104). Not gated:
+B200, RL only from D 007's checkpoints. lr 24e-6: seed 0 was +0.0020 at matched steps and -0.0067 at the final;
+seed 1 (29966173) ends about 17:40; its seed 2 runs only if seed 1 is large.
+
+**r120, written first.** `calibration/research_r120/d007_speed_lr12e-6_h200`: r102's gate config with lr 1.2e-5
+and nothing else changed: fused Muon pretraining for 46 min, then the native RL settings for 18,000 s, no_save.
+Seeds 0-2 on `queue/gate_r120_h200.txt`, preemptable H200 workers.
+- **Why the 18,000 s form, not r114's 6 h normal form:** H200 waits on `mit_normal_gpu` ran to a median of 214 h
+  in November (INBOX 11-13), so a preemption costs less than that wait. This form also pairs with r102's seeds,
+  and a record from it runs on preemptable H200 workers, as D 007's did.
+- **Expected:** r102 seed 0 ended at 0.270; seeds 1 and 2 are still running. Add r105's +0.015 and the centre is
+  about 0.285 a seed, if the B200 RL-only gain carries over to the end-to-end H200 run. The seed sd is between
+  0.0104 (r101's native seeds) and 0.0167 (r105 lr 12e-6). On that:
+  - one seed reaches 0.281 with probability 0.59 to 0.65;
+  - all three reach it with probability 0.21 to 0.27;
+  - a five-seed mean reaches it with probability 0.70 to 0.81.
+  If the gain does not carry over (centre 0.278), those are 0.39 to 0.43, 0.06 to 0.08 and 0.26 to 0.34.
+- **Rule:**
+  - All three seeds at 0.281 or more: the three-seed form is met. A five-seed record attempt follows with r120's
+    config without no_save (a `record-<slug>` queue, `scripts/run_seed_v3.sh`, H200), its `config.json`
+    committed first.
+  - Otherwise, a mean of the three of 0.276 or more: seeds 3 and 4 run for the five-seed form (mean at least
+    0.281, four of five above D 007's dev mean 0.251, at most one collapsed).
+  - Mean under 0.276: no record from lr alone. The pairs with r102's seeds at matched steps say whether the gain
+    carried over to the H200. The next gate waits for another B200 gain to stack on it.
+  - Paired with r102 by seed number, at matched steps and at the final, with the steps and node beside each.
+
+**Placement.** INBOX 11-13: when H200 work is waiting, keep slots for it. The four preemptable slots now go to H200
+work (r102 seeds 1 and 2, r120) plus r119 and r116's data. B200 screens move to the two normal slots, where B200
+waits are short (median 0.1 h).
+- At 17:13 I cancelled preemptable B200 worker 29837212 (pending, for r117 seed 1). I submitted preemptable H200
+  worker 29995938 for r120's first item.
+- r117 seed 1 gets a normal B200 worker when 29966173 exits (about 17:40). Until then the cap is full.
+- r120 seeds 1 and 2 get preemptable H200 workers as preemptable slots free: 29983376 after r119 and the data,
+  and r102's two workers when they end.
+
+**Jobs.**
+- **Running:**
+  - 29966173 (r105 lr 24e-6 seed 1, normal B200 node5501-c1, to about 17:40);
+  - 29966174 (r117 p128 seed 0, normal B200 node5501-c1, from 17:02, to about 22:00);
+  - 29837214 (r102 seed 2, preemptable H200 node4601, since 14:40).
+- **Pending:**
+  - 29837213 (r102 seed 1, preemptable H200);
+  - 29983376 (r119, then r116's data, preemptable B200);
+  - 29995938 (r120, preemptable H200);
+  - the four held workers.
+- **GPUs:** 3 in use. If every pending GPU job started, that would be 6.

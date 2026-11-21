@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-21 15:00 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-21 17:14 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -46,21 +46,22 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (12:40 EST 11-21).** Workers write to scratch (`CKPT_DIR` in `--export`) since the pool's file server
+**Jobs (17:14 EST 11-21).** Workers write to scratch (`CKPT_DIR` in `--export`) since the pool's file server
 filled up at 18:27 on 11-20 (LOG 11-20 18:42; QUESTIONS 11-20 18:42). The pool shows room again (64.5 %), but the
 workers stay on scratch until a write probe there passes. Scratch holds 3 % of its space and 74.7 % of its 1.0M file
 limit (12:30 on 11-21, up from 70 % at 07:29; not from these runs' outputs, a few files a seed; above 85 % the
-workers go back to the pool after a write probe). Running: 29942141 (normal B200, node5701-c1) with r105 lr 12e-6
-seed 2 since about 12:04 (to about 17:00) and 29966173 (normal B200, node5501-c1) with r105 lr 24e-6 seed 1 since 12:38 (to about 17:40; the queue's first item).
+workers go back to the pool after a write probe). Running: 29966174 (normal B200, node5501-c1) with r117 p128
+seed 0 since 17:02 (to about 22:00) and 29966173 (normal B200, node5501-c1) with r105 lr 24e-6 seed 1 since 12:38 (to about 17:40; the queue's first item). 29942141 ran r105 lr 12e-6 seed 2 and exited at 16:55.
 29837209 and 29837211 ran r115 p32 seeds 0 and 1 (LOG 11-21 12:40) and exited; 29963843 ran the sampler timing
-(12:28 to 12:37). Pending on `screens_rl_b200`: normal B200 29966174 and preemptable 29837212, for r117 p128 seeds 0
-and 1, one for each queued long item. r118 (preemptable B200 29980436, 80 s) found the update step overhead-bound: GPU busy 0.40 of its wall time,
+(12:28 to 12:37). r117 p128 seed 1 (`screens_rl_b200`) gets a normal B200 worker when 29966173 exits; its
+preemptable worker 29837212 was cancelled at 17:13 so that the preemptable slots go to H200 work (LOG 11-21 17:13). r118 (preemptable B200 29980436, 80 s) found the update step overhead-bound: GPU busy 0.40 of its wall time,
 11,689 kernel launches per update (LOG 11-21 14:59). Preemptable B200 job 29983376 (pending) runs r119, the same
 profile with PyTorch's memory-efficient attention kernel against the default (about 15 min), then r116's data.
 The three CPU jobs for the data (29965651 on node3107, 29980655 on node3409, 29981583 on node2702) hung or failed
 their start checks; a diagnostic (29982547) found that CPU nodes do not reach the pool, while home and scratch
 respond. On `screens_r92`: preemptable H200 29837214 runs r102 seed 2 on node4601 again since 14:40 after a
-preemption, and 29837213 (r102 seed 1) is pending again after a preemption at 11:20. Held: 29497701/02/05 (B200
+preemption, and 29837213 (r102 seed 1) is pending again after a preemption at 11:20. On `gate_r120_h200`: preemptable
+H200 29995938 (pending) for r120's first item; seeds 1 and 2 get workers as preemptable slots free. Held: 29497701/02/05 (B200
 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). My jobs wait on age (298 an hour; LOG 11-19
 21:02 and 11-19 23:29); a requeue resets it. **Practice (11-20 04:34):** one pending worker for each queued long
 item, submitted when the item is queued, and never chained with `--dependency` (a job waiting on a dependency or a
@@ -81,8 +82,9 @@ these: timed in r106, same maths, no speed at trained weights.
 RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
 **Next decisions:** workers go back to the pool only after a write probe there passes (QUESTIONS 11-20 18:42);
 r102 seeds 1 and 2 (preemptable H200) for the speed config's three-seed mean against 0.281 (seed 0 ended at 0.270;
-a five-seed record attempt only if the three-seed rule is met); r105 lr 12e-6 seed 2 against r105's three-pair
-rule (two pairs +0.0096 at matched steps; seed 2 needs +0.026 or more for the 0.015 bar; LOG 11-21 07:39) and lr
+a five-seed record attempt only if the three-seed rule is met); r120 (r102's H200 gate with lr 1.2e-5, after r105
+met its rule) seeds 0-2 against the rule written first in LOG 11-21 17:13 (all three at 0.281 or more: a
+five-seed record attempt; a mean of 0.276 or more: seeds 3 and 4), paired with r102's seeds; lr
 24e-6 seed 1 (its seed 2 only if seed 1 is large); r113's three arms are all between and left to the box (sil256
 the strongest, stack3 the weakest); r117 p128 seeds 0 and 1 against the rule written first in LOG 11-21 12:40 (r115 p32 is closed); r116's
 data (on preemptable B200 job 29983376 after r119; CPU nodes do not reach the pool), then its two pretraining items and two RL items against its rule (LOG 11-21 12:40); the speed
@@ -290,8 +292,10 @@ screen runs on the H200.
   The two seed-2 items were dropped for r115 (LOG 11-21 02:00). **lr 12e-6 seed 1 (LOG 11-21 07:39):** 0.3233
   after 48,070 steps (node5702-c1) against the control seed 1's 0.2883 after 44,862 (node5602-c1): +0.0243 over 89
   shared evals (ahead at 85), +0.035 at the final. Two pairs: +0.0096 at matched steps, +0.011 at the final, so
-  neither met nor closed; lr 12e-6 seed 2 is queued again (it needs +0.026 or more at matched steps for the
-  three-pair mean to reach 0.015). lr 24e-6 seed 1 stays queued; its seed 2 only if seed 1 is large. Expected: about +0.02 at 2x (range -0.02 to +0.05) against a paired SE of about 0.005. Read
+  neither met nor closed. **lr 12e-6 seed 2 (LOG 11-21 17:13):** 0.3067 after 40,426 steps (node5701-c1)
+  against the control seed 2's 0.2833 after 44,987: +0.0290 over 80 shared evals, +0.023 at the final.
+  **Three pairs: +0.0161 at matched steps (SE 0.0107) and +0.0150 at the finals (SE 0.0146), so the rule is
+  met at the bar (seed 0 behind) and lr 12e-6 goes into the next H200 gate config, r120.** lr 24e-6 seed 1 stays queued; its seed 2 only if seed 1 is large. Expected: about +0.02 at 2x (range -0.02 to +0.05) against a paired SE of about 0.005. Read
   paired by seed against `d007rl_native_b200` at matched steps (block means of ten dev evals), with steps and
   node. A gain of 0.015 or more over three pairs puts that lr into the next H200 gate config; a tie closes lr for
   the native regime.
@@ -335,7 +339,8 @@ screen runs on the H200.
   the update's by 15-31 % on seed 1, so much of a step is fixed; r117 tries twice the rows.
 - r117 (B200, RL only, not gated; LOG 11-21 12:40): `d007rl_native_p128_b200`, r101's native control with twice the
   prompts per step (`prompts_per_step` 128, `group_size` 8, so 1,024 rows a step), `sil_rows` 128 and `eval_every`
-  250 (every 32,000 prompts, as the control); seeds 0 and 1 (normal B200 29966174 and preemptable 29837212; 29966173 took r105 lr 24e-6 seed 1, the queue's first item). Expected:
+  250 (every 32,000 prompts, as the control); seeds 0 and 1 (seed 0 on normal B200 29966174 since 17:02; seed 1 gets a normal B200 worker when
+  29966173 exits). Expected:
   0.63x to 0.71x the control's step rate, about 103 GB at peak; score centre +0.005 at the final, range -0.03 to
   +0.035. Rule as r115's; its matched-steps reading goes to the speed work in any case.
 - r116 (U24; B200, not gated; LOG 11-21 12:40): pretraining on `mix_0.2.bin` with two appended copies of FineMath
@@ -350,6 +355,13 @@ screen runs on the H200.
   Data: preemptable B200 job 29983376, after r119's two profiles. Three CPU jobs failed before it (29965651 on
   node3107, 29980655 on node3409, 29981583 on node2702): CPU nodes do not reach the pool (diagnostic 29982547, LOG
   11-21 14:59); then queue `pre_r116` with one preemptable B200 worker.
+- r120 (H200 gate, end to end; LOG 11-21 17:13): `calibration/research_r120/d007_speed_lr12e-6_h200`, r102's
+  config with lr 1.2e-5 and nothing else changed (r105 met its rule at lr 12e-6 on the B200). Seeds 0-2 on
+  `queue/gate_r120_h200.txt`, preemptable H200 (18,000 s form: `mit_normal_gpu` H200 waits ran to a median of
+  214 h in November). Expected: a centre near 0.285 a seed if the B200 gain carries over; three of three at
+  0.281 with probability 0.21 to 0.27, a five-seed mean at 0.281 with 0.70 to 0.81. Rule: all three at 0.281
+  or more starts a five-seed record attempt (r120's config without `no_save`); a mean of 0.276 or more adds
+  seeds 3 and 4 for the five-seed form; under 0.276, no record from lr alone. Paired with r102 by seed.
 - r114 (H200 gate in a 6 h form; LOG 11-20 10:26): **Taken off at 15:32 on 11-20 (LOG 11-20 15:32):** r102 seed 0
   ended at 0.270, so three of three at or above 0.281 is 0.3 to 2 %; its items are out of the queue and its
   workers cancelled. As planned: `calibration/research_r114/d007_speed_h200_6h`, r102's config
