@@ -1,0 +1,9 @@
+{
+  "description": "U25 rung 1x, the reference (LOG 2026-11-21 17:59; outside the rules, unranked, no RL): D 007's own pretrained base (seed 0 of calibration/research_r93/d007s0_final, 768 x 12, 110M, mix_0.2.bin), probed as it is.",
+  "pretrain_only": true,
+  "u25": {
+    "rung": "1x (D 007's base)",
+    "weights": "/home/zjason/orcd/pool/rlvr-ckpts/calibration/research_r93/d007s0_final/seeds/0/pretrained",
+    "probe": "python scripts/research/probe_reasoning.py --model <weights> --out-dir <this dir>/seeds/0/probe (defaults: sets A,B,C; 200 dev puzzles x 4 samples at temperature 1.0, 256 new tokens; GSM8K 100 train questions 4-shot greedy)"
+  }
+}

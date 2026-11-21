@@ -1,0 +1,23 @@
+{
+  "description": "U25 rung 3x (LOG 2026-11-21 17:59; outside the rules, unranked, no RL): D 007's architecture at 1024 x 24 (332M parameters, 64-wide heads, tied embeddings, TinyLlama tokenizer), Muon lr 4e-3 with the fused loss at micro-batch 64, up to 6.6B tokens or 330 minutes on one B200, the cosine ending on whichever runs out first. Data in two phases by run progress: mix_0.2.bin, then from half-way mix_0.2.bin 0.3125 / dm_math.bin 0.1875 / keyword-filtered FineMath-4plus 0.5 by rows (FineWeb-Edu 0.25, dm_math 0.25, FineMath 0.5). Then the base weights are probed. Run by scripts/research/u25_rung.sh.",
+  "pretrain_only": true,
+  "u25": {
+    "rung": "3x",
+    "command": "bash scripts/research/u25_rung.sh calibration/research_r121/u25_3x_twophase 1024 24 6600000000 330 0",
+    "width": 1024,
+    "layers": 24,
+    "max_tokens": 6600000000,
+    "minutes": 330,
+    "micro_batch": 64,
+    "args": "--fused-loss --optimizer muon --lr 4e-3 --phase2-start 0.5",
+    "phase1": "/home/zjason/orcd/pool/data/dm_math/mix_0.2.bin",
+    "phase2": {
+      "/home/zjason/orcd/pool/data/dm_math/mix_0.2.bin": 0.3125,
+      "/home/zjason/orcd/pool/data/dm_math/dm_math.bin": 0.1875,
+      "/home/zjason/orcd/scratch/rlvr-data/r116/finemath_kw.bin": 0.5
+    },
+    "tokenizer": "/home/zjason/orcd/pool/data/tinyllama-tokenizer",
+    "weights": "$CKPT_DIR/calibration/research_r121/u25_3x_twophase/seeds/0/pretrained",
+    "probe": "python scripts/research/probe_reasoning.py --model <weights> --out-dir <this dir>/seeds/0/probe (defaults: sets A,B,C; 200 dev puzzles x 4 samples at temperature 1.0, 256 new tokens; GSM8K 100 train questions 4-shot greedy)"
+  }
+}
