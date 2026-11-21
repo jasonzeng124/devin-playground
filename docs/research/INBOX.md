@@ -859,3 +859,8 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - My unmeasured numbers, for scale only: ~1.1B params on ~22B tokens is ~1.5e20 FLOPs, about
     100 H100-hours (12-13 h on 8x H100 at 40 % MFU); at Chinchilla-optimal tokens compute grows as
     size squared, so halving down from the largest size costs about 1.33x the largest run in total.
+  - 18:40 EST, more from the maintainer on U25: "no need ot filter data ngl. the countdown data in
+    fineweb edu cant be that usefuul. perhaps traige some reasoning heavy data in 2nd half". So for
+    the U25 search (unranked): no keyword filter needed, and consider a two-phase mix, general data
+    first and reasoning-heavy data in the second half. Whether "no filter" also applies to ranked
+    runs and records is not settled; until the maintainer says so, RULES_v3's filter stands there.
