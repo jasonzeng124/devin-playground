@@ -8,6 +8,11 @@ prediction with AdamW or Muon (`--optimizer`; warmup, cosine decay), bf16 autoca
 --minutes of training or --max-tokens, and saves a `LlamaForCausalLM` plus the tokenizer so
 `rlvr_speedrun.grpo` and vLLM can load it like any HF model. Deliberately plain (no speedrun
 tricks): the question is whether RL can start from a model of roughly GPT-2-small quality.
+
+`--phase2 a.bin:0.5,b.bin:0.25,...` (off by default) switches the training draws, once the run's progress (the
+fraction the lr schedule decays on: the larger of steps and time) reaches `--phase2-start`, from --tokens to the
+listed token files, each micro-batch row from one file picked by weight. A file named the same as --tokens is read
+without its validation slice; validation stays on --tokens.
 """
 
 from __future__ import annotations
@@ -51,6 +56,18 @@ def tokenize(args) -> None:
             array.tofile(out)
             total += len(array)
     print(f"{len(files)} files, {len(tasks)} row groups -> {total / 1e9:.3f}B tokens in {args.out}")
+
+
+def parse_phase2(spec: str, tokens_path: str, train_data) -> list:
+    """`path:weight,...` -> [(token array, weight)]; --tokens itself maps to its training part (no validation slice)."""
+    out = []
+    for item in spec.split(","):
+        path, sep, weight = item.strip().rpartition(":")
+        if not sep or not path or float(weight) <= 0:
+            raise SystemExit(f"--phase2: expected path:weight with a positive weight, got {item!r}")
+        same = os.path.realpath(path) == os.path.realpath(tokens_path)
+        out.append((train_data if same else np.memmap(path, dtype=np.uint16, mode="r"), float(weight)))
+    return out
 
 
 def train(args) -> None:
@@ -97,6 +114,9 @@ def train(args) -> None:
     accum = max(1, args.batch_tokens // (seq * micro))
     total_steps = args.max_tokens // (seq * micro * accum)
     rng = np.random.default_rng(args.seed)
+    phase2 = parse_phase2(args.phase2, args.tokens, data) if args.phase2 else []
+    p2_weights = np.array([w for _, w in phase2]) / sum(w for _, w in phase2) if phase2 else None
+    progress = [0.0]  # the run's progress, as lr_at measures it; set each step
 
     def batch(source):
         idx = rng.integers(0, len(source) - seq - 1, micro)
@@ -107,19 +127,30 @@ def train(args) -> None:
     # batches still draw from rng when they run, so after the first val eval the training draws are offset.
     pool, ahead = (ThreadPoolExecutor(max_workers=2), deque()) if args.prefetch else (None, None)
 
-    def _gather(idx):
-        return torch.from_numpy(np.stack([data[i : i + seq + 1].astype(np.int64) for i in idx])).pin_memory()
+    def draw():
+        """(token array, offset) for each row of one training micro-batch."""
+        if phase2 and progress[0] >= args.phase2_start:
+            return [(phase2[k][0], int(rng.integers(0, len(phase2[k][0]) - seq - 1))) for k in rng.choice(len(phase2), micro, p=p2_weights)]
+        return [(data, i) for i in rng.integers(0, len(data) - seq - 1, micro)]
+
+    def _rows(rows):
+        return np.stack([source[i : i + seq + 1].astype(np.int64) for source, i in rows])
+
+    def _gather(rows):
+        return torch.from_numpy(_rows(rows)).pin_memory()
 
     def train_batch():
         if pool is None:
-            return batch(data)
+            x = torch.from_numpy(_rows(draw())).cuda(non_blocking=True)
+            return x[:, :-1], x[:, 1:]
         while len(ahead) <= args.prefetch:
-            ahead.append(pool.submit(_gather, rng.integers(0, len(data) - seq - 1, micro)))
+            ahead.append(pool.submit(_gather, draw()))
         x = ahead.popleft().result().cuda(non_blocking=True)
         return x[:, :-1], x[:, 1:]
 
     def lr_at(step, frac_time):
         frac = max(step / total_steps, frac_time)  # decay on whichever budget runs out first
+        progress[0] = frac
         if step < args.warmup:
             return args.lr * (step + 1) / args.warmup
         return args.lr * (0.1 + 0.9 * 0.5 * (1 + math.cos(math.pi * min(1.0, frac))))
@@ -170,6 +201,8 @@ def train(args) -> None:
         if step % 50 == 0 or step == 1:
             row = {"step": step, "tokens": tokens_seen, "minutes": (time.perf_counter() - start) / 60, "train_loss": loss.item() * accum,
                    "lr": opts[0].param_groups[0]["lr"], "tok_per_s": tokens_seen / (time.perf_counter() - start)}
+            if phase2:
+                row["phase2"] = progress[0] >= args.phase2_start
             if step % 500 == 0:
                 row["val_loss"] = val_loss()
             log.write(json.dumps(row) + "\n")
@@ -208,6 +241,9 @@ def main() -> None:
     r.add_argument("--fused-loss", action="store_true",
                    help="compile the forward and the cross-entropy as one graph (no fp32 logits outside it); off by default")
     r.add_argument("--compile-mode", default=None, help="torch.compile mode (e.g. max-autotune-no-cudagraphs); default: torch's default")
+    r.add_argument("--phase2", default="",
+                   help="path:weight,... token files to draw from once progress reaches --phase2-start (default: none)")
+    r.add_argument("--phase2-start", type=float, default=0.5, help="the run's progress at which --phase2 begins")
     r.add_argument("--prefetch", type=int, default=0,
                    help="gather this many training micro-batches ahead into pinned memory on a thread (0, the default: none)")
     args = parser.parse_args()
