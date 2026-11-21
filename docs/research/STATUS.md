@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-21 07:40 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-21 12:41 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -46,16 +46,16 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (07:39 EST 11-21).** Workers write to scratch (`CKPT_DIR` in `--export`) since the pool's file server
-filled up at 18:27 on 11-20 (LOG 11-20 18:42; QUESTIONS 11-20 18:42). The pool shows room again (65 %), but the
-workers stay on scratch until a write probe there passes. Scratch holds 3 % of its space and 65 % of its 1.0M file
-limit (70 % at 07:29 on 11-21, up from 65 % at 02:22; not from these runs' outputs, four files a seed; above 85 %
-the workers go back to the pool after a write probe). Running: 29837209 (normal B200, node5701-c1) with r115 p32 seed
-0 since 07:10 (to about 12:00) and 29837211 (normal B200, node5800-c1) with r115 p32 seed 1 since 07:35 (to about
-12:30). 29837206 and 29837208 ran r105 lr 12e-6 seed 1 and r113 stack3 seed 1 (LOG 11-21 07:39) and exited. Pending
-on `screens_rl_b200`: normal B200 29942141 and preemptable 29837212, one for each of the two queued long items (4 h
-51 min each): r105 lr 12e-6 seed 2 (queued again at 07:38) and lr 24e-6 seed 1. Less than a day of B200 work is
-queued; the next items follow r115 seed 0's step rate (the speed timing item). Pending on `screens_r92`: preemptable H200 29837213 and 29837214 for r102 seeds 1 and 2. Held: 29497701/02/05 (B200
+**Jobs (12:40 EST 11-21).** Workers write to scratch (`CKPT_DIR` in `--export`) since the pool's file server
+filled up at 18:27 on 11-20 (LOG 11-20 18:42; QUESTIONS 11-20 18:42). The pool shows room again (64.5 %), but the
+workers stay on scratch until a write probe there passes. Scratch holds 3 % of its space and 74.7 % of its 1.0M file
+limit (12:30 on 11-21, up from 70 % at 07:29; not from these runs' outputs, a few files a seed; above 85 % the
+workers go back to the pool after a write probe). Running: 29942141 (normal B200, node5701-c1) with r105 lr 12e-6
+seed 2 since about 12:04 (to about 17:00) and 29966173 (normal B200, node5501-c1) with r117 p128 seed 0 since 12:38.
+29837209 and 29837211 ran r115 p32 seeds 0 and 1 (LOG 11-21 12:40) and exited; 29963843 ran the sampler timing
+(12:28 to 12:37). Pending on `screens_rl_b200`: normal B200 29966174 (r117 seed 1) and preemptable 29837212 (r105
+lr 24e-6 seed 1), one for each queued long item. CPU job 29965651 (`mit_normal`, planned start 15:00) builds r116's
+data. Pending on `screens_r92`: preemptable H200 29837213 and 29837214 for r102 seeds 1 and 2. Held: 29497701/02/05 (B200
 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). My jobs wait on age (298 an hour; LOG 11-19
 21:02 and 11-19 23:29); a requeue resets it. **Practice (11-20 04:34):** one pending worker for each queued long
 item, submitted when the item is queued, and never chained with `--dependency` (a job waiting on a dependency or a
@@ -79,10 +79,11 @@ r102 seeds 1 and 2 (preemptable H200) for the speed config's three-seed mean aga
 a five-seed record attempt only if the three-seed rule is met); r105 lr 12e-6 seed 2 against r105's three-pair
 rule (two pairs +0.0096 at matched steps; seed 2 needs +0.026 or more for the 0.015 bar; LOG 11-21 07:39) and lr
 24e-6 seed 1 (its seed 2 only if seed 1 is large); r113's three arms are all between and left to the box (sil256
-the strongest, stack3 the weakest); r115 p32 seeds 0 and 1 against the rule written first in LOG 11-21
-02:00, read at the final and at matched train time, with its step rate going to the speed work; the speed work
-itself (LOG 11-21 02:00): a timing item first, then the answer grammar and stop checks as GPU tables with a sync
-every k tokens, then the CPU-bound update, each the same maths and off by default (r112 closed model size; a 90 s
+the strongest, stack3 the weakest); r117 p128 seeds 0 and 1 against the rule written first in LOG 11-21 12:40 (r115 p32 is closed); r116's
+data (job 29965651), then its two pretraining items and two RL items against its rule (LOG 11-21 12:40); the speed
+work (LOG 11-21 12:40): the sampler timing put the answer grammar and stop checks at 9 to 18 % of a decode step at
+trained weights, so the update comes first, with a timing item (the policy rows' forward and backward, the
+self-imitation rows, the optimizer step) before any code, each change the same maths and off by default (r112 closed model size; a 90 s
 step rate follows the starting weights, so the timing item compares runs from one checkpoint on one node and logs
 each batch's longest completion, LOG 11-20 11:48); each box's standby queue (staged and checked for all three
 blocks, `docs/research/box_1128.md`) planned again the day before its block (11-24, 11-27, 12-08), with sil256 the
@@ -321,7 +322,26 @@ screen runs on the H200.
   centre 0.00 at the final, range -0.04 to +0.03 (paired noise about 0.015). Read at the final and at matched train
   time: +0.02 or more at the final in both pairs and ahead at matched time in both gets seed 2 and a place in the next
   gate config and on the box list; below in both pairs both ways is closed; anything between is left there. The
-  step rate goes to the speed work in any case.
+  step rate goes to the speed work in any case. **Closed (LOG 11-21 12:40):** 0.2700 and 0.2567 at the final against
+  the control's 0.3033 and 0.2883 (-0.033, -0.032); -0.012 and -0.027 at matched train time (behind at 57 of 64 and
+  55 of 58 evals); -0.041 and -0.040 at matched steps (behind at every shared eval). 1.29x the control's step rate
+  on seed 1 (1.82x on seed 0, whose control ran on a slow node). Half the rows cut the sampler's time by 26-32 % and
+  the update's by 15-31 % on seed 1, so much of a step is fixed; r117 tries twice the rows.
+- r117 (B200, RL only, not gated; LOG 11-21 12:40): `d007rl_native_p128_b200`, r101's native control with twice the
+  prompts per step (`prompts_per_step` 128, `group_size` 8, so 1,024 rows a step), `sil_rows` 128 and `eval_every`
+  250 (every 32,000 prompts, as the control); seeds 0 and 1 (normal B200 workers 29966173 and 29966174). Expected:
+  0.63x to 0.71x the control's step rate, about 103 GB at peak; score centre +0.005 at the final, range -0.03 to
+  +0.035. Rule as r115's; its matched-steps reading goes to the speed work in any case.
+- r116 (U24; B200, not gated; LOG 11-21 12:40): pretraining on `mix_0.2.bin` with two appended copies of FineMath
+  (`finemath-4plus`, shards 0-2 at revision e92b25a6), keyword-filtered for Countdown and numbers-game items
+  (`scripts/keyword_filter.py`); about 31 % FineMath, 14 % dm_math and 55 % FineWeb-Edu by tokens. D 007's recipe
+  stopped at its 1,337,982,976 tokens (`d_fmkw2_muon1338m_pre`, seeds 0 and 1), then r101's native control unchanged
+  (`d116rl_native_fmkw2_b200`), paired with r101. The control's weights are D 007's own (H200, stopped by time), so
+  the data and the pretraining GPU are read together; a B200 control pretraining (r84's config) runs only if the arm
+  clears the bar. Expected: centre -0.01, range -0.05 to +0.03; completion length unchanged at about 24 tokens (a
+  move to written reasoning is reported whatever the score). Rule: +0.02 or more at the final in both pairs gets
+  seed 2 and the B200 control pretraining; below at the final and at matched steps in both is closed; else between.
+  Data: CPU job 29965651 (planned start 15:00); then queue `pre_r116` with one preemptable B200 worker.
 - r114 (H200 gate in a 6 h form; LOG 11-20 10:26): **Taken off at 15:32 on 11-20 (LOG 11-20 15:32):** r102 seed 0
   ended at 0.270, so three of three at or above 0.281 is 0.3 to 2 %; its items are out of the queue and its
   workers cancelled. As planned: `calibration/research_r114/d007_speed_h200_6h`, r102's config

@@ -10085,3 +10085,217 @@ Workers:
 - The slurm logs show no quota errors.
 
 **INBOX:** unchanged since 11-19 20:45 (e66970b).
+
+## 2026-11-21 12:40 EST: r115 (half the prompts per step) is closed: behind the native control in both pairs at the final (-0.033, -0.032), at matched train time (-0.012, -0.027) and at matched steps (-0.041, -0.040); much of a step is fixed, so r117 (twice the prompts per step) is queued; the sampler timing puts the update first in the speed work; r116 (U24) pretrains on a mix with keyword-filtered FineMath, its expected effect and rule written first
+
+**r115 p32, both pairs** (`calibration/research_r115/d007rl_native_p32_b200`, B200, RL only; seed 0 on node5701-c1 from 07:10 to 12:11, seed 1 on node5800-c1 from 07:35 to 12:36; the control `d007rl_native_b200` ran seed 0 on node5600-c1 and seed 1 on node5602-c1):
+
+| | seed 0 arm | seed 0 control | seed 1 arm | seed 1 control |
+|---|---|---|---|---|
+| final dev | 0.2700 | 0.3033 | 0.2567 | 0.2883 |
+| steps | 63,559 | 34,893 | 57,695 | 44,862 |
+| steps/s | 3.653 (1.82x) | 2.005 | 3.316 (1.29x) | 2.578 |
+| mean of the last five evals | 0.2740 | 0.2920 | 0.2510 | 0.2857 |
+| at the control's last step | 0.2467 | | 0.2433 | |
+
+| arm minus control | seed 0 | seed 1 |
+|---|---|---|
+| at the final | -0.0333 | -0.0317 |
+| at matched train time (evals; ahead / behind) | -0.0124 (64; 7 / 57) | -0.0273 (58; 3 / 55) |
+| at matched steps (evals; ahead / behind) | -0.0409 (34; 0 / 34) | -0.0396 (44; 0 / 44) |
+| matched train time, by hour 1 to 5 | -0.006, -0.016, -0.013, -0.012, -0.014 | -0.021, -0.025, -0.026, -0.035, -0.029 |
+
+The step's parts, early (steps 100 to 2,100) and late (the last 2,000 steps), in seconds:
+
+| | `t_sample` | `t_update` | wall per step | informative groups |
+|---|---|---|---|---|
+| seed 0 arm, early | 0.180 | 0.219 | 0.422 | 30.1 |
+| seed 0 arm, late | 0.100 | 0.136 | 0.256 | 14.2 |
+| seed 0 control, early | 0.175 | 0.377 | 0.602 | 56.6 |
+| seed 0 control, late | 0.136 | 0.170 | 0.338 | 29.2 |
+| seed 1 arm, early | 0.111 | 0.189 | 0.330 | 28.7 |
+| seed 1 arm, late | 0.097 | 0.172 | 0.293 | 14.3 |
+| seed 1 control, early | 0.149 | 0.276 | 0.460 | 56.7 |
+| seed 1 control, late | 0.143 | 0.202 | 0.385 | 26.1 |
+
+Seed 1's peak GPU memory was 61.5 GB (the control's, 75 GB). Neither stdout has an error line.
+
+**Under r115's rule** (LOG 11-21 02:00): below the control at the final and at matched train time in both pairs, so
+r115 is **closed**. I expected a step rate of 1.45x to 1.6x and a final at 0.00 (range -0.04 to +0.03). The final is
+near the low end of that range. The step rate is 1.29x on seed 1. Seed 0 shows
+1.82x, but its control ran on the slow node5600-c1 (2.005 steps/s against 2.578), so that
+figure measures the node as much as the arm.
+
+**What it says.** On seed 1, half the rows cut the sampler's time by 26 % early and
+32 % late, and the update's by 31 % early and
+15 % late. So a large part of a step does not scale with the rows. Each step with half the
+rows learns less: the arm is behind at every shared eval at matched steps, by about 0.034 before step 10,000 and 0.040
+to 0.044 after. More, smaller steps lose more per step than they gain in steps. The other direction is the open one:
+twice the rows a step, for fewer steps (r117 below).
+
+**r117: twice the prompts per step.** The arm is `calibration/research_r117/d007rl_native_p128_b200` on the B200, RL
+only, not gated, seeds 0 and 1. It is r101's native control with these changes:
+- `prompts_per_step` 128 against 64, with `group_size` 8 kept, so 1,024 sampled rows a step;
+- `sil_rows` 128 against 64, so the self-imitation share per sampled row is unchanged;
+- `eval_every` 250, so it evaluates every 32,000 prompts, as the control does at 500 (evals are not counted in the
+  training time).
+
+Everything else is the same: lr 6e-6, `time_budget_s` 17,400 and D 007's seed-matched pretrained weights. It is a
+config-only change.
+
+Expected:
+- **Step rate:** 0.63x to 0.71x the control's, 28,000 to 32,000 steps on seed 1's node. A straight line through each
+  part's time at 256 and 512 rows (seed 1, above) gives about 0.22 s to sample and 0.45 s to update early in a run,
+  and 0.24 s and 0.26 s late.
+- **Memory:** about 103 GB at peak (75 GB at 512 rows, 61.5 GB at 256), within the B200's 180 GB.
+- **Score:** centre +0.005 at the final, range -0.03 to +0.035. Per step it should gain about what r115 lost at
+  matched steps (0.04 for half the rows), but it makes about two thirds of the control's steps, and the control's
+  curve still rises at the end. The paired noise is about 0.015 per pair (control seed sd 0.011).
+
+Rule, written before it runs (as r115's):
+- **+0.02 or more at the final in both pairs, and ahead at matched train time in both:** seed 2, and a place in the
+  next H200 gate config and on the box list.
+- **Below the control at the final and at matched train time in both pairs:** closed.
+- **Anything between:** left there.
+
+Its matched-steps reading goes to the speed work in any case: with r115 it gives the gain per step at three batch
+sizes.
+
+**Queue** (`queue/screens_rl_b200.txt`, edited under the lock at 12:35):
+1. r105 lr 24e-6 seed 1
+2. r117 p128 seed 0
+3. r117 p128 seed 1
+
+The two r117 items have normal B200 workers 29966173 and 29966174, submitted when they were queued. lr 24e-6 seed 1
+keeps preemptable 29837212.
+
+**The sampler timing** (speed item 1 of LOG 11-21 02:00). Job 29963843 (normal B200, node5800-c1, from 12:28) ran
+`scripts/research/profile_sampling.py --backend native --floor` on r101's config. That is the native sampler with the
+answer grammar, then its decode loop's GPU work alone:
+- `forward`: the CUDA-graph forward per token;
+- `sample`: the forward plus the sampling kernels;
+- `sample_sync`: also the per-token copy of the sampled ids to the host.
+
+There is no grammar and no stop check in these three, and each runs for the constrained calls' mean longest
+completion. The `--floor` and `--prompts-per-step` options are new in the script and off by default. It is timing
+only. It ran from two checkpoints, each at 64 and 32 prompts:
+- late: r93's `d007s0_final`, after RL;
+- early: D 007's seed-0 pretrained weights.
+
+Times in ms:
+
+| checkpoint, prompts | longest completion | call wall | prefill | decode step, constrained | `forward` | `sample` | `sample_sync` | grammar and stop share |
+|---|---|---|---|---|---|---|---|---|
+| late 64 (512 rows) | 36.2 | 202 | 19.6 | 5.02 | 4.43 | 4.58 | 4.62 | 9 to 18 % |
+| late 32 (256 rows) | 35.4 | 130 | 10.9 | 3.38 | 2.97 | 3.05 | 3.08 | 10 to 17 % |
+| early 64 (512 rows) | 256.0 | 1537 | 19.6 | 5.93 | 5.41 | 5.55 | 5.59 | 6 to 7 % |
+| early 32 (256 rows) | 256.0 | 974 | 10.9 | 3.76 | 3.28 | 3.36 | 3.39 | 11 to 13 % |
+
+"Decode step, constrained" is the call's wall time less the prefill, over the longest completion. The share is that
+step's excess over `sample`. The first figure takes out the prefill and the second does not.
+
+The rule I set when I submitted it, but did not log, was this:
+- At 512 rows, if the grammar and stop checks take 40 % or more of a decode step, write the GPU-table sampler.
+- If under 20 %, the update goes first.
+
+They take 9 to 18 %, so **the update goes first**. On the late checkpoint, at
+most 18 to 36 ms of a 202 ms call could be
+removed. That is under a tenth of a step. The per-token copy to the host costs about 0.04 ms a token. The constrained
+calls' CPU time for the grammar (0.16 s late, 0.96 s early) mostly overlaps the GPU's work.
+
+The forward is the bulk of a decode step: 2.97 ms at 256 rows and 4.43 ms at 512, so most of it scales
+with the rows. A faster forward would mean lower-precision matmuls, which need a loss comparison (INBOX), so I do not
+start it now. Speed item 2 is the update. Its timing item comes first: where `t_update`'s 0.17 to 0.38 s goes (the
+policy rows' forward and backward, the self-imitation rows, the optimizer step), on one node and both checkpoints,
+before any code.
+
+**r116 (U24): D 007's pretraining on a mix with keyword-filtered FineMath.**
+
+The data:
+- **Source:** FineMath, HuggingFaceTB/finemath, the `finemath-4plus` subset at revision
+  e92b25a616738fe95dc186b64dfb19f9c8525594, shards 0 to 2 of 64. They are already on the pool from the FineMath
+  pilot (sweep_d15).
+- **Filter:** `scripts/keyword_filter.py drop` (new, CPU only, no model; tests in `tests/test_keyword_filter.py`)
+  removes Countdown items by a keyword rule. It drops every document that matches any of:
+  - Countdown or a count-down;
+  - the 24 game;
+  - "make" or "reach" 24;
+  - a numbers game, round or puzzle;
+  - Krypto;
+  - a target number, value or total;
+  - each, every or all of the numbers used once.
+
+  It over-drops on purpose. RULES_v3 allows a general dataset "once those items are removed (a keyword filter is
+  enough)".
+- **Mix:** `scripts/research/prep_r116_data.sh` (new) filters, tokenizes with D 007's tokenizer, and appends two
+  copies to `mix_0.2.bin` (`math_mix.py mix --frac 0.3 --max-repeat 2`). By tokens that is about 31 % FineMath, 14 %
+  dm_math and 55 % FineWeb-Edu, against D 007's 20 % dm_math and 80 % FineWeb-Edu. Pretraining samples windows
+  uniformly from the file.
+- **Reasoning cues:** the script also counts them per million characters (`keyword_filter.py cues`) in FineWeb-Edu,
+  dm_math, FineMath and the filtered FineMath, to show how much written reasoning each holds. Examples are "step by
+  step", "let's", "therefore" and "the answer is".
+- **The job:** CPU job 29965651 (`mit_normal`, 16 cores, 2 h) builds it on scratch, with a planned start of 15:00.
+  The drop counts, cue counts and md5 sums go into the LOG when it ends.
+
+The arms:
+- **Pretraining:** `calibration/research_r116/d_fmkw2_muon1338m_pre` (pretrain_only), seeds 0 and 1. It is D 007's
+  recipe (Muon lr 4e-3, micro-batch 32), stopped at D 007's 1,337,982,976 tokens as r84's `muon_1338m` is, on a
+  B200.
+- **RL:** `calibration/research_r116/d116rl_native_fmkw2_b200`. It is r101's native control, unchanged, from those
+  weights. Each seed is paired with `d007rl_native_b200`'s.
+
+The control's weights are D 007's own: an H200 run stopped by time at about the same token count. So a pair compares
+the data and the pretraining GPU together. A B200 control pretraining on `mix_0.2.bin` (r84's config) runs only if
+the arm clears the bar.
+
+Why: this is U24. With `think_budget` 0, the `<answer>` tag is never forced, so free text before it is allowed. The
+record seeds answer in about 24 tokens. More worked maths in pretraining could change what RL finds.
+
+Expected:
+- **Score at the final:** centre -0.01, range -0.05 to +0.03. The FineMath pilot (sweep_d15) did not change the
+  regime. The math mixes of D2 are closed (dm51 was +0.010). r86 found twice D 007's tokens worse (LOG 11-19 05:26).
+  Here dm_math, the closest data to the task, falls from 20 % to 14 % of the tokens.
+- **Completion length:** unchanged at about 24 tokens late in a run. If it moves to written reasoning (a mean over 40
+  tokens), I report that whatever the score.
+
+Rule, written before it runs:
+- **+0.02 or more at the final in both pairs:** seed 2, and the B200 control pretraining (r84's config) for seeds 0
+  to 2, so that the data's effect is read alone. The H200 gate follows if the gain holds.
+- **Below the control at the final and at matched steps in both pairs:** closed.
+- **Anything between:** left there.
+
+The regime reading goes into the LOG in any case.
+
+**Running r116.** When the data is built, the two pretraining items go into a new queue `pre_r116`, with one
+preemptable B200 worker (2 h 30 min). The RL items follow when the weights exist, with one worker each.
+
+**Other ideas.** U22 was answered at twice D 007's tokens by r86 (LOG 11-19 05:26). U23 goes into the 11-25 box plan,
+written on 11-24.
+
+**Jobs.**
+- **Exited:**
+  - 29837209 (r115 seed 0, to 12:11);
+  - 29837211 (r115 seed 1, to 12:36);
+  - 29963843 (the sampler timing, 12:28 to 12:37).
+- **Running:**
+  - 29942141: r105 lr 12e-6 seed 2, normal B200 node5701-c1, from about 12:04 to about 17:00;
+  - 29966173: r117 p128 seed 0, normal B200 node5501-c1, from about 12:38.
+- **Pending:**
+  - normal B200 29966174 (r117 seed 1);
+  - preemptable B200 29837212 (lr 24e-6 seed 1);
+  - preemptable H200 29837213 and 29837214 (r102 seeds 1 and 2);
+  - CPU 29965651 (r116 data);
+  - the four held workers.
+- **GPUs in use:** 2 of 6.
+- **Queued work:** about 19 GPU-hours on the B200 (lr 12e-6 seed 2's rest, r117's two seeds, lr 24e-6 seed 1), about
+  31 with r116's four items, and 12 on the H200 (r102 seeds 1 and 2). That is more than a day. The update's timing
+  item follows when a normal worker is free.
+
+**Storage.**
+- Pool: 64.5 % (df: 661G used, 364G free).
+- Scratch: 3.2 % of space and 74.7 % of its file limit (747K files at 12:30, up from 696K at 07:29). My runs add a few
+  files per seed directory, so the growth is not theirs. Above 85 %, the workers go back to the pool after a
+  write probe there.
+- The slurm logs show no quota errors.
+
+**INBOX:** unchanged since 11-19 20:45 (e66970b).
