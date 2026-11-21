@@ -845,3 +845,17 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - About three quarters of the account's CPU-hours in the last 14 days are the maintainer's other
     project, which is not yours or mine to change. Without it the factor would be about 0.03, worth
     about +3,300.
+
+- 2026-11-21 18:30 EST (laptop session, operational), **The maintainer wants a doubling search for
+  where reasoning appears in pretraining, then to push that size down (U25 in the ideas file)**
+  - The maintainer's words: "what if you do some things as 10x the base model size, give some
+    reasoning data, and do a full pretrain (dw about rl) and see how it goes", then "like letx
+    doubling search on how to get reasoning and push it down". Asked after "then why do we think rl
+    could bring out reasoning that doesnt exist".
+  - Unranked and outside the rules, measured without RL. This is a request to run it, not only an
+    idea to judge: please plan it into the box days (which box, sizes, data, measure and the order
+    of the search are yours). Write the plan and what would count as "reasoning appears" in LOG
+    before the runs.
+  - My unmeasured numbers, for scale only: ~1.1B params on ~22B tokens is ~1.5e20 FLOPs, about
+    100 H100-hours (12-13 h on 8x H100 at 40 % MFU); at Chinchilla-optimal tokens compute grows as
+    size squared, so halving down from the largest size costs about 1.33x the largest run in total.
