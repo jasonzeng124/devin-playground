@@ -10661,3 +10661,94 @@ every rung, read beside D 007's base.
   - 29999306 (r105 lr 24e-6 seed 2, preemptable B200);
   - the four held workers.
 - **GPUs:** 3 in use. If every pending GPU job started, that would be 6.
+
+## 2026-11-21 18:16 EST: r119 does not meet its rule (the memory-efficient attention takes 0.16 s off the unprofiled update but only 0.009 s off the profiled one), so capture or compile is next; r116's data is ready and its pretraining runs; U25's code is in, its second phase uses the keyword-filtered FineMath, and D 007's base is probed first, with a short smoke run of the 3x rung
+
+**r119** (LOG 11-21 14:59; job 29999304 on one normal B200, node5800-c1, 17:51 to 17:55). The update profiled on the
+same node with the memory-efficient SDPA kernel and with PyTorch's own choice (cuDNN); r118 (another node, the same
+settings) is the earlier reference. Numbers are per update, from `profile.json`:
+
+| arm | wall s, unprofiled (median) | wall s, profiled (median) | GPU busy fraction | GPU busy ms | kernel launches | syncs | device-to-host copies | cuDNN attention CPU ms |
+|---|---|---|---|---|---|---|---|---|
+| r118 final_native_ctl | 0.4173 | 0.3219 | 0.402 | 127.7 | 11,689 | 64 | 266 | 81.0 |
+| r119 sdpa_default | 0.4146 | 0.3668 | 0.366 | 129.8 | 11,453 | 63 | 266 | 111.0 |
+| r119 sdpa_efficient | 0.2557 | 0.3583 | 0.415 | 146.5 | 13,339 | 73 | 272 | 0.0 |
+
+- Unprofiled, the efficient kernel is 0.159 s faster (38 %); profiled, 0.0085 s.
+- The rule needed 0.03 s or more in both medians, and more than `sdpa_default` moved against r118. Between those
+  two, the profiled median moved by +0.045 s and the unprofiled by -0.003 s, so the profiled numbers differ between
+  runs by more than the efficient kernel's gain there.
+- **Not met.** As written for that case, capture or compile goes next.
+- A reading, not checked: `sdpa_default`'s profiled updates (which come after the 20 timed ones) were faster than its
+  timed ones (0.367 s against 0.415 s), the reverse of the usual profiler cost. That fits cuDNN building plans
+  for new micro-batch shapes in the early updates, a cost that would fade over a long run. If so, most of the
+  unprofiled gain is a start-up cost, not a steady one.
+- The efficient kernel adds 1,886 launches and 17 ms of GPU busy time per update (expected: 5 to 15 ms).
+- Capture or compile builds on the efficient kernel. It was not slower in either median, and capture needs fixed
+  shapes with no per-shape planning. The arm is timed on a real run's update times, not on profiles alone. It
+  comes after U25's code (done) and data-parallel pretraining (due 11-24).
+
+**r116 data** (same job, 17:55 to 18:01). The Countdown keyword rule (`scripts/keyword_filter.py`) dropped 2,230 of
+314,040 FineMath-4plus documents (0.71 % of documents, 1.80 % of characters). Matches by phrase (a document can match more
+than one): "countdown" 694, "target number" 688, "numbers game" 677, "make 24" 210, "each number once" 182, "24 game" 115, "krypto" 6.
+- `finemath_kw.bin`: 0.521B tokens, md5 46a89589818162629cc0035eb47b0fd5.
+- `mix_0.2_finemath_kw2.bin`: 2.321B + 2 x 0.521B = 3.362B tokens, FineMath share 31.0 %, md5
+  ea5a93c9b6b5cda51221b5c38a07de1f.
+- Reasoning cues in 2,000 windows of 1,024 tokens from each file (the job's own counts):
+
+| cue (per million characters) | FineWeb-Edu | dm_math | FineMath-4plus | FineMath, filtered |
+|---|---|---|---|---|
+| therefore / thus | 80.6 | 0.0 | 220.4 | 208.9 |
+| we get / we have | 43.1 | 0.0 | 167.9 | 170.2 |
+| let's / let us | 22.3 | 0.0 | 78.5 | 92.8 |
+| check / verify | 30.9 | 0.0 | 59.5 | 76.6 |
+| the answer is | 1.5 | 0.0 | 16.7 | 8.8 |
+| step by step | 1.8 | 0.0 | 14.4 | 18.4 |
+| wait / hmm / okay | 9.2 | 0.0 | 20.1 | 18.9 |
+
+FineMath has 1.9 to 11.1 times FineWeb-Edu's rate of each cue; dm_math has none of them (it is question and
+answer only). The filter moves each rate by at most 29 %, except "the answer is", which falls from 16.7 to 8.8.
+
+**r116 pretraining.** Worker 30000622 (normal B200, node5701-c1, from 18:08, queue `pre_r116`) runs
+`d_fmkw2_muon1338m_pre` seeds 0 and 1 (about 42 min each at 530k tokens a second). Then `d116rl_native_fmkw2_b200`
+seeds 0 and 1 go into a B200 queue with their workers.
+
+**U25 code** (plan: LOG 11-21 17:59).
+- f3a6340: `pretrain_scratch.py --phase2 path:weight,...` with `--phase2-start` (off by default; without it the draws
+  are unchanged). From that run progress on, each row of a micro-batch comes from one file picked by weight.
+- 6cab95e: `scripts/research/probe_reasoning.py`, the probe as planned (sets A, B and C; `probe.json`, `samples.md`
+  for reading by eye, `completions.jsonl`).
+- 45e92eb: `scripts/research/u25_rung.sh` (one rung: copies the three token files to node-local disk, pretrains,
+  then probes) and the r121 configs `u25_3x_twophase` and `u25_1x_d007base`.
+
+**Two changes to the written plan**, both made before any U25 run:
+- **The second phase uses the keyword-filtered FineMath** (`finemath_kw.bin`), not the unfiltered shards. INBOX said
+  a filter is not needed for U25, but the probe is Countdown, the filter found 2,230 Countdown-like documents in
+  FineMath, and the hard data rule bans Countdown data. It costs 1.5 % of FineMath's tokens. The weights by row are
+  `mix_0.2.bin` 0.3125, `dm_math.bin` 0.1875 and `finemath_kw.bin` 0.5. That is FineWeb-Edu 0.25, dm_math 0.25 and
+  FineMath 0.5, as planned.
+- **The fused loss at micro-batch 64.** The settled track D path is the fused loss at 128 (r91, r107: 52.9 GB at
+  110M). At 1024 x 24 the activations per token are about 2.7 times larger, and 128 might not fit in a B200. In
+  r91, 64 was about 2 % slower than 128.
+
+**U25 jobs.**
+1. When 30000622 ends (about 19:50), one normal B200 job (1 h limit):
+   - D 007's base probed (rung 1x, the reference);
+   - then a 6-minute 3x smoke run of `u25_rung.sh` into `u25_3x_smoke`. The phase switch happens at 3 minutes. It
+     checks memory at 1024 x 24, the copy, the switch and the probe on a 332M model before the long run.
+2. The 3x rung: one normal B200 job, 6 h limit, 330 minutes of pretraining, then the probe. It starts when
+   29966174 ends (about 22:00). If the smoke run fails, it waits for a fix. Read on 11-22 at about 04:00.
+
+The smoke run's weights and outputs are not results. They are deleted after the read.
+
+**Jobs.**
+- **Running:**
+  - 30000622 (r116 pretraining, normal B200 node5701-c1, from 18:08);
+  - 29966174 (r117 p128 seed 0, normal B200 node5501-c1, to about 22:00);
+  - 29837214 (r102 seed 2, preemptable H200 node4601).
+- **Pending:**
+  - 29837213 (r102 seed 1, H200);
+  - 29995938 (r120 seed 0, H200);
+  - 29999306 (B200 preemptable, queue `screens_rl_b200`: r105 lr 24e-6 seed 2, then r117 seed 1);
+  - the four held workers.
+- **GPUs:** 3 in use. If every pending GPU job started, that would be 6.
