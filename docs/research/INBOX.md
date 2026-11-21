@@ -877,3 +877,6 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     worry about size later." So reading samples by eye is fine (no strict threshold needed), and
     the priority is a model that visibly reasons at all; shrinking it comes after. If 3x shows
     nothing, going up is in scope.
+  - 19:05 EST, the maintainer on what "later" covers: "size/data mix / etc". So first get a model
+    that reasons by whatever size, data mix or other setting it takes; making it smaller, cheaper or
+    neater (size, mix, the rest) all comes after.
