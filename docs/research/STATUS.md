@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-21 12:47 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-21 13:50 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -54,8 +54,9 @@ workers go back to the pool after a write probe). Running: 29942141 (normal B200
 seed 2 since about 12:04 (to about 17:00) and 29966173 (normal B200, node5501-c1) with r105 lr 24e-6 seed 1 since 12:38 (to about 17:40; the queue's first item).
 29837209 and 29837211 ran r115 p32 seeds 0 and 1 (LOG 11-21 12:40) and exited; 29963843 ran the sampler timing
 (12:28 to 12:37). Pending on `screens_rl_b200`: normal B200 29966174 and preemptable 29837212, for r117 p128 seeds 0
-and 1, one for each queued long item. CPU job 29965651 (`mit_normal`, planned start 15:00) builds r116's
-data. Pending on `screens_r92`: preemptable H200 29837213 and 29837214 for r102 seeds 1 and 2. Held: 29497701/02/05 (B200
+and 1, one for each queued long item. CPU job 29976793 (`mit_normal`) builds r116's
+data: 29965651 started at 13:24 on node3107 and sat 25 min in D state before python ran (the
+pool mount hung), so it was cancelled at 13:49 and resubmitted without that node, with a 3 min start check. Pending on `screens_r92`: preemptable H200 29837213 and 29837214 for r102 seeds 1 and 2. Held: 29497701/02/05 (B200
 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). My jobs wait on age (298 an hour; LOG 11-19
 21:02 and 11-19 23:29); a requeue resets it. **Practice (11-20 04:34):** one pending worker for each queued long
 item, submitted when the item is queued, and never chained with `--dependency` (a job waiting on a dependency or a
@@ -80,7 +81,7 @@ a five-seed record attempt only if the three-seed rule is met); r105 lr 12e-6 se
 rule (two pairs +0.0096 at matched steps; seed 2 needs +0.026 or more for the 0.015 bar; LOG 11-21 07:39) and lr
 24e-6 seed 1 (its seed 2 only if seed 1 is large); r113's three arms are all between and left to the box (sil256
 the strongest, stack3 the weakest); r117 p128 seeds 0 and 1 against the rule written first in LOG 11-21 12:40 (r115 p32 is closed); r116's
-data (job 29965651), then its two pretraining items and two RL items against its rule (LOG 11-21 12:40); the speed
+data (job 29976793), then its two pretraining items and two RL items against its rule (LOG 11-21 12:40); the speed
 work (LOG 11-21 12:40): the sampler timing put the answer grammar and stop checks at 9 to 18 % of a decode step at
 trained weights, so the update comes first, with a timing item (the policy rows' forward and backward, the
 self-imitation rows, the optimizer step) before any code, each change the same maths and off by default (r112 closed model size; a 90 s
@@ -341,7 +342,7 @@ screen runs on the H200.
   clears the bar. Expected: centre -0.01, range -0.05 to +0.03; completion length unchanged at about 24 tokens (a
   move to written reasoning is reported whatever the score). Rule: +0.02 or more at the final in both pairs gets
   seed 2 and the B200 control pretraining; below at the final and at matched steps in both is closed; else between.
-  Data: CPU job 29965651 (planned start 15:00); then queue `pre_r116` with one preemptable B200 worker.
+  Data: CPU job 29976793 (resubmitted 13:49 after a pool hang on node3107); then queue `pre_r116` with one preemptable B200 worker.
 - r114 (H200 gate in a 6 h form; LOG 11-20 10:26): **Taken off at 15:32 on 11-20 (LOG 11-20 15:32):** r102 seed 0
   ended at 0.270, so three of three at or above 0.281 is 0.3 to 2 %; its items are out of the queue and its
   workers cancelled. As planned: `calibration/research_r114/d007_speed_h200_6h`, r102's config
