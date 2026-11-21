@@ -867,3 +867,8 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - 18:45 EST, the maintainer on the order: "well doubling search but like lets 10x first then push
     it down." So the first rung is 10x D 007's size (about 1.1B), and the search halves down from
     there; this replaces "sizes are yours" in the 18:30 note (the rest of the design stays yours).
+  - 18:50 EST, correction from the maintainer right after: "*5x", then "*3x". So the first rung
+    is **3x** D 007's size (about 330M), not 10x; the 18:45 line is replaced. From there the search
+    halves down if reasoning shows, and (my reading, your call) doubles up if it does not. My
+    unmeasured scale: ~330M on ~6.6B tokens is ~1.3e19 FLOPs, about 9 H100-hours, so the first
+    rung no longer needs a whole box.
