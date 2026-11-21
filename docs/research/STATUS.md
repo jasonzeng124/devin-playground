@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-21 12:41 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-21 12:47 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -51,10 +51,10 @@ filled up at 18:27 on 11-20 (LOG 11-20 18:42; QUESTIONS 11-20 18:42). The pool s
 workers stay on scratch until a write probe there passes. Scratch holds 3 % of its space and 74.7 % of its 1.0M file
 limit (12:30 on 11-21, up from 70 % at 07:29; not from these runs' outputs, a few files a seed; above 85 % the
 workers go back to the pool after a write probe). Running: 29942141 (normal B200, node5701-c1) with r105 lr 12e-6
-seed 2 since about 12:04 (to about 17:00) and 29966173 (normal B200, node5501-c1) with r117 p128 seed 0 since 12:38.
+seed 2 since about 12:04 (to about 17:00) and 29966173 (normal B200, node5501-c1) with r105 lr 24e-6 seed 1 since 12:38 (to about 17:40; the queue's first item).
 29837209 and 29837211 ran r115 p32 seeds 0 and 1 (LOG 11-21 12:40) and exited; 29963843 ran the sampler timing
-(12:28 to 12:37). Pending on `screens_rl_b200`: normal B200 29966174 (r117 seed 1) and preemptable 29837212 (r105
-lr 24e-6 seed 1), one for each queued long item. CPU job 29965651 (`mit_normal`, planned start 15:00) builds r116's
+(12:28 to 12:37). Pending on `screens_rl_b200`: normal B200 29966174 and preemptable 29837212, for r117 p128 seeds 0
+and 1, one for each queued long item. CPU job 29965651 (`mit_normal`, planned start 15:00) builds r116's
 data. Pending on `screens_r92`: preemptable H200 29837213 and 29837214 for r102 seeds 1 and 2. Held: 29497701/02/05 (B200
 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). My jobs wait on age (298 an hour; LOG 11-19
 21:02 and 11-19 23:29); a requeue resets it. **Practice (11-20 04:34):** one pending worker for each queued long
@@ -329,7 +329,7 @@ screen runs on the H200.
   the update's by 15-31 % on seed 1, so much of a step is fixed; r117 tries twice the rows.
 - r117 (B200, RL only, not gated; LOG 11-21 12:40): `d007rl_native_p128_b200`, r101's native control with twice the
   prompts per step (`prompts_per_step` 128, `group_size` 8, so 1,024 rows a step), `sil_rows` 128 and `eval_every`
-  250 (every 32,000 prompts, as the control); seeds 0 and 1 (normal B200 workers 29966173 and 29966174). Expected:
+  250 (every 32,000 prompts, as the control); seeds 0 and 1 (normal B200 29966174 and preemptable 29837212; 29966173 took r105 lr 24e-6 seed 1, the queue's first item). Expected:
   0.63x to 0.71x the control's step rate, about 103 GB at peak; score centre +0.005 at the final, range -0.03 to
   +0.035. Rule as r115's; its matched-steps reading goes to the speed work in any case.
 - r116 (U24; B200, not gated; LOG 11-21 12:40): pretraining on `mix_0.2.bin` with two appended copies of FineMath

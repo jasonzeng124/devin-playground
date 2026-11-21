@@ -10166,8 +10166,9 @@ sizes.
 2. r117 p128 seed 0
 3. r117 p128 seed 1
 
-The two r117 items have normal B200 workers 29966173 and 29966174, submitted when they were queued. lr 24e-6 seed 1
-keeps preemptable 29837212.
+Normal B200 workers 29966173 and 29966174 were submitted when the two r117 items were queued; with preemptable
+29837212 that is one worker per long item. A worker takes the queue's first item, so 29966173 runs lr 24e-6 seed 1
+(corrected at 12:47; this said the preemptable worker keeps it).
 
 **The sampler timing** (speed item 1 of LOG 11-21 02:00). Job 29963843 (normal B200, node5800-c1, from 12:28) ran
 `scripts/research/profile_sampling.py --backend native --floor` on r101's config. That is the native sampler with the
@@ -10279,10 +10280,11 @@ written on 11-24.
   - 29963843 (the sampler timing, 12:28 to 12:37).
 - **Running:**
   - 29942141: r105 lr 12e-6 seed 2, normal B200 node5701-c1, from about 12:04 to about 17:00;
-  - 29966173: r117 p128 seed 0, normal B200 node5501-c1, from about 12:38.
+  - 29966173: r105 lr 24e-6 seed 1 (the queue's first item), normal B200 node5501-c1, from 12:38 to about 17:40.
+    Corrected at 12:47: this line said r117 seed 0; the worker log shows lr 24e-6 seed 1.
 - **Pending:**
-  - normal B200 29966174 (r117 seed 1);
-  - preemptable B200 29837212 (lr 24e-6 seed 1);
+  - normal B200 29966174 and preemptable B200 29837212, for r117 seeds 0 and 1 (still one worker per queued
+    long item);
   - preemptable H200 29837213 and 29837214 (r102 seeds 1 and 2);
   - CPU 29965651 (r116 data);
   - the four held workers.
