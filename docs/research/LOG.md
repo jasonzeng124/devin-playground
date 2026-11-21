@@ -10509,3 +10509,155 @@ waits are short (median 0.1 h).
   - 29995938 (r120, preemptable H200);
   - the four held workers.
 - **GPUs:** 3 in use. If every pending GPU job started, that would be 6.
+
+## 2026-11-21 17:59 EST: r105 lr 24e-6 seed 1 is large (+0.031 at matched steps, ahead at 88 of 89 evals), so its seed 2 runs; U25 (a doubling search on pretraining size for where reasoning appears, without RL) is planned, with what counts as "reasoning appears" written before any run; the data job moves to a normal B200
+
+**r105 lr 24e-6 seed 1** (normal B200 29966173, node5501-c1, 12:38 to 17:29): 0.3367 after 47,812 steps against
+the native control's seed 1, 0.2883 after 44,862 (node5602-c1).
+- Matched steps: +0.0311 over 89 shared evals (ahead at 88, behind at 0). By step block: 0-5k +0.029, 5-10k
+  +0.031, 10-20k +0.026, 20-30k +0.031, 30-50k +0.036. The lead is there from the first 5,000 steps
+  and does not shrink.
+- Final: +0.0483.
+
+Both pairs (computed by script from the eval logs):
+
+| seed | lr 24e-6 final (steps) | control final (steps) | final diff | matched steps (shared evals) |
+|---|---|---|---|---|
+| 0 | 0.2967 (45,636) | 0.3033 (34,893) | -0.0066 | +0.0020 (69) |
+| 1 | 0.3367 (47,812) | 0.2883 (44,862) | +0.0484 | +0.0311 (89) |
+| mean | 0.3167 | 0.2958 | +0.0208 (SE 0.0275) | +0.0166 (SE 0.0146) |
+
+**What this means.** lr 24e-6's seed 2 was to run only if its seed 1 is large (LOG 11-21 07:39). +0.031 is the
+largest pair in r105, so seed 2 runs. Under r105's rule (0.015 or more at matched steps over three pairs) it needs
+about +0.012 or more. lr 12e-6's seed-2 pair was +0.0290, so I give it better than even odds.
+- At both doses the seed-0 pair is level (-0.005 and +0.002) and the others are large. The control's seed 0 ended
+  highest of its three (0.3033 against 0.2883 and 0.2833), so the seed-0 pairs say more about that control run
+  than about lr.
+- At seed 1, 4x is ahead of 2x: +0.0311 against +0.0243 at matched steps, finals 0.3367 against 0.3233.
+- If seed 2 meets the rule and the three-pair mean at matched steps is above lr 12e-6's +0.0161, the next H200
+  gate after r120 uses lr 2.4e-5 (a new config, written then; r120 is not changed). If it meets the rule without
+  being above, lr stays at 1.2e-5. If it falls short, lr 24e-6 is closed for the native regime.
+
+**Placement.** Data job 29983376 (r119, then r116's data) had waited 3 h on preemptable B200 (reason Priority, at
+about 32,000). r116 and U25's second-phase data both wait on it.
+- At 17:50 I cancelled it and the normal B200 worker 29999120 (pending, submitted at 17:48 for lr 24e-6 seed 2).
+- The same job went to `mit_normal_gpu` as 29999304 and started at once on node5800-c1 (2:30 limit).
+- lr 24e-6 seed 2 moved to preemptable B200 worker 29999306. Three of the four preemptable slots stay with H200
+  work (r102 seeds 1 and 2, r120 seed 0).
+- When 29999304 ends, its normal slot goes to a normal B200 worker for r117 seed 1.
+
+**U25 (INBOX 11-21, 17:21 to 17:26).** This is a request to run it, not only to judge it:
+- a doubling search on pretraining size for where a track D model starts to reason;
+- measured on the pretrained model without RL, outside the rules and unranked;
+- the first rung is 3x D 007's size; halve down if reasoning shows, double up if not;
+- no keyword filter is needed, and reasoning-heavy data can go in the second half;
+- judging by eye is fine, and size, data mix and the rest come after reasoning appears.
+
+The plan below is written before any U25 run.
+
+**Rungs.** Parameters and tokens grow together at 20 tokens per parameter (the INBOX estimate: about 330M on 6.6B
+tokens).
+- The architecture is D 007's: Llama-style, TinyLlama tokenizer, tied embeddings, 64-wide heads.
+- The optimizer is Muon with D 007's settings.
+- Parameter counts were computed by script.
+
+| rung | width x layers | parameters | tokens | 6NT FLOPs |
+|---|---|---|---|---|
+| 1x, D 007's base (exists) | 768 x 12 | 110M | 1.34B as trained (12 per parameter) | 0.9e18 |
+| 3x, first | 1024 x 24 | 332M | 6.6B | 1.3e19 |
+| 6x | 1280 x 32 | 668M | 13.4B | 5.4e19 |
+| 12x | 2048 x 24 | 1,270M | 25.4B | 1.9e20 |
+| 1.5x | 896 x 16 | 182M | 3.6B | 4.0e18 |
+| 0.5x | 640 x 10 | 69M | 1.4B | 5.7e17 |
+
+**Where each rung runs.**
+- **1x:** D 007's base (seed 0's pretrained weights in the pool) is probed first, as the reference.
+- **3x:** one normal B200 job on Engaging for 330 minutes, with the cosine ending on time (the script decays the lr
+  on the larger of the step and time fractions).
+  - At r84's 18 % MFU that is about 4.0B tokens, 12 per parameter (D 007's ratio); at 25 % it is about 5.5B.
+  - The 6.6B form needs 8 to 10 h on one B200. That is longer than a normal job, and the script has no resume yet.
+  - It starts on 11-22, when the code below is in, and is read on 11-23.
+- **The 11-25 box** (8x H100, 24 h) runs the next rung, chosen from 3x's result.
+  - This needs data-parallel training in `scripts/pretrain_scratch.py` (torchrun, one process a GPU). It is added
+    and tested on two Engaging GPUs before 11-24.
+  - **If 3x is no:** 6x on all eight GPUs, about 6 to 7 h at 30 % MFU, probed on the box. If 6x is also no, 12x
+    needs about 23 h on eight H100s at 20 tokens per parameter (14 h at 12). It then goes to the 11-28 or 12-09
+    box, planned the day before.
+  - **If 3x is yes:** 1.5x, 1x on the new data and 0.5x run on single GPUs side by side, an hour or two each. The
+    rest of the box goes to the A arms (U23).
+- U25 on Engaging stays inside the six-GPU cap. Its outputs never feed a ranked screen or a record.
+
+**Data.** Two phases, split by run progress (the same fraction the lr schedule uses):
+- **First half:** D 007's `mix_0.2.bin` (FineWeb-Edu with dm_math, 2.32B tokens).
+- **Second half,** reasoning-heavy, sampled by weight:
+  - FineMath-4plus 0.5 (shards 0-2 as downloaded, 529M tokens; not keyword-filtered, which INBOX allows for U25);
+  - dm_math 0.25 (299M tokens);
+  - FineWeb-Edu 0.25.
+- At 3x on Engaging, FineMath repeats about twice in the second phase. The box rungs download more FineMath shards
+  on the box.
+- The weights are a first choice, not tuned (INBOX: the data mix comes after reasoning appears).
+
+**Measure.** `scripts/research/probe_reasoning.py` (written next) probes base weights only, without RL. Every rung
+and D 007's base get the same settings, on one GPU for some minutes. Three prompt sets:
+- **A:** Countdown with track D's own `r1` prompt (zero-shot; the completion opens in `<think>`). The first 200 dev
+  puzzles (`data/ladder_v3_dev.jsonl`), 4 samples each at temperature 1.0, 256 new tokens.
+- **B:** Countdown with the `search` prompt (three worked trial-and-error examples, in `rlvr_speedrun/countdown.py`).
+  The same puzzles and sampling.
+- **C:** GSM8K word problems: 100 questions from the pool copy (train split), with 4 other worked questions in
+  front, greedy, 256 new tokens. It checks that what B finds is not only the Countdown format.
+
+Numbers for each set:
+- step accuracy: the share of written `a op b = c` steps with correct arithmetic;
+- grounded-chain rate: the share of samples with at least two correct steps where every operand is a given number
+  or an earlier result;
+- solve rate (Countdown: a valid expression equal to the target; GSM8K: the final number);
+- well-formed rate;
+- median length of the working, in tokens;
+- loop rate (a 4-gram repeated four or more times).
+
+By eye: 20 samples of each set go to a markdown file next to the run. They are the same puzzles and questions for
+every rung, read beside D 007's base.
+
+**What counts as "reasoning appears"** (fixed now):
+- **Yes** when set B shows both of these:
+  - by eye, at least 10 of the 20 samples are working, not imitation: the model combines the puzzle's own numbers,
+    computes mostly right, compares with the target, and tries again or stops (not copied example text, not a
+    loop, not number salad);
+  - a grounded-chain rate of 0.5 or more and step accuracy of 0.7 or more, each at least 0.2 above D 007's base.
+- **Partial** when B's chain rate is at least 0.1 above D 007's base but under the yes bar, or 5 to 9 of the 20
+  samples are working. For the direction of the search, partial counts as no.
+- **No** otherwise.
+- Sets A and C are reported beside it. A yes on B together with working in at least 5 of 20 samples on A (no
+  examples given) is a strong yes, because A is the prompt RL starts from.
+- **The search:** yes at 3x goes down (1.5x, then 1x on the new data, then 0.5x) until a rung says no. No at 3x
+  goes up (6x, then 12x). The smallest yes is where the size, data and length work starts (INBOX).
+
+**Expected**, before any run:
+- D 007's base copies the examples' form in B, with step accuracy under 0.5 and few grounded chains. dm_math gives
+  it some arithmetic, and after RL the record seeds answer in about 24 tokens.
+- 3x on the two-phase data: partial (chain rate 0.3 to 0.5).
+- 6x: about even odds of a yes.
+- 12x: likely yes on B, still uncertain on A.
+
+**Order:**
+1. 11-22:
+   - the two-phase data option in `pretrain_scratch.py` (off by default, with tests);
+   - `probe_reasoning.py`;
+   - D 007's base probed (one B200, under 30 min);
+   - the 3x config `calibration/research_r121/u25_3x_twophase` (pretraining only).
+2. 11-22 to 11-23: 3x on a normal B200, then probed. Read in the LOG with samples.
+3. By 11-24: data-parallel training and resume in `pretrain_scratch.py`, tested on two GPUs. The 11-25 box plan
+   with U25's next rung.
+4. 11-25: the box.
+
+**Jobs.**
+- **Running:**
+  - 29966174 (r117 p128 seed 0, normal B200 node5501-c1, from 17:02 to about 22:00);
+  - 29999304 (r119's two profiles, then r116's data; normal B200 node5800-c1, from 17:50, 2:30 at most);
+  - 29837214 (r102 seed 2, preemptable H200 node4601, since 14:40).
+- **Pending:**
+  - 29837213 (r102 seed 1, preemptable H200);
+  - 29995938 (r120 seed 0, preemptable H200);
+  - 29999306 (r105 lr 24e-6 seed 2, preemptable B200);
+  - the four held workers.
+- **GPUs:** 3 in use. If every pending GPU job started, that would be 6.
