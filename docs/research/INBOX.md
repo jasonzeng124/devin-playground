@@ -864,3 +864,6 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     the U25 search (unranked): no keyword filter needed, and consider a two-phase mix, general data
     first and reasoning-heavy data in the second half. Whether "no filter" also applies to ranked
     runs and records is not settled; until the maintainer says so, RULES_v3's filter stands there.
+  - 18:45 EST, the maintainer on the order: "well doubling search but like lets 10x first then push
+    it down." So the first rung is 10x D 007's size (about 1.1B), and the search halves down from
+    there; this replaces "sizes are yours" in the 18:30 note (the rest of the design stays yours).
