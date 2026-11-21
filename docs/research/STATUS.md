@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-21 14:36 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-21 15:00 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -54,10 +54,13 @@ workers go back to the pool after a write probe). Running: 29942141 (normal B200
 seed 2 since about 12:04 (to about 17:00) and 29966173 (normal B200, node5501-c1) with r105 lr 24e-6 seed 1 since 12:38 (to about 17:40; the queue's first item).
 29837209 and 29837211 ran r115 p32 seeds 0 and 1 (LOG 11-21 12:40) and exited; 29963843 ran the sampler timing
 (12:28 to 12:37). Pending on `screens_rl_b200`: normal B200 29966174 and preemptable 29837212, for r117 p128 seeds 0
-and 1, one for each queued long item. Preemptable B200 job 29980436 runs r118, a timing-only profile of the update step (about 15 min; LOG 11-21 14:29). CPU job 29981583 (`mit_preemptable`, CPU only) builds r116's
-data: 29965651 started at 13:24 on node3107 and sat 25 min in D state before python ran (the
-pool mount hung), so it was cancelled at 13:49 and resubmitted without that node, with a 3 min start check, as 29976793;
-that one's planned start on `mit_normal` (261 idle CPUs) was 11-26, so at 14:30 it moved to `mit_preemptable` (about 9,400 idle). Pending on `screens_r92`: preemptable H200 29837213 and 29837214 for r102 seeds 1 and 2. Held: 29497701/02/05 (B200
+and 1, one for each queued long item. r118 (preemptable B200 29980436, 80 s) found the update step overhead-bound: GPU busy 0.40 of its wall time,
+11,689 kernel launches per update (LOG 11-21 14:59). Preemptable B200 job 29983376 (pending) runs r119, the same
+profile with PyTorch's memory-efficient attention kernel against the default (about 15 min), then r116's data.
+The three CPU jobs for the data (29965651 on node3107, 29980655 on node3409, 29981583 on node2702) hung or failed
+their start checks; a diagnostic (29982547) found that CPU nodes do not reach the pool, while home and scratch
+respond. On `screens_r92`: preemptable H200 29837214 runs r102 seed 2 on node4601 again since 14:40 after a
+preemption, and 29837213 (r102 seed 1) is pending again after a preemption at 11:20. Held: 29497701/02/05 (B200
 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). My jobs wait on age (298 an hour; LOG 11-19
 21:02 and 11-19 23:29); a requeue resets it. **Practice (11-20 04:34):** one pending worker for each queued long
 item, submitted when the item is queued, and never chained with `--dependency` (a job waiting on a dependency or a
@@ -82,10 +85,11 @@ a five-seed record attempt only if the three-seed rule is met); r105 lr 12e-6 se
 rule (two pairs +0.0096 at matched steps; seed 2 needs +0.026 or more for the 0.015 bar; LOG 11-21 07:39) and lr
 24e-6 seed 1 (its seed 2 only if seed 1 is large); r113's three arms are all between and left to the box (sil256
 the strongest, stack3 the weakest); r117 p128 seeds 0 and 1 against the rule written first in LOG 11-21 12:40 (r115 p32 is closed); r116's
-data (job 29981583), then its two pretraining items and two RL items against its rule (LOG 11-21 12:40); the speed
+data (on preemptable B200 job 29983376 after r119; CPU nodes do not reach the pool), then its two pretraining items and two RL items against its rule (LOG 11-21 12:40); the speed
 work (LOG 11-21 12:40): the sampler timing put the answer grammar and stop checks at 9 to 18 % of a decode step at
 trained weights, so the update comes first, with a timing item (the policy rows' forward and backward, the
-self-imitation rows, the optimizer step) before any code (r118, job 29980436, profiles it with torch.profiler; what it decides is in LOG 11-21 14:29), each change the same maths and off by default (r112 closed model size; a 90 s
+self-imitation rows, the optimizer step) before any code (r118 found it overhead-bound: GPU busy 0.40, 11,689 kernel launches per update; r119 tries the memory-efficient
+attention kernel, then capture or compile; LOG 11-21 14:59), each change the same maths and off by default (r112 closed model size; a 90 s
 step rate follows the starting weights, so the timing item compares runs from one checkpoint on one node and logs
 each batch's longest completion, LOG 11-20 11:48); each box's standby queue (staged and checked for all three
 blocks, `docs/research/box_1128.md`) planned again the day before its block (11-24, 11-27, 12-08), with sil256 the
@@ -343,7 +347,9 @@ screen runs on the H200.
   clears the bar. Expected: centre -0.01, range -0.05 to +0.03; completion length unchanged at about 24 tokens (a
   move to written reasoning is reported whatever the score). Rule: +0.02 or more at the final in both pairs gets
   seed 2 and the B200 control pretraining; below at the final and at matched steps in both is closed; else between.
-  Data: CPU job 29981583 (`mit_preemptable`; resubmitted 13:49 after a pool hang on node3107, moved at 14:30 from `mit_normal`, where its planned start was 11-26; 29980655 then failed its 3 min start check on node3409 at 14:34, the venv import of pyarrow and transformers not done, so at 14:35 the check became stat and a bare interpreter start within 5 min, node3409 excluded); then queue `pre_r116` with one preemptable B200 worker.
+  Data: preemptable B200 job 29983376, after r119's two profiles. Three CPU jobs failed before it (29965651 on
+  node3107, 29980655 on node3409, 29981583 on node2702): CPU nodes do not reach the pool (diagnostic 29982547, LOG
+  11-21 14:59); then queue `pre_r116` with one preemptable B200 worker.
 - r114 (H200 gate in a 6 h form; LOG 11-20 10:26): **Taken off at 15:32 on 11-20 (LOG 11-20 15:32):** r102 seed 0
   ended at 0.270, so three of three at or above 0.281 is 0.3 to 2 %; its items are out of the queue and its
   workers cancelled. As planned: `calibration/research_r114/d007_speed_h200_6h`, r102's config

@@ -1,7 +1,7 @@
 """Profile GRPO's update step (timing only: nothing is saved, scored or kept).
 
     python scripts/research/profile_update.py --config <dir>/config.json --model <weights> --out profile.json \
-        [--warm 20] [--steps 8] [--seed 0] [--parts] [--set key=json ...]
+        [--warm 20] [--steps 8] [--seed 0] [--parts] [--sdpa efficient] [--set key=json ...]
 
 It runs grpo.run with the config's settings (no saving, no evals, `time_update_parts` off unless --parts) and wraps
 grpo._update. The first `warm` updates are timed only (CUDA-synchronised wall time); each of the next `steps` runs
@@ -12,12 +12,15 @@ the run stops (no final eval). It prints and writes:
   - kernel launches, synchronisations and device-to-host copies per update;
   - the top ops by self CUDA time and by self CPU time, summed over the profiled updates.
 It answers whether the update is compute-bound or overhead-bound before a speed change is tried. --set overrides
-config fields (JSON values) to profile a variant, e.g. --set micro_batch_tokens=131072.
+config fields (JSON values) to profile a variant, e.g. --set micro_batch_tokens=131072. --sdpa limits the update's
+scaled-dot-product attention to the named backends (comma-separated: flash, efficient, cudnn, math; PyTorch picks among
+them), for every timed update; the default leaves PyTorch's choice. The rollout sampler is not affected.
 """
 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import statistics
 import tempfile
@@ -26,6 +29,7 @@ from dataclasses import fields
 
 import torch
 from torch.autograd import DeviceType
+from torch.nn.attention import SDPBackend, sdpa_kernel
 from torch.profiler import ProfilerActivity, profile
 
 from rlvr_speedrun import grpo
@@ -35,6 +39,8 @@ COUNTERS = {
     "synchronisations": ("Synchronize",),
     "device-to-host copies": ("_local_scalar_dense", "Memcpy DtoH"),
 }
+SDPA = {"flash": SDPBackend.FLASH_ATTENTION, "efficient": SDPBackend.EFFICIENT_ATTENTION, "cudnn": SDPBackend.CUDNN_ATTENTION,
+        "math": SDPBackend.MATH}
 
 
 class _Done(Exception):
@@ -59,6 +65,15 @@ def _busy_us(events) -> tuple[float, int]:
             busy += e - end
             end = e
     return busy, len(spans)
+
+
+def _backends(spec: str) -> list:
+    """The SDPA backends named in `spec` (comma-separated); empty for PyTorch's own choice."""
+    names = [name.strip() for name in spec.split(",") if name.strip()]
+    unknown = [name for name in names if name not in SDPA]
+    if unknown:
+        raise SystemExit(f"--sdpa: unknown backend(s) {unknown}; choose from {sorted(SDPA)}")
+    return [SDPA[name] for name in names]
 
 
 def _config(args) -> grpo.GRPOConfig:
@@ -86,10 +101,12 @@ def main() -> None:
     parser.add_argument("--steps", type=int, default=8)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--parts", action="store_true", help="keep time_update_parts on (adds a sync per part)")
+    parser.add_argument("--sdpa", default="", help="attention backends for the update, e.g. efficient or flash,efficient")
     parser.add_argument("--set", action="append", default=[], metavar="KEY=JSON")
     parser.add_argument("--top", type=int, default=25)
     args = parser.parse_args()
     config = _config(args)
+    backends = _backends(args.sdpa)
 
     original = grpo._update
     walls: list[float] = []
@@ -105,7 +122,8 @@ def main() -> None:
         torch.cuda.synchronize()
         torch.cuda.reset_peak_memory_stats()
         t0 = time.perf_counter()
-        out = original(*a, **k)
+        with sdpa_kernel(backends) if backends else contextlib.nullcontext():
+            out = original(*a, **k)
         torch.cuda.synchronize()
         wall = time.perf_counter() - t0
         walls.append(wall)
@@ -143,7 +161,8 @@ def main() -> None:
     n = len(per_update)
     unprofiled = walls[1:args.warm]  # the first update carries one-off allocation and autotuning
     summary = {
-        "config": args.config, "model": args.model, "set": args.set, "parts": args.parts, "gpu": torch.cuda.get_device_name(),
+        "config": args.config, "model": args.model, "set": args.set, "parts": args.parts, "sdpa": args.sdpa,
+        "gpu": torch.cuda.get_device_name(),
         "torch": torch.__version__, "warm": args.warm, "steps": n,
         "wall_s_unprofiled_median": statistics.median(unprofiled) if unprofiled else None,
         "wall_s_profiled_median": statistics.median(r["wall_s"] for r in per_update),

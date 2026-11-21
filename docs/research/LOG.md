@@ -10357,3 +10357,85 @@ read against both.
   - CPU 29976793 (r116 data; its time limit was cut to 2 h after its planned start moved to 11-26);
   - the four held workers.
 - **GPUs:** 2 in use. If every pending GPU job started, that would be 6.
+
+## 2026-11-21 14:59 EST: r118: the update step is overhead-bound (GPU busy 0.40 of the update's wall time, 11,689 kernel launches per update), so the next speed arm removes overhead; cuDNN's attention takes 81 ms of CPU per update, so r119 first tries the memory-efficient attention kernel; the r116 data job moves to a GPU node, as CPU nodes do not reach the pool
+
+**r118 result.** One preemptable B200 (29980436, node5800-c1, torch 2.13.0+cu130), 80 s; numbers from its
+`profile.json`, medians over the updates:
+
+| measure | expected (written first) | r118 |
+|---|---|---|
+| wall per update, 19 unprofiled | - | 0.417 s |
+| wall per update, 8 profiled | - | 0.322 s |
+| GPU busy per update | - | 0.128 s |
+| busy fraction | 0.3 to 0.6 | 0.40 of the profiled wall (0.31 of the unprofiled) |
+| kernel launches per update | over 2,000 | 11,689 |
+| synchronisations per update | a handful | 64.5 |
+| host time waiting in syncs | the 10 % line | 26 ms, 8 % of the profiled wall |
+| peak GPU memory | - | 31 to 33 GB |
+
+There are two kinds of update: 5 of the 8 had 9,531 launches and 54 syncs, 3 had about
+15,300 and 82. Which part adds the rest is not checked yet. The 19 unprofiled updates (the run's
+first) took longer than the profiled ones, so the profiler's own cost is not what sets the wall time here; the
+busy fraction is under 0.6 against either.
+
+Where the time goes, per update:
+- **CPU (self time):** cuDNN attention backward 41.6 ms and forward
+  39.4 ms for 143 calls, about 0.57 ms of CPU per call;
+  `cudaLaunchKernel` 31.8 ms (9,878 calls); `cudaStreamSynchronize` 26.0 ms; `aten::mm` 24.0 ms.
+- **GPU (self time by op, out of 128 ms busy):** copies 26.1 ms (2,936 calls), multiplies
+  22.0 ms, matmuls 16.1 ms, `cat` 11.0 ms, cuDNN attention 20.1 ms. The matmuls are a small
+  part; elementwise work and copies lead. 1,249 of the copies per update are bf16 casts (5.8 ms), which
+  fits autocast casting the fp32 master weights again for each micro-batch (not checked).
+
+**Decision, by the rule written first.** Busy is under 0.6 with many launches, so the next arm removes overhead
+from the training forward and backward. Host waits in syncs are 8 %, under the 10 % line, so the syncs do not
+go first.
+
+**r119, written first.** One cheaper same-maths test goes before capture or `torch.compile`. cuDNN's attention
+uses 81 ms of CPU per update for 20 ms of GPU work; a likely cause is a new cuDNN plan for each new
+micro-batch shape (not checked). `profile_update.py --sdpa` (new, off by default) limits the update's attention to
+named PyTorch backends. One preemptable B200 job profiles the update twice on one node, with the settings of r118
+(20 timed updates, then 12 profiled):
+- `sdpa_efficient`: PyTorch's memory-efficient kernel, which takes the padding mask. The flash kernel takes no
+  mask, so it is not tried.
+- `sdpa_default`: PyTorch's own choice (cuDNN) again, as the noise reference against r118.
+
+Expected:
+- the efficient kernel costs tens of microseconds of CPU per call, so about 70 of the 81 ms leave the CPU side;
+- its GPU kernels are slower than cuDNN's (say 5 to 15 ms more busy time), which fits in the idle time;
+- so the update's wall time falls by 0.04 to 0.07 s (10 to 17 %) in both medians, and the busy fraction rises
+  towards 0.5.
+
+What it decides:
+- **Down by 0.03 s or more in both medians, and by more than `sdpa_default` moves against r118:** an `sdpa_backend`
+  option goes into GRPOConfig (off by default). Then one native-control seed runs with it on the B200 as a timing
+  check. The maths is the same, so it is kept on time without a paired win (INBOX); its score is read against the
+  control's pairs only as a check that nothing broke. Capture or compile then goes on top.
+- **Less:** capture or compile goes next. The micro-batches' padded lengths vary, so capture needs a fixed set of
+  lengths.
+
+**r116 data job.** 29981583 failed its 5 min start check on node2702 at 14:42. A diagnostic (29982547, node1702,
+from 14:46) found:
+- the pool is not mounted there: `ls -d` of my pool directory, a `stat` of the venv, the venv's python and a
+  `stat` of a FineMath shard each did not finish in 90 s;
+- home and scratch respond in 0.5 s.
+
+So CPU nodes do not reach the pool (at least today), which also explains 29965651 (node3107), 29980655 (node3409)
+and 29981583. GPU nodes do: r118 read the venv and the weights from it.
+
+The prep now runs after r119's two profiles in the same preemptable B200 job, 29983376, which leaves the GPU idle
+during the prep. An L40S job for the prep alone (29982809, 14:51) was cancelled before it started: B200 nodes are
+known to mount the pool, and one job carries both.
+
+**Jobs.**
+- **Running:**
+  - 29942141 (r105 lr 12e-6 seed 2, to about 17:00);
+  - 29966173 (r105 lr 24e-6 seed 1, to about 17:40);
+  - 29837214 (r102 seed 2, H200 node4601, started again at 14:40 after a preemption).
+- **Pending:**
+  - 29983376 (r119 and the r116 data, preemptable B200);
+  - 29966174 and 29837212 (r117 seeds 0 and 1);
+  - 29837213 (r102 seed 1, preempted at 11:20 after 32 min);
+  - the four held workers.
+- **GPUs:** 3 in use. If every pending GPU job started, that would be 6.
