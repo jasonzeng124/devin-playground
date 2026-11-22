@@ -11459,3 +11459,42 @@ final_native_ctl config with max_steps 1,000,000, and D 007 seed 0's weights.
 **When.** It runs on the first normal B200 that frees. Both are busy now:
 - 30033104 holds r105's lr 24e-6 arm, seed 2;
 - 30054646 holds r116's seed 0.
+
+## 2026-11-22 08:31 EST: r105 lr 24e-6 seed 2 is +0.010 at matched steps, so its three pairs give +0.0144, short of the 0.015 rule; lr 24e-6 is closed for the native regime and the gates keep lr 1.2e-5; r125's check is submitted on the freed normal B200
+
+**r105 lr 24e-6 seed 2** (normal B200 30033104, node5601-c1, 03:36 to 08:27): 0.2950 after 50,132 steps against
+the native control's seed 2, 0.2833 after 44,987 (node5600-c1).
+- Matched steps: +0.0100 over 89 shared evals (ahead at 66, behind at 19). By step block: 0-5k +0.015, 5-10k
+  +0.019, 10-20k +0.018, 20-30k +0.012, 30-50k -0.002. The lead is gone after 30,000 steps.
+- Last five evals: 0.2993 against 0.2803. Final: +0.0117.
+- The arm took 2.88 steps a second against the control's 2.59 (mean t_sample 0.128 s against 0.141, t_update
+  0.184 s against 0.209). lr 12e-6's seed 2 went the other way (2.32 against 2.59), so I put this down to the node.
+
+All three pairs (computed by script from the eval logs):
+
+| seed | lr 24e-6 final (steps) | control final (steps) | final diff | matched steps (shared evals) |
+|---|---|---|---|---|
+| 0 | 0.2967 (45,636) | 0.3033 (34,893) | -0.0067 | +0.0020 (69) |
+| 1 | 0.3367 (47,812) | 0.2883 (44,862) | +0.0483 | +0.0311 (89) |
+| 2 | 0.2950 (50,132) | 0.2833 (44,987) | +0.0117 | +0.0100 (89) |
+| mean | 0.3094 | 0.2917 | +0.0178 (SE 0.0162) | +0.0144 (SE 0.0087) |
+
+**Rule** (LOG 11-19 09:28): a gain of 0.015 or more over the three pairs at matched steps. Seed 2 needed about
++0.012 (LOG 11-21 17:59).
+- **Not met: +0.0144 at matched steps.** The finals give +0.0178, but the rule is at matched steps because the
+  arms run different numbers of steps on different nodes.
+- As written at 17:59, lr 24e-6 is closed for the native regime. r120's lr 1.2e-5 stays the lr in the H200 gates,
+  and no 2.4e-5 gate config is written.
+- **What it says.** At matched steps both doses are ahead of the native control by about the same amount: +0.016
+  at 2x and +0.014 at 4x. So 4x is not better than 2x. In seed 2 the 4x arm's lead fades after 30,000 steps.
+
+**Placement.** 30033104's worker exited, with less than 325 minutes left and its queue empty.
+- r125's check (LOG 06:32) was submitted to `mit_normal_gpu` as 30065238 (2 h limit). It is pending on resources.
+- The six GPUs are:
+  - two normal B200s: r116 seed 0 (30054646) and r125;
+  - one preemptable B200, pending: r116 seed 1 (29999306), which was requeued after preemption and has started
+    five times since 05:56;
+  - three preemptable H200s: r120 seeds 0-2.
+- r102's seeds 3 and 4 wait on `gate_r120_h200` behind r120's seeds.
+- When r125 and r116 seed 0 have both ended, U25's two-GPU check takes both normal B200s (it is box-date-bound,
+  by 11-24). If 29999306 is still being preempted then, r116 seed 1 goes to a normal B200 after that.

@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-22 06:32 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-22 08:31 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -85,15 +85,15 @@ RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit ti
 **Next decisions:** workers go back to the pool only after a write probe there passes (QUESTIONS 11-20 18:42);
 r102's seeds 3 and 4 (queued on `gate_r120_h200` after r120's seeds 1 and 2; seeds 0-2 ended at 0.270, 0.310 and
 0.300, mean 0.293, LOG 11-22 01:14) for the five-seed form: mean at least 0.281, four of five above 0.251, at most one
-collapsed (LOG 11-21 20:52); U25's data-parallel check on two B200s (the one-GPU form met its rule, LOG 11-22 11-22 04:48) the first time both normal slots are free, by 11-24; r120 (r102's H200 gate with lr 1.2e-5, after r105
+collapsed (LOG 11-21 20:52); U25's data-parallel check on two B200s (the one-GPU form met its rule, LOG 11-22 04:48) the first time both normal slots are free, by 11-24; r120 (r102's H200 gate with lr 1.2e-5, after r105
 met its rule) seeds 0-2 against the rule written first in LOG 11-21 17:13 (all three at 0.281 or more: a
-five-seed record attempt; a mean of 0.276 or more: seeds 3 and 4), paired with r102's seeds; lr
-24e-6 seed 2 (seed 1 was +0.031 at matched steps; seed 2 needs about +0.012 for the three-pair rule, LOG 11-21 17:59); U25's
+five-seed record attempt; a mean of 0.276 or more: seeds 3 and 4), paired with r102's seeds; r105's lr
+24e-6 is closed for the native regime (seed 2 +0.010 at matched steps, three pairs +0.0144, short of 0.015; LOG 11-22 08:31), so the gates keep lr 1.2e-5; U25's
 3x rung said no (LOG 11-22 03:52), so its 6x rung goes to the 11-25 box; r113's three arms are all between and left to the box (sil256
 the strongest, stack3 the weakest); r116's
 two RL items (queued on `screens_rl_b200`; pretraining done, LOG 11-21 19:57) against its rule (LOG 11-21 12:40); the speed
 work, first among the code items since INBOX 11-21 22:10 (LOG 11-21 21:58 and 11-22 00:00: r122 and r123 are done, closing r119 and compiling the layers; r124
-took most synchronisations out of the update (63 to 18 an update) with the same maths, but its paired gain of 0.006 s missed its rule, so it stays off (LOG 11-22 04:13); capture (r125: code in, off by default, rule written first, LOG 11-22 06:32; its check takes the first free normal B200) builds on it next, then own kernels where a library kernel is the cost; U25's data-parallel pretraining and resume
+took most synchronisations out of the update (63 to 18 an update) with the same maths, but its paired gain of 0.006 s missed its rule, so it stays off (LOG 11-22 04:13); capture (r125: code in, off by default, rule written first, LOG 11-22 06:32; its check is 30065238 on a normal B200, submitted 08:31) builds on it next, then own kernels where a library kernel is the cost; U25's data-parallel pretraining and resume
 (needed now that the 3x rung said no; code in, off by default, LOG 11-22 04:03; its GPU check met its rule on one B200 (LOG 11-22 04:48) and runs on two the first time both normal slots are free, by 11-24, as the 11-25 box is the date); U26 after the speed items) (LOG 11-21 12:40): the sampler timing put the answer grammar and stop checks at 9 to 18 % of a decode step at
 trained weights, so the update comes first, with a timing item (the policy rows' forward and backward, the
 self-imitation rows, the optimizer step) before any code (r118 found it overhead-bound: GPU busy 0.40, 11,689 kernel launches per update; r119's memory-efficient
@@ -301,7 +301,7 @@ screen runs on the H200.
   neither met nor closed. **lr 12e-6 seed 2 (LOG 11-21 17:13):** 0.3067 after 40,426 steps (node5701-c1)
   against the control seed 2's 0.2833 after 44,987: +0.0290 over 80 shared evals, +0.023 at the final.
   **Three pairs: +0.0161 at matched steps (SE 0.0107) and +0.0150 at the finals (SE 0.0146), so the rule is
-  met at the bar (seed 0 behind) and lr 12e-6 goes into the next H200 gate config, r120.** **lr 24e-6 seed 1 (LOG 11-21 17:59):** 0.3367 after 47,812 steps (node5501-c1) against the control seed 1's 0.2883: +0.0311 over 89 shared evals (ahead at 88), +0.048 at the final. Two pairs: +0.0166 at matched steps. Seed 2 runs (preemptable B200 29999306) and needs about +0.012; if the three-pair mean is met and above lr 12e-6's +0.0161, the next H200 gate after r120 uses 2.4e-5. Expected: about +0.02 at 2x (range -0.02 to +0.05) against a paired SE of about 0.005. Read
+  met at the bar (seed 0 behind) and lr 12e-6 goes into the next H200 gate config, r120.** **lr 24e-6 seed 1 (LOG 11-21 17:59):** 0.3367 after 47,812 steps (node5501-c1) against the control seed 1's 0.2883: +0.0311 over 89 shared evals (ahead at 88), +0.048 at the final. Two pairs: +0.0166 at matched steps. **Seed 2 (LOG 11-22 08:31):** 0.2950 after 50,132 steps (normal B200 30033104, node5601-c1) against the control seed 2's 0.2833: +0.0100 over 89 shared evals (ahead at 66), +0.012 at the final. **Three pairs: +0.0144 at matched steps (SE 0.0087) and +0.0178 at the finals, short of 0.015, so lr 24e-6 is closed for the native regime; the gates keep 1.2e-5.** Expected: about +0.02 at 2x (range -0.02 to +0.05) against a paired SE of about 0.005. Read
   paired by seed against `d007rl_native_b200` at matched steps (block means of ten dev evals), with steps and
   node. A gain of 0.015 or more over three pairs puts that lr into the next H200 gate config; a tie closes lr for
   the native regime.
