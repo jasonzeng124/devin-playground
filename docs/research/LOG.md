@@ -11551,3 +11551,37 @@ B200) started r116 seed 1 five times between 05:56 and 07:57, and each start was
 Three preemptable H200 workers run r120 seeds 0 to 2 (29995938 and 30051396 on node4803, 30017487 on node4601).
 5 GPUs in use or pending. The free normal slot stays free: when r116 seed 0 ends, U25's two-GPU check takes both
 normal B200s (by 11-24), then r116 seed 1 goes to a normal B200 if 29999306 is still being preempted.
+
+## 2026-11-22 09:10 EST: r126, capture's check on an H200, with padding counts; its rule is written first
+
+**What changed** (60c9d0b, stats only, the same maths). update_capture's stats now add up two counts over all
+replays:
+- the micro-batches' own tokens (rows x width) and their buckets' tokens (bucket rows x bucket width);
+- with the shared prompt prefix on, their groups and their buckets' groups.
+
+They are host integers, so they add no synchronisation. A micro-batch's own width is already its longest row's, so
+the counts measure only the padding that bucketing adds on top. CPU tests: 221 passed; ruff clean.
+
+**The check.** r125's check (`scripts/research/check_update_capture.py`, r106's config, D 007's seed-0 weights,
+timing at updates 100 to 600, every 10) runs again, without the profiles, on one preemptable H200 (30067245).
+Its output goes to `calibration/research_r125/check_pad_h200/seeds/0/check.json`. Gates and records run on
+H200s, and r125 ran on a B200.
+
+**Rule.**
+1. **r125's rule** (LOG 11-22 06:32), both parts, on the H200.
+   - If both hold, the next gate config turns update_capture on, with update_host_index.
+   - If the maths holds but the timing does not, gates keep it off; B200 screens may still turn it on.
+2. **Padding.** padding = 1 - own tokens / bucket tokens, over all replays.
+   - At 0.10 or more, finer buckets are the next item, with a paired timing check: width in steps of 16, and rows
+     in steps of 8 throughout.
+   - Under 0.10, the padding is not where the busy time went, and the elementwise and copy kernels are next.
+   - The groups' count is read, not ruled on.
+
+**Expected and noise.** My guess is 0.10 to 0.25: if widths are a few hundred tokens, padding them to 64 adds
+about 32 columns a row on average, and rows are padded about half a step on average. I have not measured the
+widths; that is what the count is for. The count is exact for this run's shapes. The shapes come from the rollouts, which differ by GPU and seed,
+so it stands for this config at these weights, not for every config.
+
+**GPUs.** 6 with this job: 30054646 (normal B200, r116 seed 0), 29999306 (preemptable B200, pending, r116
+seed 1), three preemptable H200s (r120 seeds 0 to 2) and 30067245. When r116 seed 0 ends, U25's two-GPU check
+waits for 30067245 to end, so that the total stays at 6. r125's B200 check took 6 minutes.
