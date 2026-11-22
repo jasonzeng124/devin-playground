@@ -11081,3 +11081,67 @@ seed runs with it.** The code stays as an option, and its test and check script 
 
 U25's 3x rung (30010825) is still running, and its read is due about 03:40. The normal slot that 30028921 freed went
 to a `screens_rl_b200` worker, 30033104 (submitted 23:57).
+
+## 2026-11-22 00:25 EST: r124 code in (update_host_index), its rule written first
+
+**What changed from the 00:00 outline.** A masked multiply-and-sum would change the order of summation. Instead the
+option keeps the update's indexing ops and feeds them indices built on the host once, at the start of the update.
+For each micro-batch these are:
+- its rows and width;
+- the (row, column) of each completion token, row-major, which is what the boolean mask's hidden nonzero gives;
+- the shared-prompt groups, from `torch.unique` on the CPU, which numbers them the same way;
+- the constrained-logit mask's index tensors.
+
+The replayed (SIL) rows get the same. Everything goes to the GPU in one pinned copy, and the replayed rows' nll is
+read after `optimizer.step()`. The ops and their inputs are unchanged, so the maths is too. The CPU test
+(`test_update_host_index_gives_the_same_update`) asserts bit-identical gradients, logged sums and nll in three
+cases, each with constrained logits and replayed rows:
+1. fixed micro-batches;
+2. token packing with skipped rows and shared prompts;
+3. the same with the entropy bonus, TIS, the skip mask and KL.
+
+Left as they are:
+- the copies to the host at the start of the update;
+- the TIS mismatch sums;
+- the LM rows' loss;
+- whatever the model's attention-mask code does.
+
+The TIS sums and the LM loss are off in r106's config. The option is off by default, and the pending jobs that
+import the new `grpo.py` run the same path as before. Full suite: 210 passed.
+
+**Expected effect and noise.**
+- Synchronisations per profiled update should fall from 61 to 63 (r122) to about 10. The GPU's queue is then no
+  longer drained once per micro-batch.
+- r122's PyTorch's-choice arm had a late median of 0.176 s. The GPU was busy for 0.124 s of it (busy fraction
+  0.51), with 11,486 launches.
+- Once the CPU can run ahead, the wall time falls toward the longer of the GPU's busy time and the CPU's launch
+  time. Expected gain: 0.01 to 0.05 s per update.
+- Noise: separate arms differ by up to 0.02 s at late medians, because each arm is its own RL run (00:00 entry).
+  So the timing is paired on the same inputs instead.
+
+**Rule.**
+1. **Same maths.** `scripts/research/check_update_host_index.py` runs r106's `final_native_ctl` config and checks
+   updates 2, 20 and 100. At each one it runs the update three ways on the same inputs: default, default again,
+   then on. It passes if, at every checked update, on vs default is within the default's own repeat spread:
+   - gradient cosine ≥ min(0.9999, the default-vs-default cosine − 1e-4);
+   - sums and nll within max(1e-5, twice the default-vs-default difference), relative.
+
+   Bit-identical is expected, up to the order of the GPU's atomic adds. This sets the tolerance from the measured
+   floor, as r123 taught. If the check fails, the option is not used and the timing is not read.
+2. **Timing, paired.** In the same run, at every 10th update from 110 to 590 (49 pairs), the update runs once
+   each way on the same inputs, with a step that does nothing. The first of each pair alternates.
+   - **Kept** if the median of default minus host_index is at least 0.01 s, and host_index is faster in at least
+     34 of 49 pairs (one-sided sign test, p < 0.01).
+   - Kept means later configs (screens and records) turn it on, as a same-maths speed change.
+3. **Profiles.** Two separate arms follow in the same job: default, then host_index. Each runs 600 updates plus
+   12 profiled ones, with PyTorch's attention choice.
+   - They report synchronisations, launches and busy time per update. host_index should show fewer
+     synchronisations.
+   - Their late medians are read but not ruled on, since separate arms differ by up to 0.02 s.
+4. **If it is not kept,** the option stays off. Capture (r125) needs a loop without synchronisations, so it builds
+   on this code either way.
+5. **Next, in this order:** capture, then own Triton kernels. unique_dim has already moved to the CPU.
+
+**When it runs.** All six GPU slots are in use or pending. r124's job (one B200) takes the first slot it can:
+- the one r102 seed 1 frees about 01:15, unless r102's rule needs that slot;
+- otherwise the normal slot U25's 3x rung frees about 03:40.

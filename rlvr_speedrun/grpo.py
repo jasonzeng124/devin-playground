@@ -47,6 +47,10 @@ class GRPOConfig:
     # layers, dynamic batch and length, the KV-cache update left eager; the same maths up to rounding, and the
     # compilation counts in the clock. Not with rollout_backend 'hf' or grad_checkpoint (LOG r123)
     compile_update: bool = False
+    # the update builds every micro-batch's indices (rows, width, completion tokens, shared-prompt groups, the
+    # constrained-logit mask) on the host at its start and sends them to the GPU in one copy, so the micro-batches
+    # run without device syncs; the replayed rows' nll is read after the optimizer step. The same maths (LOG r124)
+    update_host_index: bool = False
     pad_to_multiple: int = 0
     cache_len: int = 0
     rollout_backend: str = "hf"  # "hf" (model.generate), "vllm" (colocated engine; rlvr_speedrun/vllm_rollout.py) or "native" (fast_rollout.py, Llama only)
@@ -246,6 +250,15 @@ def _entropy(logits: torch.Tensor, log_z: torch.Tensor) -> torch.Tensor:
     return log_z - (probs * logits.masked_fill(probs == 0, 0.0)).sum(-1)
 
 
+def _mask_by_index(logits: torch.Tensor, rows: torch.Tensor, ids: torch.Tensor, constrained_rows: torch.Tensor) -> torch.Tensor:
+    """`mask_logits` with its (row, allowed id) pairs and constrained rows already on the device (update_host_index)."""
+    keep = torch.zeros_like(logits, dtype=torch.bool)
+    keep[rows, ids] = True
+    constrained = torch.zeros(logits.shape[0], dtype=torch.bool, device=logits.device)
+    constrained[constrained_rows] = True
+    return logits.masked_fill(constrained.unsqueeze(1) & ~keep, float("-inf"))
+
+
 def _completion_logprobs(
     model,
     input_ids: torch.Tensor,
@@ -257,6 +270,7 @@ def _completion_logprobs(
     entropy_grad: bool = False,
     share_prompt: bool = False,
     parts: dict | None = None,
+    index: _MicroIndex | None = None,
 ):
     """Per-token log-probs (at the sampling temperature) and entropies of completion tokens.
 
@@ -275,14 +289,21 @@ def _completion_logprobs(
     `share_prompt`: rows whose columns `[:prompt_width - 1]` (ids and mask) match, a GRPO group's, run
     those columns once; the cache is then indexed out to the rows (gradients sum back through the
     index), exact for the same reason as the prefix.
+
+    `index` (update_host_index): the micro-batch's `_MicroIndex`, whose host-built indices stand in for the
+    completion mask's boolean indexing, the shared-prompt grouping and the constrained mask (the same values in
+    the same order, without device syncs); `allowed` is then None.
     """
     start = max(0, prompt_width - 1)
     position_ids = (attention_mask.long().cumsum(-1) - 1).clamp_min(0)
     if share_prompt and prefix_len < start:
-        key = input_ids[:, :start] * 2 + attention_mask[:, :start].long()
-        _, inverse = torch.unique(key, dim=0, return_inverse=True)
-        rows = torch.arange(input_ids.shape[0], device=input_ids.device)
-        first = torch.full((int(inverse.max()) + 1,), rows.numel(), device=rows.device).scatter_reduce_(0, inverse, rows, "amin")
+        if index is not None and index.groups is not None:
+            first, inverse = index.groups
+        else:
+            key = input_ids[:, :start] * 2 + attention_mask[:, :start].long()
+            _, inverse = torch.unique(key, dim=0, return_inverse=True)
+            rows = torch.arange(input_ids.shape[0], device=input_ids.device)
+            first = torch.full((int(inverse.max()) + 1,), rows.numel(), device=rows.device).scatter_reduce_(0, inverse, rows, "amin")
         cache = None
         if prefix_len > 0:
             cache = model.base_model(input_ids=input_ids[:1, :prefix_len], position_ids=position_ids[:1, :prefix_len], use_cache=True).past_key_values
@@ -323,7 +344,8 @@ def _completion_logprobs(
     completion_mask = attention_mask[:, start + 1 :].bool()
     # the vocabulary projection only for real completion tokens (not padding): with long,
     # right-padded rollouts most of the rectangle is padding and the fp32 logits dominate memory
-    logits = model.get_output_embeddings()(hidden[completion_mask]).float() / temperature
+    sel = completion_mask if index is None else index.tokens  # the same tokens in the same (row-major) order
+    logits = model.get_output_embeddings()(hidden[sel]).float() / temperature
     if allowed is not None:
         pairs, k = [], 0
         for row, n in enumerate(completion_mask.sum(1).tolist()):
@@ -331,17 +353,20 @@ def _completion_logprobs(
             k += n
         logits = mask_logits(logits, pairs)
         _lap(parts, "fwd_mask", input_ids.device)
+    elif index is not None and index.mask is not None:
+        logits = _mask_by_index(logits, *index.mask)
+        _lap(parts, "fwd_mask", input_ids.device)
     log_z = torch.logsumexp(logits, dim=-1)
-    lp = logits.gather(-1, labels[completion_mask].unsqueeze(-1)).squeeze(-1) - log_z
+    lp = logits.gather(-1, labels[sel].unsqueeze(-1)).squeeze(-1) - log_z
     if entropy_grad and torch.is_grad_enabled():  # for the entropy bonus; recomputed in the backward to keep memory flat
         ent = checkpoint(_entropy, logits, log_z, use_reentrant=False)
     else:
         with torch.no_grad():
             ent = _entropy(logits, log_z)
     token_lp = torch.zeros(labels.shape, dtype=lp.dtype, device=lp.device)
-    token_lp[completion_mask] = lp
+    token_lp[sel] = lp
     entropy = torch.zeros(labels.shape, dtype=ent.dtype, device=ent.device)
-    entropy[completion_mask] = ent
+    entropy[sel] = ent
     _lap(parts, "fwd_head", input_ids.device)
     return token_lp, completion_mask, entropy
 
@@ -720,6 +745,15 @@ def _micro_batches(completion_valid: torch.Tensor, prompt_width: int, config: GR
     if config.micro_batch_tokens <= 0:
         micro = max(1, config.micro_batch_size)
         return [torch.arange(i, min(i + micro, n), device=completion_valid.device) for i in range(0, n, micro)]
+    return [torch.tensor(g, device=completion_valid.device) for g in _micro_groups(completion_valid, prompt_width, config)]
+
+
+def _micro_groups(completion_valid: torch.Tensor, prompt_width: int, config: GRPOConfig) -> list[list[int]]:
+    """`_micro_batches`' row groups as lists (the lengths are sorted on `completion_valid`'s device, so ties fall the same)."""
+    n = completion_valid.shape[0]
+    if config.micro_batch_tokens <= 0:
+        micro = max(1, config.micro_batch_size)
+        return [list(range(i, min(i + micro, n))) for i in range(0, n, micro)]
     lengths = completion_valid.sum(1)
     order = torch.argsort(lengths, descending=True).tolist()
     lengths = lengths.tolist()
@@ -732,7 +766,78 @@ def _micro_batches(completion_valid: torch.Tensor, prompt_width: int, config: GR
         current.append(row)
     if current:
         groups.append(current)
-    return [torch.tensor(g, device=completion_valid.device) for g in groups]
+    return groups
+
+
+@dataclass
+class _MicroIndex:
+    """One micro-batch's indices on the device, built on the host at the start of the update (update_host_index)."""
+
+    rows: torch.Tensor  # the batch rows it takes
+    width: int  # prompt_width + its longest completion
+    tokens: tuple  # (row, column) of each completion token in its [rows, width - prompt_width] rectangle, row-major as a boolean mask
+    groups: tuple | None = None  # share_prompt: (the first row of each distinct prompt, each row's prompt), numbered as by `torch.unique`
+    mask: tuple | None = None  # constrained logits: (logit row, allowed id) pairs and the constrained logit rows, as `mask_logits` builds them
+
+
+def _host_micro(valid: torch.Tensor, rows: torch.Tensor, prompt_width: int, width: int, allowed, key) -> tuple[list[torch.Tensor], bool, bool]:
+    """One `_MicroIndex`'s host tensors: rows, token rows, token columns, then (first, inverse) with `key` (shared
+    prompts) and (logit rows, ids, constrained rows) when `allowed` constrains a token; and whether each is there."""
+    rect = valid[rows, : width - prompt_width]
+    tensors = [rows, *rect.nonzero(as_tuple=True)]
+    if key is not None:
+        _, inverse = torch.unique(key[rows], dim=0, return_inverse=True)
+        first = torch.full((int(inverse.max()) + 1,), rows.numel(), dtype=torch.long)
+        tensors += [first.scatter_reduce_(0, inverse, torch.arange(rows.numel()), "amin"), inverse]
+    logit_rows, ids, constrained, k = [], [], [], 0
+    if allowed is not None:
+        for row, n in zip(rows.tolist(), rect.sum(1).tolist()):
+            for j, allowed_ids in enumerate(allowed[row][:n]):
+                if allowed_ids is not None:
+                    constrained.append(k + j)
+                    logit_rows.extend([k + j] * len(allowed_ids))
+                    ids.extend(allowed_ids)
+            k += n
+    if constrained:
+        tensors += [torch.tensor(logit_rows, dtype=torch.long), torch.tensor(ids, dtype=torch.long), torch.tensor(constrained, dtype=torch.long)]
+    return tensors, key is not None, bool(constrained)
+
+
+def _plan_update(completion_valid, active, generated, attention, prompt_width: int, prefix_len: int, config: GRPOConfig, allowed,
+                 replayed: _ReplayBatch | None) -> tuple[list[_MicroIndex], list[_MicroIndex]]:
+    """update_host_index: each micro-batch's `_MicroIndex`, the batch's and then the replayed rows', grouped as by
+    `_micro_batches`, from one copy of the masks to the host, and sent to the device in one transfer."""
+    valid, rows_of = completion_valid.cpu(), active.cpu()
+    start = max(0, prompt_width - 1)
+    key = (generated[:, :start] * 2 + attention[:, :start].long()).cpu() if config.share_group_prompt and prefix_len < start else None
+    specs = []
+    for group in _micro_groups(completion_valid[active], prompt_width, config):
+        rows = rows_of[group]
+        used = valid[rows].any(0).nonzero()
+        width = prompt_width + (int(used.max()) + 1 if used.numel() else 1)
+        specs.append((width, *_host_micro(valid, rows, prompt_width, width, allowed, key)))
+    main = len(specs)
+    if replayed is not None:
+        replay_valid = replayed.attention[:, replayed.prompt_width :].bool()
+        valid = replay_valid.cpu()
+        for group in _micro_groups(replay_valid, replayed.prompt_width, config):
+            rows = torch.tensor(group, dtype=torch.long)
+            width = replayed.prompt_width + max(1, int(valid[rows].sum(1).max()))  # completions are right-padded
+            specs.append((width, *_host_micro(valid, rows, replayed.prompt_width, width, replayed.allowed, None)))
+    flat = [t for _, tensors, _, _ in specs for t in tensors]
+    joined = torch.cat(flat) if flat else torch.zeros(0, dtype=torch.long)
+    if generated.device.type == "cuda":
+        joined = joined.pin_memory().to(generated.device, non_blocking=True)
+    else:
+        joined = joined.to(generated.device)
+    pieces = iter(joined.split([t.numel() for t in flat]))
+    index = []
+    for width, _, grouped, masked in specs:
+        rows, tokens = next(pieces), (next(pieces), next(pieces))
+        groups = (next(pieces), next(pieces)) if grouped else None
+        mask = (next(pieces), next(pieces), next(pieces)) if masked else None
+        index.append(_MicroIndex(rows, width, tokens, groups, mask))
+    return index[:main], index[main:]
 
 
 def _cov_clip(token_lp: torch.Tensor, token_adv: torch.Tensor, frac: float) -> torch.Tensor:
@@ -840,28 +945,36 @@ def _update(
     bonus = config.entropy_coef > 0
     if bonus:  # the bonus is a mean over the updated rows' tokens
         bonus_tokens = dist.all_reduce_sum_(completion_valid[active].sum()).clamp_min(1)
+    plan = None
+    if config.update_host_index:
+        plan = _plan_update(completion_valid, active, generated, attention, prompt_width, prefix_len, config, allowed, replayed)
     _lap(parts, "setup", device)
-    for sub in _micro_batches(completion_valid[active], prompt_width, config):
-        rows = active[sub]
-        width = prompt_width + int(completion_valid[rows].any(0).nonzero().max().item()) + 1 if completion_valid[rows].any() else prompt_width + 1
+    for sub in (_micro_batches(completion_valid[active], prompt_width, config) if plan is None else plan[0]):
+        index = None if plan is None else sub
+        if index is None:
+            rows = active[sub]
+            width = prompt_width + int(completion_valid[rows].any(0).nonzero().max().item()) + 1 if completion_valid[rows].any() else prompt_width + 1
+        else:
+            rows, width = index.rows, index.width
         ids, mask, adv = generated[rows, :width], attention[rows, :width], advantages[rows]
         if config.grad_checkpoint:  # HF checkpoints only in train mode, and then drops the KV cache the prefix trick needs
             model.train()
-        rows_allowed = None if allowed is None else [allowed[r] for r in rows.tolist()]
+        rows_allowed = None if allowed is None or index is not None else [allowed[r] for r in rows.tolist()]
         if parts is not None:
             parts["n_micro"] = parts.get("n_micro", 0) + 1
             _lap(parts, "micro_setup", device)
         with torch.autocast(device.type, dtype=torch.bfloat16, enabled=config.master_fp32):
             token_lp, completion_mask, entropy = _completion_logprobs(
                 model, ids, mask, prompt_width, config.temperature, 0 if config.grad_checkpoint else prefix_len, rows_allowed,
-                entropy_grad=bonus, share_prompt=config.share_group_prompt and not config.grad_checkpoint, parts=parts,
+                entropy_grad=bonus, share_prompt=config.share_group_prompt and not config.grad_checkpoint, parts=parts, index=index,
             )
         model.eval()
-        policy_lp = token_lp[completion_mask]
-        entropy_total += entropy[completion_mask].detach().sum()
-        repeated_advantages = adv.unsqueeze(1).expand(-1, completion_mask.shape[1])[completion_mask]
+        sel = completion_mask if index is None else index.tokens
+        policy_lp = token_lp[sel]
+        entropy_total += entropy[sel].detach().sum()
+        repeated_advantages = adv.unsqueeze(1).expand(-1, completion_mask.shape[1])[sel]
         if pg_skip is not None:
-            repeated_advantages = repeated_advantages * (~pg_skip[rows, : width - prompt_width])[completion_mask]
+            repeated_advantages = repeated_advantages * (~pg_skip[rows, : width - prompt_width])[sel]
         if config.cov_clip_frac > 0 and policy_lp.numel() > 1:
             policy_lp = _cov_clip(policy_lp, repeated_advantages, config.cov_clip_frac)
         if sampler_lp is not None:
@@ -870,16 +983,17 @@ def _update(
                 repeated_advantages = repeated_advantages * weights
         policy_loss = -(repeated_advantages * policy_lp).sum() / token_count
         if bonus:
-            policy_loss = policy_loss - config.entropy_coef * entropy[completion_mask].sum() / bonus_tokens
+            policy_loss = policy_loss - config.entropy_coef * entropy[sel].sum() / bonus_tokens
         if ref_model is None:
             kl = torch.zeros((), device=device)
             loss = policy_loss
         else:
             with torch.no_grad():
                 ref_lp, _, _ = _completion_logprobs(
-                    ref_model, ids, mask, prompt_width, config.temperature, prefix_len, rows_allowed, share_prompt=config.share_group_prompt
+                    ref_model, ids, mask, prompt_width, config.temperature, prefix_len, rows_allowed, share_prompt=config.share_group_prompt,
+                    index=index,
                 )
-            ref_lp = ref_lp[completion_mask]
+            ref_lp = ref_lp[sel]
             kl_tokens = torch.exp(ref_lp - policy_lp) - (ref_lp - policy_lp) - 1
             kl = kl_tokens.sum() / token_count
             loss = policy_loss + config.kl_coef * kl
@@ -897,23 +1011,29 @@ def _update(
     if replayed is not None:
         replay_valid = replayed.attention[:, replayed.prompt_width :].bool()
         nll_total = torch.zeros((), device=device)
-        for rows in _micro_batches(replay_valid, replayed.prompt_width, config):
-            width = replayed.prompt_width + max(1, int(replay_valid[rows].sum(1).max().item()))  # completions are right-padded
+        for rows in (_micro_batches(replay_valid, replayed.prompt_width, config) if plan is None else plan[1]):
+            index = None if plan is None else rows
+            if index is None:
+                width = replayed.prompt_width + max(1, int(replay_valid[rows].sum(1).max().item()))  # completions are right-padded
+            else:
+                rows, width = index.rows, index.width
             if config.grad_checkpoint:
                 model.train()
-            rows_allowed = None if replayed.allowed is None else [replayed.allowed[r] for r in rows.tolist()]
+            rows_allowed = None if replayed.allowed is None or index is not None else [replayed.allowed[r] for r in rows.tolist()]
             with torch.autocast(device.type, dtype=torch.bfloat16, enabled=config.master_fp32):
                 token_lp, completion_mask, _ = _completion_logprobs(
                     model, replayed.ids[rows, :width], replayed.attention[rows, :width], replayed.prompt_width, config.temperature,
-                    0 if config.grad_checkpoint else replayed.prefix_len, rows_allowed,
+                    0 if config.grad_checkpoint else replayed.prefix_len, rows_allowed, index=index,
                 )
             model.eval()
-            nll = -token_lp[completion_mask].sum()
+            nll = -token_lp[completion_mask if index is None else index.tokens].sum()
             (_replay_rows(config)[1] * nll / token_count).backward()
             nll_total += nll.detach()
             if parts is not None:
                 parts["n_micro_sil"] = parts.get("n_micro_sil", 0) + 1
-        replayed.nll = (nll_total / replay_valid.sum().clamp_min(1)).item()
+        replay_nll = nll_total / replay_valid.sum().clamp_min(1)
+        if plan is None:
+            replayed.nll = replay_nll.item()
     _lap(parts, "sil", device)
     if lm is not None:
         per_micro = max(1, config.micro_batch_tokens // lm.ids.shape[1] if config.micro_batch_tokens > 0 else config.micro_batch_size)
@@ -936,6 +1056,8 @@ def _update(
     grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip) if config.grad_clip > 0 else None
     _lap(parts, "clip", device)
     optimizer.step()
+    if plan is not None and replayed is not None:  # read once the step is queued, so the update runs without a sync
+        replayed.nll = replay_nll.item()
     _lap(parts, "opt", device)
     return loss_total, kl_total, entropy_total, token_count, mismatch, grad_norm
 

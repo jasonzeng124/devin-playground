@@ -515,6 +515,62 @@ def test_share_group_prompt_gives_the_same_update_gradient(extra):
         assert torch.allclose(a, b, atol=1e-6)
 
 
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"micro_batch_size": 3},
+        {"micro_batch_tokens": 30, "skip_zero_advantage": True, "share_group_prompt": True},
+        {"micro_batch_tokens": 30, "share_group_prompt": True, "entropy_coef": 0.01, "tis_cap": 2.0, "kl_coef": 0.1},
+    ],
+)
+def test_update_host_index_gives_the_same_update(extra):
+    """update_host_index builds the micro-batches' indices on the host; the gradient, the logged sums and the
+    replayed rows' nll are bit-identical, with shared prompts, constrained logits, replayed rows, KL and TIS."""
+    torch.manual_seed(6)
+    prompt_width, group = 5, 4
+    prompts = torch.randint(2, 40, (2, prompt_width)).repeat_interleave(group, 0)
+    prompts[:, :2] = prompts[0, :2]  # the batch-wide prefix
+    generated = torch.cat([prompts, torch.randint(2, 40, (2 * group, 9))], 1)
+    attention = torch.ones_like(generated)
+    for row, length in enumerate([9, 1, 5, 3, 9, 2, 6, 4]):
+        attention[row, prompt_width + length :] = 0
+    advantages = torch.tensor([0.0, 1.0, -0.5, -0.5, 0.3, 0.0, -0.3, 0.0])
+    replay_ids, replay_attention, replay_width = _ragged_batch(4, [6, 1, 4], prompt_width=6)
+    rng = np.random.default_rng(6)
+
+    def allowed_for(ids, width):  # every other position constrained to its label and three other ids
+        return [
+            [tuple(sorted({int(ids[row, width + j]), *rng.integers(2, 40, 3).tolist()})) if j % 2 == 0 else None
+             for j in range(ids.shape[1] - width)]
+            for row in range(ids.shape[0])
+        ]
+
+    allowed, replay_allowed = allowed_for(generated, prompt_width), allowed_for(replay_ids, replay_width)
+    tis = "tis_cap" in extra
+    sampler_lp = torch.randn(generated.shape[0], 9) * 0.1 - 2.0 if tis else None
+    pg_skip = torch.rand(generated.shape[0], 9) < 0.2 if tis else None
+    base = _tiny_model().eval()
+    ref = copy.deepcopy(base)
+    with torch.no_grad():
+        for p in ref.parameters():
+            p.add_(0.01 * torch.randn_like(p))
+    runs = []
+    for on in (False, True):
+        model = copy.deepcopy(base)
+        config = GRPOConfig(model="tiny", **{"kl_coef": 0.0, "grad_clip": 0.0, "sil_coef": 0.5, **extra}, update_host_index=on)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+        replayed = grpo._ReplayBatch(replay_ids, replay_attention, replay_width, 0, replay_allowed)
+        sums = grpo._update(model, ref, generated, attention, advantages, prompt_width, 2, config, optimizer, torch.device("cpu"),
+                            grpo.SINGLE, allowed, sampler_lp, replayed, None, pg_skip)
+        runs.append(([p.grad.clone() for p in model.parameters()], sums, replayed.nll))
+    (grads_off, sums_off, nll_off), (grads_on, sums_on, nll_on) = runs
+    assert all(torch.equal(a, b) for a, b in zip(grads_off, grads_on))
+    assert any(g.abs().max() > 0 for g in grads_on)
+    for a, b in zip(sums_off, sums_on):
+        assert (a is None and b is None) or torch.equal(torch.as_tensor(a), torch.as_tensor(b))
+    assert nll_off == nll_on and nll_on > 0
+
+
 def test_update_part_timers_leave_the_gradient_and_log_each_part():
     torch.manual_seed(3)
     prompt_width, rows = 4, 6
