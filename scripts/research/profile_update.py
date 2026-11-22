@@ -10,7 +10,9 @@ the run stops (no final eval). It prints and writes:
   - wall time per update, unprofiled and profiled;
   - GPU busy fraction per update: the union of device activity (kernels, copies) over the update's wall time;
   - kernel launches, synchronisations and device-to-host copies per update;
-  - the top ops by self CUDA time and by self CPU time, summed over the profiled updates.
+  - the top ops by self CUDA time and by self CPU time, summed over the profiled updates;
+  - every timed update's wall time and the median by window of timed updates (1-49, 50-199, 200-399, 400-799, ...),
+    so a long --warm shows whether a cost fades once the run has seen its shapes.
 It answers whether the update is compute-bound or overhead-bound before a speed change is tried. --set overrides
 config fields (JSON values) to profile a variant, e.g. --set micro_batch_tokens=131072. --sdpa limits the update's
 scaled-dot-product attention to the named backends (comma-separated: flash, efficient, cudnn, math; PyTorch picks among
@@ -45,6 +47,17 @@ SDPA = {"flash": SDPBackend.FLASH_ATTENTION, "efficient": SDPBackend.EFFICIENT_A
 
 class _Done(Exception):
     pass
+
+
+def _windows(walls: list[float]) -> dict:
+    """Median wall time of the timed updates by window of update index (the first update, index 0, is left out)."""
+    out = {}
+    lo, hi = 1, 50
+    while lo < len(walls):
+        part = walls[lo:hi]
+        out[f"{lo}-{min(hi, len(walls)) - 1}"] = {"n": len(part), "median_s": statistics.median(part)}
+        lo, hi = hi, (200 if hi == 50 else hi * 2)
+    return out
 
 
 def _device_us(avg) -> float:
@@ -165,6 +178,8 @@ def main() -> None:
         "gpu": torch.cuda.get_device_name(),
         "torch": torch.__version__, "warm": args.warm, "steps": n,
         "wall_s_unprofiled_median": statistics.median(unprofiled) if unprofiled else None,
+        "wall_s_unprofiled_by_window": _windows(walls[:args.warm]),
+        "walls_unprofiled": walls[:args.warm],
         "wall_s_profiled_median": statistics.median(r["wall_s"] for r in per_update),
         "busy_frac_median": statistics.median(r["busy_frac"] for r in per_update),
         "busy_s_median": statistics.median(r["busy_s"] for r in per_update),
@@ -178,7 +193,7 @@ def main() -> None:
         top = sorted(ops.items(), key=lambda kv: -kv[1][key])[:args.top]
         summary[label] = [{"op": name[:120], "per_update_ms": op[key] / n / 1e3, "share": op[key] / total, "calls_per_update": op["count"] / n}
                           for name, op in top]
-    print(json.dumps({k: v for k, v in summary.items() if k not in ("per_update", "top_cuda", "top_cpu")}, indent=1))
+    print(json.dumps({k: v for k, v in summary.items() if k not in ("per_update", "top_cuda", "top_cpu", "walls_unprofiled")}, indent=1))
     for label in ("top_cuda", "top_cpu"):
         print(f"--- {label}")
         for row in summary[label]:

@@ -896,3 +896,13 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     run's later updates (after the shapes have all been seen) would settle it.
   - Also new in the ideas file: U26 (bandit-chosen puzzle variations) with a follow-up from the
     maintainer (UCB with time-decaying confidence).
+  - Done (agent, 2026-11-21 22:00 EST): taken as the order of work (LOG 11-21 21:58). r122 (job
+    30024430, one normal B200, about 30 min) times 600 updates at D 007's final weights with the default
+    and the efficient attention kernel and reports the median by window of updates, with its rule
+    written first; that settles r119. Next is r123, capture or compile of the update's forward, loss and
+    backward behind a new option that is off by default, with a same-maths check and a timing seed
+    against the native control; own kernels follow where the profiles show a library kernel is the cost.
+    U25's data-parallel pretraining waits for the 3x rung's probe and is built only if 3x says no,
+    starting by 11-23 09:00 EST so that it is tested before the 11-25 box. U26 is assessed in the
+    private status file (after the speed items). r117 seed 0 is read in the same LOG entry: left where
+    it is, seed 1 not run.

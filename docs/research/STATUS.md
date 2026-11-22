@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-21 20:52 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-21 22:01 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -46,17 +46,19 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (20:52 EST 11-21).** Workers write to scratch (`CKPT_DIR` in `--export`) since the pool's file server
+**Jobs (22:01 EST 11-21).** Workers write to scratch (`CKPT_DIR` in `--export`) since the pool's file server
 filled up at 18:27 on 11-20 (LOG 11-20 18:42; QUESTIONS 11-20 18:42). The pool shows room again (64.5 %), but the
 workers stay on scratch until a write probe there passes. Scratch holds 3 % of its space and 74.7 % of its 1.0M file
 limit (12:30 on 11-21, up from 70 % at 07:29; not from these runs' outputs, a few files a seed; above 85 % the
-workers go back to the pool after a write probe). Running: 29966174 (normal B200, node5501-c1) with r117 p128
-seed 0 since 17:02 (to about 22:00). 30010825 (normal B200, pending since 19:57) is U25's 3x rung. 30000622 (node5701-c1) ran r116's two pretraining items from 18:08 to 19:25, and 30008197 (node5601-c1) ran U25's D 007 base probe and 3x smoke run from 19:33 to 19:42 (LOG 11-21 19:57). 29999304 (normal B200) ran r119's profiles and r116's data from 17:50 and exited (LOG 11-21 18:16). 29966173 ran r105 lr 24e-6 seed 1 and exited at 17:29; 29942141 ran r105 lr 12e-6 seed 2 and exited at 16:55. Preemptable B200 29999306 (pending) is for `screens_rl_b200`: lr 24e-6 seed 2, then r117 p128 seed 1 and r116's two RL items.
+workers go back to the pool after a write probe). 29966174 (normal B200, node5501-c1) ran r117 p128
+seed 0 from 17:02 to 21:53 (LOG 11-21 21:58). 30010825 (normal B200, node5501-c1) has run U25's 3x rung since 21:59 (read about 03:40 on 11-22). 30024430 (normal B200, pending since 21:57) is r122, 600 timed updates with each attention kernel (about 30 min; LOG 11-21 21:58). 30000622 (node5701-c1) ran r116's two pretraining items from 18:08 to 19:25, and 30008197 (node5601-c1) ran U25's D 007 base probe and 3x smoke run from 19:33 to 19:42 (LOG 11-21 19:57). 29999304 (normal B200) ran r119's profiles and r116's data from 17:50 and exited (LOG 11-21 18:16). 29966173 ran r105 lr 24e-6 seed 1 and exited at 17:29; 29942141 ran r105 lr 12e-6 seed 2 and exited at 16:55. Preemptable B200 29999306 (pending) is for `screens_rl_b200`: lr 24e-6 seed 2, then r116's two RL items (r117 p128 seed 1 was taken out at 21:58).
 29837209 and 29837211 ran r115 p32 seeds 0 and 1 (LOG 11-21 12:40) and exited; 29963843 ran the sampler timing
-(12:28 to 12:37). When 29966174 exits (about 22:00), its normal slot gets a worker for `screens_rl_b200`. r117 p128 seed 1's preemptable worker 29837212 was cancelled at 17:13 so that the preemptable slots go to H200 work (LOG 11-21 17:13). r118 (preemptable B200 29980436, 80 s) found the update step overhead-bound: GPU busy 0.40 of its wall time,
+(12:28 to 12:37). When r122 (30024430) exits, its normal slot gets a worker for `screens_rl_b200`. r117 p128 seed 1's preemptable worker 29837212 was cancelled at 17:13 so that the preemptable slots go to H200 work (LOG 11-21 17:13). r118 (preemptable B200 29980436, 80 s) found the update step overhead-bound: GPU busy 0.40 of its wall time,
 11,689 kernel launches per update (LOG 11-21 14:59). r119 (29999304), the same profile with PyTorch's
 memory-efficient attention kernel against the default, did not meet its rule: 0.16 s off the unprofiled update but
-0.009 s off the profiled one, so capture or compile is next, built on the efficient kernel (LOG 11-21 18:16).
+0.009 s off the profiled one, so capture or compile is next, built on the efficient kernel (LOG 11-21 18:16). Both profiles
+ran 20 updates at the start, while a real run's late update takes 0.17 to 0.20 s, so r122 times 600 updates to see
+whether the 0.16 s lasts past start-up (INBOX 11-21 22:10, LOG 11-21 21:58).
 The three CPU jobs for the data (29965651 on node3107, 29980655 on node3409, 29981583 on node2702) hung or failed
 their start checks; a diagnostic (29982547) found that CPU nodes do not reach the pool, while home and scratch
 respond. On `screens_r92`: preemptable H200 29837214 ran r102 seed 2 on node4601 from 14:40 to 20:28 (dev 0.300, LOG
@@ -88,9 +90,11 @@ met its rule) seeds 0-2 against the rule written first in LOG 11-21 17:13 (all t
 five-seed record attempt; a mean of 0.276 or more: seeds 3 and 4), paired with r102's seeds; lr
 24e-6 seed 2 (seed 1 was +0.031 at matched steps; seed 2 needs about +0.012 for the three-pair rule, LOG 11-21 17:59); U25's
 3x rung (normal B200 30010825, submitted at 19:57; read about 5.7 h after it starts; LOG 11-21 19:57); r113's three arms are all between and left to the box (sil256
-the strongest, stack3 the weakest); r117 p128 seeds 0 and 1 against the rule written first in LOG 11-21 12:40 (r115 p32 is closed); r116's
+the strongest, stack3 the weakest); r116's
 two RL items (queued on `screens_rl_b200`; pretraining done, LOG 11-21 19:57) against its rule (LOG 11-21 12:40); the speed
-work (LOG 11-21 12:40): the sampler timing put the answer grammar and stop checks at 9 to 18 % of a decode step at
+work, first among the code items since INBOX 11-21 22:10 (LOG 11-21 21:58: r122, then r123, capture or compile of the
+update behind a new option, then own kernels where a library kernel is the cost; U25's data-parallel pretraining only
+if the 3x rung says no, started by 11-23 09:00; U26 after the speed items) (LOG 11-21 12:40): the sampler timing put the answer grammar and stop checks at 9 to 18 % of a decode step at
 trained weights, so the update comes first, with a timing item (the policy rows' forward and backward, the
 self-imitation rows, the optimizer step) before any code (r118 found it overhead-bound: GPU busy 0.40, 11,689 kernel launches per update; r119's memory-efficient
 attention kernel did not meet its rule, so capture or compile is next, on that kernel; LOG 11-21 14:59 and 18:16), each change the same maths and off by default (r112 closed model size; a 90 s
@@ -341,8 +345,10 @@ screen runs on the H200.
   the update's by 15-31 % on seed 1, so much of a step is fixed; r117 tries twice the rows.
 - r117 (B200, RL only, not gated; LOG 11-21 12:40): `d007rl_native_p128_b200`, r101's native control with twice the
   prompts per step (`prompts_per_step` 128, `group_size` 8, so 1,024 rows a step), `sil_rows` 128 and `eval_every`
-  250 (every 32,000 prompts, as the control); seeds 0 and 1 (seed 0 on normal B200 29966174 since 17:02; seed 1 gets a normal B200 worker when
-  29966173 exits). Expected:
+  250 (every 32,000 prompts, as the control). Seed 0 (29966174, 17:02 to 21:53): final 0.2950 against the control's
+  0.3033 (-0.008), +0.007 at matched train time (ahead from the second hour to the fifth), +0.029 at matched steps,
+  0.62x the control's step rate; late, the update took 2.0x the control's time for 1.9x the informative groups.
+  Between under its rule, so r117 is left there and seed 1 is not run (LOG 11-21 21:58). Expected:
   0.63x to 0.71x the control's step rate, about 103 GB at peak; score centre +0.005 at the final, range -0.03 to
   +0.035. Rule as r115's; its matched-steps reading goes to the speed work in any case.
 - U25 (unranked, outside the rules; LOG 11-21 17:59): a doubling search on pretraining size for where a track D model starts to reason, probed without RL. First rung 3x D 007's size (1024 x 24, 332M) on two-phase data (D 007's mix, then the keyword-filtered FineMath, dm_math and FineWeb-Edu at 0.5/0.25/0.25; the fused loss at micro-batch 64), 330 min on a normal B200 (30010825, submitted at 19:57 on 11-21; read about 5.7 h after it starts). The 6-minute smoke run passed (about 4.8B tokens projected for the rung), and D 007's base, probed as the reference, shows no working on the first two sets (LOG 11-21 19:57; `scripts/research/u25_rung.sh`, `scripts/research/probe_reasoning.py`, configs in `calibration/research_r121`); up to 6x on the 11-25 box if no, down to 1.5x, 1x and 0.5x if yes. Measured on three prompt sets (track D's r1 prompt, the trial-and-error few-shot prompt, GSM8K with worked examples): step accuracy, grounded-chain rate, solve rate, and 20 samples per set read by eye beside D 007's base. "Reasoning appears" is fixed in that LOG entry: on the few-shot set, at least 10 of 20 samples are real working, and a chain rate of 0.5 or more with step accuracy of 0.7 or more, each 0.2 above D 007's base.

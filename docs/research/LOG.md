@@ -10833,3 +10833,94 @@ results are complete.
 - **Pending:** 30010825 (U25 3x, normal B200; Slurm's estimate is 20:29, passed); 29999306 (preemptable B200,
   `screens_rl_b200`); 30017487 (preemptable H200, `gate_r120_h200`); the four held workers.
 - **GPUs:** 6 if all pending jobs start.
+
+## 2026-11-21 21:58 EST: INBOX 21:25 puts speed work first: r122 times 600 updates to settle r119, then capture or compile of the update (r123), ahead of U25's data-parallel pretraining; r117 seed 0 is ahead at matched train time (+0.007) but 0.008 behind at the final, so r117 is left where it is and its seed 1 is not run
+
+**r117 p128 seed 0** (`calibration/research_r117/d007rl_native_p128_b200`, B200, RL only; node5501-c1, 17:02 to 21:53;
+the control `calibration/research_r101/d007rl_native_b200` seed 0 ran on node5600-c1, the slow node):
+
+| | arm | control |
+|---|---|---|
+| final dev | 0.2950 | 0.3033 |
+| steps | 21,695 | 34,893 |
+| steps/s | 1.247 (0.62x) | 2.005 |
+| mean of the last five evals | 0.3000 | 0.2920 |
+
+| arm minus control | seed 0 |
+|---|---|
+| at the final | -0.0083 |
+| at matched train time (evals; ahead / behind) | +0.0067 (86; 66 / 20) |
+| matched train time, by hour 1 to 5 | -0.019, +0.007, +0.015, +0.014, +0.009 |
+| at matched steps (evals; ahead / behind) | +0.0293 (43; 42 / 1) |
+
+The step's parts, early (steps 100 to 2,100) and late (the last 2,000 steps), in seconds:
+
+| | `t_sample` | `t_update` | wall per step | informative groups |
+|---|---|---|---|---|
+| arm, early | 0.368 | 0.602 | 1.061 | 106.6 |
+| arm, late | 0.240 | 0.340 | 0.649 | 56.3 |
+| control, early | 0.175 | 0.377 | 0.602 | 56.6 |
+| control, late | 0.136 | 0.170 | 0.338 | 29.2 |
+
+No error line in stdout. Expected (LOG 11-21 12:40): 0.63x to 0.71x the control's step rate, and a final at +0.005
+(range -0.03 to +0.035). The step rate is at the low end. Late in the run the update took 2.0x the control's time
+for 1.9x the informative groups, so at this size it scales with the rows. In r115 (half the rows) it fell by
+only 15 to 20 %.
+The final is inside the expected range, below its centre. Per step it gains about what r115 lost (+0.029 here
+against -0.040 there), and it is ahead at matched train time from the second hour to the fifth, by 0.007 to 0.015.
+The control's last evals rise faster, and it ends 0.008 ahead. One final eval has a noise of about 0.015 per pair,
+so the final and the last-five mean (+0.008) point opposite ways within that noise.
+
+**Under r117's rule** (written first): not +0.02 at the final, and not behind at matched train time, so seed 0
+alone puts r117 **between: left there**. Seed 1 cannot change that: both other outcomes need both pairs. So I took
+r117 seed 1 out of `screens_rl_b200`, and its 4.8 B200 hours go to the speed work. The rows-per-step question is
+asked again once the update is captured, since capture changes the fixed part of a step that the comparison turns on.
+
+**INBOX 21:25 (maintainer).** Speed work goes first, own kernels are in scope, capture of the update is endorsed,
+and r119's 0.16 s needs a timing on a real run's later updates. The order of code work is now:
+1. r122 (below), a timing job, tonight.
+2. Capture or compile of the update (r123), from 11-22, on the attention kernel r122 leaves.
+3. Own kernels (Triton or CUDA) where the r122 and r123 profiles show a library kernel is the cost, with
+   same-maths checks.
+4. U25's data-parallel pretraining. It is needed only if the 3x rung says no, since the 6x rung then goes to
+   the 11-25 box. The 3x read is due about 5.7 h after 30010825 starts. If it says no, data-parallel work starts
+   by 11-23 09:00 EST whatever the speed work's state, so it is tested on Engaging by 11-24. If it says yes,
+   the next rungs (1.5x, 1x, 0.5x) fit single B200 jobs and data-parallel waits.
+5. U26 is new in the ideas file; it is picked up after the speed items (verdict in the private status file).
+
+**Reference point for r122.** The native control's train logs give a late update of 0.170 s (seed 0, node5600-c1)
+and 0.202 s (seed 1), at about 29 informative groups. r118's and r119's profiles, at the final weights, measured
+0.415 to 0.417 s for the first 20 updates with PyTorch's attention choice, and 0.256 s with the memory-efficient
+kernel. The real run's late update is far below either, so most of the 0.16 s is likely a start-up cost: cuDNN
+planning for new micro-batch shapes, the allocator and the first kernel loads.
+
+**r122, written first.** `scripts/research/profile_update.py` now writes every timed update's wall time and the
+median by window of updates (1-49, 50-199, 200-399, 400-599). One normal B200 job profiles the update at r118's
+settings (r106 `final_native_ctl`'s config, D 007 seed 0's final weights) with 600 timed updates and then 12
+profiled ones, twice on one node: PyTorch's choice (cuDNN), then the memory-efficient kernel. Results go to
+`calibration/research_r122/sdpa_{default,efficient}_long/seeds/0/profile.json`; nothing is trained, saved or scored.
+
+Expected:
+- PyTorch's choice: the median falls from about 0.41 s (updates 1-49) to 0.17 to 0.22 s from update 200 on, as
+  cuDNN's plans for the shapes seen are reused.
+- The efficient kernel: about 0.25 s early and 0.16 to 0.22 s from update 200 on, within 0.03 s of PyTorch's choice.
+- A busy fraction of 0.5 to 0.75 in the late profiled updates, for both.
+
+What it decides:
+- **The efficient kernel 0.03 s or more faster from update 200 on:** an `sdpa_backend` option goes into GRPOConfig
+  (off by default), and one native-control seed runs with it as a timing check, as r119's rule said.
+- **Under 0.03 s:** r119's gain was a start-up cost and is closed. Capture or compile still uses the efficient
+  kernel (its shapes need no per-shape plans) and is timed against PyTorch's choice from update 200 on.
+- **Late busy fraction under 0.6:** r123 compiles or captures the update's forward and backward, expecting to
+  remove about half the idle time. **Over 0.8:** the update's GPU work is cut instead, starting with the top ops
+  in the late profile (own kernels where a library kernel is the cost).
+
+Cost: one normal B200 job, about 30 min. It takes the normal slot freed by 29966174; the 3x rung (30010825) has
+the other. A normal B200 worker for `screens_rl_b200` follows when r122 ends.
+
+**r123, outline (its rule is written when the code is in).** A new GRPOConfig option, off by default, sends the
+update's forward, loss and backward through `torch.compile` (first without CUDA graphs, then with them if the
+shapes allow). The micro-batches' padded widths are rounded up to a multiple of 64 so the compiled graphs see a
+small set of shapes. The same-maths check runs on fixed batches: per-token log-probs and the loss within bf16
+tolerance of the eager path, and the gradient's relative difference under 1e-2. Then one native-control seed runs
+on the B200 as the timing check. It is kept on time without a paired win (INBOX), unless the precision changes.
