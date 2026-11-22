@@ -11239,3 +11239,62 @@ gained over 1x is format: well-formed answers on B (0.17 against 0.00), far fewe
 - Pending: 29999306 (preemptable B200, `screens_rl_b200`), 29995938 (preemptable H200,
   requeued: r120 seed 0 again, the partial to `extra/`), 30017487 and 30051396 (preemptable H200, `gate_r120_h200`).
   Six GPUs with the two running. The held jobs (29497701/02/05, 29445218) stay held.
+
+## 2026-11-22 04:03 EST: U25's data-parallel pretraining and resume are in (off by default), with a GPU check whose rule is written first
+
+**What changed.** `scripts/pretrain_scratch.py` has three new options, all off by default, so the existing runs
+and `scripts/research/u25_rung.sh` behave as before.
+- **`--ddp`** trains data-parallel under torchrun, one process a GPU.
+  - Every rank starts from rank 0's weights and draws its own rows. Rank 0 keeps the seed's old stream; the
+    others draw from (seed, rank).
+  - After each step's micro-batches, the gradients are averaged in flat buckets of up to 256 MB, one all_reduce
+    each, before the clip. There is no DDP wrapper, so the reduction does not overlap the backward pass.
+  - Rank 0's clock is broadcast every step, so the lr, the phase-2 switch and the stop are the same on every rank.
+  - --batch-tokens stays the global batch: each rank runs batch / (seq x micro x GPUs) micro-batches a step.
+  - The val loss is averaged over the ranks, each drawing its own 20 batches.
+  - At each val (every 500 steps) the log gets `rank_spread`, the spread of the ranks' weight sums, and rank 0's
+    weights are then sent to all. Only rank 0 logs and saves.
+- **`--resume-every-minutes N` and `--resume`.** Every N minutes, rank 0 saves the model, both optimizers, the
+  step, the tokens and the elapsed training time to `<out>/resume/state.pt` (a tmp file, then a rename).
+  - `--resume` loads it. The clock and the budget carry on from the saved time, and the log is appended to.
+  - Draws after a resume are reseeded from (seed, rank, step). So a resumed run's weights and optimizer states
+    continue exactly, but its later rows are not the ones an uninterrupted run would have drawn.
+- **CPU tests** (`tests/test_pretrain_ddp.py`, gloo with two processes):
+  - the bucketed average equals the ranks' mean gradient, over two dtypes, a parameter without a gradient and
+    several buckets;
+  - the one-GPU step layout is the old one, and eight GPUs keep the global batch;
+  - a resumed run (Muon and AdamW) continues bit-identically to the uninterrupted one;
+  - a resume file with another number of optimizers is refused.
+- Full suite: 217 passed; ruff clean.
+
+**Expected overhead at 6x.** 668M parameters' fp32 gradients are 2.7 GB a step. A ring all_reduce over eight GPUs
+moves 1.75 times that per GPU: about 26 ms at 180 GB/s, less on the H100s' NVLink. A step of 524,288 tokens is
+6 x 668M x 524,288 = 2.1e15 FLOPs, about 1.1 s at 3x's MFU on eight H100s. So without overlap the cost should be
+under 3 %.
+
+**The GPU check.** `scripts/research/u25_ddp_check.sh` runs three arms on one node, read by
+`scripts/research/u25_ddp_read.py` into `check.json`. Each arm trains D 007's shape (768 x 12, Muon lr 4e-3, the
+fused loss) on `mix_0.2.bin` for 1,000 steps of 131,072 tokens.
+- **single:** one process, without --ddp.
+- **ddp:** torchrun on every GPU the node has, with --ddp.
+- **resume:** as ddp, saving every 0.5 min. It is stopped by SIGTERM at 100 s, then run again with --resume.
+
+**Rule.**
+1. **Ranks identical:** every `rank_spread` is 0.0. The averaged gradients are the same on every rank, and the
+   update is deterministic.
+2. ddp's final val loss is within 0.05 of single's.
+3. ddp's steady tokens a second (from step 500 to the last logged row) is at least 0.9 x GPUs x single's.
+4. **Resume:** the first part was stopped by the timeout, and the rerun started from a saved step above 0. It
+   ended at ddp's step and tokens, with a final val loss within 0.05 of ddp's.
+
+**Expected and noise.** On one GPU, ddp draws the same rows as single, so their val losses should agree to about
+0.01; compiled kernels can differ from run to run. On two GPUs, rank 1 draws other rows, so the runs differ like
+seeds. The 0.05 bounds are loose on purpose. The CPU tests check the averaging and the saved states exactly; this
+checks that the pieces run together on GPUs, at speed.
+
+**When.**
+- The one-GPU form goes on a normal B200 when r124's job ends; its two profiles are running now. With one GPU,
+  ddp is torchrun with one process.
+- The two-GPU form goes on two normal B200s when 30033104's item ends (r105's lr 24e-6 arm, seed 2, started 03:35).
+- Both are well before 11-24. If both meet the rule, the 6x box plan (written 11-24) uses --ddp with
+  --resume-every-minutes 30. A memory check of the micro-batch at 6x on an 80 GB H100 goes in that plan.

@@ -13,6 +13,16 @@ tricks): the question is whether RL can start from a model of roughly GPT-2-smal
 fraction the lr schedule decays on: the larger of steps and time) reaches `--phase2-start`, from --tokens to the
 listed token files, each micro-batch row from one file picked by weight. A file named the same as --tokens is read
 without its validation slice; validation stays on --tokens.
+
+`--ddp` (off by default) trains data-parallel under torchrun, one process a GPU: every rank starts from the same
+weights and draws its own rows, the gradients are averaged in flat buckets after each step's micro-batches, and rank
+0's clock is broadcast every step, so all ranks take the same lr and stop together. --batch-tokens stays the global
+batch. At each validation the ranks' weight sums are compared (`rank_spread` in the log) and rank 0's weights are
+sent to all.
+`--resume-every-minutes N` (0, the default: never) saves the model, the optimizers, the step, the tokens and the
+elapsed training time to `<out>/resume/state.pt` every N minutes; `--resume` continues from that file if it exists
+(the clock and the budget carry on from the saved time, the log is appended to, so rows logged after the save
+appear twice, and each rank's draws are reseeded from the seed, its rank and the step).
 """
 
 from __future__ import annotations
@@ -70,11 +80,76 @@ def parse_phase2(spec: str, tokens_path: str, train_data) -> list:
     return out
 
 
+def step_layout(batch_tokens: int, seq: int, micro: int, world: int, max_tokens: int) -> tuple:
+    """(micro-batches a step on each rank, tokens a step over all ranks, total steps); world 1 is the one-GPU layout."""
+    accum = max(1, batch_tokens // (seq * micro * world))
+    step_tokens = seq * micro * accum * world
+    return accum, step_tokens, max_tokens // step_tokens
+
+
+def allreduce_grads(params, bucket_bytes: int = 256 << 20) -> None:
+    """Average every parameter's .grad over the default process group, in place, in flat buckets of one dtype."""
+    import torch
+    import torch.distributed as dist
+
+    world = dist.get_world_size()
+    buckets, current, size = [], [], 0
+    for g in (p.grad for p in params if p.grad is not None):
+        nbytes = g.numel() * g.element_size()
+        if current and (g.dtype != current[0].dtype or size + nbytes > bucket_bytes):
+            buckets.append(current)
+            current, size = [], 0
+        current.append(g)
+        size += nbytes
+    if current:
+        buckets.append(current)
+    for bucket in buckets:
+        flat = torch.cat([g.reshape(-1) for g in bucket])
+        dist.all_reduce(flat)
+        flat.div_(world)
+        offset = 0
+        for g in bucket:
+            g.copy_(flat[offset : offset + g.numel()].view_as(g))
+            offset += g.numel()
+
+
+def save_resume(path, model, opts, meta: dict) -> None:
+    """Write the model's and the optimizers' state with `meta` (step, tokens, elapsed seconds) to `path`, atomically."""
+    import torch
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    torch.save({"model": model.state_dict(), "opts": [o.state_dict() for o in opts], "meta": meta}, tmp)
+    os.replace(tmp, path)
+
+
+def load_resume(path, model, opts, device=None) -> dict:
+    """Load what save_resume wrote into `model` and `opts`; returns its meta."""
+    import torch
+
+    state = torch.load(path, map_location=device, weights_only=True)
+    if len(state["opts"]) != len(opts):
+        raise SystemExit(f"--resume: {path} has {len(state['opts'])} optimizers, this run has {len(opts)}")
+    model.load_state_dict(state["model"])
+    for opt, saved in zip(opts, state["opts"]):
+        opt.load_state_dict(saved)
+    return state["meta"]
+
+
 def train(args) -> None:
     import torch
     import torch.nn.functional as F
     from transformers import AutoTokenizer, LlamaConfig, LlamaForCausalLM
 
+    rank, world = 0, 1
+    if args.ddp:
+        import torch.distributed as dist
+
+        rank, world = int(os.environ["RANK"]), int(os.environ["WORLD_SIZE"])
+        torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
+        dist.init_process_group("nccl")
+    main_rank = rank == 0
     torch.manual_seed(args.seed)
     torch.backends.cuda.matmul.allow_tf32 = True
     tok = AutoTokenizer.from_pretrained(args.tokenizer)
@@ -88,8 +163,12 @@ def train(args) -> None:
         bos_token_id=tok.bos_token_id, eos_token_id=tok.eos_token_id, torch_dtype="bfloat16",
     )
     model = LlamaForCausalLM(config).cuda()
+    if args.ddp:  # the same seed gives the same weights; rank 0's are sent anyway
+        for p in model.parameters():
+            dist.broadcast(p.data, 0)
     n_params = sum(p.numel() for p in model.parameters())
-    print(f"params {n_params / 1e6:.1f}M", flush=True)
+    if main_rank:
+        print(f"params {n_params / 1e6:.1f}M", flush=True)
     decay = [p for n, p in model.named_parameters() if p.dim() >= 2]
     no_decay = [p for n, p in model.named_parameters() if p.dim() < 2]
     if args.optimizer == "muon":  # Muon for hidden matrices, AdamW for embeddings and norms (modded-nanogpt's split)
@@ -101,6 +180,8 @@ def train(args) -> None:
     else:
         opts = [torch.optim.AdamW([{"params": decay, "weight_decay": 0.1}, {"params": no_decay, "weight_decay": 0.0}],
                                   lr=args.lr, betas=(0.9, 0.95), fused=True)]
+    resume_path = Path(args.out) / "resume" / "state.pt"
+    resumed = load_resume(resume_path, model, opts, "cuda") if args.resume and resume_path.exists() else None
     ckw = {"mode": args.compile_mode} if args.compile_mode else {}
     compiled = torch.compile(model, **ckw)
 
@@ -111,9 +192,11 @@ def train(args) -> None:
 
     fused_loss = torch.compile(_fused, **ckw) if args.fused_loss else None
     seq, micro = args.seq_len, args.micro_batch
-    accum = max(1, args.batch_tokens // (seq * micro))
-    total_steps = args.max_tokens // (seq * micro * accum)
-    rng = np.random.default_rng(args.seed)
+    accum, step_tokens, total_steps = step_layout(args.batch_tokens, seq, micro, world, args.max_tokens)
+    if resumed:
+        rng = np.random.default_rng([args.seed, rank, resumed["step"]])
+    else:
+        rng = np.random.default_rng(args.seed if rank == 0 else [args.seed, rank])
     phase2 = parse_phase2(args.phase2, args.tokens, data) if args.phase2 else []
     p2_weights = np.array([w for _, w in phase2]) / sum(w for _, w in phase2) if phase2 else None
     progress = [0.0]  # the run's progress, as lr_at measures it; set each step
@@ -168,16 +251,42 @@ def train(args) -> None:
                 logits = compiled(input_ids=x).logits
             losses.append(F.cross_entropy(logits.float().view(-1, logits.size(-1)), y.reshape(-1)).item())
         model.train()
-        return sum(losses) / len(losses)
+        mean = sum(losses) / len(losses)
+        if args.ddp:
+            total = torch.tensor([mean], device="cuda", dtype=torch.float64)
+            dist.all_reduce(total)
+            mean = total.item() / world
+        return mean
+
+    @torch.no_grad()
+    def rank_spread():
+        """The ranks' largest minus smallest sum of all weights (0.0 while they agree); then rank 0's weights go to all."""
+        total = torch.stack([p.double().sum() for p in model.parameters()]).sum().reshape(1)
+        gathered = [torch.zeros_like(total) for _ in range(world)]
+        dist.all_gather(gathered, total)
+        for p in model.parameters():
+            dist.broadcast(p.data, 0)
+        values = torch.cat(gathered)
+        return (values.max() - values.min()).item()
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    log = (out / "pretrain_log.jsonl").open("w")
+    log = (out / "pretrain_log.jsonl").open("a" if resumed else "w") if main_rank else None
     start, step, tokens_seen = time.perf_counter(), 0, 0
+    if resumed:
+        start -= resumed["elapsed"]
+        step, tokens_seen = resumed["step"], resumed["tokens"]
+        if main_rank:
+            print(f"resumed from {resume_path} at step {step}, {resumed['elapsed'] / 60:.2f} min", flush=True)
+    last_save = time.perf_counter() - start
     budget = args.minutes * 60
     model.train()
     while step < total_steps:
         elapsed = time.perf_counter() - start
+        if args.ddp:  # rank 0's clock, so every rank takes the same lr and stops at the same step
+            clock = torch.tensor([elapsed], device="cuda", dtype=torch.float64)
+            dist.broadcast(clock, 0)
+            elapsed = clock.item()
         if elapsed >= budget:
             break
         for opt in opts:
@@ -192,12 +301,18 @@ def train(args) -> None:
                     logits = compiled(input_ids=x).logits
                     loss = F.cross_entropy(logits.float().view(-1, logits.size(-1)), y.reshape(-1)) / accum
             loss.backward()
+        if args.ddp:
+            allreduce_grads(model.parameters())
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         for opt in opts:
             opt.step()
             opt.zero_grad(set_to_none=True)
         step += 1
-        tokens_seen += seq * micro * accum
+        tokens_seen += step_tokens
+        if args.resume_every_minutes > 0 and elapsed - last_save >= args.resume_every_minutes * 60:
+            if main_rank:  # the other ranks wait in the next step's broadcast
+                save_resume(resume_path, model, opts, {"step": step, "tokens": tokens_seen, "elapsed": time.perf_counter() - start})
+            last_save = elapsed
         if step % 50 == 0 or step == 1:
             row = {"step": step, "tokens": tokens_seen, "minutes": (time.perf_counter() - start) / 60, "train_loss": loss.item() * accum,
                    "lr": opts[0].param_groups[0]["lr"], "tok_per_s": tokens_seen / (time.perf_counter() - start)}
@@ -205,14 +320,23 @@ def train(args) -> None:
                 row["phase2"] = progress[0] >= args.phase2_start
             if step % 500 == 0:
                 row["val_loss"] = val_loss()
-            log.write(json.dumps(row) + "\n")
-            log.flush()
-            print(row, flush=True)
+                if args.ddp:
+                    row["rank_spread"] = rank_spread()
+            if main_rank:
+                log.write(json.dumps(row) + "\n")
+                log.flush()
+                print(row, flush=True)
     final = {"step": step, "tokens": tokens_seen, "minutes": (time.perf_counter() - start) / 60, "val_loss": val_loss(), "params_m": n_params / 1e6}
-    log.write(json.dumps(final) + "\n")
-    print(final, flush=True)
-    model.to(torch.bfloat16).save_pretrained(out)
-    tok.save_pretrained(out)
+    if args.ddp:
+        final["gpus"] = world
+    if main_rank:
+        log.write(json.dumps(final) + "\n")
+        print(final, flush=True)
+        model.to(torch.bfloat16).save_pretrained(out)
+        tok.save_pretrained(out)
+    if args.ddp:
+        dist.barrier()
+        dist.destroy_process_group()
 
 
 def main() -> None:
@@ -246,6 +370,10 @@ def main() -> None:
     r.add_argument("--phase2-start", type=float, default=0.5, help="the run's progress at which --phase2 begins")
     r.add_argument("--prefetch", type=int, default=0,
                    help="gather this many training micro-batches ahead into pinned memory on a thread (0, the default: none)")
+    r.add_argument("--ddp", action="store_true", help="data-parallel under torchrun, one process a GPU; off by default")
+    r.add_argument("--resume-every-minutes", type=float, default=0.0,
+                   help="save <out>/resume/state.pt every this many minutes of training (0, the default: never)")
+    r.add_argument("--resume", action="store_true", help="continue from <out>/resume/state.pt if it exists; off by default")
     args = parser.parse_args()
     tokenize(args) if args.cmd == "tokenize" else train(args)
 
