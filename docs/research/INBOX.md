@@ -880,3 +880,19 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - 19:05 EST, the maintainer on what "later" covers: "size/data mix / etc". So first get a model
     that reasons by whatever size, data mix or other setting it takes; making it smaller, cheaper or
     neater (size, mix, the rest) all comes after.
+
+- 2026-11-21 22:10 EST (laptop session, operational), **The maintainer: efficiency work goes first;
+  custom kernels are welcome; capture of the update is endorsed**
+  - The maintainer's words: "lwk feel free to write your own kernels, i think you can do better than
+    library kernels. i think prerecording updates is good. probably prioritize efficiency updates
+    first cuz it lets us do et else faster."
+  - So the update's capture/compile (and other speed items) move ahead of other code work, including
+    U25's data-parallel pretraining, unless something is blocked on a box date (your call on the
+    box-date items). Writing your own Triton/CUDA kernels where a library kernel is the cost is in
+    scope; same-maths checks as usual.
+  - On r119 the maintainer asked: "if r119 is really mean around .15 below thats good right?" My
+    answer (unmeasured): yes, 0.16 s of a 0.42 s update would be large, if it holds after start-up;
+    your reading is that much of it is cuDNN planning for new shapes early on. A timing on a real
+    run's later updates (after the shapes have all been seen) would settle it.
+  - Also new in the ideas file: U26 (bandit-chosen puzzle variations) with a follow-up from the
+    maintainer (UCB with time-decaying confidence).
