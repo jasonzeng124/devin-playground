@@ -11944,3 +11944,51 @@ gitignored.
 - r116 seed 1 on a normal B200 (30069082).
 - r120 seeds 0 to 2 on three preemptable H200s (30017487, 29995938, 30051396).
 - 4 GPUs.
+## 2026-11-22 11:06 EST: r120 seeds 0 and 1 end at 0.310 and 0.302 on dev, both above D's line; the rule waits for seed 2
+
+**The runs.** `calibration/research_r120/d007_speed_lr12e-6_h200`, r102's H200 gate with lr 1.2e-5 (LOG 11-21
+17:13). Each pairs with r102's seed of the same number (`d007_speed_h200`). Numbers are from `read_time.py` with a
+second seed directory (scratchpad), dev only. Both arms trained for 18,000 s.
+
+| | seed 0 | seed 1 |
+|---|---|---|
+| r120 final dev (steps, node) | 0.3100 (43,659, node4803) | 0.3017 (46,332, node4601) |
+| r102 final dev (steps, node) | 0.2700 (38,914, node4802) | 0.3100 (43,073, node4602) |
+| final diff | +0.0400 | -0.0083 |
+| matched train time: evals, mean, ahead / behind | 86, +0.0363, 86 / 0 | 91, +0.0135, 73 / 16 |
+| matched steps: evals, mean, ahead / behind | 77 (to 38,500), +0.0283, 76 / 0 | 86 (to 43,000), +0.0097, 64 / 20 |
+| r120 at r102's last step | 0.3067 | 0.2883 |
+| mean of the last five evals, r120 / r102 | 0.3217 / 0.2720 | 0.2950 / 0.3010 |
+| steps per second, r120 / r102 | 2.425 / 2.162 (1.122) | 2.574 / 2.393 (1.076) |
+| late wall per step, r120 / r102 | 0.374 / 0.376 s | 0.355 / 0.373 s |
+
+- **Seed 0** is ahead in every matched eval, by about the same amount each hour (+0.032, +0.036, +0.037, +0.036,
+  +0.039). At matched steps: +0.022, +0.030, +0.031, +0.029 for steps 1 to 10,000, 10,001 to 20,000, 20,001 to
+  35,000 and 35,001 on.
+- **Seed 1** is ahead early and even late. By hour: +0.019, +0.028, +0.019, +0.003, +0.001. At matched steps:
+  +0.018, +0.019, +0.004, -0.003 over the same step ranges. r102's seed 1 was the highest of its three.
+- **Speed:** r120 made 12 % and 8 % more steps. Each pair ran on different nodes and days, so this may be the node
+  or the code at the time; it was not measured. Late wall per step is close in both pairs.
+- **Clocks:** 20,797 s and 20,789 s of 21,600 (pretraining 2,775 s and 2,772 s).
+- Both workers logged FAILED at the final `mv`; this is the no_save gate's known line, and result.json and
+  clock.json are complete. Seed 0's first start was preempted; its partial is in `extra/interrupted_0_1`.
+
+**Against what I expected.** The centre was about 0.285 a seed if r105's B200 gain carried over, 0.278 if not.
+Both seeds are above it. The two-seed mean is 0.3058. Over the two pairs, r120 is +0.016 at the
+final, +0.025 at matched train time and +0.019 at matched steps. r105's lr 12e-6 was +0.016 at
+matched steps over three B200 pairs. Here one pair is large and one small.
+
+**Rule (LOG 11-21 17:13).** Both seeds are at 0.281 or more.
+- If seed 2 is at 0.281 or more, the three-seed form is met, and a five-seed record attempt follows with r120's
+  config as written, without no_save (a `record-<slug>` queue, `scripts/run_seed_v3.sh`, H200; its
+  `config.json` committed first).
+- Otherwise the three-seed mean is 0.276 or more if seed 2 is at least 0.2163; then r120's seeds 3 and 4 run
+  for the five-seed form.
+
+**Jobs (11:06).**
+- r120 seed 2 runs on node4803 (30051396) since 06:27.
+- 29995938 (seed 0) and 30017487 (seed 1) exited after their seeds, with less than 380 min left.
+- r102 seeds 3 and 4 are still on `queue/gate_r120_h200.txt`; I submitted two preemptable H200 workers for them
+  at 11:05 (30073610, 30073611), one per item. Both are pending.
+- r116 seed 1 on a normal B200 (30069082).
+- 4 GPUs.
