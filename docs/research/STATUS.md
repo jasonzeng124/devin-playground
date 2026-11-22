@@ -2,7 +2,9 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-22 11:06 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-22 11:17 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+
+**Low-usage window until 2026-11-25 18:00 EST (INBOX 11-22).** Until then each wake does only the essentials (read finished results into the LOG, requeue failed items, keep the GPUs fed) and ends the loop without a wakeup; the loop is re-issued after about 5 h idle. The sampler-mask speed item (the next item after r128's read) waits for the window to end: no code for it before then. Jobs at 11:15: r116 seed 1 on a normal B200 (30069082, since 09:51); r120 seed 2 on a preemptable H200 (30051396), near 12:20 if it runs as long as seeds 0 and 1 (about 20,790 s); r102 seeds 3 and 4 on preemptable H200s (30073610/11, since 11:06); 4 GPUs. Next wake: read r120 seed 2 and apply its rule (a five-seed record if all three seeds reach 0.281, seeds 3 and 4 if the three-seed mean reaches 0.276); read r116 seed 1; submit the U25 two-GPU check once the normal slot is free.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
