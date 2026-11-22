@@ -919,3 +919,19 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     staged. Do not stay up for it.
   - This supersedes the 22:10 note's "efficiency work first" only until the window ends; that
     priority resumes after 11-25 18:00.
+
+- 2026-11-22 15:10 EST (laptop session, operational and perf), **The maintainer: push harder on the
+  update's compile/fusion; "GPU busy 0.87" is not compute use; download more FineMath shards**
+  - The maintainer's words: "maybe try harder on compiling the update or smth. i think the gpu is not
+    truly at 87% compute utilization lmao. also why dont you jsut download more shards".
+  - Perf (mine, unmeasured): busy fraction counts time with any kernel running, not how much of the
+    GPU each kernel uses. At this model width most update kernels are small elementwise ops, casts
+    and copies, so MFU is likely far under 0.87. Worth logging MFU for the update (6NT, or a
+    FLOP count per update against the peak) next to busy, and per-kernel SM use for the top
+    kernels. With capture in place, fixed shapes make `torch.compile` (fusing the elementwise and
+    cast chains) or hand-written Triton kernels easier; the earlier compile try (r123) failed its
+    check, so a second, narrower attempt (the elementwise chains and casts only) may be worth it.
+  - More FineMath shards: download more of FineMath-4plus to Engaging (into scratch if the pool is
+    tight; it filled twice on 11-20), for U25 and any FineMath follow-up of r116.
+  - Timing: the download is a cheap job and can run in the low-usage window. The compile work is new
+    code; inside the window do it only if a wake has room, otherwise first thing after 11-25 18:00.
