@@ -11831,3 +11831,50 @@ inside the graphs and which in the optimizer step. Its rule is written with it.
 - Three preemptable H200s run r120 seeds 0 to 2 (29995938 and 30051396 on node4803, 30017487 on node4601).
   r102 seeds 3 and 4 follow on `queue/gate_r120_h200.txt`.
 - 4 GPUs.
+
+## 2026-11-22 10:26 EST: r128 rule, where a step's time goes on an H200 with fine capture (one preemptable H200, 30071118)
+
+**Why.** r127 put capture with the fine steps into the next H200 gate and record configs. The next speed items
+(INBOX 21:25: efficiency first, own Triton or CUDA kernels welcome) need to know where a step's time goes now.
+- r125's B200 profile (capture, default buckets) put 139 ms of an update's device time in the two graph ops. After
+  them came eager elementwise and copy kernels (13.4, 13.1 and 7.2 ms an update for the top three).
+- r106's part timers (B200, no capture, medians over steps 150 to 299 of seed 0) put the optimizer step at
+  1.8 ms and clipping at 1.0 ms a step. So those kernels are not mostly in the optimizer step, as the
+  10:21 entry guessed. My guess now: the head (vocabulary projection, mask, logsumexp, gather, entropy and their
+  backward), the loss and the bound gradients' adds.
+- The same r106 medians: fwd_mask 10.3 ms, fwd_head 3.3 ms, fwd_body 66.7 ms,
+  bwd 84.0 ms, sil 53.7 ms, replay_batch 14.1 ms, s_generate 126.4 ms
+  with the sampler mask's CPU time (s_mask_cpu) 87.0 ms inside it.
+
+**Arms** (`calibration/research_r128/`, `scripts/research/profile_update.py`). Both use r106's config (the gate's
+RL settings), D 007 seed 0's final weights, max_steps 1,000,000 and capture with the fine steps (16, 8, 8):
+- `fine_profile_h200`: 600 timed updates, then 12 under torch.profiler. Device time by op (inside the graphs:
+  `_GraphedBody`, `_GraphedBodyBackward`; the rest by kernel), busy fraction, launches.
+- `fine_parts_h200`: the same with `time_update_parts` on (a sync at each part), grpo's train log kept. Each step's
+  sampling parts (s_encode, s_generate with s_mask_cpu inside it, s_decode, s_reward), the update's parts (fwd_body,
+  fwd_mask, fwd_head, loss, bwd, sil, clip, opt) and the rest (select, allowed, replay_batch, post).
+
+**Rule (picks the next item; nothing here changes a config).** Medians over steps 100 to 599 of fine_parts, and
+fine_profile's device time per update. The candidates, each its own piece of work:
+- (a) the head's forward: fwd_mask + fwd_head;
+- (b) the sampler mask's CPU time: s_mask_cpu. At the final weights r106's `factored_grammar` did not lower it
+  (LOG 11-20 04:12 and 10:26), so a change here would be in how the mask is applied per token;
+- (c) replay_batch;
+- (d) attention inside the graphs: the attention kernels' device time per update in fine_profile.
+
+The next item is the largest of (a) to (d), if it is at least 10 ms a step. Within 20 % of each other, the one with a
+same-maths change (no loss comparison needed) goes first. Also reported: the update's device time outside the two
+graph ops (the head's backward, the loss, the adds, the optimizer), to size the head's backward.
+
+**Expected (guesses).**
+- Update wall time in fine_profile 0.17 to 0.20 s (r127's warm pairs: 0.174 s median); the graphs 55 to 70 % of its
+  device time; busy fraction 0.85 to 0.95.
+- (a) 10 to 20 ms; (b) 50 to 90 ms, inside s_generate of 100 to 150 ms; (c) 10 to 15 ms; (d) 15 to 30 ms.
+- So my guess for the next item is (b), the sampler's mask, if most of its CPU time is on the step's path. If the
+  GPU waits on it, s_generate less s_mask_cpu should be small.
+
+**Noise.** The part timers' syncs lengthen each part, so I read the order and shares, not absolute times. Medians are
+over 500 steps of one seed, on one node.
+
+**Jobs (10:25).** 30071118 (preemptable H200, 50 min limit) runs both arms. r116 seed 1 (30069082) and r120 seeds 0 to
+2 (three preemptable H200s) as at 10:21. 5 GPUs.
