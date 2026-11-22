@@ -571,6 +571,74 @@ def test_update_host_index_gives_the_same_update(extra):
     assert nll_off == nll_on and nll_on > 0
 
 
+@pytest.mark.parametrize("share", [False, True])
+def test_update_capture_gives_the_same_update(share):
+    """update_capture (LOG r125) on CPU runs its eager stand-in with the same padded shapes, bound .grad tensors and
+    serial guard; over two updates the gradient and the replayed rows' nll match the eager update's, and the bound
+    gradients keep their storage."""
+    torch.manual_seed(7)
+    prompt_width, group = 5, 4
+    prompts = torch.randint(2, 40, (2, prompt_width)).repeat_interleave(group, 0)
+    prompts[:, :2] = prompts[0, :2]  # the batch-wide prefix
+    generated = torch.cat([prompts, torch.randint(2, 40, (2 * group, 9))], 1)
+    attention = torch.ones_like(generated)
+    for row, length in enumerate([9, 1, 5, 3, 9, 2, 6, 4]):
+        attention[row, prompt_width + length :] = 0
+    advantages = torch.tensor([0.0, 1.0, -0.5, -0.5, 0.3, 0.0, -0.3, 0.0])
+    replay_ids, replay_attention, replay_width = _ragged_batch(4, [6, 1, 4], prompt_width=6)
+    base = _tiny_model().eval()
+    runs = []
+    for on in (False, True):
+        model = copy.deepcopy(base)
+        config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, sil_coef=0.5, micro_batch_tokens=30, skip_zero_advantage=True,
+                            share_group_prompt=share, update_host_index=True, update_capture=on)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+        updates = []
+        for _ in range(2):
+            replayed = grpo._ReplayBatch(replay_ids, replay_attention, replay_width, 0, None)
+            grpo._update(model, None, generated, attention, advantages, prompt_width, 2, config, optimizer, torch.device("cpu"), grpo.SINGLE,
+                         None, None, replayed)
+            updates.append(([p.grad.clone() for p in model.parameters()], replayed.nll, [p.grad.data_ptr() for p in model.parameters()]))
+        runs.append(updates)
+    for (grads_off, nll_off, _), (grads_on, nll_on, _) in zip(*runs):
+        assert all(torch.allclose(a, b, rtol=1e-5, atol=1e-6) for a, b in zip(grads_off, grads_on))
+        assert any(g.abs().max() > 0 for g in grads_on)
+        assert nll_on == pytest.approx(nll_off, rel=1e-5) and nll_on > 0
+    assert runs[1][0][2] == runs[1][1][2]
+    stats = grpo._CAPTURES[model].stats
+    assert stats["fallbacks"] == 0 and stats["keys"] >= 2 and stats["replays"] >= 4 and stats["resets"] == 0
+
+
+def test_update_capture_refuses_a_backward_out_of_order():
+    torch.manual_seed(8)
+    model = _tiny_model()
+    capture = grpo._UpdateCapture(model, torch.device("cpu"), 64)
+    capture.bind_grads()
+    ids = torch.randint(2, 40, (3, 6))
+    mask = torch.ones_like(ids)
+    index = types.SimpleNamespace(groups=None)
+    first = capture(model, ids, mask, 2, 0, False, index)
+    second = capture(model, ids, mask, 2, 0, False, index)
+    assert first.shape == second.shape == (3, 3, model.config.hidden_size)
+    with pytest.raises(RuntimeError, match="its own forward"):
+        first.sum().backward()
+    second.sum().backward(retain_graph=True)
+    assert any(g.abs().max() > 0 for g in capture.grads)
+    with pytest.raises(RuntimeError, match="its own forward"):
+        second.sum().backward()
+    capture.check_bound()
+    model.transformer.wte.weight.grad = None
+    with pytest.raises(RuntimeError, match="replaced"):
+        capture.check_bound()
+
+
+def test_update_capture_needs_update_host_index(monkeypatch, tmp_path):
+    _patch_tiny_training(monkeypatch, tmp_path)
+    config = GRPOConfig(model="tiny", micro_batch_tokens=30, update_capture=True, out_dir=str(tmp_path / "run"))
+    with pytest.raises(ValueError, match="update_capture needs"):
+        run(config)
+
+
 def test_update_part_timers_leave_the_gradient_and_log_each_part():
     torch.manual_seed(3)
     prompt_width, rows = 4, 6

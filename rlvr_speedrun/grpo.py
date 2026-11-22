@@ -51,6 +51,11 @@ class GRPOConfig:
     # constrained-logit mask) on the host at its start and sends them to the GPU in one copy, so the micro-batches
     # run without device syncs; the replayed rows' nll is read after the optimizer step. The same maths (LOG r124)
     update_host_index: bool = False
+    # the update's model body (everything before the vocabulary projection) runs as CUDA graphs, captured once per
+    # bucketed shape (`_UpdateCapture`) and replayed, with the gradients bound to fixed .grad tensors; the same maths
+    # up to rounding, and the captures count in the clock. Needs update_host_index and micro_batch_tokens; not with
+    # grad_checkpoint or compile_update (LOG r125)
+    update_capture: bool = False
     pad_to_multiple: int = 0
     cache_len: int = 0
     rollout_backend: str = "hf"  # "hf" (model.generate), "vllm" (colocated engine; rlvr_speedrun/vllm_rollout.py) or "native" (fast_rollout.py, Llama only)
@@ -259,6 +264,52 @@ def _mask_by_index(logits: torch.Tensor, rows: torch.Tensor, ids: torch.Tensor, 
     return logits.masked_fill(constrained.unsqueeze(1) & ~keep, float("-inf"))
 
 
+_CAPTURES: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()  # update_capture: model -> its _UpdateCapture
+_MAX_GRAPHS = 128  # update_capture: shapes past this many run eager
+
+
+def _hidden(model, input_ids, attention_mask, position_ids, start: int, prefix_len: int, groups):
+    """The final-norm hidden states that predict columns [start + 1:], [rows, width - 1 - start, hidden size]
+    (`_completion_logprobs`): with `groups` (first, inverse) the shared prompts' columns [:start] run once a group,
+    else with 0 < prefix_len <= start the batch-wide prefix runs once, else one pass."""
+    if groups is not None:
+        first, inverse = groups
+        cache = None
+        if prefix_len > 0:
+            cache = model.base_model(input_ids=input_ids[:1, :prefix_len], position_ids=position_ids[:1, :prefix_len], use_cache=True).past_key_values
+            cache.batch_repeat_interleave(first.numel())
+        cache = model.base_model(
+            input_ids=input_ids[first, prefix_len:start],
+            attention_mask=attention_mask[first, :start],
+            position_ids=position_ids[first, prefix_len:start],
+            past_key_values=cache,
+            use_cache=True,
+        ).past_key_values
+        cache.batch_select_indices(inverse)
+        hidden = model.base_model(
+            input_ids=input_ids[:, start:],
+            attention_mask=attention_mask,
+            position_ids=position_ids[:, start:],
+            past_key_values=cache,
+            use_cache=True,
+        ).last_hidden_state
+        return hidden[:, :-1]
+    if 0 < prefix_len <= start:
+        prefix = model.base_model(input_ids=input_ids[:1, :prefix_len], position_ids=position_ids[:1, :prefix_len], use_cache=True)
+        cache = prefix.past_key_values
+        cache.batch_repeat_interleave(input_ids.shape[0])
+        hidden = model.base_model(
+            input_ids=input_ids[:, prefix_len:],
+            attention_mask=attention_mask,
+            position_ids=position_ids[:, prefix_len:],
+            past_key_values=cache,
+            use_cache=True,
+        ).last_hidden_state
+        return hidden[:, start - prefix_len : -1]
+    hidden = model.base_model(input_ids=input_ids, attention_mask=attention_mask, position_ids=position_ids, use_cache=False).last_hidden_state
+    return hidden[:, start:-1]
+
+
 def _completion_logprobs(
     model,
     input_ids: torch.Tensor,
@@ -271,6 +322,7 @@ def _completion_logprobs(
     share_prompt: bool = False,
     parts: dict | None = None,
     index: _MicroIndex | None = None,
+    body=None,
 ):
     """Per-token log-probs (at the sampling temperature) and entropies of completion tokens.
 
@@ -293,52 +345,26 @@ def _completion_logprobs(
     `index` (update_host_index): the micro-batch's `_MicroIndex`, whose host-built indices stand in for the
     completion mask's boolean indexing, the shared-prompt grouping and the constrained mask (the same values in
     the same order, without device syncs); `allowed` is then None.
+
+    `body` (update_capture): the update's `_UpdateCapture`, which gives the hidden states in place of the eager
+    forward, or None, and the eager forward runs.
     """
     start = max(0, prompt_width - 1)
-    position_ids = (attention_mask.long().cumsum(-1) - 1).clamp_min(0)
-    if share_prompt and prefix_len < start:
-        if index is not None and index.groups is not None:
-            first, inverse = index.groups
-        else:
-            key = input_ids[:, :start] * 2 + attention_mask[:, :start].long()
-            _, inverse = torch.unique(key, dim=0, return_inverse=True)
-            rows = torch.arange(input_ids.shape[0], device=input_ids.device)
-            first = torch.full((int(inverse.max()) + 1,), rows.numel(), device=rows.device).scatter_reduce_(0, inverse, rows, "amin")
-        cache = None
-        if prefix_len > 0:
-            cache = model.base_model(input_ids=input_ids[:1, :prefix_len], position_ids=position_ids[:1, :prefix_len], use_cache=True).past_key_values
-            cache.batch_repeat_interleave(first.numel())
-        cache = model.base_model(
-            input_ids=input_ids[first, prefix_len:start],
-            attention_mask=attention_mask[first, :start],
-            position_ids=position_ids[first, prefix_len:start],
-            past_key_values=cache,
-            use_cache=True,
-        ).past_key_values
-        cache.batch_select_indices(inverse)
-        hidden = model.base_model(
-            input_ids=input_ids[:, start:],
-            attention_mask=attention_mask,
-            position_ids=position_ids[:, start:],
-            past_key_values=cache,
-            use_cache=True,
-        ).last_hidden_state
-        hidden = hidden[:, :-1]
-    elif 0 < prefix_len <= start:
-        prefix = model.base_model(input_ids=input_ids[:1, :prefix_len], position_ids=position_ids[:1, :prefix_len], use_cache=True)
-        cache = prefix.past_key_values
-        cache.batch_repeat_interleave(input_ids.shape[0])
-        hidden = model.base_model(
-            input_ids=input_ids[:, prefix_len:],
-            attention_mask=attention_mask,
-            position_ids=position_ids[:, prefix_len:],
-            past_key_values=cache,
-            use_cache=True,
-        ).last_hidden_state
-        hidden = hidden[:, start - prefix_len : -1]
-    else:
-        hidden = model.base_model(input_ids=input_ids, attention_mask=attention_mask, position_ids=position_ids, use_cache=False).last_hidden_state
-        hidden = hidden[:, start:-1]
+    share = share_prompt and prefix_len < start
+    hidden = None if body is None else body(model, input_ids, attention_mask, start, prefix_len, share, index)
+    if hidden is None:
+        groups = None
+        if share:
+            if index is not None and index.groups is not None:
+                groups = index.groups
+            else:
+                key = input_ids[:, :start] * 2 + attention_mask[:, :start].long()
+                _, inverse = torch.unique(key, dim=0, return_inverse=True)
+                rows = torch.arange(input_ids.shape[0], device=input_ids.device)
+                first = torch.full((int(inverse.max()) + 1,), rows.numel(), device=rows.device).scatter_reduce_(0, inverse, rows, "amin")
+                groups = (first, inverse)
+        position_ids = (attention_mask.long().cumsum(-1) - 1).clamp_min(0)
+        hidden = _hidden(model, input_ids, attention_mask, position_ids, start, prefix_len, groups)
     _lap(parts, "fwd_body", input_ids.device)
     labels = input_ids[:, start + 1 :]
     completion_mask = attention_mask[:, start + 1 :].bool()
@@ -891,6 +917,218 @@ def _mismatch_stats(sums: torch.Tensor, dist: Dist, tis_cap: float) -> dict:
     return stats
 
 
+def _capture_rows(rows: int) -> int:
+    """update_capture's row bucket: steps of 8 up to 64 rows, 16 up to 128, 32 up to 256, then 64."""
+    step = 8 if rows <= 64 else 16 if rows <= 128 else 32 if rows <= 256 else 64
+    return -(-rows // step) * step
+
+
+class _CaptureEntry:
+    """One captured shape: its eager body (`run`), static inputs, graphs (CUDA) and output / output-gradient views."""
+
+    def __init__(self, run, ids, mask, first, inverse, shape: tuple):
+        self.run, self.ids, self.mask, self.first, self.inverse, self.shape = run, ids, mask, first, inverse, shape
+        self.fwd = self.bwd = self.out = self.grad = self.h = None
+
+
+class _GraphedBody(torch.autograd.Function):
+    """A captured body as one autograd node: the forward replays its forward graph; the backward replays its backward
+    graph, which adds the body's parameter gradients into the bound .grad tensors itself (so no input gets one)."""
+
+    @staticmethod
+    def forward(ctx, anchor, capture, entry):
+        ctx.capture, ctx.entry = capture, entry
+        ctx.serial = capture.forward(entry)
+        return entry.out.detach()
+
+    @staticmethod
+    def backward(ctx, grad):
+        ctx.capture.backward(ctx.entry, ctx.serial, grad)
+        return None, None, None
+
+
+class _UpdateCapture:
+    """update_capture (LOG r125): the update's model body (`_hidden`, everything before the vocabulary projection)
+    runs as CUDA graphs, one forward and one backward graph per bucketed shape (`_capture_rows` rows, width a
+    multiple of 64, shared-prompt groups a multiple of 8), captured the first time the shape comes and replayed
+    after; the same maths up to rounding, and the captures count in the clock.
+
+    Padded rows copy row 0 (padded groups copy group 0) and padded columns are id 0 / mask 0 at the end, so under
+    causal attention the real rows' columns are unchanged; the caller gets the real [rows, width - 1 - start] slice,
+    so the padding's gradient is zero. Parameter gradients go into .grad tensors bound once (`bind_grads`, in place
+    of zero_grad(set_to_none)), which the eager parts of the update add into in place, so the backward graph can add
+    into fixed addresses. A body's backward must follow its own forward, once (each micro-batch's backward comes
+    before the next forward); otherwise it raises. On CPU the same path runs eagerly, which the tests use."""
+
+    def __init__(self, model, device: torch.device, micro_batch_tokens: int):
+        self.device, self.cuda = device, device.type == "cuda"
+        self.params = [p for p in model.parameters() if p.requires_grad]
+        self.grads = [torch.zeros_like(p) for p in self.params]
+        self.ptrs = [p.data_ptr() for p in self.params]
+        self.anchor = torch.zeros((), device=device, requires_grad=True)
+        self.cap_tokens = 2 * micro_batch_tokens + 4096  # _micro_groups keeps rows x width <= micro_batch_tokens
+        self.entries: dict = {}
+        self.stats = {"keys": 0, "captures": 0, "capture_s": 0.0, "replays": 0, "fallbacks": 0, "resets": 0}
+        self.serial = self.done = 0
+        self.ids_buf = self.mask_buf = self.out_buf = self.grad_buf = None
+        self.warmed = False
+        self.stream = torch.cuda.Stream(device) if self.cuda else None
+        self.pool = torch.cuda.graph_pool_handle() if self.cuda else None
+
+    def bind_grads(self) -> None:
+        """Zero the bound gradients and set them as the parameters' .grad, at the start of each update."""
+        ptrs = [p.data_ptr() for p in self.params]
+        if ptrs != self.ptrs:  # the parameters moved, and the graphs read the old addresses
+            self.entries.clear()
+            self.ptrs = ptrs
+            self.stats["resets"] += 1
+        torch._foreach_zero_(self.grads)
+        for p, g in zip(self.params, self.grads, strict=True):
+            p.grad = g
+
+    def check_bound(self) -> None:
+        if any(p.grad is not g for p, g in zip(self.params, self.grads, strict=True)):
+            raise RuntimeError("update_capture: a parameter's .grad was replaced during the update")
+
+    def __call__(self, model, input_ids, attention_mask, start: int, prefix_len: int, share: bool, index):
+        """The micro-batch's hidden states through the captured body, or None when it runs eager instead."""
+        if not torch.is_grad_enabled() or index is None or (share and index.groups is None):
+            self.stats["fallbacks"] += 1
+            return None
+        R, W = input_ids.shape
+        first = inverse = None
+        if share:
+            kind, plen = "share", prefix_len
+            first, inverse = index.groups
+        elif 0 < prefix_len <= start:
+            kind, plen = "prefix", prefix_len
+        else:
+            kind, plen = "plain", 0
+        rows, width = _capture_rows(R), -(-W // 64) * 64
+        groups = 0 if first is None else -(-first.numel() // 8) * 8
+        dev = input_ids.device.type
+        key = (kind, plen, start, rows, width, groups, torch.is_autocast_enabled(dev), torch.get_autocast_dtype(dev))
+        e = self.entries.get(key)
+        if e is None:
+            if rows * width > self.cap_tokens or len(self.entries) >= _MAX_GRAPHS:
+                self.stats["fallbacks"] += 1
+                return None
+            e = self.entries[key] = self._entry(model, key, input_ids, attention_mask, first, inverse)
+            self.stats["keys"] += 1
+        e.ids[:R, :W].copy_(input_ids)
+        e.ids[R:, :W].copy_(input_ids[:1])
+        e.ids[:, W:].zero_()
+        e.mask[:R, :W].copy_(attention_mask)
+        e.mask[R:, :W].copy_(attention_mask[:1])
+        e.mask[:, W:].zero_()
+        if first is not None:
+            G = first.numel()
+            e.first[:G].copy_(first)
+            e.first[G:].copy_(first[:1])
+            e.inverse[:R].copy_(inverse)
+            e.inverse[R:].copy_(inverse[:1])
+        if self.cuda and e.fwd is None:
+            self._capture(e)
+        out = _GraphedBody.apply(self.anchor, self, e)
+        return out[:R, : W - 1 - start]
+
+    def _entry(self, model, key: tuple, input_ids, attention_mask, first, inverse) -> _CaptureEntry:
+        kind, plen, start, rows, width, groups, amp, amp_dtype = key
+        dev = input_ids.device
+        if self.ids_buf is None:  # every entry's static ids and mask are views of one buffer, refilled before each replay
+            self.ids_buf = torch.zeros(self.cap_tokens, dtype=input_ids.dtype, device=dev)
+            self.mask_buf = torch.zeros(self.cap_tokens, dtype=attention_mask.dtype, device=dev)
+        ids = self.ids_buf[: rows * width].view(rows, width)
+        mask = self.mask_buf[: rows * width].view(rows, width)
+        if kind == "share":
+            first = torch.zeros(groups, dtype=first.dtype, device=dev)
+            inverse = torch.zeros(rows, dtype=inverse.dtype, device=dev)
+        ref = weakref.ref(model)  # the entry lives in _CAPTURES[model], so it must not hold the model
+
+        def run():
+            with torch.autocast(dev.type, dtype=amp_dtype, enabled=amp, cache_enabled=False):
+                pos = (mask.long().cumsum(-1) - 1).clamp_min(0)
+                return _hidden(ref(), ids, mask, pos, start, plen, (first, inverse) if kind == "share" else None)
+
+        return _CaptureEntry(run, ids, mask, first, inverse, (rows, width - 1 - start))
+
+    def _buffers(self, hidden_dim: int, dtype) -> None:
+        """One output and one output-gradient buffer for all entries (each micro-batch's forward and backward finish
+        before the next forward, and the caller copies what it takes out of the output)."""
+        if self.out_buf is None:
+            self.out_buf = torch.zeros(self.cap_tokens * hidden_dim, dtype=dtype, device=self.device)
+            self.grad_buf = torch.zeros_like(self.out_buf)
+
+    def _views(self, e: _CaptureEntry) -> None:
+        shape = (*e.shape, self.out_buf.numel() // self.cap_tokens)
+        n = math.prod(shape)
+        e.out, e.grad = self.out_buf[:n].view(shape), self.grad_buf[:n].view(shape)
+
+    def _capture(self, e: _CaptureEntry) -> None:
+        current = torch.cuda.current_stream(self.device)
+        t0 = _now(self.device)
+        if not self.warmed:  # once, eagerly on the capture stream, so its libraries are set up before any capture
+            self.stream.wait_stream(current)
+            with torch.cuda.stream(self.stream):
+                h = e.run()
+                torch.autograd.grad(h, self.params, torch.zeros_like(h), allow_unused=True)
+                hidden_dim, dtype = h.shape[-1], h.dtype
+                del h
+            current.wait_stream(self.stream)
+            torch.cuda.synchronize(self.device)
+            torch.cuda.empty_cache()
+            self._buffers(hidden_dim, dtype)
+            self.warmed = True
+        self._views(e)
+        e.fwd, e.bwd = torch.cuda.CUDAGraph(), torch.cuda.CUDAGraph()
+        self.stream.wait_stream(current)
+        with torch.cuda.stream(self.stream):
+            e.fwd.capture_begin(pool=self.pool)
+            try:
+                h = e.run()
+                assert h.dtype == e.out.dtype and h.shape == e.out.shape, (h.dtype, h.shape, e.out.shape)
+                e.out.copy_(h)
+            finally:
+                e.fwd.capture_end()
+            e.bwd.capture_begin(pool=self.pool)
+            try:
+                grads = torch.autograd.grad(h, self.params, e.grad, allow_unused=True)
+                pairs = [(b, g) for b, g in zip(self.grads, grads, strict=True) if g is not None]
+                torch._foreach_add_([b for b, _ in pairs], [g for _, g in pairs])
+            finally:
+                e.bwd.capture_end()
+            del h, grads, pairs
+        current.wait_stream(self.stream)
+        self.stats["captures"] += 1
+        self.stats["capture_s"] += _now(self.device) - t0
+
+    def forward(self, e: _CaptureEntry) -> int:
+        if self.cuda:
+            e.fwd.replay()
+        else:
+            with torch.enable_grad():
+                e.h = e.run()
+            self._buffers(e.h.shape[-1], e.h.dtype)
+            self._views(e)
+            e.out.copy_(e.h.detach())
+        self.serial += 1
+        self.stats["replays"] += 1
+        return self.serial
+
+    def backward(self, e: _CaptureEntry, serial: int, grad: torch.Tensor) -> None:
+        if serial != self.serial or self.done == serial:
+            raise RuntimeError("update_capture: a captured body's backward must follow its own forward, once")
+        self.done = serial
+        if self.cuda:
+            e.grad.copy_(grad)
+            e.bwd.replay()
+            return
+        grads = torch.autograd.grad(e.h, self.params, grad, allow_unused=True)
+        e.h = None
+        pairs = [(b, g) for b, g in zip(self.grads, grads, strict=True) if g is not None]
+        torch._foreach_add_([b for b, _ in pairs], [g for _, g in pairs])
+
+
 def _update(
     model,
     ref_model,
@@ -937,7 +1175,14 @@ def _update(
     active = torch.arange(generated.shape[0], device=generated.device)
     if config.skip_zero_advantage:
         active = (advantages != 0).nonzero().squeeze(1)
-    optimizer.zero_grad(set_to_none=True)
+    capture = None
+    if config.update_capture:
+        capture = _CAPTURES.get(model)
+        if capture is None:
+            capture = _CAPTURES[model] = _UpdateCapture(model, device, config.micro_batch_tokens)
+        capture.bind_grads()
+    else:
+        optimizer.zero_grad(set_to_none=True)
     loss_total = torch.zeros((), device=device)
     kl_total = torch.zeros((), device=device)
     entropy_total = torch.zeros((), device=device)
@@ -967,6 +1212,7 @@ def _update(
             token_lp, completion_mask, entropy = _completion_logprobs(
                 model, ids, mask, prompt_width, config.temperature, 0 if config.grad_checkpoint else prefix_len, rows_allowed,
                 entropy_grad=bonus, share_prompt=config.share_group_prompt and not config.grad_checkpoint, parts=parts, index=index,
+                body=capture,
             )
         model.eval()
         sel = completion_mask if index is None else index.tokens
@@ -1003,7 +1249,7 @@ def _update(
         loss_total += loss.detach()
         kl_total += kl.detach()
     if config.skip_zero_advantage:
-        if active.numel() == 0:  # an all-zero gradient still moves AdamW (momentum, weight decay), as without skipping
+        if active.numel() == 0 and capture is None:  # an all-zero gradient still moves AdamW (momentum, weight decay), as without skipping; update_capture's bound gradients are already zero
             for parameter in model.parameters():
                 parameter.grad = torch.zeros_like(parameter) if parameter.requires_grad else None
         # the logged entropy (entropy_total / token_count) becomes the mean over the updated rows
@@ -1023,7 +1269,7 @@ def _update(
             with torch.autocast(device.type, dtype=torch.bfloat16, enabled=config.master_fp32):
                 token_lp, completion_mask, _ = _completion_logprobs(
                     model, replayed.ids[rows, :width], replayed.attention[rows, :width], replayed.prompt_width, config.temperature,
-                    0 if config.grad_checkpoint else replayed.prefix_len, rows_allowed, index=index,
+                    0 if config.grad_checkpoint else replayed.prefix_len, rows_allowed, index=index, body=capture,
                 )
             model.eval()
             nll = -token_lp[completion_mask if index is None else index.tokens].sum()
@@ -1052,6 +1298,8 @@ def _update(
             ce_total += ce.detach()
         lm.loss = (ce_total / lm_tokens).item()
     _lap(parts, "lm", device)
+    if capture is not None:
+        capture.check_bound()
     dist.all_reduce_grads_(model.parameters())
     grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip) if config.grad_clip > 0 else None
     _lap(parts, "clip", device)
@@ -1565,6 +1813,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         if config.rollout_backend == "hf" or config.grad_checkpoint:
             raise ValueError("compile_update needs rollout_backend 'native' or 'vllm' and no grad_checkpoint")
         _compile_layers(model)
+    if config.update_capture and (not config.update_host_index or config.micro_batch_tokens <= 0 or config.grad_checkpoint or config.compile_update):
+        raise ValueError("update_capture needs update_host_index and micro_batch_tokens > 0, and no grad_checkpoint or compile_update")
     ref_model = None
     if config.kl_coef != 0:
         ref_name = config.ref_model or config.model
@@ -1740,6 +1990,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         from torch._dynamo.utils import counters
 
         print(f"compile_update: dynamo stats {dict(counters['stats'])}, graph breaks {sum(counters['graph_break'].values())}", flush=True)
+    if config.update_capture and dist.is_main and model in _CAPTURES:
+        print(f"update_capture: {_CAPTURES[model].stats}", flush=True)
     result = {
         "final_pass_rate": final_pass_rate,
         "pass_rate": final_pass_rate,

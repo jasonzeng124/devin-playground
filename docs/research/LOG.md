@@ -11383,3 +11383,79 @@ normal B200s at once.
   the slot freed at 04:44 did not stay empty while r125's code is written.
 - r125's check takes the first normal slot that frees, as speed comes first (INBOX 11-21 21:25). The two-GPU form
   goes the first time both are free, well before 11-24.
+
+## 2026-11-22 06:32 EST: r125, update_capture: the update's model body as CUDA graphs (off by default); its check's rule is written first
+
+**What changed.** `rlvr_speedrun/grpo.py` has `update_capture`, off by default. It needs update_host_index and
+micro_batch_tokens, and does not work with grad_checkpoint or compile_update.
+- **What is captured.** The update's model body is everything before the vocabulary projection, in the three forms
+  the update uses: shared-prompt groups, a batch-wide prefix, or one pass. Each bucketed shape gets a pair of CUDA
+  graphs, a forward and a backward, captured the first time the shape comes and replayed after. The vocabulary
+  projection, the loss and the optimizer stay eager.
+- **Buckets.**
+  - Rows round up in steps of 8 to 64, 16 to 128, 32 to 256, then 64.
+  - The width rounds up to a multiple of 64, and shared-prompt groups to a multiple of 8.
+  - The key also holds the form, the prompt width, the prefix and the autocast setting.
+  - At most 128 shapes are kept. A micro-batch past that, or over 2 x micro_batch_tokens + 4,096 padded tokens,
+    runs eagerly.
+- **Padding.** Extra rows copy row 0, extra groups copy group 0, and extra columns go at the end with id 0 and
+  mask 0. Under causal attention the real rows' real columns see the same keys. Only the real slice goes on, so the
+  padding gets no gradient.
+- **Gradients.**
+  - Each update binds zeroed .grad tensors once, in place of zero_grad(set_to_none).
+  - The backward graph adds the body's gradients into them, and the eager parts add into them in place.
+  - Before the step, a check raises if any .grad was replaced.
+- **Safety.**
+  - A guard raises if a body's backward does not follow its own forward, exactly once.
+  - All graphs share one memory pool. This is safe because each micro-batch's forward and backward finish before
+    the next forward.
+  - The first capture runs the body once eagerly on the capture stream, to set up the libraries.
+- **Clock and logging.** The captures count in the clock. The run prints `update_capture: {counters}` at its end.
+- **CPU path.** On CPU the same path runs eagerly with the same padding; the tests use it.
+- **CPU tests.**
+  - Over two updates, with and without shared prompts, the gradient and the replayed rows' nll match the eager
+    update's, and the bound gradients keep their storage.
+  - The guard refuses an out-of-order or repeated backward and a replaced .grad.
+  - The option is refused without update_host_index.
+- Full suite: 221 passed; ruff clean.
+
+**Expected effect and noise.** In r124's paired timing (r106's config on a B200) the update took 0.239 s median.
+- The body is 12 layers at 110M parameters, so its forward and backward are many small kernels per micro-batch.
+  Replaying them as graphs removes the launch gaps and the remaining host work between them.
+- Expected gain: about 0.05 s an update, in a range of 0.02 to 0.1.
+- Noise: r124's 49 pairs resolved a 0.006 s median gain at p 0.022, so a gain of 0.01 s or more should be clear.
+- Capture's error against fp32 should match the default's. Padding changes the summation order the way any
+  change of shape does. Replays of the same graphs should be bit-identical, up to the GPU's atomic adds.
+- Memory: the pool holds about one micro-batch's activations at the largest shape. On top of that there are two
+  output buffers of up to 415 MB each (fp32 hidden states at the token cap). The check reports the peak reserved
+  memory.
+
+**The check (r125).** `scripts/research/check_update_capture.py` runs on one normal B200. It uses r106's
+final_native_ctl config with max_steps 1,000,000, and D 007 seed 0's weights.
+- **Checked updates (2, 20 and 100).** Every arm runs with update_host_index on. Each update runs five times on the
+  same inputs, with an optimizer step that does nothing:
+  1. default;
+  2. default again;
+  3. capture (capturing new shapes);
+  4. capture again (replaying them);
+  5. an fp32 reference without autocast.
+- **Paired timing.** Updates 110 to 590, every 10, give 49 pairs of default and capture, alternating which runs
+  first.
+- **Profiles.** Then two profile arms (host_index and capture), each 600 updates plus 12 profiled.
+
+**Rule.**
+1. **Same maths up to rounding.** At every checked update:
+   - capture's gradient relative error to the fp32 reference is at most 1.25 x the default's + 1e-4;
+   - capture's largest relative error in the logged sums, and in the replayed rows' nll, is at most
+     max(2 x the default's, 1e-4).
+2. **Timing.** At least 30 pairs, a median of default minus capture of at least 0.01 s, and a one-sided sign test
+   with p < 0.01.
+
+**What follows.**
+- If both parts hold, new configs turn update_capture on (r102–r121's stay frozen), and own kernels come next where
+  a library kernel is the cost.
+- If the maths holds but the timing does not, the option stays in the code, off.
+
+**When.** It runs on the first normal B200 that frees. Both are busy now:
+- 30033104 holds r105's lr 24e-6 arm, seed 2;
+- 30054646 holds r116's seed 0.
