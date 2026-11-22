@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-21 22:54 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-21 23:25 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -63,7 +63,7 @@ The three CPU jobs for the data (29965651 on node3107, 29980655 on node3409, 299
 their start checks; a diagnostic (29982547) found that CPU nodes do not reach the pool, while home and scratch
 respond. On `screens_r92`: preemptable H200 29837214 ran r102 seed 2 on node4601 from 14:40 to 20:28 (dev 0.300, LOG
 11-21 20:52), and 30006765 runs r102 seed 1 on node4602 since 19:25 (29837213 restarted on node4301 at 18:20, found the venv
-unreadable and exited; LOG 11-21 19:57). On `gate_r120_h200`: preemptable H200 29995938 runs r120 seed 0 on node5000 since 18:38, and 30017487 (pending since 20:52) is for seed 1; seed 2 gets a worker when a preemptable slot frees. Held: 29497701/02/05 (B200
+unreadable and exited; LOG 11-21 19:57). On `gate_r120_h200`: preemptable H200 29995938 ran r120 seed 0 on node5000 from 18:38 until it was preempted at 23:19, about 3.9 h into the RL part (no resume state: RL screens are no_save); Slurm requeued it, and when it starts again the worker moves the partial run to `extra/` and reruns seed 0 from the start, so r120's seed 0 read moves about 6 h past that start, and 30017487 (pending since 20:52) is for seed 1; seed 2 gets a worker when a preemptable slot frees. Held: 29497701/02/05 (B200
 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). My jobs wait on age (298 an hour; LOG 11-19
 21:02 and 11-19 23:29); a requeue resets it. **Practice (11-20 04:34):** one pending worker for each queued long
 item, submitted when the item is queued, and never chained with `--dependency` (a job waiting on a dependency or a
