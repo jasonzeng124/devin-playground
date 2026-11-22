@@ -11992,3 +11992,41 @@ matched steps over three B200 pairs. Here one pair is large and one small.
   at 11:05 (30073610, 30073611), one per item. Both are pending.
 - r116 seed 1 on a normal B200 (30069082).
 - 4 GPUs.
+
+## 2026-11-22 16:28 EST: r120 seed 2 meets the line, so D 008's record attempt starts; r116 meets its rule (seed 2 and the control queued)
+
+Low-usage window (INBOX fee62d8), so this entry is short.
+
+**r120 seed 2** (`calibration/research_r120/d007_speed_lr12e-6_h200`, node4803): final dev 0.3217 at step 42,987,
+against r102 seed 2's 0.3000 (42,588): +0.0217 at the final, +0.0025 at matched train time (85 evals, ahead 45,
+behind 40), +0.0047 at matched steps. Mean of the last five evals 0.3200 / 0.3070. Clock 20,798 s of 21,600
+(pretraining 2,771 s).
+- **Rule (LOG 11-21 17:13):** seeds 0-2 are 0.3100, 0.3017 and 0.3217, all at 0.281 or more, so the three-seed form
+  is met (three-seed mean 0.3111). Over the three pairs r120 leads r102 at the final in two; on mean dev at matched time it is
+  ahead in all three, by +0.036, +0.014 and +0.003.
+- **D 008:** `records/v3/track_d/008_native_fused46_lr12e-6/config.json` is r120's config as written without
+  `no_save` (committed in 7fb0ef3 before any seed). Queue `record-008_native_fused46_lr12e-6`, seeds 0-4, through
+  run_item.sh's record branch (`STAGE=all scripts/run_seed_v3.sh`, 376 min a seed). Two preemptable H200 workers
+  (30099011, 30099012; 24 h limit, so each can take up to three seeds; mit_normal_gpu's 6 h limit is too short for
+  a record seed). Two more go in when r102 seeds 3 and 4 free their preemptable slots.
+
+**r116 seed 1** (`calibration/research_r116/d116rl_native_fmkw2_b200`, node5700-c1): final dev 0.3333 at step 43,175,
+against r101 seed 1's 0.2883 (44,862): +0.0450 at the final, +0.0285 at matched train time (ahead 75, behind 11),
++0.0345 at matched steps (ahead 77, behind 8). Last five evals 0.3380 / 0.2857. Steps per second 2.481 / 2.578.
+Completion length is unchanged: 24.4 tokens early and 26.4 late, against 25.1 and 25.5 for r101 seed 1.
+- **Rule (r116's entry):** seed 0 was +0.0367 and seed 1 is +0.0450 at the final (mean +0.0408), both +0.02 or more:
+  seed 2, and the B200 control pretraining on `mix_0.2.bin` for seeds 0-2.
+- **Control:** r84's `muon_1338m` already is that pretraining (the same settings as r116's arm, B200, mix_0.2.bin,
+  1,337,982,976 tokens), with weights for seeds 0-4 on the pool. So it is not run again; the new RL config
+  `calibration/research_r116/d116rl_native_r84ctl_b200` is r101's native control from those weights (6e21e76).
+  Scratch holds symlinks to them, since the workers use `CKPT_DIR` in scratch.
+- **Jobs:** `pre_r116` holds the arm's pretraining seed 2 and then its RL seed 2, for one normal B200 worker
+  (30099099, `RESERVE_MIN=305`, so it runs both if the pretraining takes 39 min as before).
+  `screens_rl_b200` holds control seeds 0-2 (30099100, one item per 6 h job).
+
+**FineMath download (INBOX 5b83148).** CPU job 30099150 (mit_normal) fetches FineMath-4plus shards 3-31 at r116's
+revision into scratch, with a manifest of sizes and md5 sums. Each shard is about 273 MB.
+
+**GPUs at this entry.** Running: r102 seeds 3 and 4 (preemptable H200), r116 arm (normal B200). Pending: two D 008
+workers (preemptable H200), the control (normal B200). Six in all, at the cap. The compile and MFU work of INBOX
+5b83148 starts after the window (11-25 18:00).
