@@ -11879,3 +11879,68 @@ over 500 steps of one seed, on one node.
 **Jobs (10:25).** 30071155 (preemptable H200, 50 min limit) runs both arms. The first submission, 30071118, started
 on node5100, where the pool venv hangs, and I cancelled it at 10:26; 30071155 has the H200 workers' exclude list. r116 seed 1 (30069082) and r120 seeds 0 to
 2 (three preemptable H200s) as at 10:21. 5 GPUs.
+
+## 2026-11-22 11:02 EST: r128 read, the sampler mask's CPU time is the largest item (104 ms a step); the next speed item is the native sampler's mask
+
+**Result.** 30071155 ran both arms on node4300 (10:27 to 10:38 EST, COMPLETED). D 007 seed 0's final weights, r106's
+config, capture with the fine steps, one H200.
+- fine_parts, medians over steps 100 to 599 (500 steps; one main and one sil micro-batch at the median):
+  - the step's wall time (differences of the train log's wall_s): 417.9 ms;
+  - sampling 173.0 ms: s_generate 151.4 with s_mask_cpu 104.1 inside it
+    (median share 0.69), s_reward 11.8, s_encode 5.7, s_decode 3.8;
+  - the update 188.7 ms: bwd 64.3, sil 53.8, fwd_body 34.9, setup
+    9.5, fwd_head 4.5, fwd_mask 3.5, opt 2.6, clip 0.9,
+    loss 0.4;
+  - between them: replay_batch 13.3, select 0.4, allowed 0.2, post 0.2;
+  - about 40 ms of the step is in no timed part (the step's median less the medians of sample + update, replay_batch,
+    select, allowed and post; medians don't add exactly).
+- fine_profile: the update's unprofiled wall time 174.5 ms median (172.0 ms over
+  updates 400 to 599), device busy 158.5 ms (fraction 0.895). The two graph ops: 147.0 ms an
+  update (93.2 backward, 53.9 forward), 0.93 of the busy time. Outside them: 11 to 21 ms an
+  update (busy time less the graphs, or half the table's total less the graphs).
+- The op table counts each kernel under its own name and under the op that launched it: its total, 335 ms an
+  update, is about twice the busy time. So its kernel rows include the graphs' own kernels. The top elementwise rows
+  (13.4, 13.4, 10.3 ms an update, with 1050, 870, 1532 calls an update against
+  2.3 graph replays) are probably inside the graphs. My guess is that r125's rows,
+  which the 10:26 entry read as eager kernels, were mostly the graphs' kernels too.
+- The attention kernels (cuDNN flash forward and backward): 4.1 + 7.4 = 11.4 ms an update, inside the graphs or not.
+
+**Rule.**
+- (a) the head's forward (median of fwd_mask + fwd_head): 7.9 ms;
+- (b) s_mask_cpu: 104.1 ms;
+- (c) replay_batch: 13.3 ms;
+- (d) attention: at most 11.4 ms.
+
+(b) is the largest, at least 10 ms, and more than 20 % above the next ((c)). **So the next speed item is (b), the
+sampler mask's CPU time.**
+
+**Against the guesses.**
+- Inside the ranges: the update 0.175 s (0.17 to 0.20); busy fraction
+  0.895 (0.85 to 0.95); (c) 13.3 (10 to 15).
+- Outside them:
+  - the graphs' share is 0.93 of the busy time against 55 to 70 %, probably because the elementwise kernels are inside them;
+  - (a) 7.9 (guess 10 to 20);
+  - (b) 104.1 (guess 50 to 90), with s_generate 151.4 (guess 100 to 150);
+  - (d) 11.4 (guess 15 to 30).
+- s_generate less s_mask_cpu is 47.4 ms (median), so most of s_generate is the mask's CPU time.
+
+**Also seen (not a candidate here).** sil, one micro-batch of 64 replayed rows, takes 53.8 ms. That is
+0.54 of the main batch's fwd_body + bwd (99.2 ms for 512 rows). A guess why: replayed rows don't share
+prompts, while the main batch runs one prompt pass for each prompt's 8 completions. So each replayed row carries its
+whole prompt. This is a later item.
+
+**Next.** (b) In the native sampler (`rlvr_speedrun/fast_rollout.py`), each token step does three things in order:
+- runs the answer grammar for every active row in Python (`RequestConstraint.allowed_ids`);
+- masks the logits (`mask_rows_cached`);
+- samples and calls `.tolist()`, which waits for the GPU.
+
+The GPU waits while the CPU builds the mask. The next entry gives the change, how I'll check it and its rule before
+anything runs. A change that gives exactly the same masks needs no loss comparison.
+
+**Files.** Both arms' profile.json; fine_parts' run/config.json and run/train_log.jsonl. The stdout.logs are
+gitignored.
+
+**Jobs (11:02).**
+- r116 seed 1 on a normal B200 (30069082).
+- r120 seeds 0 to 2 on three preemptable H200s (30017487, 29995938, 30051396).
+- 4 GPUs.
