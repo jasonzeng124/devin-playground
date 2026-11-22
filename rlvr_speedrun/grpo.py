@@ -56,6 +56,12 @@ class GRPOConfig:
     # up to rounding, and the captures count in the clock. Needs update_host_index and micro_batch_tokens; not with
     # grad_checkpoint or compile_update (LOG r125)
     update_capture: bool = False
+    # update_capture's buckets: width a multiple of update_capture_width_step, rows a multiple of
+    # update_capture_row_step (0: steps of 8 up to 64 rows, 16 up to 128, 32 up to 256, then 64) and shared-prompt
+    # groups a multiple of update_capture_group_step; finer steps pad less and capture more shapes (LOG r127)
+    update_capture_width_step: int = 64
+    update_capture_row_step: int = 0
+    update_capture_group_step: int = 8
     pad_to_multiple: int = 0
     cache_len: int = 0
     rollout_backend: str = "hf"  # "hf" (model.generate), "vllm" (colocated engine; rlvr_speedrun/vllm_rollout.py) or "native" (fast_rollout.py, Llama only)
@@ -917,9 +923,11 @@ def _mismatch_stats(sums: torch.Tensor, dist: Dist, tis_cap: float) -> dict:
     return stats
 
 
-def _capture_rows(rows: int) -> int:
-    """update_capture's row bucket: steps of 8 up to 64 rows, 16 up to 128, 32 up to 256, then 64."""
-    step = 8 if rows <= 64 else 16 if rows <= 128 else 32 if rows <= 256 else 64
+def _capture_rows(rows: int, step: int = 0) -> int:
+    """update_capture's row bucket: a multiple of `step`, or for step 0 steps of 8 up to 64 rows, 16 up to 128, 32 up
+    to 256, then 64."""
+    if step <= 0:
+        step = 8 if rows <= 64 else 16 if rows <= 128 else 32 if rows <= 256 else 64
     return -(-rows // step) * step
 
 
@@ -950,8 +958,8 @@ class _GraphedBody(torch.autograd.Function):
 class _UpdateCapture:
     """update_capture (LOG r125): the update's model body (`_hidden`, everything before the vocabulary projection)
     runs as CUDA graphs, one forward and one backward graph per bucketed shape (`_capture_rows` rows, width a
-    multiple of 64, shared-prompt groups a multiple of 8), captured the first time the shape comes and replayed
-    after; the same maths up to rounding, and the captures count in the clock.
+    multiple of 64, shared-prompt groups a multiple of 8, by default; LOG r127 adds finer steps), captured the first
+    time the shape comes and replayed after; the same maths up to rounding, and the captures count in the clock.
 
     Padded rows copy row 0 (padded groups copy group 0) and padded columns are id 0 / mask 0 at the end, so under
     causal attention the real rows' columns are unchanged; the caller gets the real [rows, width - 1 - start] slice,
@@ -960,8 +968,10 @@ class _UpdateCapture:
     into fixed addresses. A body's backward must follow its own forward, once (each micro-batch's backward comes
     before the next forward); otherwise it raises. On CPU the same path runs eagerly, which the tests use."""
 
-    def __init__(self, model, device: torch.device, micro_batch_tokens: int):
+    def __init__(self, model, device: torch.device, micro_batch_tokens: int, width_step: int = 64, row_step: int = 0,
+                 group_step: int = 8):
         self.device, self.cuda = device, device.type == "cuda"
+        self.width_step, self.row_step, self.group_step = width_step, row_step, group_step
         self.params = [p for p in model.parameters() if p.requires_grad]
         self.grads = [torch.zeros_like(p) for p in self.params]
         self.ptrs = [p.data_ptr() for p in self.params]
@@ -1006,8 +1016,8 @@ class _UpdateCapture:
             kind, plen = "prefix", prefix_len
         else:
             kind, plen = "plain", 0
-        rows, width = _capture_rows(R), -(-W // 64) * 64
-        groups = 0 if first is None else -(-first.numel() // 8) * 8
+        rows, width = _capture_rows(R, self.row_step), -(-W // self.width_step) * self.width_step
+        groups = 0 if first is None else -(-first.numel() // self.group_step) * self.group_step
         dev = input_ids.device.type
         key = (kind, plen, start, rows, width, groups, torch.is_autocast_enabled(dev), torch.get_autocast_dtype(dev))
         e = self.entries.get(key)
@@ -1186,7 +1196,8 @@ def _update(
     if config.update_capture:
         capture = _CAPTURES.get(model)
         if capture is None:
-            capture = _CAPTURES[model] = _UpdateCapture(model, device, config.micro_batch_tokens)
+            capture = _CAPTURES[model] = _UpdateCapture(model, device, config.micro_batch_tokens, config.update_capture_width_step,
+                                                        config.update_capture_row_step, config.update_capture_group_step)
         capture.bind_grads()
     else:
         optimizer.zero_grad(set_to_none=True)
@@ -1822,6 +1833,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         _compile_layers(model)
     if config.update_capture and (not config.update_host_index or config.micro_batch_tokens <= 0 or config.grad_checkpoint or config.compile_update):
         raise ValueError("update_capture needs update_host_index and micro_batch_tokens > 0, and no grad_checkpoint or compile_update")
+    if config.update_capture_width_step < 1 or config.update_capture_row_step < 0 or config.update_capture_group_step < 1:
+        raise ValueError("update_capture's steps: width_step and group_step at least 1, row_step at least 0")
     ref_model = None
     if config.kl_coef != 0:
         ref_name = config.ref_model or config.model

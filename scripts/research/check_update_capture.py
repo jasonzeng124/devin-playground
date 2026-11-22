@@ -1,7 +1,7 @@
 """Check for update_capture (LOG r125): the update's model body as CUDA graphs vs the eager update.
 
     python scripts/research/check_update_capture.py --config <dir>/config.json --model <weights> --out check.json \
-        [--at 2,20,100] [--time 100:600:10] [--seed 0] [--set key=json ...]
+        [--at 2,20,100] [--time 100:600:10] [--warm] [--seed 0] [--set key=json ...]
 
 It runs grpo.run with the config's settings (no saving, no evals) and wraps grpo._update, as
 scripts/research/check_update_host_index.py does. Every arm here runs with update_host_index on, which update_capture
@@ -17,6 +17,10 @@ With --time start:stop:step it also times default and capture in pairs on the sa
 checked ones), the first of the pair alternating. Timing rule (LOG r125): at least 30 pairs, the median of default
 minus capture at least 0.01 s, and capture faster in enough pairs for a one-sided sign test p < 0.01. The captures
 count in capture's times. It also reports the capture counters and the peak reserved memory.
+With --warm (LOG r127) each timed pair is preceded by one untimed run of each arm on the same inputs, so the timed
+capture replays shapes already captured (a real run captures each bucket once in tens of thousands of updates); each
+timed row records the capture arm's new captures and its micro-batches' shapes [prefix_len, start, rows, width,
+groups], and the summary the pairs' gains without a capture in them.
 """
 
 from __future__ import annotations
@@ -94,6 +98,7 @@ def main() -> None:
     parser.add_argument("--out", required=True, help="JSON results")
     parser.add_argument("--at", default="2,20,100", help="the updates (0-based) to check")
     parser.add_argument("--time", default="", help="start:stop:step, the updates (0-based) timed in pairs")
+    parser.add_argument("--warm", action="store_true", help="run each arm once untimed before each timed pair")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--set", action="append", default=[], metavar="KEY=JSON")
     args = parser.parse_args()
@@ -108,19 +113,31 @@ def main() -> None:
     seen = [0]
     checks: list[dict] = []
     timing: list[dict] = []
+    shapes: list = []  # the micro-batches given to the capture in the current arm
+    original_call = grpo._UpdateCapture.__call__
+
+    def call(self, model, input_ids, attention_mask, start, prefix_len, share, index):
+        groups = index.groups[0].numel() if share and index is not None and index.groups is not None else 0
+        shapes.append([int(prefix_len), int(start), *input_ids.shape, groups])
+        return original_call(self, model, input_ids, attention_mask, start, prefix_len, share, index)
+
+    def captured() -> int:
+        return sum(c.stats["captures"] for c in grpo._CAPTURES.values())
 
     def once(a, on: bool, grads: bool = True, fp32: bool = False) -> dict:
         a = list(a)
         a[7] = dataclasses.replace(a[7], update_host_index=True, update_capture=on, master_fp32=a[7].master_fp32 and not fp32)  # config
         a[8] = _NoStep(a[8])  # optimizer
         replayed = a[13] if len(a) > 13 else None
+        shapes.clear()
+        before = captured()
         torch.cuda.synchronize()
         t0 = time.perf_counter()
         sums = original(*a)
         torch.cuda.synchronize()
         wall = time.perf_counter() - t0
         if not grads:
-            return {"wall_s": wall}
+            return {"wall_s": wall, "new_captures": captured() - before, "shapes": list(shapes)}
         model = a[0]
         grad = torch.cat([p.grad.detach().float().flatten() for p in model.parameters() if p.grad is not None])
         return {"grad": grad, "sums": _floats(sums), "nll": None if replayed is None else float(replayed.nll), "wall_s": wall}
@@ -147,17 +164,22 @@ def main() -> None:
             print(json.dumps(row), flush=True)
         elif i in timed:
             first_on = len(timing) % 2 == 1
-            walls = {}
+            if args.warm:
+                for on in (first_on, not first_on):
+                    once(a, on, grads=False)
+            runs = {}
             for on in (first_on, not first_on):
-                walls[on] = once(a, on, grads=False)["wall_s"]
-            timing.append({"update": i, "first": "capture" if first_on else "default", "default_s": walls[False],
-                           "capture_s": walls[True]})
+                runs[on] = once(a, on, grads=False)
+            timing.append({"update": i, "first": "capture" if first_on else "default", "default_s": runs[False]["wall_s"],
+                           "capture_s": runs[True]["wall_s"], "new_captures": runs[True]["new_captures"],
+                           "shapes": runs[True]["shapes"]})
         out = original(*a)
         if i == last:
             raise _Done
         return out
 
     grpo._update = wrapped
+    grpo._UpdateCapture.__call__ = call
     dist, device = grpo.init_from_env(config.device)
     config.device = device
     captures = {}
@@ -168,6 +190,7 @@ def main() -> None:
         captures = {str(i): dict(c.stats) for i, c in enumerate(grpo._CAPTURES.values())}
     finally:
         grpo._update = original
+        grpo._UpdateCapture.__call__ = original_call
         grpo.destroy()
 
     def met(c: dict) -> bool:
@@ -185,11 +208,16 @@ def main() -> None:
                       "default_median_s": statistics.median(t["default_s"] for t in timing) if n else None,
                       "capture_median_s": statistics.median(t["capture_s"] for t in timing) if n else None}
     timing_summary["timing_rule_met"] = n >= 30 and timing_summary["median_gain_s"] >= 0.01 and sign_p < 0.01
+    clean = [t["default_s"] - t["capture_s"] for t in timing if t["new_captures"] == 0]
+    timing_summary.update(timed_captures=sum(t["new_captures"] for t in timing), pairs_without_capture=len(clean),
+                          median_gain_without_capture_s=statistics.median(clean) if clean else None,
+                          faster_without_capture=sum(g > 0 for g in clean),
+                          distinct_shapes=len({tuple(x) for t in timing for x in t["shapes"]}))
     result = {"config": args.config, "model": args.model, "gpu": torch.cuda.get_device_name(), "torch": torch.__version__,
               "at": at, "sets": args.set, "checks": checks, "rule_met": rule,
               "replays_identical": all(c["capture_again_vs_capture"]["grad_identical"] for c in checks),
               "captures": captures, "max_memory_reserved_gb": torch.cuda.max_memory_reserved() / 2**30,
-              "time": args.time, "timing_summary": timing_summary, "timing": timing}
+              "time": args.time, "warm": args.warm, "timing_summary": timing_summary, "timing": timing}
     print(json.dumps({"rule_met": rule, "replays_identical": result["replays_identical"], "captures": captures,
                       "max_memory_reserved_gb": result["max_memory_reserved_gb"], **timing_summary}), flush=True)
     with open(args.out, "w") as f:

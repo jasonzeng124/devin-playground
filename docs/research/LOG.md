@@ -11647,3 +11647,56 @@ padding 0.196. Their groups were 2,168 and the buckets' 2,488: 0.129. The guess 
 **Jobs (11-22 09:37).** 30054646 (normal B200, r116 seed 0) has run since 04:50; 29999306 (preemptable B200, r116 seed
 1) is pending; three preemptable H200s run r120 seeds 0 to 2. 5 GPUs. When r116 seed 0 ends, U25's two-GPU check
 takes both normal B200s (6 GPUs), and r127's H200 check goes in after it.
+
+
+## 2026-11-22 09:44 EST: r127, capture with finer buckets, timed with warm pairs on an H200; its rule is written first
+
+**What changes.** Three new options, off by default (their defaults are the buckets r125 and r126 used):
+- `update_capture_width_step` (64): the width is padded to a multiple of it;
+- `update_capture_row_step` (0): rows are padded to a multiple of it; 0 keeps the tiered steps (8 up to 64 rows,
+  16 up to 128, 32 up to 256, then 64);
+- `update_capture_group_step` (8): shared-prompt groups are padded to a multiple of it.
+
+The check gets `--warm`: before each timed pair, each arm runs once, untimed, on the same inputs. So the timed
+capture arm replays shapes that are already captured. Each timed row now also records the capture arm's new
+captures and its micro-batches' shapes.
+
+**Why warm pairs.** In r126 the capture arm captured each new shape inside the update that first met it. Timed
+updates may have been among them; the check did not record which. A real run captures a shape once. B200 gate
+screens made 21,695 to 63,559 updates each (r113, r115 and r117 result.json total_steps). The captures
+still count in a run's clock, so the entry reports their number and seconds beside the gain. At most 128 shapes are
+captured (`_MAX_GRAPHS`); at r126's 0.2 s each, that is at most about 26 s per run. A median gain of 0.01 s over
+21,000 updates is 210 s.
+
+**Arms.** One preemptable H200 job runs both, in this order:
+1. **fine:** width step 16, row step 8, group step 8, warm pairs.
+2. **coarse:** the default buckets, warm pairs. This is r126 again with warm pairs. It shows how much of r126's
+   loss came from captures inside timed updates.
+
+Everything else is as in r125 and r126:
+- the r106 `final_native_ctl` config with max_steps raised, and the r93 seed 0 weights;
+- checked updates 2, 20 and 100;
+- timed updates 100 to 590, every 10th.
+
+**Expected effect (guesses).**
+- Fine padding: about 0.05 of the bucket tokens (r126: 0.196).
+- Fine shapes: 30 to 80 (r126: 14).
+- r126's updates under 0.2 s lost 0.025 s each. If most of that is padding, finer buckets win back about half of
+  it. So I expect fine to be near even on the H200 and to miss the timing rule. I expect coarse with warm pairs to
+  stay below even too.
+
+**Noise.** r126's 49 paired gains had median -0.022 s, quartiles -0.026 s and 0.009 s, and SD 0.055 s.
+
+**Rule.**
+1. **Maths.** r125's rule must hold at every checked update, in each arm.
+2. **Fine wins.** If fine meets r125's timing rule with warm pairs (at least 30 pairs, median gain at least 0.01 s,
+   sign test p < 0.01) and has no fallbacks, new H200 gate and record configs turn update_capture on with the fine
+   steps.
+3. **Only coarse wins.** If only coarse meets it, they turn it on with the default buckets.
+4. **Both win.** The arm with the larger median gain is used.
+5. **Neither wins.** Capture stays off on the H200, and the elementwise and copy kernels are next.
+
+The pairs without a new capture are reported in every case.
+
+**Jobs (2026-11-22 09:44).** 5 GPUs are in use, so r127 takes the 6th now, ahead of U25's two-GPU check, which was to come
+first (LOG 11-22 09:37). U25 starts when r116 seed 0 (30054646) has ended and r127 is done, keeping 6 at most.

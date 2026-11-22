@@ -571,11 +571,9 @@ def test_update_host_index_gives_the_same_update(extra):
     assert nll_off == nll_on and nll_on > 0
 
 
-@pytest.mark.parametrize("share", [False, True])
-def test_update_capture_gives_the_same_update(share):
-    """update_capture (LOG r125) on CPU runs its eager stand-in with the same padded shapes, bound .grad tensors and
-    serial guard; over two updates the gradient and the replayed rows' nll match the eager update's, and the bound
-    gradients keep their storage."""
+def _capture_runs(share: bool, **steps):
+    """Two updates eager and two with update_capture (its bucket steps from `steps`) on the same tiny batch: per run
+    and update the gradients, the replayed rows' nll and the .grad storage; and the capture's stats."""
     torch.manual_seed(7)
     prompt_width, group = 5, 4
     prompts = torch.randint(2, 40, (2, prompt_width)).repeat_interleave(group, 0)
@@ -591,7 +589,7 @@ def test_update_capture_gives_the_same_update(share):
     for on in (False, True):
         model = copy.deepcopy(base)
         config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, sil_coef=0.5, micro_batch_tokens=30, skip_zero_advantage=True,
-                            share_group_prompt=share, update_host_index=True, update_capture=on)
+                            share_group_prompt=share, update_host_index=True, update_capture=on, **steps)
         optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
         updates = []
         for _ in range(2):
@@ -600,14 +598,38 @@ def test_update_capture_gives_the_same_update(share):
                          None, None, replayed)
             updates.append(([p.grad.clone() for p in model.parameters()], replayed.nll, [p.grad.data_ptr() for p in model.parameters()]))
         runs.append(updates)
+    return runs, dict(grpo._CAPTURES[model].stats)
+
+
+def _same_updates(runs) -> None:
     for (grads_off, nll_off, _), (grads_on, nll_on, _) in zip(*runs):
         assert all(torch.allclose(a, b, rtol=1e-5, atol=1e-6) for a, b in zip(grads_off, grads_on))
         assert any(g.abs().max() > 0 for g in grads_on)
         assert nll_on == pytest.approx(nll_off, rel=1e-5) and nll_on > 0
+
+
+@pytest.mark.parametrize("share", [False, True])
+def test_update_capture_gives_the_same_update(share):
+    """update_capture (LOG r125) on CPU runs its eager stand-in with the same padded shapes, bound .grad tensors and
+    serial guard; over two updates the gradient and the replayed rows' nll match the eager update's, and the bound
+    gradients keep their storage."""
+    runs, stats = _capture_runs(share)
+    _same_updates(runs)
     assert runs[1][0][2] == runs[1][1][2]
-    stats = grpo._CAPTURES[model].stats
     assert stats["fallbacks"] == 0 and stats["keys"] >= 2 and stats["replays"] >= 4 and stats["resets"] == 0
     assert 0 < stats["real_tokens"] <= stats["bucket_tokens"] and stats["real_groups"] <= stats["bucket_groups"]
+
+
+@pytest.mark.parametrize("share", [False, True])
+def test_update_capture_finer_buckets_give_the_same_update_with_less_padding(share):
+    """update_capture's bucket steps (LOG r127): widths in steps of 16, rows of 8 and groups of 1 give the eager
+    update's gradient and nll, and pad less than the default buckets (the tiny batch is narrower than 64)."""
+    _, coarse = _capture_runs(share)
+    runs, fine = _capture_runs(share, update_capture_width_step=16, update_capture_row_step=8, update_capture_group_step=1)
+    _same_updates(runs)
+    assert fine["fallbacks"] == 0 and fine["real_tokens"] == coarse["real_tokens"] and fine["bucket_tokens"] < coarse["bucket_tokens"]
+    assert fine["real_groups"] == fine["bucket_groups"] == coarse["real_groups"]
+    assert grpo._capture_rows(65) == 80 and grpo._capture_rows(65, 8) == 72 and grpo._capture_rows(64, 8) == 64
 
 
 def test_update_capture_refuses_a_backward_out_of_order():
@@ -637,6 +659,9 @@ def test_update_capture_needs_update_host_index(monkeypatch, tmp_path):
     _patch_tiny_training(monkeypatch, tmp_path)
     config = GRPOConfig(model="tiny", micro_batch_tokens=30, update_capture=True, out_dir=str(tmp_path / "run"))
     with pytest.raises(ValueError, match="update_capture needs"):
+        run(config)
+    config = GRPOConfig(model="tiny", update_capture_width_step=0, out_dir=str(tmp_path / "run2"))
+    with pytest.raises(ValueError, match="update_capture's steps"):
         run(config)
 
 
