@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-22 00:25 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-22 01:14 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -62,8 +62,8 @@ ran 20 updates at the start, while a real run's late update takes 0.17 to 0.20 s
 The three CPU jobs for the data (29965651 on node3107, 29980655 on node3409, 29981583 on node2702) hung or failed
 their start checks; a diagnostic (29982547) found that CPU nodes do not reach the pool, while home and scratch
 respond. On `screens_r92`: preemptable H200 29837214 ran r102 seed 2 on node4601 from 14:40 to 20:28 (dev 0.300, LOG
-11-21 20:52), and 30006765 runs r102 seed 1 on node4602 since 19:25 (29837213 restarted on node4301 at 18:20, found the venv
-unreadable and exited; LOG 11-21 19:57). On `gate_r120_h200`: preemptable H200 29995938 ran r120 seed 0 on node5000 from 18:38 until it was preempted at 23:19, about 3.9 h into the RL part (no resume state: RL screens are no_save); Slurm requeued it, and when it starts again the worker moves the partial run to `extra/` and reruns seed 0 from the start, so r120's seed 0 read moves about 6 h past that start, and 30017487 (pending since 20:52) is for seed 1; seed 2 gets a worker when a preemptable slot frees. Held: 29497701/02/05 (B200
+11-21 20:52), and 30006765 ran r102 seed 1 on node4602 from 19:25 to 01:12 (dev 0.310; three-seed mean 0.293, LOG 11-22 01:14; 29837213 restarted on node4301 at 18:20, found the venv
+unreadable and exited; LOG 11-21 19:57). On `gate_r120_h200`: preemptable H200 29995938 ran r120 seed 0 on node5000 from 18:38 until it was preempted at 23:19, about 3.9 h into the RL part (no resume state: RL screens are no_save); Slurm requeued it, and when it starts again the worker moves the partial run to `extra/` and reruns seed 0 from the start, so r120's seed 0 read moves about 6 h past that start, and 30017487 (pending since 20:52) is for seed 1; seed 2 and r102's seeds 3 and 4 (queued at 01:14) get workers as slots free. Preemptable B200 30039308 (submitted 01:14) runs r124: update_host_index's check with paired timing, then two profiles (rule LOG 11-22 00:25). Held: 29497701/02/05 (B200
 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). My jobs wait on age (298 an hour; LOG 11-19
 21:02 and 11-19 23:29); a requeue resets it. **Practice (11-20 04:34):** one pending worker for each queued long
 item, submitted when the item is queued, and never chained with `--dependency` (a job waiting on a dependency or a
@@ -83,9 +83,9 @@ these: timed in r106, same maths, no speed at trained weights.
 
 RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
 **Next decisions:** workers go back to the pool only after a write probe there passes (QUESTIONS 11-20 18:42);
-r102 seed 1 (preemptable H200, due about 01:15 on 11-22; seed 0 ended at 0.270, seed 2 at 0.300): the three-seed
-form can't be met; a three-seed mean of 0.281 or more (seed 1 at 0.273 or more) queues r102's seeds 3 and 4 for the
-five-seed form after r120's seeds (rule in LOG 11-21 20:52); r120 (r102's H200 gate with lr 1.2e-5, after r105
+r102's seeds 3 and 4 (queued on `gate_r120_h200` after r120's seeds 1 and 2; seeds 0-2 ended at 0.270, 0.310 and
+0.300, mean 0.293, LOG 11-22 01:14) for the five-seed form: mean at least 0.281, four of five above 0.251, at most one
+collapsed (LOG 11-21 20:52); r124's check and timing (30039308) against the rule in LOG 11-22 00:25; r120 (r102's H200 gate with lr 1.2e-5, after r105
 met its rule) seeds 0-2 against the rule written first in LOG 11-21 17:13 (all three at 0.281 or more: a
 five-seed record attempt; a mean of 0.276 or more: seeds 3 and 4), paired with r102's seeds; lr
 24e-6 seed 2 (seed 1 was +0.031 at matched steps; seed 2 needs about +0.012 for the three-pair rule, LOG 11-21 17:59); U25's

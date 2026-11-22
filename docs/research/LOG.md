@@ -11145,3 +11145,35 @@ import the new `grpo.py` run the same path as before. Full suite: 210 passed.
 **When it runs.** All six GPU slots are in use or pending. r124's job (one B200) takes the first slot it can:
 - the one r102 seed 1 frees about 01:15, unless r102's rule needs that slot;
 - otherwise the normal slot U25's 3x rung frees about 03:40.
+
+## 2026-11-22 01:14 EST: r102 seed 1 ends at 0.310 on dev, so r102's three-seed mean is 0.293 and its seeds 3 and 4 are queued; r124 submitted
+
+**r102 seed 1's final** (preemptable H200 30006765, node4602, 19:25 to 01:12):
+- Dev 0.310 after 43,073 steps: 18,045 s of GRPO at 2.387 steps a second, after 2,771 s of pretraining.
+- 20,788 s of the 21,600 s budget.
+- The last five evals average 0.301, and the best is 0.310.
+- As for seeds 0 and 2, the worker log's "FAILED" comes from the runner's last `mv`. It looks for a `final/` folder,
+  which a `no_save` screen does not write. The results are complete.
+
+| seed | dev | steps | steps a second | last five evals | best |
+|---|---|---|---|---|---|
+| 0 | 0.270 | 38,914 | 2.156 | 0.272 | 0.282 |
+| 1 | 0.310 | 43,073 | 2.387 | 0.301 | 0.310 |
+| 2 | 0.300 | 42,588 | 2.360 | 0.307 | 0.322 |
+| mean | 0.293 | | | | |
+
+The seed with the slowest node (seed 0, node4802) is again the lowest.
+
+**r102's rule (LOG 11-21 20:52) is met.** The three-seed mean is 0.293, so it is at least 0.281.
+- r102's seeds 3 and 4 joined `gate_r120_h200` at 01:14, after r120's seeds 1 and 2.
+- They are for the five-seed form on r102: mean at least 0.281, four of five above D 007's 0.251, and at most one
+  collapsed. All three seeds so far are above 0.251.
+- If r120 also reaches its form, the record attempt uses r120's config, as that rule says.
+
+**Workers.** The gate queue now holds four items: r120's seeds 1 and 2, and r102's seeds 3 and 4.
+- One worker is pending for it (30017487), besides the requeued r120 seed 0 (29995938).
+- The six-GPU cap holds back the other items' workers. They are submitted as slots free.
+
+**r124 submitted** into the freed slot as preemptable B200 30039308.
+- Both normal slots are in use: U25's 3x rung runs, and 30033104 waits.
+- Its rule is the 00:25 entry. If it is preempted, it reruns from the start.
