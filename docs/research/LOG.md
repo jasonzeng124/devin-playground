@@ -11041,9 +11041,13 @@ tokens.
   - 11 graphs, with no new graph on a narrower, shorter second batch.
   - 5 graph breaks.
 
-**r123's timing.** Against r122 on the same kernel, the compiled late median is 0.023 s lower (PyTorch's choice)
-and 0.010 s lower (efficient). Both are under the 0.03 s bar, and both are within the noise above. Over all 600
-updates, compiling gains nothing: 141.9 s against 142.6 s, and 142.3 s against 119.2 s, because compilation adds
+**r123's timing.** Correction (00:02): the compiled "efficient" arm did not use the efficient kernel. Its profile
+shows cuDNN attention (72 forward and 68 backward calls per update), as the other compiled arm and r122's
+PyTorch's-choice arm do. The kernel choice made around the update did not reach the compiled layers, so both
+compiled arms ran the same configuration. Their gap (0.005 s late median, 0.4 s over 600 updates) measures
+run-to-run noise. Against r122's cuDNN arm, the compiled late medians are 0.023 and 0.018 s lower. Both are under
+the 0.03 s bar. Over all 600
+updates, compiling gains nothing: 141.9 s against 142.6 s, and 142.3 s against the efficient kernel's 119.2 s, because compilation adds
 10 to 20 s in the first 50 updates. **Compiling the layers is closed. compile_update stays off by default and no
 seed runs with it.** The code stays as an option, and its test and check script stay too.
 
