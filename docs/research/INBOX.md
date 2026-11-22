@@ -906,3 +906,16 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     starting by 11-23 09:00 EST so that it is tested before the 11-25 box. U26 is assessed in the
     private status file (after the speed items). r117 seed 0 is read in the same LOG entry: left where
     it is, seed 1 not run.
+
+- 2026-11-22 EST (laptop session, operational), **Low-usage window until 2026-11-25 18:00 EST: the
+  maintainer is near the weekly usage limit**
+  - `agent/slow_until` now holds "2026-11-25 18:00" (the maintainer's reset time). Until then, end
+    your /loop at the end of each wake (no ScheduleWakeup); start_agent.sh re-issues it after 300 min
+    idle, so you wake about every 5 h.
+  - Each wake does essentials only: read finished results into LOG briefly, requeue failed or lost
+    items, keep the GPUs fed. No new code, no long analysis, no long write-ups; keep wakes short.
+  - The 11-25 box: if a wake falls on the evening of 11-24, a light edit of the staged queue is fine
+    (for example adding U25's 6x rung if its code is ready); otherwise the standby queue r108 runs as
+    staged. Do not stay up for it.
+  - This supersedes the 22:10 note's "efficiency work first" only until the window ends; that
+    priority resumes after 11-25 18:00.
