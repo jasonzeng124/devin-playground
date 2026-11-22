@@ -11177,3 +11177,65 @@ The seed with the slowest node (seed 0, node4802) is again the lowest.
 **r124 submitted** into the freed slot as preemptable B200 30039308.
 - Both normal slots are in use: U25's 3x rung runs, and 30033104 waits.
 - Its rule is the 00:25 entry. If it is preempted, it reruns from the start.
+
+## 2026-11-22 03:52 EST: U25's 3x rung says no (no working on set B by eye; chain rate 0.05, step accuracy 0.44), so the search goes up to 6x on the 11-25 box; r124 moved to a normal B200 (30051395), and a second r120 gate worker (30051396)
+
+**The 3x pretraining** (`calibration/research_r121/u25_3x_twophase`, 1024 x 24, 331.7M parameters; normal B200 job
+30010825 on node5501-c1) ran from 21:59 to 03:30 and stopped on its 330-minute clock. The probe ended at 03:32, rc 0.
+- Step 10,209 and 5,352,456,192 tokens: 16.1 a parameter, at 270,323 tokens a second. That is more than the smoke
+  run's projection (4.8B) and less than the 6.6B (20 a parameter) of the full form.
+- 6NT a second is 5.38e14, an MFU of 0.24 against the B200's dense bf16 peak of 2.25e15.
+- The lr ended at 4.04e-4, the schedule's floor (0.1 of the 4e-3 peak), as designed.
+- Final val loss 2.644. The val slice is the first 2M tokens of `mix_0.2.bin`, the same as D 007's base, whose five
+  seeds ended at 2.864 to 2.903.
+
+**The probe**, the same settings as the 1x reference (LOG 11-21 19:57). Output: `probe/probe.json` and
+`probe/samples.md` in the run's seed directory (committed; `completions.jsonl` is not, as for 1x).
+
+| set | rung | steps a sample | step accuracy | grounded chains | solved | well-formed | loops | median tokens |
+|---|---|---|---|---|---|---|---|---|
+| A, track D's r1 prompt | 1x | 0.00 | none | 0.00 | 0.00 | 0.00 | 0.91 | 184.5 |
+| A | 3x | 0.76 | 0.49 | 0.02 | 0.00 | 0.01 | 0.11 | 256 |
+| B, the trial-and-error few-shot prompt | 1x | 0.00 | none | 0.00 | 0.00 | 0.00 | 0.67 | 143 |
+| B | 3x | 4.84 | 0.44 | 0.05 | 0.00 | 0.17 | 0.07 | 171 |
+| C, GSM8K with worked examples | 1x | 0.44 | 0.00 | 0.00 | 0.03 | 0.58 | 0.56 | 255 |
+| C | 3x | 1.49 | 0.75 | 0.10 | 0.01 | 0.68 | 0.10 | 55.5 |
+
+**Read by eye** (the 20 samples of each set beside 1x's):
+- **Set B:** none of the 20 is working. Every sample copies the examples' sentence form ("The sum is ...", "Try
+  ...", "That works") but fills it with numbers that are not the puzzle's, wrong sums and false claims.
+  - The closest is B9 (numbers 8, 17, 20, 14, target 19). It writes 20 - 14 = 6 and 6 * 8 = 48, both right and
+    from the puzzle's numbers, then says "That works" for 48.
+  - B19 writes the sum of 7, 20, 18 and 6 as 40 (it is 51). B1 drifts into forum-page text.
+- **Set A:** mostly web text after the `<think>` tag; A1 is a comment thread.
+- **Set C:** mostly one short, wrong number (C1 to C4), so well-formed is 0.68 while only 1 of 100 is solved.
+
+**Verdict: no, not partial.** Against the test fixed in LOG 11-21 17:59, set B has 0 of 20 by eye (yes needs 10,
+partial 5), a chain rate of 0.05 (partial needs 0.10 over 1x's 0.00; yes needs 0.5) and step accuracy of 0.44 (yes
+needs 0.7). It also falls short of the expected "partial, chain rate 0.3 to 0.5" written before the run. What 3x has
+gained over 1x is format: well-formed answers on B (0.17 against 0.00), far fewer loops (0.07 against 0.67 on B,
+0.11 against 0.91 on A), and arithmetic in the GSM8K examples' form (step accuracy 0.75 on C, against 0.00).
+
+**Next: 6x on the 11-25 box**, as the search rule says (no at 3x goes up).
+- 6x is 1280 x 32, 668M parameters. At 3x's MFU (0.24) on eight H100s (dense bf16 peak 0.989e15 each) with perfect
+  scaling, 13.4B tokens (20 a parameter) take about 7.9 h, and 8.0B tokens (12 a parameter) about 4.7 h. The box
+  has 24 h, so the 20-a-parameter form fits, with the probe on the box.
+- This needs data-parallel pretraining (torchrun, one process a GPU) and resume in `scripts/pretrain_scratch.py`,
+  off by default, with tests, run on two Engaging GPUs before 11-24. It is the one U25 item that is blocked by a box
+  date, so it goes in beside the speed items (INBOX 11-21 21:25: speed items first unless box-date-blocked).
+- **Data repetition at 6x.** The first half (6.7B tokens) repeats `mix_0.2.bin` (2.32B) about 2.9 times. In the
+  second half, the keyword-filtered FineMath (about 520M tokens) at weight 0.5 repeats about 6.4 times (2.6 at
+  3x). So the box plan adds keyword-filtered FineMath shards downloaded on the box, filtered with
+  `scripts/keyword_filter.py` before use, as the hard data rule requires. The plan is written on 11-24.
+- If 6x is also no, 12x (2048 x 24, 1,270M) goes to the 11-28 or 12-09 box, planned the day before.
+
+**Jobs.**
+- **r124 moved to the freed normal slot.** Its preemptable B200 job 30039308 was cancelled before it started. Its
+  run is now normal B200 30051395 (the same script and rule, LOG 11-22 00:25), submitted at 03:47 and running on
+  node5501-c1 since 03:50 (2 h limit): the check with the paired timing, then the two profiles.
+- **A second worker for `gate_r120_h200`:** preemptable H200 30051396 (the same submit line as 30017487), for the
+  items after r120's seed 1 (seed 2, then r102's seeds 3 and 4).
+- 30033104 (normal B200) has run r105 lr 24e-6 seed 2 on node5601-c1 since 03:35.
+- Pending: 29999306 (preemptable B200, `screens_rl_b200`), 29995938 (preemptable H200,
+  requeued: r120 seed 0 again, the partial to `extra/`), 30017487 and 30051396 (preemptable H200, `gate_r120_h200`).
+  Six GPUs with the two running. The held jobs (29497701/02/05, 29445218) stay held.

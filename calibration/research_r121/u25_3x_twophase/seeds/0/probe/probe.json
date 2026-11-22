@@ -1,0 +1,53 @@
+{
+ "model": "/home/zjason/orcd/scratch/rlvr-ckpts/calibration/research_r121/u25_3x_twophase/seeds/0/pretrained",
+ "gpu": "NVIDIA B200",
+ "settings": {
+  "out_dir": "calibration/research_r121/u25_3x_twophase/seeds/0/probe",
+  "sets": "A,B,C",
+  "dev": "data/ladder_v3_dev.jsonl",
+  "puzzles": 200,
+  "samples": 4,
+  "temperature": 1.0,
+  "max_new": 256,
+  "gsm8k": "/home/zjason/orcd/pool/data/gsm8k/train.jsonl",
+  "questions": 100,
+  "context": 1024,
+  "batch": 200,
+  "seed": 0,
+  "show": 20
+ },
+ "A": {
+  "samples": 800,
+  "steps_per_sample": 0.76,
+  "step_accuracy": 0.4901315789473684,
+  "grounded_chain_rate": 0.02,
+  "solve_rate": 0.0,
+  "well_formed_rate": 0.00625,
+  "median_tokens": 256.0,
+  "loop_rate": 0.1075,
+  "seconds": 25.718862268025987
+ },
+ "B": {
+  "samples": 800,
+  "steps_per_sample": 4.84125,
+  "step_accuracy": 0.44177640072295377,
+  "grounded_chain_rate": 0.05125,
+  "solve_rate": 0.0,
+  "well_formed_rate": 0.165,
+  "median_tokens": 171.0,
+  "loop_rate": 0.06625,
+  "seconds": 27.607247546024155
+ },
+ "C_skipped_for_length": 0,
+ "C": {
+  "samples": 100,
+  "steps_per_sample": 1.49,
+  "step_accuracy": 0.7516778523489933,
+  "grounded_chain_rate": 0.1,
+  "solve_rate": 0.01,
+  "well_formed_rate": 0.68,
+  "median_tokens": 55.5,
+  "loop_rate": 0.1,
+  "seconds": 12.369498215964995
+ }
+}
