@@ -1,0 +1,53 @@
+{
+ "model": "/home/zjason/orcd/pool/rlvr-ckpts/calibration/research_r93/d007s0_final/seeds/0/pretrained",
+ "gpu": "NVIDIA B200",
+ "settings": {
+  "out_dir": "calibration/research_r121/u25_1x_d007base/seeds/0/probe",
+  "sets": "A,B,C",
+  "dev": "data/ladder_v3_dev.jsonl",
+  "puzzles": 200,
+  "samples": 4,
+  "temperature": 1.0,
+  "max_new": 256,
+  "gsm8k": "/home/zjason/orcd/pool/data/gsm8k/train.jsonl",
+  "questions": 100,
+  "context": 1024,
+  "batch": 200,
+  "seed": 0,
+  "show": 20
+ },
+ "A": {
+  "samples": 800,
+  "steps_per_sample": 0.0,
+  "step_accuracy": null,
+  "grounded_chain_rate": 0.0,
+  "solve_rate": 0.0,
+  "well_formed_rate": 0.0,
+  "median_tokens": 184.5,
+  "loop_rate": 0.91125,
+  "seconds": 21.91326801397372
+ },
+ "B": {
+  "samples": 800,
+  "steps_per_sample": 0.0,
+  "step_accuracy": null,
+  "grounded_chain_rate": 0.0,
+  "solve_rate": 0.0,
+  "well_formed_rate": 0.0,
+  "median_tokens": 143.0,
+  "loop_rate": 0.67375,
+  "seconds": 19.43958832800854
+ },
+ "C_skipped_for_length": 0,
+ "C": {
+  "samples": 100,
+  "steps_per_sample": 0.44,
+  "step_accuracy": 0.0,
+  "grounded_chain_rate": 0.0,
+  "solve_rate": 0.03,
+  "well_formed_rate": 0.58,
+  "median_tokens": 255.0,
+  "loop_rate": 0.56,
+  "seconds": 13.13444645900745
+ }
+}

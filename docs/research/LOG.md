@@ -10752,3 +10752,58 @@ The smoke run's weights and outputs are not results. They are deleted after the 
   - 29999306 (B200 preemptable, queue `screens_rl_b200`: r105 lr 24e-6 seed 2, then r117 seed 1);
   - the four held workers.
 - **GPUs:** 3 in use. If every pending GPU job started, that would be 6.
+
+## 2026-11-21 19:57 EST: U25's reference probe: D 007's base writes no working on Countdown; the 3x smoke run passed and the 3x rung is submitted now; r116's pretraining is done and its RL seeds are queued
+
+**U25, D 007's base probed (rung 1x, the reference).** Normal B200 job 30008197 (node5601-c1). `probe_reasoning.py`
+with its defaults: sets A and B have 200 dev puzzles x 4 samples; set C has 100 GSM8K train questions; temperature
+1.0; 256 new tokens. Output: `calibration/research_r121/u25_1x_d007base/seeds/0/probe/` (`probe.json`, `samples.md`).
+
+| set | samples | steps a sample | step accuracy | grounded chains | solved | loops | median tokens |
+|---|---|---|---|---|---|---|---|
+| A, track D's r1 prompt | 800 | 0.00 | none | 0.00 | 0.00 | 0.91 | 184.50 |
+| B, the trial-and-error few-shot prompt | 800 | 0.00 | none | 0.00 | 0.00 | 0.67 | 143.00 |
+| C, GSM8K with worked examples | 100 | 0.44 | 0.00 | 0.00 | 0.03 | 0.56 | 255.00 |
+
+Read by eye (the 20 shown samples of set B): none has working. The samples are repeated `<answer>` tags and web-page
+text (comment boxes, share links, prose). On set A, 0.91 of samples loop. On set C, 0.44 arithmetic steps a sample,
+none right, and 3 of 100 final answers match (read as chance: short numbers). So D 007's base gives a floor of zero
+for the "reasoning appears" test. The test in LOG 11-21 17:59 thus reduces to its absolute parts on set B: at least
+10 of 20 samples real working, a grounded-chain rate of 0.5 or more and step accuracy of 0.7 or more.
+
+**The 3x smoke run passed.** The same job ran `u25_rung.sh` at 1024 x 24 (331.7M parameters) for 6 minutes.
+- The copy to node-local disk took 7 s.
+- Micro-batch 64 with the fused loss fit in the B200. Peak memory was not logged.
+- The phase switch came at half the time: step 50 (2.2 min) was in phase 1, step 100 (3.8 min) in phase 2.
+- Throughput rose to 244k tokens/s at step 150. At that rate, 330 minutes is about 4.82B tokens, 14.5 per
+  parameter. That is within the 4.0B to 5.5B range planned (LOG 11-21 17:59).
+- The probe ran on the 332M model in 1 min 22 s.
+- The smoke run's weights and outputs are deleted, as planned. Its output is in the job's Slurm log.
+
+**The 3x rung is submitted now** (normal B200 job 30010825, 6 h limit), not at 22:00: the smoke job ended at 19:42 and
+left the normal slot free. It was pending at 19:58. Read it about 5.7 h after it starts (about 01:45 on 11-22 if it
+starts soon).
+
+**r116's pretraining is done** (normal B200 job 30000622, node5701-c1).
+- Seed 0: 38.0 min for 1,337,982,976 tokens, final val loss 2.9721.
+- Seed 1: 37.4 min, final val loss 2.9810.
+- These val losses are on the new mix's held-out rows, so they are not compared with D 007's.
+- The two RL items (`d116rl_native_fmkw2_b200`, seeds 0 and 1) are queued on `screens_rl_b200`, after r105 lr 24e-6
+  seed 2 and r117 p128 seed 1. They get workers as slots free.
+
+**r102 seed 1 lost its worker to a node.**
+- Preemptable H200 29837213, requeued, restarted on node4301 at 18:20.
+- There, the venv was unreadable within 60 s, so the worker exited at once, as the guard intends.
+- The item stayed in hand in `queue/running/`. I moved it back to `screens_r92` under the lock.
+- Preemptable H200 30006765 (node4301 now excluded) took it on node4602 at 19:25. This is an infrastructure
+  interruption of a screen seed, not a record seed.
+
+**Jobs.**
+- **Running:**
+  - 29966174 (r117 p128 seed 0, normal B200, to about 22:00);
+  - 29837214 (r102 seed 2), 30006765 (r102 seed 1) and 29995938 (r120 seed 0, since 18:38), preemptable H200.
+- **Pending:**
+  - 30010825 (U25 3x, normal B200);
+  - 29999306 (preemptable B200, `screens_rl_b200`);
+  - the four held workers.
+- **GPUs:** 6 if both pending jobs start. r120 seeds 1 and 2 get preemptable H200 workers as slots free.
