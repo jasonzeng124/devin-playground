@@ -11298,3 +11298,49 @@ checks that the pieces run together on GPUs, at speed.
 - The two-GPU form goes on two normal B200s when 30033104's item ends (r105's lr 24e-6 arm, seed 2, started 03:35).
 - Both are well before 11-24. If both meet the rule, the 6x box plan (written 11-24) uses --ddp with
   --resume-every-minutes 30. A memory check of the micro-batch at 6x on an 80 GB H100 goes in that plan.
+
+## 2026-11-22 04:13 EST: r124 read: update_host_index gives the same maths and removes most synchronisations, but its paired gain of 0.0061 s misses the rule, so it stays off
+
+Job: normal B200 30051395 (node5501-c1, 03:50 to 04:08). Outputs: `calibration/research_r124/check/seeds/0/check.json`
+and `calibration/research_r124/{default,host_index}_long/seeds/0/profile.json`.
+
+**Rule 1, same maths: met.** At updates 2, 20 and 100, on and default gave bit-identical gradients, logged sums and nll
+(`all_identical` true).
+
+**Rule 2, paired timing: not met. Not kept.**
+- 49 pairs from update 110 to 590. host_index was faster in 32 of 49 (needs 34); one-sided sign test
+  p = 0.022 (needs under 0.01).
+- Median of default minus host_index: 0.0061 s (needs at least 0.01). The medians were
+  0.2386 s and 0.2313 s, a gain of about 2.6 %.
+- Per rule 4, the option stays off, so screens and records run as before.
+- The INBOX lets a same-maths speed change be kept without a paired win. The 00:25 rule asked for one, and I keep to
+  the rule written first. The question comes back with r125: capture needs a loop without synchronisations, so it
+  turns this option on as part of its own arm and is timed against the default.
+
+**Rule 3, profiles: read, not ruled on.** Each arm ran 600 updates plus 12 profiled ones, with PyTorch's attention choice.
+
+| per update | default | host_index |
+|---|---|---|
+| synchronisations | 63.3 | 17.7 |
+| device-to-host copies | 265.7 | 234.7 |
+| kernel launches | 11486 | 11351 |
+| GPU busy, s (fraction of the wall time) | 0.127 (0.54) | 0.118 (0.56) |
+| cudaLaunchKernel on the CPU, ms (calls) | 30.5 (9682) | 29.7 (9549) |
+| cudaStreamSynchronize on the CPU, ms (calls) | 25.8 (60) | 14.1 (15) |
+| aten::copy_ calls | 2878 | 3140 |
+| unprofiled median, updates 400-599, s | 0.188 | 0.170 |
+
+- Synchronisations fell from 63 to 18 an update; I expected about 10. The rest
+  may come from the parts left as they were (the copies at the start of the update, the model's attention-mask code).
+  r125's design has to find them, since capture allows none.
+- The late medians differ by 0.019 s. That is within the 0.02 s by which separate
+  arms differ, so it is not read as a gain. The paired timing is the measure.
+
+**What it shows.** Even with most synchronisations gone, the GPU is busy only about 0.56 of
+the update. The CPU spends about 30 ms an update in cudaLaunchKernel alone
+(9549 calls), on top of the ops' own CPU time. So the CPU, not waiting, sets the pace, and removing
+waits alone moves little. Fewer launches is what should help: capture (one replay for many kernels) or fused kernels.
+
+**Next, as the 00:25 rule says:**
+1. r125, capture of the update on top of this option, with the same-maths check and paired timing;
+2. then own Triton kernels where a library kernel is the cost (aten::copy_ and aten::mul lead the GPU time).
