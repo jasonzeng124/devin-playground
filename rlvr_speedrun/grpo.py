@@ -43,6 +43,10 @@ class GRPOConfig:
     oversample: int = 1
     gen_batch_size: int = 0
     compile: bool = False
+    # the update runs each decoder layer through torch.compile (`_compile_layers`): one set of graphs shared by the
+    # layers, dynamic batch and length, the KV-cache update left eager; the same maths up to rounding, and the
+    # compilation counts in the clock. Not with rollout_backend 'hf' or grad_checkpoint (LOG r123)
+    compile_update: bool = False
     pad_to_multiple: int = 0
     cache_len: int = 0
     rollout_backend: str = "hf"  # "hf" (model.generate), "vllm" (colocated engine; rlvr_speedrun/vllm_rollout.py) or "native" (fast_rollout.py, Llama only)
@@ -1191,6 +1195,29 @@ def environment_info(device: torch.device, world_size: int = 1, model=None) -> d
     }
 
 
+def _compile_layers(model, backend: str = "inductor") -> int:
+    """compile_update: compile each decoder layer of `model` in place (`nn.Module.compile`, so parameter names and the
+    samplers' weight copies are unchanged), with dynamic batch and length; returns the number of layers.
+
+    The layers share one set of graphs: the layer index stays an unspecialised int
+    (allow_unspec_int_on_nn_module), and the KV-cache update, which indexes the cache's per-layer lists by it, runs
+    eagerly (a graph break on each side). Without both the graph count grows with the depth.
+    """
+    import torch._dynamo
+    from transformers.cache_utils import DynamicCache
+
+    torch._dynamo.config.allow_unspec_int_on_nn_module = True
+    torch._dynamo.config.recompile_limit = max(torch._dynamo.config.recompile_limit, 32)
+    if not getattr(DynamicCache.update, "_rlvr_eager", False):
+        eager_update = torch.compiler.disable(DynamicCache.update)
+        eager_update._rlvr_eager = True
+        DynamicCache.update = eager_update
+    layers = model.base_model.layers
+    for layer in layers:
+        layer.compile(backend=backend, dynamic=True)
+    return len(layers)
+
+
 def _warmup(
     model, tokenizer, config: GRPOConfig, eval_puzzles, device: torch.device, caches: StaticCachePool, dist: Dist = SINGLE
 ) -> None:
@@ -1412,6 +1439,10 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
     if config.grad_checkpoint:
         model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
         model.config.use_cache = False
+    if config.compile_update:
+        if config.rollout_backend == "hf" or config.grad_checkpoint:
+            raise ValueError("compile_update needs rollout_backend 'native' or 'vllm' and no grad_checkpoint")
+        _compile_layers(model)
     ref_model = None
     if config.kl_coef != 0:
         ref_name = config.ref_model or config.model
@@ -1583,6 +1614,10 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
     if not config.no_save and dist.is_main:
         model.save_pretrained(out_dir / "final")
         tokenizer.save_pretrained(out_dir / "final")
+    if config.compile_update and dist.is_main:
+        from torch._dynamo.utils import counters
+
+        print(f"compile_update: dynamo stats {dict(counters['stats'])}, graph breaks {sum(counters['graph_break'].values())}", flush=True)
     result = {
         "final_pass_rate": final_pass_rate,
         "pass_rate": final_pass_rate,

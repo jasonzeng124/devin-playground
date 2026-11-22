@@ -404,6 +404,63 @@ def test_share_prompt_matches_per_row_logprobs_and_grads(arch, prefix_len):
         assert torch.allclose(a, b, atol=1e-5)
 
 
+def test_compile_layers_matches_eager_and_shares_graphs(monkeypatch):
+    # compile_update (LOG r123): the compiled layers give the eager log-probs and gradients on the update's three
+    # paths (plain, prefix cache, shared prompt), and the layers share one set of graphs, so the count of graphs
+    # doesn't grow with the depth
+    import torch._dynamo
+    from torch._dynamo.utils import counters
+    from transformers import LlamaConfig, LlamaForCausalLM
+    from transformers.cache_utils import DynamicCache
+
+    for name in ("allow_unspec_int_on_nn_module", "recompile_limit"):  # `_compile_layers` sets them for the process
+        monkeypatch.setattr(torch._dynamo.config, name, getattr(torch._dynamo.config, name))
+    monkeypatch.setattr(DynamicCache, "update", DynamicCache.update)
+    torch.manual_seed(7)
+    width, prompt_width, prefix_len = 18, 10, 4
+    prompts = torch.randint(2, 40, (3, prompt_width))
+    prompts[:, :prefix_len] = prompts[0, :prefix_len]
+    pmask = torch.ones_like(prompts)
+    pmask[1, prefix_len : prefix_len + 2] = 0
+    prompts[pmask == 0] = 0
+    rows = torch.tensor([0, 0, 0, 2, 1, 1, 2, 1])
+    ids = torch.cat([prompts[rows], torch.randint(2, 40, (rows.numel(), width - prompt_width))], 1)
+    mask = torch.cat([pmask[rows], torch.ones(rows.numel(), width - prompt_width, dtype=torch.long)], 1)
+    mask[2, -3:] = 0
+    mask[5, -5:] = 0
+    ids[mask == 0] = 0
+
+    def score(model, prefix, share):
+        model.zero_grad(set_to_none=True)
+        lp, cm, _ = grpo._completion_logprobs(model, ids, mask, prompt_width, 0.7, prefix, share_prompt=share)
+        (lp * cm).sum().backward()
+        return lp.detach()[cm], [p.grad.clone() for p in model.parameters() if p.grad is not None]
+
+    def graphs(layers):
+        torch.manual_seed(5)
+        model = LlamaForCausalLM(
+            LlamaConfig(vocab_size=40, hidden_size=16, intermediate_size=32, num_hidden_layers=layers, num_attention_heads=2,
+                        num_key_value_heads=2, max_position_embeddings=64, pad_token_id=0, eos_token_id=1)
+        ).eval()
+        compiled = copy.deepcopy(model)
+        torch._dynamo.reset()
+        counters.clear()
+        assert grpo._compile_layers(compiled, backend="aot_eager") == layers
+        for prefix, share in ((0, False), (prefix_len, False), (prefix_len, True)):
+            lp_eager, g_eager = score(model, prefix, share)
+            lp_compiled, g_compiled = score(compiled, prefix, share)
+            assert torch.allclose(lp_eager, lp_compiled, atol=1e-6)
+            assert len(g_eager) == len(g_compiled)
+            for a, b in zip(g_eager, g_compiled):
+                assert torch.allclose(a, b, atol=1e-5)
+        return counters["stats"]["unique_graphs"]
+
+    try:
+        assert graphs(2) == graphs(3)
+    finally:
+        torch._dynamo.reset()
+
+
 def test_grpo_step_with_prefix_cache_path():
     torch.manual_seed(4)
     model = GPT2LMHeadModel(

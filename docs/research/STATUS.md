@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-21 22:01 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-21 22:21 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -53,7 +53,7 @@ limit (12:30 on 11-21, up from 70 % at 07:29; not from these runs' outputs, a fe
 workers go back to the pool after a write probe). 29966174 (normal B200, node5501-c1) ran r117 p128
 seed 0 from 17:02 to 21:53 (LOG 11-21 21:58). 30010825 (normal B200, node5501-c1) has run U25's 3x rung since 21:59 (read about 03:40 on 11-22). 30024430 (normal B200, pending since 21:57) is r122, 600 timed updates with each attention kernel (about 30 min; LOG 11-21 21:58). 30000622 (node5701-c1) ran r116's two pretraining items from 18:08 to 19:25, and 30008197 (node5601-c1) ran U25's D 007 base probe and 3x smoke run from 19:33 to 19:42 (LOG 11-21 19:57). 29999304 (normal B200) ran r119's profiles and r116's data from 17:50 and exited (LOG 11-21 18:16). 29966173 ran r105 lr 24e-6 seed 1 and exited at 17:29; 29942141 ran r105 lr 12e-6 seed 2 and exited at 16:55. Preemptable B200 29999306 (pending) is for `screens_rl_b200`: lr 24e-6 seed 2, then r116's two RL items (r117 p128 seed 1 was taken out at 21:58).
 29837209 and 29837211 ran r115 p32 seeds 0 and 1 (LOG 11-21 12:40) and exited; 29963843 ran the sampler timing
-(12:28 to 12:37). When r122 (30024430) exits, its normal slot gets a worker for `screens_rl_b200`. r117 p128 seed 1's preemptable worker 29837212 was cancelled at 17:13 so that the preemptable slots go to H200 work (LOG 11-21 17:13). r118 (preemptable B200 29980436, 80 s) found the update step overhead-bound: GPU busy 0.40 of its wall time,
+(12:28 to 12:37). When r122 (30024430) exits, its normal slot first runs r123 (compile_update's same-maths check and two 600-update profiles, about 1 h; code and rule in LOG 11-21 22:20), then a worker for `screens_rl_b200`. r117 p128 seed 1's preemptable worker 29837212 was cancelled at 17:13 so that the preemptable slots go to H200 work (LOG 11-21 17:13). r118 (preemptable B200 29980436, 80 s) found the update step overhead-bound: GPU busy 0.40 of its wall time,
 11,689 kernel launches per update (LOG 11-21 14:59). r119 (29999304), the same profile with PyTorch's
 memory-efficient attention kernel against the default, did not meet its rule: 0.16 s off the unprofiled update but
 0.009 s off the profiled one, so capture or compile is next, built on the efficient kernel (LOG 11-21 18:16). Both profiles

@@ -10924,3 +10924,61 @@ shapes allow). The micro-batches' padded widths are rounded up to a multiple of 
 small set of shapes. The same-maths check runs on fixed batches: per-token log-probs and the loss within bf16
 tolerance of the eager path, and the gradient's relative difference under 1e-2. Then one native-control seed runs
 on the B200 as the timing check. It is kept on time without a paired win (INBOX), unless the precision changes.
+
+## 2026-11-21 22:20 EST: r123 code in (compile_update), its rule written first
+
+**Code.** A new GRPOConfig option, `compile_update` (off by default; no existing config changes).
+- `_compile_layers` compiles each decoder layer in place with `nn.Module.compile(dynamic=True)` (inductor). The
+  update's forward and backward then run through compiled graphs, while the head, the loss and the cache
+  bookkeeping stay eager. Parameter names are unchanged, so saving and the samplers' weight copies are too.
+- Two settings let all the layers share one set of graphs: the layer index stays an unspecialised int, and
+  `DynamicCache.update` runs eagerly (it indexes the cache's per-layer lists by that index). Without both, each
+  layer gets its own graphs.
+- On CPU (aot_eager, a tiny Llama) the graph count is 10 for both 3 and 6 layers, with five graph breaks, all
+  around the cache update. Log-probs are identical and gradients agree within 2e-6.
+- A new test checks the three log-prob paths (plain, prefix cache, shared prompt) against eager for 2 and 3
+  layers, and that the graph count does not change with depth. `ruff check .` is clean; pytest: 207 passed.
+- The native sampler copies the weights into its own buffers and never calls the layers, so sampling is unchanged.
+  `rollout_backend 'hf'` and `grad_checkpoint` raise an error with this option.
+- Compilation happens in the first updates, inside the clock. The run prints dynamo's graph counts at the end.
+
+**Why the layers and not the whole update.** r119's profile gave 13,339 launches per update. My count is about 50
+forward kernels per layer per call, of which 7 are matmuls or attention; the rest are pointwise (norm pieces,
+autocast casts, rotary, residual adds, SiLU-and-multiply), and inductor fuses those within a layer. Capturing the
+whole update in CUDA graphs needs fixed shapes, but the micro-batches' widths vary, so it is the next step only if
+this one still leaves the GPU idle. The outline's rounding of widths to a multiple of 64 is not needed with
+dynamic shapes.
+
+**r123 rule, written first.** One normal B200 job (r122's settings: r106 `final_native_ctl`'s config, D 007 seed
+0's final weights). It takes the normal slot r122 frees.
+1. `scripts/research/check_compile_update.py` builds 16 training prompts (the ladder training stream, which
+   excludes dev and test) with 8 sampled completions each. It runs forward and backward on the shared-prompt path
+   three ways: fp32 eager, bf16 autocast eager, and bf16 autocast compiled. **Passes** if compiled is no further
+   from fp32 than eager is (mean |delta log-prob| at most 1.1x eager's, gradient cosine to fp32 at least eager's
+   minus 1e-4) and the compiled-vs-eager gradient cosine is above 0.999.
+2. `profile_update.py --set compile_update=true --warm 600 --steps 12`, once with PyTorch's attention choice and
+   once with the efficient kernel. Each is read against r122's run on the same kernel.
+
+Output goes to `calibration/research_r123/{check,compiled_default_long,compiled_efficient_long}/seeds/0/`. Nothing
+is trained, saved or scored.
+
+Expected:
+- Launches per update down by 40 to 60 %, and the busy fraction up from about 0.4 to 0.6 to 0.75.
+- The late median (updates 200-599) at 0.11 to 0.13 s, against the 0.17 to 0.22 s r122 is expected to show.
+- Compilation makes the first updates slower, by 2 to 5 min in total (1 to 2 % of 17,400 s).
+- At the native control's 2.0 steps a second, the update is about a third of a step, so 0.05 s less per update
+  means about 10 % more steps.
+
+Noise: a median over 400 updates on one node should hold to about 0.005 s. r122's two arms show the spread
+between runs, so a 0.03 s difference is clear.
+
+What it decides:
+- **The check fails:** the option stays off, and the per-layer comparison finds the op before anything else runs.
+- **The check passes and the late median is 0.03 s or more under r122's on the same kernel:** one native-control
+  timing seed runs with compile_update on a B200, paired with `d007rl_native_b200` seed 0 (0.3033, 2.005 steps a
+  second). It is the same maths, so it is kept on time without a paired win (INBOX 11-19). Its score must stay
+  within one seed's noise (about 0.015).
+- **Under 0.03 s:** compiling the layers is closed. Capturing the whole micro-batch in CUDA graphs, with the widths
+  rounded to fixed sizes, becomes r124.
+- **The late busy fraction stays under 0.6 after compiling:** the remaining gap is the head and loss (eager) and
+  the step's own Python, and r124 targets those.
