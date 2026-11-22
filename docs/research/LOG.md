@@ -11585,3 +11585,65 @@ so it stands for this config at these weights, not for every config.
 **GPUs.** 6 with this job: 30054646 (normal B200, r116 seed 0), 29999306 (preemptable B200, pending, r116
 seed 1), three preemptable H200s (r120 seeds 0 to 2) and 30067245. When r116 seed 0 ends, U25's two-GPU check
 waits for 30067245 to end, so that the total stays at 6. r125's B200 check took 6 minutes.
+
+## 2026-11-22 09:37 EST: r126, on an H200 capture keeps the maths but is slower, so gates keep it off; padding is 0.196 of the bucket tokens, so finer buckets are next
+
+Preemptable H200 30067245 (node4601) ran r125's check from 09:11 to 09:17. The output is
+`calibration/research_r125/check_pad_h200/seeds/0/check.json`. Both arms run with update_host_index on; "default"
+is without capture.
+
+**Maths: holds.** At each checked update, capture's gradient error is within its bound. The logged sums and the
+replayed rows' nll equal the default's. Replays are identical.
+
+| update | capture's grad rel. error vs fp32 | default's | bound (1.25 x default + 1e-4) |
+|---|---|---|---|
+| 2 | 0.0454 | 0.0455 | 0.0569 |
+| 20 | 0.0933 | 0.0933 | 0.1168 |
+| 100 | 0.0506 | 0.0506 | 0.0634 |
+
+**Timing: not met.**
+- Overall: 49 pairs; 17 faster with capture; sign test p 0.989; median gain (default minus capture) -0.022 s.
+- Unpaired medians: 0.228 s default, 0.203 s capture. The times are spread out, so the paired gain is what the
+  rule reads.
+
+By update band, H200 against r125's B200:
+
+| updates | H200 median gain | H200 pairs faster | B200 median gain | B200 pairs faster |
+|---|---|---|---|---|
+| 110-290 | -0.021 s | 6/19 | 0.007 s | 10/19 |
+| 300-440 | -0.024 s | 5/15 | 0.042 s | 13/15 |
+| 450-590 | -0.008 s | 6/15 | 0.019 s | 12/15 |
+
+By the default's own time:
+
+| default's time | H200 pairs | faster | median gain | B200 pairs | faster | median gain |
+|---|---|---|---|---|---|---|
+| under 0.2 s | 24 | 0 | -0.025 s | 21 | 12 | 0.003 s |
+| 0.2-0.3 s | 22 | 15 | 0.009 s | 19 | 16 | 0.043 s |
+| over 0.3 s | 3 | 2 | 0.014 s | 9 | 7 | 0.119 s |
+
+- So on the H200 capture loses on the short updates and gains little on the others.
+- Times over 0.3 s: 8 with capture and 3 without (on the B200, 8 and 9). I don't know why. A new shape's capture
+  inside a timed update would explain it, but the check does not record where captures happen.
+
+**Captures and memory.** 14 shapes, 135 replays, no fallbacks, 2.74 s of capturing. The peak reserved memory
+over all arms was 62.4 GB.
+
+**Padding.** Over all replays, the micro-batches' own tokens were 4,413,298 and their buckets' were 5,490,688:
+padding 0.196. Their groups were 2,168 and the buckets' 2,488: 0.129. The guess written first was 0.10 to 0.25.
+
+**Per the rule written first (LOG 11-22 09:10):**
+1. **Maths holds, timing does not.** Gate and record configs keep update_capture off. This changes LOG 11-22
+   09:06, where new configs were to turn it on after this check. B200 screen configs may still turn it on.
+2. **Padding 0.196 is at least 0.10.** Finer buckets (r127) are the next item:
+   - new options, off by default: width in steps of 16, and rows in steps of 8 throughout;
+   - the same paired check with r125's rule, on an H200, the GPU where capture loses now;
+   - the check also records which timed updates capture a new shape.
+
+   Finer buckets mean more shapes, and each capture costs about 0.2 s on the H200 (2.74 s over 14), inside the
+   clock. So the r127 entry gives the number of shapes and the capture seconds beside the gain.
+3. The elementwise and copy kernels, then attention, follow r127.
+
+**Jobs (11-22 09:37).** 30054646 (normal B200, r116 seed 0) has run since 04:50; 29999306 (preemptable B200, r116 seed
+1) is pending; three preemptable H200s run r120 seeds 0 to 2. 5 GPUs. When r116 seed 0 ends, U25's two-GPU check
+takes both normal B200s (6 GPUs), and r127's H200 check goes in after it.
