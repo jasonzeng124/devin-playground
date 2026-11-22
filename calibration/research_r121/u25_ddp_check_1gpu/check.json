@@ -1,0 +1,56 @@
+{
+ "gpus": 1,
+ "arms": {
+  "single": {
+   "final": {
+    "step": 1000,
+    "tokens": 131072000,
+    "minutes": 3.9574723192335415,
+    "val_loss": 3.4036385774612428,
+    "params_m": 109.529856
+   },
+   "steady_tok_per_s": 641079.5124417966,
+   "rank_spread": []
+  },
+  "ddp": {
+   "final": {
+    "step": 1000,
+    "tokens": 131072000,
+    "minutes": 3.3692851080559194,
+    "val_loss": 3.405208206176758,
+    "params_m": 109.529856,
+    "gpus": 1
+   },
+   "steady_tok_per_s": 661726.1712109961,
+   "rank_spread": [
+    0.0,
+    0.0
+   ]
+  },
+  "resume": {
+   "final": {
+    "step": 1000,
+    "tokens": 131072000,
+    "minutes": 3.546576376973341,
+    "val_loss": 3.3974678993225096,
+    "params_m": 109.529856,
+    "gpus": 1
+   },
+   "steady_tok_per_s": 648478.3622929095,
+   "rank_spread": [
+    0.0,
+    0.0
+   ]
+  }
+ },
+ "scaling_per_gpu": 1.032206081099923,
+ "first_part_rc": 124,
+ "resumed_at_step": 274,
+ "rule": {
+  "ranks_identical": true,
+  "val_close": true,
+  "scaling": true,
+  "resume": true
+ },
+ "rule_met": true
+}

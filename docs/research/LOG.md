@@ -11344,3 +11344,42 @@ waits alone moves little. Fewer launches is what should help: capture (one repla
 **Next, as the 00:25 rule says:**
 1. r125, capture of the update on top of this option, with the same-maths check and paired timing;
 2. then own Triton kernels where a library kernel is the cost (aten::copy_ and aten::mul lead the GPU time).
+
+## 2026-11-22 04:48 EST: U25's one-GPU data-parallel check meets its rule; the two-GPU form waits for both normal B200s
+
+30052724 (normal B200, node5700-c1, 04:31 to 04:44) ran `scripts/research/u25_ddp_check.sh` with one GPU, read by
+`u25_ddp_read.py` into `calibration/research_r121/u25_ddp_check_1gpu/check.json` (rule in LOG 11-22 04:03). Each arm
+trained 1,000 steps, 131,072,000 tokens.
+
+| arm | final val loss | steady tokens/s (step 500 on) | minutes | rank_spread |
+|---|---|---|---|---|
+| single | 3.4036 | 641,080 | 3.96 | |
+| ddp (torchrun, one process) | 3.4052 | 661,726 | 3.37 | 0.0, 0.0 |
+| resume | 3.3975 | 648,478 | 3.55 | 0.0, 0.0 |
+
+**Against the rule: met.**
+1. Ranks identical: both spreads are 0.0. With one rank this only shows that the spread code runs.
+2. ddp's val loss is 0.0016 from single's (at most 0.05).
+3. Scaling: ddp's steady rate is 1.03 x single's (at least 0.9).
+   - With one process, ddp does single's work plus the bucketed average, so the 3 % is variation, not a gain.
+   - single ran first. Its first 500 steps took about 32 s longer than ddp's, likely compiling into a cache that
+     ddp then used.
+4. Resume:
+   - The first part was stopped by the timeout (rc 124).
+   - The rerun loaded the file saved at step 274 (1.01 min) and ended at ddp's step and tokens.
+   - Its val loss is 0.0077 from ddp's. Its rows after step 274 are reseeded, so it differs from ddp like a
+     near-identical seed.
+
+**Notes for the 6x box plan.**
+- The resume file was 975 MB at 110M parameters (the weights, Muon's momentum, AdamW's two moments). By
+  proportion it is about 6 GB at 668M, which is fine every 30 minutes on a box's local disk.
+- At exit, torch warns that barrier() guesses the device because init_process_group was not given one. That is
+  harmless here, as each process sets its device first.
+
+**Next.** The two-GPU form (rank 1 draws other rows, so the spread and the averaging are tested for real) needs both
+normal B200s at once.
+- 30033104 (r105 lr 24e-6 seed 2) holds one.
+- A second `screens_rl_b200` worker holds the other: 30054646, submitted 04:48 for r116's queued RL seeds, so that
+  the slot freed at 04:44 did not stay empty while r125's code is written.
+- r125's check takes the first normal slot that frees, as speed comes first (INBOX 11-21 21:25). The two-GPU form
+  goes the first time both are free, well before 11-24.
