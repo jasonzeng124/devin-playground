@@ -11700,3 +11700,48 @@ The pairs without a new capture are reported in every case.
 
 **Jobs (2026-11-22 09:44).** 5 GPUs are in use, so r127 takes the 6th now, ahead of U25's two-GPU check, which was to come
 first (LOG 11-22 09:37). U25 starts when r116 seed 0 (30054646) has ended and r127 is done, keeping 6 at most.
+
+
+## 2026-11-22 09:49 EST: r116 seed 0 (U24) is +0.037 over its control at the final; the rule waits for seed 1
+
+**The run.** `calibration/research_r116/d116rl_native_fmkw2_b200` seed 0: r101's native control, unchanged, from
+the FineMath-keyword pretraining (LOG 11-21 12:40). Worker 30054646, normal B200 node5700-c1, 04:50 to 09:41. Its
+pair is r101's `d007rl_native_b200` seed 0 (node5600-c1). Both trained for 17,400 s. Numbers are from
+`read_time.py` and a length script (scratchpad), dev only.
+
+| | r116 seed 0 | control seed 0 |
+|---|---|---|
+| final dev | 0.3400 (step 48,567) | 0.3033 (step 34,893) |
+| mean of the last five evals | 0.3317 | 0.2920 |
+| steps per second | 2.791 | 2.005 |
+| steps in each fifth of train time (58 min) | 7,416 / 9,183 / 10,311 / 10,735 / 10,922 | 5,655 / 6,041 / 6,650 / 7,358 / 9,189 |
+| late wall per step (last 2,000) | 0.317 s | 0.338 s |
+| late informative groups / batch solve rate | 24.8 / 0.366 | 29.2 / 0.322 |
+| completion length, steps 101 to 2,100 | 24.0 | 26.0 |
+| completion length, last 2,000 steps | 24.8 | 26.8 |
+
+- **Final:** +0.0367.
+- **Matched train time:** 98 evals, mean +0.0462 (SD 0.0140), ahead in 98 and behind in 0. By hour: +0.041,
+  +0.040, +0.055, +0.049, +0.043.
+- **Matched steps** (to step 34,500): 69 evals, mean +0.0316, ahead in 69 and behind in 0. Steps 1 to 10,000:
+  +0.030; 10,001 to 20,000: +0.028; 20,001 to 35,000: +0.035.
+- **Completion length** is the median over the steps of tokens per sample (`tokens/s` x step time / 512). It stays
+  near 24 to 25 tokens, below the 40 that would mean written reasoning, so the regime is unchanged.
+- **Speed:** the arm made 39 % more steps. The two ran on different nodes, so part of that may be the node; this
+  was not measured. The matched-steps gain (+0.032) does not depend on speed.
+
+**Against what I expected.** The centre was -0.01 and the range -0.05 to +0.03. Seed 0 is above the range.
+
+**Rule (LOG 11-21 12:40).** It needs both pairs. Seed 0's pair is over the +0.02 bar at the final and ahead at
+matched steps. Nothing is decided until seed 1 ends.
+
+**Seed 1.** 29999306 (preemptable B200) started it six times between 05:56 and 09:43, and each start was preempted.
+No-save screens restart from the beginning, so I cancelled 29999306 while it was pending. The item went back into
+`screens_rl_b200`, and normal B200 worker 30069082 (6 h) was submitted for it at 09:49.
+
+**Order change.** U25's two-GPU check (1 h, both normal B200s) was to come first (LOG 11-22 09:06). It now runs
+after seed 1 ends, at about 15:00 if 30069082 starts soon; that is still well before 11-24. So seed 1 uses the
+normal slot that is free now, and r116's next step is not held back by about 1.5 h.
+
+**GPUs (09:49).** 5: three preemptable H200s on r120 seeds 0 to 2, r127 (30068951, preemptable H200) and 30069082
+(normal B200, pending).
