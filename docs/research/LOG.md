@@ -11832,7 +11832,7 @@ inside the graphs and which in the optimizer step. Its rule is written with it.
   r102 seeds 3 and 4 follow on `queue/gate_r120_h200.txt`.
 - 4 GPUs.
 
-## 2026-11-22 10:26 EST: r128 rule, where a step's time goes on an H200 with fine capture (one preemptable H200, 30071118)
+## 2026-11-22 10:26 EST: r128 rule, where a step's time goes on an H200 with fine capture (one preemptable H200, 30071155)
 
 **Why.** r127 put capture with the fine steps into the next H200 gate and record configs. The next speed items
 (INBOX 21:25: efficiency first, own Triton or CUDA kernels welcome) need to know where a step's time goes now.
@@ -11876,5 +11876,6 @@ graph ops (the head's backward, the loss, the adds, the optimizer), to size the 
 **Noise.** The part timers' syncs lengthen each part, so I read the order and shares, not absolute times. Medians are
 over 500 steps of one seed, on one node.
 
-**Jobs (10:25).** 30071118 (preemptable H200, 50 min limit) runs both arms. r116 seed 1 (30069082) and r120 seeds 0 to
+**Jobs (10:25).** 30071155 (preemptable H200, 50 min limit) runs both arms. The first submission, 30071118, started
+on node5100, where the pool venv hangs, and I cancelled it at 10:26; 30071155 has the H200 workers' exclude list. r116 seed 1 (30069082) and r120 seeds 0 to
 2 (three preemptable H200s) as at 10:21. 5 GPUs.

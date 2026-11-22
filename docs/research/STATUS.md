@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-22 09:50 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-22 10:28 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -46,7 +46,7 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (22:01 EST 11-21).** Workers write to scratch (`CKPT_DIR` in `--export`) since the pool's file server
+**Jobs (10:28 EST 11-22).** Now: 30069082 (normal B200, node5700-c1) runs r116 seed 1 since 09:51; preemptable H200s 30017487, 29995938 and 30051396 run r120 seeds 0 to 2; preemptable H200 30071155 is pending for r128 (30071118 started on node5100 and was cancelled) (LOG 11-22 10:26); 5 GPUs. Earlier: Workers write to scratch (`CKPT_DIR` in `--export`) since the pool's file server
 filled up at 18:27 on 11-20 (LOG 11-20 18:42; QUESTIONS 11-20 18:42). The pool shows room again (64.5 %), but the
 workers stay on scratch until a write probe there passes. Scratch holds 3 % of its space and 74.7 % of its 1.0M file
 limit (12:30 on 11-21, up from 70 % at 07:29; not from these runs' outputs, a few files a seed; above 85 % the
@@ -93,7 +93,7 @@ five-seed record attempt; a mean of 0.276 or more: seeds 3 and 4), paired with r
 the strongest, stack3 the weakest); r116's
 two RL items (queued on `screens_rl_b200`; pretraining done, LOG 11-21 19:57) against its rule (LOG 11-21 12:40); the speed
 work, first among the code items since INBOX 11-21 22:10 (LOG 11-21 21:58 and 11-22 00:00: r122 and r123 are done, closing r119 and compiling the layers; r124
-took most synchronisations out of the update (63 to 18 an update) with the same maths, but its paired gain of 0.006 s missed its rule, so it stays off (LOG 11-22 04:13); capture (r125, LOG 11-22 06:32) met both parts of its rule (median gain 0.018 s, 35/49 faster, p 0.002; the same maths within its bounds), so new configs turn it on with update_host_index, after the same check on an H200 (LOG 11-22 09:06); on an H200 (r126, LOG 11-22 09:37) the maths held but capture was slower (median gain -0.022 s, 17/49 faster), so gate and record configs keep it off and B200 screens may turn it on; its padding count (0.196 of the bucket tokens) makes finer buckets (r127, checked on an H200) the next item; then the elementwise and copy kernels, and attention last; U25's data-parallel pretraining and resume
+took most synchronisations out of the update (63 to 18 an update) with the same maths, but its paired gain of 0.006 s missed its rule, so it stays off (LOG 11-22 04:13); capture (r125, LOG 11-22 06:32) met both parts of its rule (median gain 0.018 s, 35/49 faster, p 0.002; the same maths within its bounds), so new configs turn it on with update_host_index, after the same check on an H200 (LOG 11-22 09:06); on an H200 (r126, LOG 11-22 09:37) the maths held but capture was slower (median gain -0.022 s, 17/49 faster), so gate and record configs keep it off and B200 screens may turn it on; its padding count (0.196 of the bucket tokens) made finer buckets the next item, and they met capture's rule on the H200 (r127: faster in 49 of 49 warm pairs, median 0.012 s; LOG 11-22 10:21), so new H200 gate and record configs turn capture on with the fine steps (16, 8, 8); r128 (preemptable H200 30071155, rule LOG 11-22 10:26) profiles a step with fine capture and picks the next item: the head's forward, the sampler mask's CPU time, replay_batch or attention in the graphs, whichever is largest, if at least 10 ms a step; U25's data-parallel pretraining and resume
 (needed now that the 3x rung said no; code in, off by default, LOG 11-22 04:03; its GPU check met its rule on one B200 (LOG 11-22 04:48) and runs on two when r116 seed 1 has ended, about 15:00 on 11-22, as the 11-25 box is the date); U26 after the speed items) (LOG 11-21 12:40): the sampler timing put the answer grammar and stop checks at 9 to 18 % of a decode step at
 trained weights, so the update comes first, with a timing item (the policy rows' forward and backward, the
 self-imitation rows, the optimizer step) before any code (r118 found it overhead-bound: GPU busy 0.40, 11,689 kernel launches per update; r119's memory-efficient
