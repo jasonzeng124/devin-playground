@@ -10807,3 +10807,29 @@ starts soon).
   - 29999306 (preemptable B200, `screens_rl_b200`);
   - the four held workers.
 - **GPUs:** 6 if both pending jobs start. r120 seeds 1 and 2 get preemptable H200 workers as slots free.
+
+## 2026-11-21 20:52 EST: r102 seed 2 ends at 0.300 on dev, above D's line; r102's rule for seed 1 written first; r120 seed 1 gets a worker
+
+**r102 seed 2's final** (preemptable H200 29837214, node4601, 14:40 to 20:28). Dev 0.300 after 42,588 steps
+(18,028 s of GRPO at 2.360 steps a second, after 2,774 s of pretraining; 20,795 s of the 21,600 s budget). The last
+five evals average 0.3070 and the best is 0.3217. That is +0.049 over D 007's dev mean (0.2510) and +0.019 over the
+line (0.281). Seed 0 ended at 0.270 after 38,914 steps at 2.156 steps a second (node4802). Seed 2's node gave it
+9 % more steps, so part of the gap between the two seeds is the node, not the seed. The worker log says "FAILED"
+for both seeds: the runner's last `mv` looks for a `final/` folder, which a `no_save` screen does not write. The
+results are complete.
+
+**r102's rule for seed 1, written before its final** (preemptable H200 30006765, node4602, due about 01:15 on 11-22):
+- The three-seed form cannot be met, since seed 0 is under 0.281. r102 is not a record candidate on three seeds.
+- The two-seed mean is 0.285. A three-seed mean of 0.281 or more needs seed 1 at 0.273 or more.
+- If the three-seed mean is 0.281 or more, r102's seeds 3 and 4 join `gate_r120_h200` after r120's seeds 1 and 2,
+  for the five-seed form on r102 itself (mean at least 0.281, four of five above 0.251, at most one collapsed).
+  r120, the same config with lr 1.2e-5, is expected about +0.015 higher (LOG 11-21 17:13). If both reach the
+  five-seed form, the record attempt uses r120's config; if only r102 does, r102's.
+- If it is under 0.281, r102's seeds stay as r120's pairs, and r120's rule alone decides the next record attempt.
+
+**Jobs.** I submitted preemptable H200 30017487 for `gate_r120_h200` (r120 seed 1) into 29837214's freed slot.
+- **Running:** 29966174 (r117 p128 seed 0, normal B200, to about 22:00); 29995938 (r120 seed 0, preemptable H200,
+  node5000, since 18:38); 30006765 (r102 seed 1, preemptable H200, node4602, since 19:25).
+- **Pending:** 30010825 (U25 3x, normal B200; Slurm's estimate is 20:29, passed); 29999306 (preemptable B200,
+  `screens_rl_b200`); 30017487 (preemptable H200, `gate_r120_h200`); the four held workers.
+- **GPUs:** 6 if all pending jobs start.

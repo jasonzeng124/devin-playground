@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-21 19:59 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-21 20:52 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -15,7 +15,7 @@ fused pretraining for 46 min and the native RL settings for 18,000 s), seeds 0-2
 H200 preemptable workers 29450693/94/702 (released 01:52 on 11-19). Seed 0 started at 09:40 on 11-20 (node4802);
 its fused pretraining runs at about 473k tokens a second, so 46 min gives about D 007's 56-minute checkpoint. Seed
 1 started at 09:54 (node4603) and was preempted at 10:04 in its pretraining; the requeued worker redoes it, but
-the requeue reset its age (priority 31,298). Seed 0 ended at 0.270 after 38,914 steps (2.16 steps a second; best 0.2817), +0.019 over D 007's dev mean and under the line (LOG 11-20 15:32). Seed 2's first worker failed it in the pool quota failure of 11-20 15:15; it is requeued with worker 29808853. Read against D's line
+the requeue reset its age (priority 31,298). Seed 0 ended at 0.270 after 38,914 steps (2.16 steps a second; best 0.2817), +0.019 over D 007's dev mean and under the line (LOG 11-20 15:32). Seed 2 ended at 0.300 after 42,588 steps (2.36 steps a second on node4601; best 0.3217), above the line (LOG 11-21 20:52). Seed 2's first worker failed it in the pool quota failure of 11-20 15:15; it is requeued with worker 29808853. Read against D's line
 0.281 (D 007's dev mean 0.251 + 0.03) together with the steps each seed reaches: at the H100's 0.62 s/step it
 would reach about 29,000, where the B200 seeds are near the line and not clear of it (expected finals about 0.27
 to 0.29). If the three-seed rule is met, start a five-seed record attempt (r102's config without `no_save` on
@@ -46,7 +46,7 @@ is now 0.281. Every seed is within the budget (347.6-348.0 min of 360). Seed 4 w
 p = 0.0004. A 006 with 96 prompts per step, the cosine over 583 steps, stopped at step 467; kept dev mean 0.429, so
 A's line is now 0.459. Seed 1 was preempted twice (partials in `extra/`).
 
-**Jobs (19:58 EST 11-21).** Workers write to scratch (`CKPT_DIR` in `--export`) since the pool's file server
+**Jobs (20:52 EST 11-21).** Workers write to scratch (`CKPT_DIR` in `--export`) since the pool's file server
 filled up at 18:27 on 11-20 (LOG 11-20 18:42; QUESTIONS 11-20 18:42). The pool shows room again (64.5 %), but the
 workers stay on scratch until a write probe there passes. Scratch holds 3 % of its space and 74.7 % of its 1.0M file
 limit (12:30 on 11-21, up from 70 % at 07:29; not from these runs' outputs, a few files a seed; above 85 % the
@@ -59,9 +59,9 @@ memory-efficient attention kernel against the default, did not meet its rule: 0.
 0.009 s off the profiled one, so capture or compile is next, built on the efficient kernel (LOG 11-21 18:16).
 The three CPU jobs for the data (29965651 on node3107, 29980655 on node3409, 29981583 on node2702) hung or failed
 their start checks; a diagnostic (29982547) found that CPU nodes do not reach the pool, while home and scratch
-respond. On `screens_r92`: preemptable H200 29837214 runs r102 seed 2 on node4601 again since 14:40 after a
-preemption, and 30006765 runs r102 seed 1 on node4602 since 19:25 (29837213 restarted on node4301 at 18:20, found the venv
-unreadable and exited; LOG 11-21 19:57). On `gate_r120_h200`: preemptable H200 29995938 runs r120 seed 0 on node5000 since 18:38; seeds 1 and 2 get workers as preemptable slots free. Held: 29497701/02/05 (B200
+respond. On `screens_r92`: preemptable H200 29837214 ran r102 seed 2 on node4601 from 14:40 to 20:28 (dev 0.300, LOG
+11-21 20:52), and 30006765 runs r102 seed 1 on node4602 since 19:25 (29837213 restarted on node4301 at 18:20, found the venv
+unreadable and exited; LOG 11-21 19:57). On `gate_r120_h200`: preemptable H200 29995938 runs r120 seed 0 on node5000 since 18:38, and 30017487 (pending since 20:52) is for seed 1; seed 2 gets a worker when a preemptable slot frees. Held: 29497701/02/05 (B200
 preemptable; r97/r99, superseded by r102) and 29445218 (H200; r90). My jobs wait on age (298 an hour; LOG 11-19
 21:02 and 11-19 23:29); a requeue resets it. **Practice (11-20 04:34):** one pending worker for each queued long
 item, submitted when the item is queued, and never chained with `--dependency` (a job waiting on a dependency or a
@@ -81,8 +81,9 @@ these: timed in r106, same maths, no speed at trained weights.
 
 RULES v3.6 (INBOX 11-16 22:35): a record seed over budget only from idle exit time counts as it is (QUESTIONS when it happens).
 **Next decisions:** workers go back to the pool only after a write probe there passes (QUESTIONS 11-20 18:42);
-r102 seeds 1 and 2 (preemptable H200) for the speed config's three-seed mean against 0.281 (seed 0 ended at 0.270;
-a five-seed record attempt only if the three-seed rule is met); r120 (r102's H200 gate with lr 1.2e-5, after r105
+r102 seed 1 (preemptable H200, due about 01:15 on 11-22; seed 0 ended at 0.270, seed 2 at 0.300): the three-seed
+form can't be met; a three-seed mean of 0.281 or more (seed 1 at 0.273 or more) queues r102's seeds 3 and 4 for the
+five-seed form after r120's seeds (rule in LOG 11-21 20:52); r120 (r102's H200 gate with lr 1.2e-5, after r105
 met its rule) seeds 0-2 against the rule written first in LOG 11-21 17:13 (all three at 0.281 or more: a
 five-seed record attempt; a mean of 0.276 or more: seeds 3 and 4), paired with r102's seeds; lr
 24e-6 seed 2 (seed 1 was +0.031 at matched steps; seed 2 needs about +0.012 for the three-pair rule, LOG 11-21 17:59); U25's
