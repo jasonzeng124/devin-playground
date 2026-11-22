@@ -2,7 +2,7 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-21 23:25 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-22 00:01 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
@@ -51,14 +51,14 @@ filled up at 18:27 on 11-20 (LOG 11-20 18:42; QUESTIONS 11-20 18:42). The pool s
 workers stay on scratch until a write probe there passes. Scratch holds 3 % of its space and 74.7 % of its 1.0M file
 limit (12:30 on 11-21, up from 70 % at 07:29; not from these runs' outputs, a few files a seed; above 85 % the
 workers go back to the pool after a write probe). 29966174 (normal B200, node5501-c1) ran r117 p128
-seed 0 from 17:02 to 21:53 (LOG 11-21 21:58). 30010825 (normal B200, node5501-c1) has run U25's 3x rung since 21:59 (read about 03:40 on 11-22). 30028921 (normal B200, submitted 22:54) runs r122 (600 timed updates with each attention kernel; LOG 11-21 21:58) and then r123 (compile_update's same-maths check and two 600-update profiles; LOG 11-21 22:20), about 1 to 1.5 h. Its first submission, 30024430, stopped at once on the profiled config's max_steps 300 (LOG 11-21 22:54). 30000622 (node5701-c1) ran r116's two pretraining items from 18:08 to 19:25, and 30008197 (node5601-c1) ran U25's D 007 base probe and 3x smoke run from 19:33 to 19:42 (LOG 11-21 19:57). 29999304 (normal B200) ran r119's profiles and r116's data from 17:50 and exited (LOG 11-21 18:16). 29966173 ran r105 lr 24e-6 seed 1 and exited at 17:29; 29942141 ran r105 lr 12e-6 seed 2 and exited at 16:55. Preemptable B200 29999306 (pending) is for `screens_rl_b200`: lr 24e-6 seed 2, then r116's two RL items (r117 p128 seed 1 was taken out at 21:58).
+seed 0 from 17:02 to 21:53 (LOG 11-21 21:58). 30010825 (normal B200, node5501-c1) has run U25's 3x rung since 21:59 (read about 03:40 on 11-22). 30028921 (normal B200, node5700-c1) ran r122 and r123 from 23:19 to 23:43: r119 is closed (0.008 s from update 200 on), compile_update failed its check and gained under 0.03 s, so it stays off, and r124 (the update's synchronisations) is next (LOG 11-22 00:00). Its first submission, 30024430, stopped at once on the profiled config's max_steps 300 (LOG 11-21 22:54). 30033104 (normal B200, submitted 23:57) is a worker for `screens_rl_b200`. 30000622 (node5701-c1) ran r116's two pretraining items from 18:08 to 19:25, and 30008197 (node5601-c1) ran U25's D 007 base probe and 3x smoke run from 19:33 to 19:42 (LOG 11-21 19:57). 29999304 (normal B200) ran r119's profiles and r116's data from 17:50 and exited (LOG 11-21 18:16). 29966173 ran r105 lr 24e-6 seed 1 and exited at 17:29; 29942141 ran r105 lr 12e-6 seed 2 and exited at 16:55. Preemptable B200 29999306 (pending) is for `screens_rl_b200`: lr 24e-6 seed 2, then r116's two RL items (r117 p128 seed 1 was taken out at 21:58).
 29837209 and 29837211 ran r115 p32 seeds 0 and 1 (LOG 11-21 12:40) and exited; 29963843 ran the sampler timing
-(12:28 to 12:37). When 30028921 exits, its normal slot goes to a worker for `screens_rl_b200`. r117 p128 seed 1's preemptable worker 29837212 was cancelled at 17:13 so that the preemptable slots go to H200 work (LOG 11-21 17:13). r118 (preemptable B200 29980436, 80 s) found the update step overhead-bound: GPU busy 0.40 of its wall time,
+(12:28 to 12:37). r117 p128 seed 1's preemptable worker 29837212 was cancelled at 17:13 so that the preemptable slots go to H200 work (LOG 11-21 17:13). r118 (preemptable B200 29980436, 80 s) found the update step overhead-bound: GPU busy 0.40 of its wall time,
 11,689 kernel launches per update (LOG 11-21 14:59). r119 (29999304), the same profile with PyTorch's
 memory-efficient attention kernel against the default, did not meet its rule: 0.16 s off the unprofiled update but
 0.009 s off the profiled one, so capture or compile is next, built on the efficient kernel (LOG 11-21 18:16). Both profiles
-ran 20 updates at the start, while a real run's late update takes 0.17 to 0.20 s, so r122 times 600 updates to see
-whether the 0.16 s lasts past start-up (INBOX 11-21 22:10, LOG 11-21 21:58).
+ran 20 updates at the start, while a real run's late update takes 0.17 to 0.20 s, so r122 timed 600 updates: the
+0.16 s does not last past start-up (INBOX 11-21 22:10, LOG 11-21 21:58 and 11-22 00:00).
 The three CPU jobs for the data (29965651 on node3107, 29980655 on node3409, 29981583 on node2702) hung or failed
 their start checks; a diagnostic (29982547) found that CPU nodes do not reach the pool, while home and scratch
 respond. On `screens_r92`: preemptable H200 29837214 ran r102 seed 2 on node4601 from 14:40 to 20:28 (dev 0.300, LOG
@@ -92,8 +92,8 @@ five-seed record attempt; a mean of 0.276 or more: seeds 3 and 4), paired with r
 3x rung (normal B200 30010825, submitted at 19:57; read about 5.7 h after it starts; LOG 11-21 19:57); r113's three arms are all between and left to the box (sil256
 the strongest, stack3 the weakest); r116's
 two RL items (queued on `screens_rl_b200`; pretraining done, LOG 11-21 19:57) against its rule (LOG 11-21 12:40); the speed
-work, first among the code items since INBOX 11-21 22:10 (LOG 11-21 21:58: r122, then r123, capture or compile of the
-update behind a new option, then own kernels where a library kernel is the cost; U25's data-parallel pretraining only
+work, first among the code items since INBOX 11-21 22:10 (LOG 11-21 21:58 and 11-22 00:00: r122 and r123 are done, closing r119 and compiling the layers; r124
+takes the synchronisations out of the update behind a new option, then capture, then own kernels where a library kernel is the cost; U25's data-parallel pretraining only
 if the 3x rung says no, started by 11-23 09:00; U26 after the speed items) (LOG 11-21 12:40): the sampler timing put the answer grammar and stop checks at 9 to 18 % of a decode step at
 trained weights, so the update comes first, with a timing item (the policy rows' forward and backward, the
 self-imitation rows, the optimizer step) before any code (r118 found it overhead-bound: GPU busy 0.40, 11,689 kernel launches per update; r119's memory-efficient

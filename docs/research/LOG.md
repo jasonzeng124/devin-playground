@@ -10994,3 +10994,86 @@ need). The config and the code are unchanged. r122 and r123 now run as one norma
 22:54, 2.5 h limit): r122's two arms, then r123's check and its two compiled arms. That puts all four timings on the
 same node, so the r123 rule compares like with like. The rules (LOG 11-21 21:58 and 22:20) are unchanged. After the
 job, the normal slot goes to a `screens_rl_b200` worker.
+
+## 2026-11-22 00:00 EST: r122 and r123 read: r119 is closed, compile_update stays off, and r124 goes after the update's synchronisations
+
+30028921 ran on node5700-c1 (B200) from 23:19 to 23:43 EST. It ran r122's two arms, then r123's check, then r123's
+two compiled arms, and all five steps exited 0. Each profile timed 600 updates of r106's `final_native_ctl` (D 007
+seed 0's final weights, max_steps raised) and then profiled 12. The numbers below come from the JSONs by script.
+"Late" means updates 200-599. Busy, launches, synchronisations and device-to-host copies are per profiled update.
+
+| arm | late median | late mean | late p90 | 600 updates | first 50 | busy frac | busy s | launches | syncs | D2H |
+|---|---|---|---|---|---|---|---|---|---|---|
+| r122 PyTorch's choice (cuDNN) | 0.1756 | 0.2170 | 0.3185 | 142.6 s | 19.4 s | 0.507 | 0.124 | 11,486 | 63 | 266 |
+| r122 efficient | 0.1677 | 0.1918 | 0.2368 | 119.2 s | 12.1 s | 0.519 | 0.122 | 10,977 | 61 | 264 |
+| r123 compiled, PyTorch's choice | 0.1525 | 0.1855 | 0.2248 | 141.9 s | 33.6 s | 0.429 | 0.093 | 6,020 | 59 | 394 |
+| r123 compiled, efficient | 0.1576 | 0.1954 | 0.2813 | 142.3 s | 29.9 s | 0.353 | 0.095 | 6,582 | 63 | 410 |
+
+**Noise is larger than I expected.** Each arm is its own RL run from the same weights and seed, so the completions
+(and the tokens in each update) drift apart, and tokens per update are not logged. The window medians show the
+drift: PyTorch's-choice arm has 0.174 s for updates 200-399 but 0.227 s for 400-599, while the others hold or fall.
+So arm differences under about 0.02 s are within run-to-run noise, not the 0.005 s I wrote for r123.
+
+**r122 (rule LOG 11-21 21:58).** The efficient kernel's late median is 0.008 s under PyTorch's choice, which is
+under the 0.03 s bar. **r119 is closed**: its 0.16 s was a start-up cost (the first 50 updates take 12.1 s against
+19.4 s). The late means differ by 0.025 s because of cuDNN's tail (p90 0.32 against 0.24 s, single updates up to
+2.4 s), and that is also under the bar. No `sdpa_backend` option is added. As the rule says, capture or compile
+uses the efficient kernel. The late busy fraction is 0.51 to 0.52, under 0.6, which pointed r123 at compiling.
+
+**r123's check (rule LOG 11-21 22:20): rule_met false.** It used 128 rows of width 448, with 26,499 completion
+tokens.
+
+| comparison | mean abs dlp | grad cos | grad rel err |
+|---|---|---|---|
+| eager vs fp32 | 0.0120 | 0.910 | 0.43 |
+| compiled vs fp32 | 0.0116 | 0.943 | 0.36 |
+| compiled vs eager | 0.0097 | 0.9944 | 0.11 |
+
+- The first two clauses hold: compiled is closer to fp32 than eager is on both measures.
+- The third clause fails: the compiled-vs-eager cosine is 0.9944, and the bar is 0.999.
+- That bar was set without knowing the bf16 floor. Eager bf16 itself sits at cosine 0.910 from fp32, so 0.999
+  between two bf16 paths asks for more than bf16 gives.
+- The rule stands as written, so compile_update fails its check. Any later same-maths check sets its tolerance
+  from the measured bf16-vs-fp32 floor, written before the run.
+- Other results:
+  - The first compiled call took 67 s.
+  - Median call: eager 0.152 s, compiled 0.117 s.
+  - 11 graphs, with no new graph on a narrower, shorter second batch.
+  - 5 graph breaks.
+
+**r123's timing.** Against r122 on the same kernel, the compiled late median is 0.023 s lower (PyTorch's choice)
+and 0.010 s lower (efficient). Both are under the 0.03 s bar, and both are within the noise above. Over all 600
+updates, compiling gains nothing: 141.9 s against 142.6 s, and 142.3 s against 119.2 s, because compilation adds
+10 to 20 s in the first 50 updates. **Compiling the layers is closed. compile_update stays off by default and no
+seed runs with it.** The code stays as an option, and its test and check script stay too.
+
+**Why the gain was small, and what r124 targets.**
+- Compiling cut the GPU's busy time per update from 0.122 to 0.094 s, and launches by 40 to 48 %.
+- The wall time fell only 0.01 to 0.02 s, so the busy fraction went down (0.35 to 0.43), not up.
+- The update is bound on the CPU side, not by kernels:
+  - about 60 synchronisations per update (cudaStreamSynchronize 16 to 20 ms of CPU time);
+  - 264 to 410 device-to-host copies;
+  - about 30 ms of cudaLaunchKernel in eager mode.
+- Each synchronisation drains the GPU's queue, so the CPU can never run ahead.
+- The sources are in `_update` and the loss. Each micro-batch does:
+  - boolean-mask indexing (`token_lp[completion_mask]`, the entropy, the repeated advantages, the skip mask), each
+    with a hidden nonzero;
+  - `.item()` for the micro-batch width;
+  - `.nonzero()` for the active rows.
+- Also, `unique_dim` takes 4.6 ms of GPU time per update.
+- CUDA-graph capture needs these regions free of synchronisations too.
+
+**r124, outline (its rule is written when the code is in):**
+1. A GRPOConfig option, off by default, computes the loss sums as masked multiply-and-sum over the padded tensors
+   instead of boolean-mask indexing.
+2. The same option takes the micro-batch widths and active rows from one host copy per update, made before the
+   micro-batch loop.
+3. Same maths up to the order of summation. It gets a CPU test, and a GPU check whose tolerance comes from the
+   bf16 floor.
+4. It is timed the way r122 was. Whole-micro-batch CUDA-graph capture, with fixed widths and the efficient kernel,
+   follows only if the synchronisations come down to a few per update.
+5. Own Triton kernels (INBOX 21:25) come in where a profile then shows a library kernel as the cost.
+   unique_dim is the first candidate.
+
+U25's 3x rung (30010825) is still running, and its read is due about 03:40. The normal slot that 30028921 freed went
+to a `screens_rl_b200` worker, 30033104 (submitted 23:57).
