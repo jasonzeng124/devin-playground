@@ -10982,3 +10982,15 @@ What it decides:
   rounded to fixed sizes, becomes r124.
 - **The late busy fraction stays under 0.6 after compiling:** the remaining gap is the head and loss (eager) and
   the step's own Python, and r124 targets those.
+
+## 2026-11-21 22:54 EST: r122 stopped on max_steps; rerun with r123 after it in one job
+
+r122 (30024430) started on node5701-c1 at 22:41 and both arms stopped in 30 s with `max_steps 300 must exceed
+warm + steps (612)`. r106's `final_native_ctl` config, which the profiles run, has max_steps 300, and
+`profile_update.py` checks it before it starts. Nothing ran on the GPU.
+
+The fix sets `--set max_steps=1000000` on every profile (time_budget_s stays 17,400 s, far more than 612 updates
+need). The config and the code are unchanged. r122 and r123 now run as one normal B200 job, 30028921 (submitted at
+22:54, 2.5 h limit): r122's two arms, then r123's check and its two compiled arms. That puts all four timings on the
+same node, so the r123 rule compares like with like. The rules (LOG 11-21 21:58 and 22:20) are unchanged. After the
+job, the normal slot goes to a `screens_rl_b200` worker.
