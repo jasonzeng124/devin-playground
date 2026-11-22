@@ -11745,3 +11745,89 @@ normal slot that is free now, and r116's next step is not held back by about 1.5
 
 **GPUs (09:49).** 5: three preemptable H200s on r120 seeds 0 to 2, r127 (30068951, preemptable H200) and 30069082
 (normal B200, pending).
+
+## 2026-11-22 10:21 EST: r127, finer buckets meet capture's rule on the H200 (faster in 49 of 49 pairs, median 0.012 s), so new H200 gate and record configs turn capture on with them
+
+**The check** (preemptable H200 30068951, node4602, 09:45 to 09:57 EST;
+`calibration/research_r127/{fine,coarse}_warm_h200/seeds/0/check.json`). Both arms ended with rc 0, on r106's
+`final_native_ctl` config and r93 seed 0's weights, as written first.
+
+**Maths: holds in both arms.** Gradient error to the fp32 reference:
+
+| update | fine, capture | fine, default | coarse, capture | coarse, default |
+|---|---|---|---|---|
+| 2 | 0.0508 | 0.0508 | 0.0528 | 0.0528 |
+| 20 | 0.0654 | 0.0654 | 0.0639 | 0.0640 |
+| 100 | 0.0579 | 0.0580 | 0.0541 | 0.0542 |
+
+Each capture error is within 1.25 x the default's + 1e-4, and the logged sums and the replayed rows' nll are within
+their bounds. Replays are identical in both arms.
+
+**Timing** (warm pairs at updates 100 to 590, every 10th; gain = default minus capture):
+
+| arm | pairs | capture faster | sign p | median gain | quartiles | default median | capture median | pairs with a new capture |
+|---|---|---|---|---|---|---|---|---|
+| fine | 49 | 49 | 1.78e-15 | 0.012 s | 0.008, 0.041 s | 0.182 s | 0.174 s | 0 |
+| coarse | 49 | 16 | 0.995 | -0.009 s | -0.023, 0.011 s | 0.181 s | 0.203 s | 0 |
+
+Fine by band: 100-290: 19 of 19 faster, median 0.010 s; 300-440: 15 of 15 faster, median 0.017 s; 450-590: 15 of 15 faster, median 0.010 s. So the gain holds through the window.
+
+**Captures, padding and memory** (padding = 1 - own / bucket, over all replays):
+
+| arm | shapes captured | capturing | replays | fallbacks | padding, tokens | padding, groups | peak reserved |
+|---|---|---|---|---|---|---|---|
+| fine | 20 | 3.65 s | 254 | 0 | 0.058 | 0.117 | 57.9 GB |
+| coarse | 13 | 2.85 s | 244 | 0 | 0.190 | 0.123 | 62.0 GB |
+
+- The timed updates' micro-batches had 61 distinct own shapes in fine and 52 in coarse.
+- Bucket tokens per replay were 34,551 in fine against 41,044 in coarse (0.84 x). The capture
+  medians were 0.174 against 0.203 s (0.86 x). So capture's time fell about as much as its padded tokens did.
+
+**The default's time depends on the order.** Split by the arm timed first:
+
+| check | timed first | pairs | default median | capture median | median gain | capture faster |
+|---|---|---|---|---|---|---|
+| r126 (cold) | default | 25 | 0.179 s | 0.203 s | -0.024 s | 7 |
+| r126 (cold) | capture | 24 | 0.237 s | 0.204 s | -0.007 s | 10 |
+| r127 fine | default | 25 | 0.181 s | 0.174 s | +0.010 s | 25 |
+| r127 fine | capture | 24 | 0.240 s | 0.199 s | +0.027 s | 24 |
+| r127 coarse | default | 25 | 0.181 s | 0.203 s | -0.007 s | 8 |
+| r127 coarse | capture | 24 | 0.180 s | 0.203 s | -0.013 s | 8 |
+
+- The default took about 0.24 s when it was timed second, in r126 and in fine, and about 0.18 s otherwise. In
+  coarse with warm pairs the order made no difference. I don't know why.
+- A real run has one path and runs each update once, so neither order is a real run's update. My guess is that the
+  rows with the default timed first are the fairer ones: there fine's median gain is 0.0096 s, faster in
+  25 of 25. That is just under 0.01 s. The rule written first reads all 49 pairs (0.012 s), so it is
+  met. In every pair, in either order, fine was faster.
+
+**Per the rule written first (LOG 11-22 09:44): fine wins.**
+- The maths holds in both arms.
+- Fine meets r125's timing rule with warm pairs, with no fallbacks; coarse does not.
+- So new H200 gate and record configs turn update_capture on, with update_host_index and the fine steps:
+  `update_capture_width_step` 16, `update_capture_row_step` 8 and `update_capture_group_step` 8.
+- r102 to r121 stay frozen: if r120's rule is met, its record uses r120's config as written.
+
+**Against the guesses.**
+- Padding: 0.058 (guess: about 0.05).
+- Shapes: 20 captured (guess: 30 to 80); the 61 distinct own shapes fell into fewer buckets than I expected.
+- Fine was to be near even and to miss the rule; it met it. Coarse stayed below even, as guessed.
+
+**What a real run should get (a guess).**
+- r102's H200 seeds made 38,914 to 43,073 RL updates in 18,000 s. At 0.0096 to 0.012 s an update, that is
+  about 372 to 517 s, 2 to 3 % of the RL time.
+- Less the captures: 3.6 s for 20 shapes here. Past 128 shapes the rest run eager, and the run prints its counts
+  at the end.
+- The end-to-end check is the first H200 gate with capture: its RL steps against those of seeds without capture
+  that differ in nothing else (r102, r120), by seed.
+- B200: r125 met the rule there with the default buckets; the fine steps have not been checked on a B200.
+
+**Next speed item** (LOG 11-22 09:37): the elementwise and copy kernels, then attention. First, a profile of the
+update with fine capture on an H200 (`scripts/research/profile_update.py`). It shows which of those kernels run
+inside the graphs and which in the optimizer step. Its rule is written with it.
+
+**Jobs (10:21).**
+- 30069082 (normal B200, node5700-c1) has run r116 seed 1 since 09:51.
+- Three preemptable H200s run r120 seeds 0 to 2 (29995938 and 30051396 on node4803, 30017487 on node4601).
+  r102 seeds 3 and 4 follow on `queue/gate_r120_h200.txt`.
+- 4 GPUs.
