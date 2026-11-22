@@ -11498,3 +11498,56 @@ All three pairs (computed by script from the eval logs):
 - r102's seeds 3 and 4 wait on `gate_r120_h200` behind r120's seeds.
 - When r125 and r116 seed 0 have both ended, U25's two-GPU check takes both normal B200s (it is box-date-bound,
   by 11-24). If 29999306 is still being preempted then, r116 seed 1 goes to a normal B200 after that.
+
+## 2026-11-22 09:06 EST: r125 update_capture meets both parts of its rule, so new configs turn it on with update_host_index
+
+**The check** (normal B200 30065238, node5601-c1, 08:30 to 08:47 EST;
+`calibration/research_r125/check/seeds/0/check.json`): r106's `final_native_ctl` config from D 007 seed 0's
+checkpoint, update_host_index on in both arms, capture against the default path.
+
+1. **Maths, met.** Gradient error against the fp32 reference, capture and the default, at three updates:
+
+| update | capture grad_rel_err | default grad_rel_err | sums_max_rel capture / default | nll_rel capture / default | capture vs default |
+|---|---|---|---|---|---|
+| 2 | 0.0593 | 0.0569 | 0.0626 / 0.0626 | 7.4e-05 / 1.9e-03 | 0.0271 |
+| 20 | 0.0603 | 0.0611 | 0.0240 / 0.0240 | 3.3e-03 / 1.1e-02 | 0.0313 |
+| 100 | 0.0517 | 0.0521 | 0.0708 / 0.0708 | 1.1e-03 / 4.0e-03 | 0.0377 |
+
+   Each capture error is within 1.25 x the default's + 1e-4, the sums match, and the loss is closer to fp32 than
+   the default's. Repeats of each path are identical (rel err 0), and so are the graph replays.
+2. **Timing, met.** 49 pairs from update 110 to 590: capture was faster in 35, sign p
+   0.0019, median gain 0.0183 s (rule: at least 30 pairs, median 0.01 s or more,
+   p under 0.01). The median update went from 0.228 to 0.188 s. By updates: 110-290: 19 pairs, median 0.007 s, 10 faster; 300-440: 15 pairs, median 0.042 s, 13 faster; 450-590: 15 pairs, median 0.019 s, 12 faster.
+   So the gain holds late in the run (r122 found that r119's start-up gain did not). A few capture updates were slow
+   (0.385 s against 0.231 at update 120), where a new shape was captured.
+- **Captures:** 14 shapes, 141 replays, 0 fallbacks, 0 resets; 3.36 s of capturing in all,
+  inside the timed update, so in the clock. The check's peak reserved memory, over all its arms, was
+  62.2 GB.
+- torch warns once that the AccumulateGrad node's stream differs from the stream that made the gradient. Any
+  synchronisation that costs is inside the timings above.
+
+**The two 600-update profiles** (same job; `calibration/research_r125/{host_index_long,capture_long}/seeds/0/profile.json`).
+They are not paired: the paths' rounding differs, so the rollouts part after the first update.
+- Unprofiled update, median of 600: 0.223 s with update_host_index alone, 0.179 s with capture. By
+  window, host_index against capture: 1-49: 0.291 against 0.200 s; 50-199: 0.231 against 0.184 s; 200-399: 0.172 against 0.177 s; 400-599: 0.195 against 0.172 s.
+- At updates 600 to 611 (profiled): kernel launches 11351 to 288 an update, synchronisations
+  17.7 in both, GPU busy 0.49 to 0.87 of the wall time. Median allocated peak 28.3 to 20.8 GB.
+- GPU busy time rose from 0.117 to 0.151 s an update. Part of that should be the padding to bucket
+  shapes (rows to steps of 8 to 64, width to 64, groups to 8). How much is padding is the next measurement.
+- The update is now bound by GPU work, not launches. What is left is that work: the padding; the elementwise and
+  copy kernels (the four largest add to 40 ms an update; which are inside the graphs and which are in the
+  optimizer step is part of the next measurement); and attention, where cuDNN runs sm80 flash kernels on the
+  B200 (17 ms an update).
+
+**Per the rule written first (LOG 11-22 06:32): met.** New configs turn update_capture on, with
+update_host_index, which it needs. r102 to r121 are frozen, so r120's record attempt, if its rule is met, uses
+r120's config as written. The next gate config is the first to carry capture. Gates and records run on H200 and
+this check ran on a B200, so the same check, without the profiles (about 10 minutes), runs on an H200 before a
+gate uses it, on the first free preemptable H200 slot. Own kernels come next, starting with the padding count
+and where the elementwise work comes from.
+
+**Jobs (11-22 09:06).** 30054646 (normal B200, node5700-c1) has run r116 seed 0 since 04:50. 29999306 (preemptable
+B200) started r116 seed 1 five times between 05:56 and 07:57, and each start was preempted; it is pending again.
+Three preemptable H200 workers run r120 seeds 0 to 2 (29995938 and 30051396 on node4803, 30017487 on node4601).
+5 GPUs in use or pending. The free normal slot stays free: when r116 seed 0 ends, U25's two-GPU check takes both
+normal B200s (by 11-24), then r116 seed 1 goes to a normal B200 if 29999306 is still being preempted.
