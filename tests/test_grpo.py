@@ -607,6 +607,7 @@ def test_update_capture_gives_the_same_update(share):
     assert runs[1][0][2] == runs[1][1][2]
     stats = grpo._CAPTURES[model].stats
     assert stats["fallbacks"] == 0 and stats["keys"] >= 2 and stats["replays"] >= 4 and stats["resets"] == 0
+    assert 0 < stats["real_tokens"] <= stats["bucket_tokens"] and stats["real_groups"] <= stats["bucket_groups"]
 
 
 def test_update_capture_refuses_a_backward_out_of_order():

@@ -969,6 +969,8 @@ class _UpdateCapture:
         self.cap_tokens = 2 * micro_batch_tokens + 4096  # _micro_groups keeps rows x width <= micro_batch_tokens
         self.entries: dict = {}
         self.stats = {"keys": 0, "captures": 0, "capture_s": 0.0, "replays": 0, "fallbacks": 0, "resets": 0}
+        # summed over replays: the micro-batches' real rows x width and their buckets' (host ints, no sync)
+        self.stats.update(real_tokens=0, bucket_tokens=0, real_groups=0, bucket_groups=0)
         self.serial = self.done = 0
         self.ids_buf = self.mask_buf = self.out_buf = self.grad_buf = None
         self.warmed = False
@@ -1015,6 +1017,11 @@ class _UpdateCapture:
                 return None
             e = self.entries[key] = self._entry(model, key, input_ids, attention_mask, first, inverse)
             self.stats["keys"] += 1
+        self.stats["real_tokens"] += R * W
+        self.stats["bucket_tokens"] += rows * width
+        if first is not None:
+            self.stats["real_groups"] += first.numel()
+            self.stats["bucket_groups"] += groups
         e.ids[:R, :W].copy_(input_ids)
         e.ids[R:, :W].copy_(input_ids[:1])
         e.ids[:, W:].zero_()
