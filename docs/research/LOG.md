@@ -12073,3 +12073,23 @@ workers (preemptable H200), the control (normal B200). Six in all, at the cap. T
 - **Jobs at 02:53:** D 008 seed 4 runs on 30099011 (since 22:28) and seed 2 on 30132623 (since 02:07). 30099012 and
   30132625 (preemptable H200) are pending for seeds 1 and 3, 30165584 (normal B200) for control seed 2. Five GPUs.
   r116 seed 2's and control seed 1's logs are committed here; D 008's seed files wait for the record's commit.
+
+## 2026-11-23 12:57 EST: D 008 seeds 2 and 4 end at test 0.3176 and 0.3371; seeds 1 and 3 preempted twice more; r116's control seed 2 ends 0.0183 under r116
+
+- **D 008 seeds 2 and 4** (H200, preemptable): seed 2 (30132623, node4602) dev 0.3083, test 0.3176, clock 20,791 s;
+  seed 4 (30099011, node4803) dev 0.3233, test 0.3371, clock 20,792 s. With seed 0, three of five seeds are done:
+  dev mean 0.3089, test mean 0.3245 (the holder D 007: dev 0.2510, test 0.2644).
+- **Seeds 1 and 3, more preemptions:** both restarted at 04:12 and 04:34 (partials of the midnight runs in
+  `extra/interrupted_3_1` and `extra/interrupted_1_1`), were preempted again at 09:01 (seed 3 after 4 h 49 min,
+  seed 1 after 4 h 27 min), restarted at 09:12 on node4601 (partials in `extra/interrupted_1_2` and `extra/interrupted_3_2`) and were
+  preempted a third time at 09:18, six minutes in. 30099012 and 30132625 are pending again; each restart moves the
+  partial to extra/. Each seed needs about 6 h 16 min, longer than mit_normal_gpu's 6 h limit, so they stay on
+  preemptable.
+- **r116's control, seed 2** (r84's weights; 30165584, node5702-c1): dev 0.3017 at the end against 0.3200 for r116
+  seed 2, +0.0183 for r116; +0.0105 at matched train time (ahead at 67 of 89 paired evals), +0.0124 at matched steps
+  (63 of 82). Over the three seeds the control ends 0.0550, 0.0767 and 0.0183 under r116, mean
+  0.0500; r116 ends above r101's control by a mean of +0.0395. So the FineMath-keyword data still leads the
+  same pretraining on mix_0.2 on all three seeds, by less on seed 2. The r116 work is done; a follow-up within the
+  record's pretraining budget is for the 11-24 box replan. Control seed 2's logs are committed here.
+- **Jobs at 12:57:** 30099012 and 30132625 (preemptable H200, D 008 seeds 1 and 3) pending. Two GPUs. The two normal
+  B200 slots are idle: nothing queued fits them without a new config, which waits for the 11-24 15:00 replan.
