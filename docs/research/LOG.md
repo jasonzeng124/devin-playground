@@ -12030,3 +12030,24 @@ revision into scratch, with a manifest of sizes and md5 sums. Each shard is abou
 **GPUs at this entry.** Running: r102 seeds 3 and 4 (preemptable H200), r116 arm (normal B200). Pending: two D 008
 workers (preemptable H200), the control (normal B200). Six in all, at the cap. The compile and MFU work of INBOX
 5b83148 starts after the window (11-25 18:00).
+
+## 2026-11-22 21:41 EST: r102 ends its five seeds at a dev mean of 0.2943; r116's control seed 0 ends 0.055 under r116; D 008 seeds 0 and 1 running
+
+- **r102 seeds 3 and 4** (the H200 gate for D 007's speed stack): dev 0.2983 and 0.2933 (clock 20,787 and 20,790 s
+  of 21,600). As before, run_seed_v3.sh's final mv logs FAILED for a no_save gate; result.json and clock.json are
+  complete. All five seeds: 0.2700, 0.3100, 0.3000, 0.2983, 0.2933, mean 0.2943. All five are above the holder's dev
+  mean 0.251, four of five reach 0.281 and none collapsed, so r102 meets the five-seed form too. It gets no record
+  attempt of its own: D 008 runs r120 (lr 1.2e-5), whose seeds 0-2 averaged 0.3111 against r102's 0.2933 on the same
+  seeds. r102 seeds 1-4's files are committed here.
+- **r116's control, seed 0** (`d116rl_native_r84ctl_b200`: r101's native RL from r84 muon_1338m's weights, the same
+  pretraining settings on mix_0.2 without FineMath; B200): dev 0.2850 at the end against 0.3400 for r116 seed 0,
+  +0.0550. At matched train time +0.0543 (r116 ahead at all 96 paired evals); at matched steps +0.0435 (84 evals to
+  step 42,000). r116 ran more steps (48,567 against 42,449), most of the gap early in the run (early sample time
+  0.19 s against 0.33 s per step). The two ran on different nodes (node5700-c1 and node5502-c1), so part of that may
+  be the node; the matched-steps figure doesn't depend on speed. r116 seed 2's RL is running; control seeds 1 and 2
+  are queued.
+- **FineMath download** (CPU job 30099150, 2 min 39 s): FineMath-4plus shards 3-31, 29 files and 8.31 GB, are in
+  scratch with a manifest of sizes and md5s. They are not tokenized yet; that waits for the window to end.
+- **Jobs at 21:41:** D 008 seed 0 runs on 30099011 (node4803, since 16:38) and seed 1 on 30099012 (node4802, since
+  18:20). Two more record workers (30132623/25, pending) are for seeds 2-4. r116 seed 2's RL runs on 30099099
+  (normal B200, since 17:05). The control's seed 1 worker 30132627 (normal B200) is pending. Six GPUs.
