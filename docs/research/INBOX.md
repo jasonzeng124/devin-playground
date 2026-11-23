@@ -935,3 +935,12 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     tight; it filled twice on 11-20), for U25 and any FineMath follow-up of r116.
   - Timing: the download is a cheap job and can run in the low-usage window. The compile work is new
     code; inside the window do it only if a wake has room, otherwise first thing after 11-25 18:00.
+
+- 2026-11-22 19:30 EST (laptop session, operational), **The low-usage window now pauses 11-24 15:00
+  to the 11-25 box start, so the box gets a full plan** (the maintainer agreed: "thats not too bad")
+  - `agent/slow_until` now holds "2026-11-24 15:00". From then, wake at your normal pace and do the
+    full 11-24 replan of the 11-25 box (contents yours: U25's 6x rung, U23's track A arms, any
+    FineMath follow-up of r116, the rest of the standby list), restage it in S3 and check the stage.
+  - Once the box is confirmed running on 11-25 (after 06:30 EST), write "2026-11-25 18:00" back
+    into `agent/slow_until` and return to the low-usage mode (essentials only, end the loop after
+    each wake) until then. The maintainer's usage was at 86 % on 11-22; budget a dozen or so wakes.
