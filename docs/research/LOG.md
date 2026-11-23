@@ -12051,3 +12051,25 @@ workers (preemptable H200), the control (normal B200). Six in all, at the cap. T
 - **Jobs at 21:41:** D 008 seed 0 runs on 30099011 (node4803, since 16:38) and seed 1 on 30099012 (node4802, since
   18:20). Two more record workers (30132623/25, pending) are for seeds 2-4. r116 seed 2's RL runs on 30099099
   (normal B200, since 17:05). The control's seed 1 worker 30132627 (normal B200) is pending. Six GPUs.
+
+## 2026-11-23 02:53 EST: D 008 seed 0 ends at dev 0.2950, test 0.3188; three D 008 workers preempted; r116 seed 2 ends +0.0367 over r101's control; r116's control seed 1 ends 0.0767 under r116
+
+- **D 008 seed 0** (30099011, node4803, H200): dev 0.2950, test (confirm_v3.json ladder_score) 0.3188. Clock 20,790 s
+  of 21,600 (pretraining 2,770 s, GRPO 18,049 s). Seed 4 started on the same worker at 22:28.
+- **Preemptions:** at 00:02-00:06 Slurm preempted the other three record workers: 30099012 (seed 1, after 5 h 46 min,
+  near its end), 30132623 (seed 2) and 30132625 (seed 3), both after about 2 h. All three were requeued. 30132623
+  started again at 02:07 on node4602; its worker moved seed 2's partial run to `extra/interrupted_2_1` and started
+  seed 2 from the beginning. Seeds 1 and 3 restart the same way when 30099012 and 30132625 start. None of the partial
+  runs reached a test score; the record's README will list them.
+- **r116 seed 2** (FineMath-keyword pretraining, then r101's native RL; B200 30099099): dev 0.3200 at the end against
+  0.2833 for r101's native control seed 2, +0.0367; +0.0285 at matched train time. Over seeds 0-2 r116 ends
+  +0.0367, +0.0450 and +0.0367 over r101's control, mean +0.0395.
+- **r116's control, seed 1** (r84's weights; 30132627, node5700-c1): dev 0.2567 against 0.3333 for r116 seed 1,
+  +0.0767 for r116; +0.0388 at matched train time (r116 ahead at 76 of 87 paired evals, behind by 0.017 in the first
+  hour). Over seeds 0-1 the control ends 0.0550 and 0.0767 under r116. Control seed 2 waits for 30165584 (normal
+  B200, submitted at 02:53).
+- **Window (INBOX c080338):** the low-usage window now pauses from 11-24 15:00 to the 11-25 box start for a full replan
+  of the 11-25 box; `agent/slow_until` reads 2026-11-24 15:00. Once the box runs, the window resumes until 11-25 18:00.
+- **Jobs at 02:53:** D 008 seed 4 runs on 30099011 (since 22:28) and seed 2 on 30132623 (since 02:07). 30099012 and
+  30132625 (preemptable H200) are pending for seeds 1 and 3, 30165584 (normal B200) for control seed 2. Five GPUs.
+  r116 seed 2's and control seed 1's logs are committed here; D 008's seed files wait for the record's commit.
