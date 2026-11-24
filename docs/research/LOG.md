@@ -12289,3 +12289,8 @@ INBOX 11-24 11:50: most of the box's `home.txt` was not in S3.
   `box_s3.sh home` runs again to upload it.
 - **Fallback.** If the file is not ready by about 20:00 EST, the plan's FINEMATH points at r116's
   `finemath_kw.bin` (shards 0-2, which the 6x rung repeats about 6 times), and the box is restaged.
+- **Done at 12:13.** Prep 30359131 took 31 min on node3300. The keyword filter read shards 3-31 (3,035,720
+  documents) and dropped 21,966 (0.72% of documents, 1.80% of characters). The kept text is 5.007B tokens, so
+  `finemath_kw_0_31.bin` is 11,054,703,932 bytes, about 5.5B tokens with r116's shards 0-2 (md5 1d9d3290...).
+  Upload 30362713 took 2 min. `box_s3.sh check` now says "check ok", so no fallback is needed and the stage at
+  ac11caf stands. (2026-11-24 12:13)
