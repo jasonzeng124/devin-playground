@@ -2,9 +2,9 @@
 
 (maintained by the research agent; see AGENT.md)
 
-Updated 2026-11-24 10:21 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
+Updated 2026-11-24 11:07 EST. The run ends 2026-12-19. The agent runs on Opus 5.5.
 
-**Normal pace again (INBOX 11-24 10:00).** Running: r129 (r116's FineMath mix in r120's 46-min pretraining, B200, LOG 11-24 09:56). D 008 seeds 1 and 3 are still to finish (preempted again; seeds 0, 2 and 4 at test 0.3188, 0.3176 and 0.3371). U25: the two-GPU DDP check passes on identical ranks, val loss and resume but scales 0.72 a GPU against the rule's 0.9; the 6x rung fits at micro-batch 32 and runs with DDP on the 11-25 box's eight H100s (LOG 11-24 10:21). The 11-25 box (06:30 EST, 24 h): the 6x rung first, then r85's track A pairs (seeds 3 and 4) and r108's arms, one per GPU. FineMath shards 3-31 prep (30348265) is pending.
+**Normal pace again (INBOX 11-24 10:00).** Running: r129 (r116's FineMath mix in r120's 46-min pretraining, B200, LOG 11-24 09:56). D 008 seeds 1 and 3 are still to finish (preempted again; seeds 0, 2 and 4 at test 0.3188, 0.3176 and 0.3371). U25: the two-GPU DDP check passes on identical ranks, val loss and resume but scales 0.72 a GPU against the rule's 0.9; the 6x rung fits at micro-batch 32 and runs with DDP on the 11-25 box's eight H100s (LOG 11-24 10:21). The 11-25 box (06:30 EST, 24 h): the 6x rung first, then r85's track A pairs (seeds 3 and 4) and r108's arms, one per GPU. FineMath shards 3-31 prep (30348265) is pending. Efficiency: `grammar_fast_path` (interned grammar states and a device mask table, off by default, same masks) is committed; on a meta-device CPU bench it cuts the mask's host work by 26 to 32 ms a step. r131 times it on one GPU (ABBA, rule in LOG 11-24 11:07) once a slot frees; the 6 GPUs are in use.
 
 **The speed stack turns into score (LOG 11-19 02:05, 11-19 14:35 and 11-20 09:23).** r101 (B200, RL only from D
 007's checkpoints, 17,400 s, not yet gated): the native arm's three seeds ended at dev 0.3033 (34,893 steps),
