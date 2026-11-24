@@ -98,14 +98,15 @@ def test_factored_grammar_samples_the_same_tokens(tokenizer):
     rows = [tokenizer.encode(f"Numbers {p.numbers}, target {p.target}.", add_special_tokens=False) for p in puzzles]
     encoded = _left_padded(rows, pad)
     runs = []
-    for factored in (False, True):
+    for factored, fast in ((False, False), (True, False), (False, True), (True, True)):
         engine = NativeRollout(model, tokenizer, 128, seed=3, dtype=torch.float32, constrain_answer=True, cuda_graphs=False,
-                               batch_bucket=8, key_bucket=16, factored_grammar=factored)
-        assert engine.grammar.factored is factored
+                               batch_bucket=8, key_bucket=16, factored_grammar=factored, grammar_fast_path=fast)
+        assert engine.grammar.factored is factored and engine.grammar.interned is fast
         sequences, finished = engine.generate(encoded, 4, 1.0, 60, pad, puzzles=puzzles, think_budget=3)
         runs.append((sequences, torch.as_tensor(finished), engine.last_allowed))
-    assert torch.equal(runs[0][0], runs[1][0]) and torch.equal(runs[0][1], runs[1][1])
-    assert runs[0][2] == runs[1][2] and any(a for row in runs[0][2] for a in row)
+    for run in runs[1:]:  # the factored grammar and the fast path (interned states, MaskTable) sample the same tokens
+        assert torch.equal(runs[0][0], run[0]) and torch.equal(runs[0][1], run[1]) and runs[0][2] == run[2]
+    assert any(a for row in runs[0][2] for a in row)
 
 
 @pytest.mark.parametrize("reuse", [False, True])

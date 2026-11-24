@@ -26,7 +26,17 @@ import time
 import torch
 import torch.nn.functional as F
 
-from .constrained import CLOSE, AnswerGrammar, RequestConstraint, mask_rows_cached, open_token_ids, token_strings
+from .constrained import (
+    CLOSE,
+    AnswerGrammar,
+    MaskTable,
+    RequestConstraint,
+    mask_rows_cached,
+    open_token_ids,
+    token_strings,
+)
+
+GRAMMAR_CACHE_LIMIT = 400_000  # grammar_fast_path: cached states kept between `generate` calls (`AnswerGrammar.trim`)
 
 
 def _unwrap(model):
@@ -35,7 +45,8 @@ def _unwrap(model):
 
 class NativeRollout:
     def __init__(self, model, tokenizer, max_len: int, seed: int, dtype: torch.dtype = torch.bfloat16, constrain_answer: bool = False,
-                 cuda_graphs: bool = True, batch_bucket: int = 64, key_bucket: int = 32, factored_grammar: bool = False):
+                 cuda_graphs: bool = True, batch_bucket: int = 64, key_bucket: int = 32, factored_grammar: bool = False,
+                 grammar_fast_path: bool = False):
         model = _unwrap(model)
         config = model.config
         if config.model_type != "llama":
@@ -61,8 +72,11 @@ class NativeRollout:
         eos.update(gen_eos if isinstance(gen_eos, (list, tuple)) else [gen_eos])
         self.eos = frozenset(e for e in eos if e is not None)
         self.strings = token_strings(tokenizer)
-        self.grammar = AnswerGrammar(self.strings, open_token_ids(tokenizer), factored=factored_grammar) if constrain_answer else None
+        self.grammar = AnswerGrammar(self.strings, open_token_ids(tokenizer), factored=factored_grammar,
+                                     interned=grammar_fast_path) if constrain_answer else None
         self.index_cache: dict = {}
+        # grammar_fast_path: interned grammar states and a device table of allowed sets (`MaskTable`); same masks
+        self.mask_table = MaskTable() if grammar_fast_path and constrain_answer else None
         self.generator = torch.Generator(device=self.device)
         self.generator.manual_seed(seed)
         self.mask_cpu = 0.0  # the constraint's CPU seconds in the last `generate` call
@@ -256,6 +270,8 @@ class NativeRollout:
             generator.manual_seed(seed)
         constraints = None
         if puzzles is not None:
+            if self.grammar.interned:
+                self.grammar.trim(GRAMMAR_CACHE_LIMIT)
             constraints = [RequestConstraint(self.grammar, pz.numbers, pz.ops, self.index_cache, think_budget) for pz in puzzles for _ in range(n)]
         outputs: list[list[int]] = [[] for _ in range(b)]
         tails = [""] * b
@@ -269,7 +285,10 @@ class NativeRollout:
                 allowed = [(r, constraints[r].allowed_ids(outputs[r])) for r in active]
                 for r, row_allowed in allowed:
                     allowed_log[r].append(row_allowed or None)
-                logits = mask_rows_cached(logits, allowed, self.index_cache)
+                if self.mask_table is not None:
+                    logits = self.mask_table(logits, allowed)
+                else:
+                    logits = mask_rows_cached(logits, allowed, self.index_cache)
                 mask_cpu += time.perf_counter() - start
             if temperature > 0:
                 probs = torch.softmax(logits / temperature, dim=-1)

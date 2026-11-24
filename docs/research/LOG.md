@@ -12233,3 +12233,45 @@ and GSM8K paths to what the screens' configs need.
 submission as 30347231 (node5800-c1 excluded too). Its seed 1 pair now runs next to seed 0's. With D 008's two
 H200 workers that makes six GPUs, the cap. Both are pending until preemption allows; the queue holds 4 items for
 4 workers.
+
+## 2026-11-24 11:07 EST: a faster grammar mask for the native sampler (`grammar_fast_path`, off by default); r131 will time it on a GPU
+
+**Why.** At r128, the native sampler's mask CPU time was 104 ms of s_generate's 151 ms a step. The sampler waits on
+the host, so less host work in the mask should mean less generate time.
+
+**What changed** (`rlvr_speedrun/constrained.py`, `fast_rollout.py`, `grpo.py`). A new option `grammar_fast_path`
+needs `constrain_answer` and the native backend. It does two things:
+- **Interned grammar states.** Each (state, ops) pair gets an int id. A row steps its id one token at a time
+  through a `(id, token) -> id` table, instead of re-running the grammar over its answer text. `generate` clears
+  the tables when they hold more than 400,000 entries.
+- **`MaskTable`.** A device bool table of blocked ids, 4096 slots by vocab, keyed by the allowed-id tuple. New sets
+  are written in one batched host-to-device copy. The mask is one `masked_fill` with a gather of the rows' slots.
+  On overflow it resets for the call.
+
+The masks are identical to `mask_rows_cached`'s: the tests check the allowed ids against the old path, and the
+mask tensors element by element. A rollout test checks the same sequences with all four (factored, fast) settings.
+So no loss comparison is needed. Full suite: 228 passed; ruff clean.
+
+**CPU benchmark** (`scripts/research/bench_mask.py`, job 30354739, a `meta` device, so it measures host work
+only; medians over the second half of 8 sampling steps, ms a step):
+
+| grammar | allowed_ids | mask |
+|---|---|---|
+| factored | 32.9 | 56.8 |
+| factored, fast path | 31.5 | 25.1 |
+| plain | 84.0 | 60.4 |
+| plain, fast path | 86.6 | 34.2 |
+
+- `MaskTable` saves 26 to 32 ms a step of host work.
+- Interning gives nothing in this simulation, but its rows take random walks and rarely share states. Rows in
+  a real group share more, so the GPU run is the test.
+
+**r131, rule written first.** One GPU, r128's settings (r106's `final_native_ctl` config, D 007 seed 0's final
+weights, the fine capture steps, part timers on). Four arms in ABBA order: off, on, on, off, 300 timed updates
+each (`scripts/research/r131_mask_ab.sh`). The read is the median over updates 100 to 299 of s_mask_cpu,
+s_generate and update wall time.
+- If s_generate drops by at least 10 ms in both pairs (off_a vs on_a, off_b vs on_b), new configs turn
+  `grammar_fast_path` on.
+- Otherwise it stays off, and the LOG says how far it got.
+
+It goes in when a GPU frees up. The 6 GPUs are all in use now: 4 r129 workers and D 008's 2 pending H200 seeds.

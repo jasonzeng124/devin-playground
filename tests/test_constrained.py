@@ -8,6 +8,7 @@ from rlvr_speedrun import grpo
 from rlvr_speedrun.constrained import (
     OPEN,
     AnswerGrammar,
+    MaskTable,
     RequestConstraint,
     feed,
     initial_state,
@@ -239,3 +240,45 @@ def test_answer_open_mask_marks_the_tokens_that_spell_the_first_answer_open(gram
         assert mask[row, : len(ids)].tolist() == expect
         assert any(expect)
     assert not mask[:, :].logical_and(attention[:, len(prompt) :] == 0).any()
+
+
+@pytest.mark.parametrize("think_budget", [0, 3])
+def test_interned_constraint_allows_the_same_ids(grammar_and_tokenizer, think_budget):
+    grammar, tokenizer = grammar_and_tokenizer
+    fast = AnswerGrammar(grammar.strings, grammar.open_ids, interned=True)
+    rng = random.Random(think_budget)
+    words = tokenizer.encode(" so the answer is maybe", add_special_tokens=False)
+    opener = tokenizer.encode("<answer>", add_special_tokens=False)
+    checked = 0
+    for k in range(60):
+        numbers, ops = [((3, 7, 8, 2), "+-*/"), ((1, 13, 25), "+-"), ((4, 4, 10, 6, 75), "-/"), ((2, 50), "+*")][k % 4]
+        plain, interned = RequestConstraint(grammar, numbers, ops, {}, think_budget), RequestConstraint(fast, numbers, ops, {}, think_budget)
+        output = [rng.choice(words) for _ in range(rng.randint(0, 3))] + (opener if think_budget == 0 else [])
+        while len(output) < 40:
+            ids = plain.allowed_ids(output)
+            assert interned.allowed_ids(output) == ids
+            checked += bool(ids)
+            for _ in range(rng.randint(1, 3)):  # sometimes several new ids at once, sometimes one that breaks the answer
+                output.append(rng.choice(ids) if ids and rng.random() > 0.05 else rng.randrange(len(tokenizer)))
+        fast.trim(500)  # between requests, as the sampler does; the next answers are the same
+    assert checked > 50 and len(fast._info) <= 500 + 200
+
+
+def test_mask_table_equals_mask_rows_cached(grammar_and_tokenizer):
+    grammar, tokenizer = grammar_and_tokenizer
+    rng = random.Random(0)
+    sets = [grammar.allowed(initial_state(n), ops) for n, ops in [((3, 7), "+-"), ((2, 5, 9), "*"), ((13, 1, 100), "+-*/")]]
+    state = feed(initial_state((3, 7)), "(3", "+-")
+    sets += [grammar.allowed(state, "+-"), grammar.forced(1, 3), tuple(sets[0])]  # an equal set as another tuple
+    table = MaskTable(capacity=4)  # small, so calls start the table over
+    torch.manual_seed(0)
+    for _ in range(12):
+        logits = torch.randn(6, len(tokenizer) + 5)  # a padded vocabulary, as some models have
+        rows = [(r, rng.choice(sets + [None, ()])) for r in range(6) if rng.random() > 0.2]
+        if len({id(ids) for _, ids in rows if ids}) >= 4:
+            with pytest.raises(ValueError):
+                table(logits.clone(), rows)
+            table = MaskTable(capacity=4)
+            continue
+        assert torch.equal(table(logits.clone(), rows), mask_rows_cached(logits.clone(), rows, {}))
+    assert torch.equal(table(logits, [(0, None)]), logits)
