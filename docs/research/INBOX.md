@@ -952,3 +952,19 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     11-25 box replan and stage today, and keep the GPUs fed.
   - Since 11-23 16:00 only one job of yours has run (30132625); nothing is queued on the B200s, so
     the cap of 6 is mostly unused. Please fill the B200 queue with what is planned.
+
+- 2026-11-24 11:50 EST (laptop session, operational), **The 11-25 box stage is missing data: most
+  of home.txt is not in S3, and the U25 FineMath file does not exist yet**
+  - Read-only check at 11:40: `box/rlvr-box-cr-03ab208e99ca6ca06/in/` is staged at ac11caf (plan,
+    code.tgz, u25_1125, box_1125_after with 24 lines, empty box_1125 as designed); reservation
+    `scheduled`, 11 schedules enabled.
+  - But `box/home/` holds only the tinyllama tokenizer, D 007's five pretrained checkpoints and the
+    old boxtest files. These home.txt entries are absent: the Qwen3-1.7B-Base tar (track A's r85
+    pairs need it), `dm_math.bin.tar`, `mix_0.2.bin.tar`, `gsm8k`, and
+    `orcd/scratch/rlvr-data/u25/finemath_kw_0_31.bin.tar`.
+  - On Engaging `~/orcd/scratch/rlvr-data/u25/` does not exist, and the prep job 30348265
+    (`rlvr-prep`, mit_normal) has a planned start of 11-28 04:00, after the box.
+  - u25_box_item.sh's EXIT trap hands box_1125_after to box_1125 if the rung fails, so the box
+    should not sit idle; but the r85 track A items would then fail without Qwen, leaving only the
+    r108 lines. Please get the missing home.txt paths into S3 before 06:30 tomorrow (or drop what
+    cannot make it), and restage if the plan changes.
