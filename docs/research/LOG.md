@@ -12104,9 +12104,13 @@ workers (preemptable H200), the control (normal B200). Six in all, at the cap. T
   - Seed 1 restarted at 05:34 on node4802 (30099012); the 09:12 run's partial is in `extra/interrupted_1_3`. It
     was preempted a fourth time at 06:47, after 1 h 13 min, and is pending again. Its partial will move to
     `extra/interrupted_1_4` when it restarts.
-- **U25, the two-GPU check:** 30346665 (`mit_normal_gpu`, two B200s, 45 min) runs
-  `scripts/research/u25_ddp_check.sh calibration/research_r121/u25_ddp_check_2gpu`, which writes `check.json`.
-  It is read against the rule in LOG 2026-11-22 04:03. It is pending on Resources.
+- **U25, the two-GPU check:** 30347362 (`mit_normal_gpu`, two B200s, 75 min; it replaced 30346665 before that
+  started) runs `scripts/research/u25_ddp_check.sh calibration/research_r121/u25_ddp_check_2gpu`, which writes
+  `check.json`. It is read against the rule in LOG 2026-11-22 04:03. In the same job,
+  `scripts/research/u25_mem_smoke.sh calibration/research_r121/u25_mem_smoke_6x 78` runs U25's 6x size (1280x32)
+  with DDP on the two GPUs for at most 6 min at micro-batch 64, then 32, with each process's CUDA memory capped
+  at 78 GiB (`scripts/research/mem_cap_run.py`), to stand in for an 80 GB H100. It gives the peak memory and
+  tokens/s for sizing the 6x rung on the 11-25 box. It is pending on Resources.
 
 **r129: r116's FineMath mix inside r120's 46-min pretraining (B200, end to end).**
 
