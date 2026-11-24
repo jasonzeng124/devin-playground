@@ -12153,3 +12153,83 @@ the record's recipe.
   (already downloaded to scratch on 11-22), tokenizes them with the pinned tokenizer, and appends them to r116's
   `finemath_kw.bin` as `finemath_kw_0_31.bin` on scratch. My guess is about 5B more tokens, so the 6x rung's
   FineMath share repeats less than once. It is a `mit_normal` CPU job (16 CPUs); U25 is unranked.
+
+## 2026-11-24 10:21 EST: U25's two-GPU check misses its speed rule (the rest holds); 6x fits at micro-batch 32; the 11-25 box replanned
+
+**Two-GPU check (30347362, two normal B200s on node5600-c1, 10:03 to 10:18).** `check.json` in
+`calibration/research_r121/u25_ddp_check_2gpu`, against the rule of LOG 11-22 04:03:
+1. Ranks identical: met (every `rank_spread` 0.0).
+2. Val loss: met. single 3.4047, ddp 3.4049.
+3. Speed: **not met.** single 634,878 tokens a second, ddp 909,999, so 0.717 per GPU against the rule's 0.9.
+4. Resume: met. The first part was stopped by the timeout and the rerun started at step 480. It ended at step
+   1,000 with val loss 3.4079.
+
+So the rule is not met. Rule 3 measures D 007's shape (110M) at 131,072 tokens a step. There a step's compute is
+24 times smaller than at 6x and its gradient 6 times smaller, so the all_reduce's share is about 4 times larger.
+The update does not overlap the all_reduce with the backward pass. I am still using DDP on the box: it is the only
+way to train 668M on a day's box, and the run is bounded by its minutes cap, not by its token target. At 0.72 per
+GPU, 480 min on eight H100s would give about 9.7B tokens (about 15 a parameter) instead of 10.7B. The box's own
+`tok_per_s` rows give the scaling at 6x. Overlapping the all_reduce with the backward pass is a speed item for
+later.
+
+**6x memory smoke (same job, `calibration/research_r121/u25_mem_smoke_6x`).** 1280 x 32 (667.6M parameters),
+torchrun on two GPUs with --ddp and --resume-every-minutes 1, each process capped at 78 GiB (an 80 GB H100 less
+its margin):
+- micro-batch 64 ran out of memory (peak allocated 77.78 GiB);
+- micro-batch 32 ran: peak allocated 56.15 GiB, reserved 57.99 GiB. Its 20 steps took 0.62 min after the first,
+  so about 266k tokens a second on two B200s, including warm-up.
+
+The box rung therefore starts at micro-batch 32. A step is still 524,288 tokens.
+
+**The 6x rung: `calibration/research_r130/u25_6x`.** It is unranked and outside the rules.
+- Setup: D 007's architecture at 1280 x 32. Muon lr 4e-3, the fused loss, micro-batch 32, DDP over the box's
+  eight H100s, a resume state every 30 min.
+- Length: up to 10.7B tokens (16 a parameter) or 480 min, whichever comes first.
+- Data: the 3x rung's two phases. The FineMath file is `finemath_kw_0_31.bin` (prep job 30348265, LOG 11-24
+  10:06) instead of shards 0 to 2.
+- Then the base weights get the 3x rung's probe. The probe's GSM8K default is now `~/orcd/pool/data/...`, so the
+  same file is found on the box. The weights are copied to the bucket (`box/<box>/out/u25/`) before the box ends.
+
+The 6x rule is the one written for 3x (LOG 11-21 17:59 and 11-22 03:52):
+- **yes:** set B at least 10/20 working by eye, chain 0.5 and step accuracy 0.7;
+- **partial:** 5/20 and chain 0.10;
+- **no:** anything less. Then 12x goes to the 11-28 or 12-09 box.
+
+**Code.**
+- `scripts/research/u25_rung.sh` gets three options, all off by default (the 3x call behaves as before):
+  - `NPROC` (torchrun with --ddp);
+  - `RESUME_MIN` (resume state; a trained rung only probes; a log without a state is moved aside);
+  - `LOCAL_DIR=none` (read the token files in place).
+- `scripts/aws/u25_box_item.sh` is the box's runner for the rung:
+  - it reads the shape from the config's `u25` section;
+  - it tries up to 4 times, resuming each time, and halves the micro-batch on an out-of-memory failure that
+    happens before any state is saved;
+  - it copies the weights to S3;
+  - it hands the screens' queue over under `queue/lock`;
+  - it always exits 0.
+- `tests/test_u25_box_item.py` covers it with a fake interpreter. Full suite: 225 passed; ruff clean.
+
+**The 11-25 box (8x H100, 24 h from 06:30 EST): `agent/plan_box_1125.txt`.**
+- **Line A:** `u25_1125` = the 6x rung on GPU 0's worker, using all eight GPUs.
+- **Line B:** one worker per GPU on `box_1125`. It is staged empty, so these workers exit at boot. When the rung
+  ends, `u25_box_item.sh` appends `box_1125_after` to it, and the keeper starts them within 10 min. RESERVE_MIN
+  is 330, so no 5.3 h screen starts if the box's end would cut it.
+- **`box_1125_after`, in order:**
+  1. **Track A, U23's base:** r85's `a007_ent15_h100m30` and `a007_ctl_h100m30`, seeds 3 and 4. That makes five
+     pairs of the entropy floor (r85: +0.0222 over 3 pairs, SE 0.0089), which r85 asked for before it goes into
+     the next track A arm. The m30 dirs, because 0.35 ran out of memory on the H100.
+  2. **r108:** ctl, sil256 and mini3, seeds 0 to 2, then hard2x seeds 0 to 2. That is 16 items, two rounds of
+     eight.
+  3. **Tail, if a third round fits:** lr12cos and g32p16 seeds 0 to 2, then sil256 seeds 3 and 4.
+- Not on this box: U23's code arms (collapse guard, rollback, EMA clip) are not written yet, so they wait for
+  the 11-28 box.
+- Timeline: if the rung uses its full 480 min, the screens start about 20:30 UTC, and two rounds end before the
+  box's deadline.
+
+**Staging** is next. The FineMath prep job is still pending; the files list adds the dm_math, FineMath, tokenizer
+and GSM8K paths to what the screens' configs need.
+
+**r129 gets two more workers.** 30349981 and 30349982: preemptable B200s on `r129_b200`, with the same
+submission as 30347231 (node5800-c1 excluded too). Its seed 1 pair now runs next to seed 0's. With D 008's two
+H200 workers that makes six GPUs, the cap. Both are pending until preemption allows; the queue holds 4 items for
+4 workers.

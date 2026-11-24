@@ -1,0 +1,23 @@
+{
+  "description": "U25 rung 6x (LOG 2026-11-24; outside the rules, unranked, no RL), on the 11-25 box (8x H100): D 007's architecture at 1280 x 32 (668M parameters, 64-wide heads, tied embeddings, TinyLlama tokenizer), Muon lr 4e-3 with the fused loss, DDP on 8 GPUs, up to 10.7B tokens (16 per parameter) or 480 minutes, the cosine ending on whichever runs out first. Data in two phases by run progress as in the 3x rung (calibration/research_r121/u25_3x_twophase), except that the FineMath file is keyword-filtered FineMath-4plus shards 0-31 (scripts/research/prep_u25_finemath.sh) instead of shards 0-2. Then the base weights are probed with the 3x rung's probe. Run by scripts/aws/u25_box_item.sh (resume state every 30 minutes; an out-of-memory failure before any state halves the micro-batch). Micro-batch 32: 64 ran out of memory under a 78 GiB cap in the 6x smoke (LOG 2026-11-24 10:21).",
+  "pretrain_only": true,
+  "u25": {
+    "rung": "6x",
+    "command": "U25_GPUS=0,1,2,3,4,5,6,7 bash scripts/aws/u25_box_item.sh calibration/research_r130/u25_6x 0",
+    "width": 1280,
+    "layers": 32,
+    "max_tokens": 10700000000,
+    "minutes": 480,
+    "micro": 32,
+    "args": "--fused-loss --optimizer muon --lr 4e-3 --phase2-start 0.5 --ddp --resume-every-minutes 30 --resume",
+    "phase1": "$HOME/orcd/pool/data/dm_math/mix_0.2.bin",
+    "phase2": {
+      "$HOME/orcd/pool/data/dm_math/mix_0.2.bin": 0.3125,
+      "$HOME/orcd/pool/data/dm_math/dm_math.bin": 0.1875,
+      "$HOME/orcd/scratch/rlvr-data/u25/finemath_kw_0_31.bin": 0.5
+    },
+    "tokenizer": "$HOME/orcd/pool/data/tinyllama-tokenizer",
+    "weights": "$CKPT_DIR/calibration/research_r130/u25_6x/seeds/0/pretrained, copied to the bucket under box/<box>/out/u25/",
+    "probe": "python scripts/research/probe_reasoning.py --model <weights> --out-dir <this dir>/seeds/0/probe (defaults: sets A,B,C; 200 dev puzzles x 4 samples at temperature 1.0, 256 new tokens; GSM8K 100 train questions 4-shot greedy)"
+  }
+}

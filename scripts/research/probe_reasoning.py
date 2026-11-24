@@ -224,7 +224,7 @@ def main() -> None:
     parser.add_argument("--samples", type=int, default=4)
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--max-new", type=int, default=256)
-    parser.add_argument("--gsm8k", default="/home/zjason/orcd/pool/data/gsm8k/train.jsonl")
+    parser.add_argument("--gsm8k", default=str(Path.home() / "orcd/pool/data/gsm8k/train.jsonl"))  # also on a box
     parser.add_argument("--questions", type=int, default=100)
     parser.add_argument("--context", type=int, default=1024, help="prompt + new tokens must fit (the pretraining length)")
     parser.add_argument("--batch", type=int, default=200)
