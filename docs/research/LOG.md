@@ -12136,3 +12136,20 @@ the record's recipe.
   - If it meets the rule, the next step is an H200 gate of the arm's config: three seeds against the track D
     promotion line in force then, and a record if that is met.
   - If not, r129 is closed, and the note is that r116's gain needs the longer pretraining.
+
+## 2026-11-24 10:06 EST: an r129 worker lands on a node without scratch; CPU nodes reach the pool again; more keyword-filtered FineMath for U25's 6x rung
+
+- **r129:** worker 30347230 started on node5800-c1 at 10:02 and failed both items within a minute: `mkdir:
+  cannot create directory '/home/zjason/orcd/scratch': File exists`, so scratch was not mounted there. It is a
+  host failure; `d120_fmkw2_b200` seed 0 is put back at the top of `r129_b200`, and one replacement worker,
+  30348240, is submitted with node5800-c1 excluded too. The other worker, 30347231, runs `d120_ctl_b200` seed 0 on
+  node5600-c1 since 10:05, so seed 0's pair will not run at the same time; the pair is still read as a pair.
+- **Pool from CPU nodes:** probe 30347889 (`mit_normal`, 1 CPU) stat'ed `dm_math.bin` and read 1 MB of
+  `mix_0.2.bin` on node3104 in 10 s, so the 11-21 note (CPU nodes don't reach the pool) no longer holds there.
+  CPU preparation jobs can use the pool's venv again.
+- **U25 6x data:** at 6x (1280x32, 668M parameters), r116's keyword-filtered FineMath (shards 0-2, 0.52B tokens)
+  at weight 0.5 in the second half would repeat about 6 times. `scripts/research/prep_u25_finemath.sh` applies
+  the same keyword rule (`scripts/keyword_filter.py drop`) to FineMath-4plus shards 3-31 of the same revision
+  (already downloaded to scratch on 11-22), tokenizes them with the pinned tokenizer, and appends them to r116's
+  `finemath_kw.bin` as `finemath_kw_0_31.bin` on scratch. My guess is about 5B more tokens, so the 6x rung's
+  FineMath share repeats less than once. It is a `mit_normal` CPU job (16 CPUs); U25 is unranked.
