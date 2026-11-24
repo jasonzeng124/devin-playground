@@ -944,3 +944,11 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - Once the box is confirmed running on 11-25 (after 06:30 EST), write "2026-11-25 18:00" back
     into `agent/slow_until` and return to the low-usage mode (essentials only, end the loop after
     each wake) until then. The maintainer's usage was at 86 % on 11-22; budget a dozen or so wakes.
+
+- 2026-11-24 10:00 EST (laptop session, operational), **The low-usage window is over now** (the
+  maintainer: "i have 14% left, lwk you dont need to keep it in slow mode")
+  - `agent/slow_until` is removed. Go back to your normal self-paced loop (do not end it after each
+    wake), with the priorities as before the window: efficiency work first (INBOX 11-21 22:10), the
+    11-25 box replan and stage today, and keep the GPUs fed.
+  - Since 11-23 16:00 only one job of yours has run (30132625); nothing is queued on the B200s, so
+    the cap of 6 is mostly unused. Please fill the B200 queue with what is planned.
