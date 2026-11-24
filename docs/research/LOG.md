@@ -12093,3 +12093,42 @@ workers (preemptable H200), the control (normal B200). Six in all, at the cap. T
   record's pretraining budget is for the 11-24 box replan. Control seed 2's logs are committed here.
 - **Jobs at 12:57:** 30099012 and 30132625 (preemptable H200, D 008 seeds 1 and 3) pending. Two GPUs. The two normal
   B200 slots are idle: nothing queued fits them without a new config, which waits for the 11-24 15:00 replan.
+
+## 2026-11-24 09:56 EST: the low-usage window is over; D 008 seed 1 is preempted a fourth time and seed 3 runs; U25's two-GPU check is submitted; r129 puts r116's FineMath mix into r120's 46-min pretraining, its rule written first
+
+- **Window:** INBOX 11-24 ends the low-usage window, so the wakes are hourly again. It also asks me to fill the
+  B200 queue with what is planned; r129 below is the first part of that.
+- **D 008, seeds 1 and 3:** both were pending from the 09:18 preemption on 11-23 until early 11-24 (about 20 h).
+  - Seed 3 restarted at 05:52 on node4800 (30132625); the 09:12 run's partial is in `extra/interrupted_3_3`. At
+    09:55 it had run 4 h 03 min with 43 dev evals logged.
+  - Seed 1 restarted at 05:34 on node4802 (30099012); the 09:12 run's partial is in `extra/interrupted_1_3`. It
+    was preempted a fourth time at 06:47, after 1 h 13 min, and is pending again. Its partial will move to
+    `extra/interrupted_1_4` when it restarts.
+- **U25, the two-GPU check:** 30346665 (`mit_normal_gpu`, two B200s, 45 min) runs
+  `scripts/research/u25_ddp_check.sh calibration/research_r121/u25_ddp_check_2gpu`, which writes `check.json`.
+  It is read against the rule in LOG 2026-11-22 04:03. It is pending on Resources.
+
+**r129: r116's FineMath mix inside r120's 46-min pretraining (B200, end to end).**
+
+r116 (U24) ended above its own control on all three seeds (mean +0.0500) and above r101's control (mean
++0.0395). Its pretraining, though, is D 007's recipe stopped at 1,337,982,976 tokens on a B200, not the
+record's timed 46-min run, so its gain is not yet a record candidate. r129 asks whether the gain survives inside
+the record's recipe.
+- **Arm:** `calibration/research_r129/d120_fmkw2_b200`. It is r120's gate config
+  (`calibration/research_r120/d007_speed_lr12e-6_h200`) with one change: `pretrain.tokens` is r116's
+  `mix_0.2_finemath_kw2.bin` on scratch (6,723,632,390 bytes; about 31 % FineMath, 14 % dm_math and 55 %
+  FineWeb-Edu by tokens). Pretraining samples windows uniformly from the file, so the share is the same at any
+  budget. The validation slice (the first 2M tokens) is mix_0.2's own start, the same as the control's.
+- **Control:** `calibration/research_r129/d120_ctl_b200`, r120's config unchanged, on a B200.
+- Both arms: 46 min of Muon pretraining on the fused path, then 18,000 s of native RL, `no_save`. Seeds 0 to 2,
+  interleaved by seed in a new queue `r129_b200`, on two preemptable B200 workers, so each pair runs at the same
+  time.
+- **Expected:** a smaller gain than r116's, perhaps +0.01 to +0.03 at the final. Both arms see about the same
+  number of tokens in 46 min, so the FineMath share replaces FineWeb-Edu and dm_math tokens instead of adding to
+  them. r120's lr (1.2e-5) is also not the lr r116 was read at.
+- **Rule, written before it runs:** take the paired final dev differences (arm minus control) for seeds 0 to 2.
+  The arm meets the rule if the mean is at least +0.015 and at least 2 of the 3 are positive. Matched train time
+  and matched steps are reported too, but they don't decide.
+  - If it meets the rule, the next step is an H200 gate of the arm's config: three seeds against the track D
+    promotion line in force then, and a record if that is met.
+  - If not, r129 is closed, and the note is that r116's gain needs the longer pretraining.
