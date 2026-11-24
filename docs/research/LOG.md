@@ -12275,3 +12275,17 @@ s_generate and update wall time.
 - Otherwise it stays off, and the LOG says how far it got.
 
 It goes in when a GPU frees up. The 6 GPUs are all in use now: 4 r129 workers and D 008's 2 pending H200 seeds.
+
+## 2026-11-24 11:40 EST: the 11-25 box's missing S3 files are uploaded; U25's FineMath prep moves to a preemptable CPU job
+
+INBOX 11-24 11:50: most of the box's `home.txt` was not in S3.
+- **Upload.** `box_s3.sh home` ran as job 30359132 on `mit_data_transfer` (dtn001), with an idle partition and
+  pool access, in 2 minutes. S3 now has the Qwen3-1.7B-Base tar, `dm_math.bin.tar`, `mix_0.2.bin.tar` and `gsm8k`,
+  next to what was there.
+- **Check.** `box_s3.sh check` (with the stage's HOME_EXTRA) reports one problem: the U25 FineMath file.
+- **FineMath prep.** The mit_normal prep job 30348265 had a planned start of 11-28, so I cancelled it. The same
+  command runs as 30359131 on a `mit_preemptable` CPU node (node3300, 16 CPUs, no GPU, so not under the GPU cap),
+  behind `agent/pool_guard_1124.sh`, which exits if the node cannot read the pool. When the file exists,
+  `box_s3.sh home` runs again to upload it.
+- **Fallback.** If the file is not ready by about 20:00 EST, the plan's FINEMATH points at r116's
+  `finemath_kw.bin` (shards 0-2, which the 6x rung repeats about 6 times), and the box is restaged.
