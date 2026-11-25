@@ -12332,3 +12332,25 @@ step-to-step difference of `wall_s`), ms a step:
   its MFU (INBOX 11-22 15:10), then DDP overlap.
 
 Files: `calibration/research_r131/<arm>/seeds/0/` (profile.json, run/config.json, run/train_log.jsonl).
+
+## 2026-11-24 22:52 EST: the update's MFU at r106's shape is about 2.5 % of the B200's bf16 peak
+
+INBOX 11-22 15:10 asked for the update's MFU next to the busy fraction. From r131's four arms (updates 100-299,
+medians, computed by script from `calibration/research_r131/<arm>/seeds/0/run/train_log.jsonl`):
+
+- **Method.** MFU = 6 N T / t_update / 2.25e15, with N = 109.5M (D 007's fp32 safetensors, 438,131,648 bytes / 4)
+  and T the completion tokens a step (tokens/s times the step's wall time, about 15,640 to 15,720).
+- **Result.** 0.026, 0.025, 0.026, 0.025 (off_a, on_a, on_b, off_b), with t_update 177 to 186 ms. Over the whole
+  step (about 425 ms) it is 0.011.
+- **Caveats.** T leaves out the prompt positions and the 64 SIL rows, and skip_zero_advantage drops some
+  completions from the update, so it is approximate in both directions; the order of magnitude is the point.
+- **Reading.** The GPU is busy about 69 % of the update but does about 2.5 % of its peak maths. The model (110M,
+  hidden 768) and the batch (about 16k tokens) are small, so the matmuls are short and the rest is copies, casts and
+  elementwise kernels: in r131 off_a's profile those are about 42 and 37 ms an update against 10 ms of GEMM outside
+  the graphed body (the graphed body and its backward, 53 and 80 ms, hold the rest).
+- **Also seen.** t_sample + t_update is about 336 ms of the 425 ms step; the other 89 ms is mostly the vLLM weight
+  sync and the step's host work. That is a third target next to the update.
+
+**Next.** A narrower fusion of the update's copies, casts and elementwise chains (not r123's layer compile), with
+its same-maths tolerance taken from the measured bf16-vs-fp32 floor and written down before the run; and timing the
+weight sync on its own.
