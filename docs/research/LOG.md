@@ -12414,3 +12414,24 @@ identical, then an ABBA timing run on a B200.
   timed updates an arm. The read is the medians over steps 100-299 of t_part_draw and of the wall_s difference.
   Rule, written before the run: the option goes on in new configs if the wall step falls in both pairs by at least
   half the drop in t_part_draw.
+
+## 2026-11-25 11:48 EST: U25 6x rung pretrained on the 11-25 box; its probe failed on an import; INBOX 1fe5e21
+
+- **Pretraining** (`calibration/research_r130/u25_6x`, seed 0; U25 is unranked and outside the rules). 1280 x 32,
+  667.57M parameters, DDP on the box's 8 H100s. 20,408 steps, 10,699,669,504 tokens (16.03 a parameter), 296.53
+  min, 601,376 tok/s, MFU 0.304 of 8 x 989 TFLOPS bf16. The lr ended at its 4.0e-4 floor. Final val_loss 2.5077,
+  against 2.644 at the 3x rung and 2.864-2.903 for the D 007 base. Done at 16:32Z; the weights reached the bucket at
+  16:34Z.
+- **The probe failed.** `u25_rung.sh` runs `probe_reasoning.py` with the venv python, and on a box the venv has no
+  `rlvr_speedrun` install, so all four tries stopped on `ModuleNotFoundError`. The fix puts the checkout on
+  PYTHONPATH for that call. ruff and pytest pass (229).
+- **INBOX 1fe5e21 (box GPUs idle since 16:34Z).** The idle spell ended at 16:40:18Z. The u25 item's EXIT trap
+  handed `box_1125_after` (24 lines) to `box_1125` at 16:34:25Z, and the keeper restarted the workers at
+  16:40:18Z. The status file read at 16:34Z was a snapshot from before that. At 16:45Z all eight GPUs were running
+  screens: r85 a007_ent15_h100m30 seeds 3 and 4, a007_ctl_h100m30 seeds 3 and 4, and r108 d007rl_ctl 0 and 1,
+  sil256 0 and mini3 0. 16 lines are left.
+- **The probe now.** A hand run beside a screen on GPU 0 died with an out-of-memory error, because a screen's vLLM
+  holds about 74 GB of each H100. The screen kept running. A watcher on the box (`~/u25_probe_watch.sh`, outside
+  the checkout) waits for `box_1125` to empty and for a GPU that no worker holds, then runs the probe there with
+  the defaults (batch 200, the same as the 3x run). If the box is reclaimed first, the probe runs on Engaging from
+  the bucket's weights. The 6x rule (12193) is applied when the samples are in.

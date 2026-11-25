@@ -74,5 +74,6 @@ if (( train )); then
 fi
 cp "$out/pretrain_log.jsonl" "$here/"
 echo "=== u25 pretraining done $(date -u +%FT%TZ); probing"
-"$PYTHON" scripts/research/probe_reasoning.py --model "$out" --out-dir "$here/probe"
+# PYTHONPATH: on a box the venv has no rlvr_speedrun install (11-25 box: ModuleNotFoundError after the 6x rung)
+PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON" scripts/research/probe_reasoning.py --model "$out" --out-dir "$here/probe"
 echo "=== u25 probe done $(date -u +%FT%TZ)"
