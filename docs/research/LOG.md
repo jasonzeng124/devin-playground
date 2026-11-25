@@ -12354,3 +12354,20 @@ medians, computed by script from `calibration/research_r131/<arm>/seeds/0/run/tr
 **Next.** A narrower fusion of the update's copies, casts and elementwise chains (not r123's layer compile), with
 its same-maths tolerance taken from the measured bf16-vs-fp32 floor and written down before the run; and timing the
 weight sync on its own.
+
+## 2026-11-24 23:46 EST: a correction to the MFU entry; r132 times the loop's own parts; r129 ctl seed 1 requeued
+
+- **Correction.** The 22:52 entry took T as tokens/s times the step's wall time (the wall_s difference, about
+  425 ms). But tokens/s divides by the step's timed span, which starts after the puzzle draw and ends before the
+  train-log write, so that T is too high. The timed span is at least t_sample + t_update (about 336 ms), so T lies
+  between about 12,570 and 15,700 completion tokens and the update's MFU between about 0.020 and 0.026. The
+  conclusion (a few percent of peak, set by the small model and batch) stands; the 89 ms is not in the update.
+- **r132** (job 30423501, B200, `scripts/research/r132_loop_parts.sh`): two repeats of r131's off arm with new
+  timers that log only under `time_update_parts` (off by default, so other runs are unchanged): t_part_draw (the
+  puzzle draw before the step), t_part_sync (the native rollout engine's weight sync), t_part_step (the timed span)
+  and update_tokens (the update's token count). The read: the medians over steps 100-299 of each, the remaining gap
+  to the wall_s difference (the logging), and the update's MFU from update_tokens. No rule: it is a measurement that
+  says which of the update, the draw or the sync the next speed change goes to.
+- **r129.** Worker 30349982 was preempted and restarted on node5702-c1, which its submit line did not exclude; ctl
+  seed 1 failed there in seconds (no scratch), its first host failure, so it is back at the head of
+  `queue/r129_b200.txt` with a new worker, 30423280 (excludes node5500-c1, node5800-c1 and node5702-c1).

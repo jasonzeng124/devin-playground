@@ -1909,6 +1909,7 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
     try:
         for step in range(first_step, config.max_steps + 1):
             easy_frac = max(0.0, 1.0 - step / config.curriculum_steps) if config.curriculum_steps > 0 else 0.0
+            draw_start = time.perf_counter()
             puzzles = []
             for _ in range(config.prompts_per_step * max(1, config.oversample)):
                 u = mix_rng.random()
@@ -1919,6 +1920,7 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
                 for group in optimizer.param_groups:
                     group["lr"] = lr_at(config, spent)
             step_start = time.perf_counter()
+            loop_parts = {"t_part_draw": step_start - draw_start} if config.time_update_parts else {}
             step_config = late_config if 0 < config.malformed_reward_until <= step else config
             if config.entropy_coef > 0 and config.entropy_target > 0 and not (last_entropy is not None and last_entropy < config.entropy_target):
                 step_config = replace(step_config, entropy_coef=0.0)
@@ -1928,11 +1930,18 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
             if config.entropy_coef > 0:
                 info["entropy_coef"] = step_config.entropy_coef
             if engine is not None:
+                sync_start = time.perf_counter()
                 engine.sync(model)
+                if config.time_update_parts:  # the weight sync's synced wall time, next to the update's part times
+                    if device.type == "cuda":
+                        torch.cuda.synchronize(device)
+                    loop_parts["t_part_sync"] = time.perf_counter() - sync_start
             step_elapsed = time.perf_counter() - step_start
             elapsed = time.perf_counter() - start
             total_steps = step
             tokens = info.pop("tokens")
+            if config.time_update_parts:  # the loop's own part times and the update's token count, for its MFU
+                info.update(loop_parts, t_part_step=step_elapsed, update_tokens=tokens)
             if config.sample_every and step % config.sample_every == 0 and dist.is_main:
                 with (out_dir / "samples.jsonl").open("a", encoding="utf-8") as f:
                     for text, r, puzzle in zip(info["completions"], info["rewards"], info["puzzles"]):
