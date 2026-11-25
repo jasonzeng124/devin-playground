@@ -12371,3 +12371,28 @@ weight sync on its own.
 - **r129.** Worker 30349982 was preempted and restarted on node5702-c1, which its submit line did not exclude; ctl
   seed 1 failed there in seconds (no scratch), its first host failure, so it is back at the head of
   `queue/r129_b200.txt` with a new worker, 30423280 (excludes node5500-c1, node5800-c1 and node5702-c1).
+
+## 2026-11-25 00:23 EST: r132 read: the puzzle draw is 77 ms of a 413 ms step; the update's MFU is 0.020 to 0.022
+
+- **r132** (job 30423501, node5701-c1, B200; arms a and b are the same config, two repeats). Medians over steps
+  100-299 of each arm, computed by script:
+
+  | arm | wall_s step | t_part_step | t_sample | t_update | t_part_draw | t_part_sync | update_tokens | update MFU | step MFU |
+  |---|---|---|---|---|---|---|---|---|---|
+  | a | 412.5 ms | 331.9 ms | 153.6 ms | 170.7 ms | 77.4 ms | 1.0 ms | 12,635 | 0.0216 | 0.0090 |
+  | b | 425.1 ms | 340.7 ms | 156.5 ms | 181.5 ms | 77.6 ms | 1.0 ms | 12,635 | 0.0203 | 0.0087 |
+
+  MFU is 6·N·T over the time and the B200's dense bf16 peak (2.25e15), with N = 109.5M and T = update_tokens.
+  The timed span less t_sample, t_update and the sync leaves under 1 ms; the wall step less the span and the draw
+  leaves under 1 ms (the logging).
+- **The read.** The update's MFU is 0.020 to 0.022, at the low end of the 23:46 range. The native engine's weight
+  sync is 1 ms, so it is no target. The draw of the step's 64 puzzles takes 77 ms on the host before the step's
+  timed span starts, 18 to 19 % of the wall step, with the GPU idle. It counts in the record's clock.
+- **Why the draw is slow.** `ladder_stream` draws candidates and keeps those that meet their level's "needs" test,
+  which brute-forces `countdown.reachable` over each operator subset. A cProfile of 640 draws on the login node
+  puts nearly all the time in `reachable`, and most of that in `Fraction`'s hash, equality and constructor.
+
+**Next.** An exact faster `reachable` for the draw, behind a new off-by-default option: integer values when the
+operator set has no division, normalised integer pairs when it has, and each unordered split of the numbers once
+instead of twice. The check is that the value sets equal `reachable`'s and that the drawn puzzle lists are
+identical, then an ABBA timing run on a B200.
