@@ -632,6 +632,50 @@ def test_update_capture_finer_buckets_give_the_same_update_with_less_padding(sha
     assert grpo._capture_rows(65) == 80 and grpo._capture_rows(65, 8) == 72 and grpo._capture_rows(64, 8) == 64
 
 
+def test_update_capture_runs_the_compiled_layers(monkeypatch):
+    """compile_update with update_capture (LOG 11-25): the captured body runs the compiled layers (here aot_eager, the
+    CPU stand-in) and gives the eager captured update's gradients, with or without shared prompts."""
+    import torch._dynamo
+    from transformers import LlamaConfig, LlamaForCausalLM
+    from transformers.cache_utils import DynamicCache
+
+    for name in ("allow_unspec_int_on_nn_module", "recompile_limit"):  # `_compile_layers` sets them for the process
+        monkeypatch.setattr(torch._dynamo.config, name, getattr(torch._dynamo.config, name))
+    monkeypatch.setattr(DynamicCache, "update", DynamicCache.update)
+    torch.manual_seed(9)
+    prompt_width, group = 5, 4
+    prompts = torch.randint(2, 40, (2, prompt_width)).repeat_interleave(group, 0)
+    prompts[:, :2] = prompts[0, :2]
+    generated = torch.cat([prompts, torch.randint(2, 40, (2 * group, 9))], 1)
+    attention = torch.ones_like(generated)
+    for row, length in enumerate([9, 1, 5, 3, 9, 2, 6, 4]):
+        attention[row, prompt_width + length :] = 0
+    advantages = torch.tensor([0.0, 1.0, -0.5, -0.5, 0.3, 0.2, -0.3, 0.1])
+    base = LlamaForCausalLM(
+        LlamaConfig(vocab_size=40, hidden_size=16, intermediate_size=32, num_hidden_layers=2, num_attention_heads=2,
+                    num_key_value_heads=2, max_position_embeddings=64, pad_token_id=0, eos_token_id=1)
+    ).eval()
+    try:
+        for share in (False, True):
+            grads = []
+            for compiled in (False, True):
+                model = copy.deepcopy(base)
+                if compiled:
+                    torch._dynamo.reset()
+                    grpo._compile_layers(model, backend="aot_eager")
+                config = GRPOConfig(model="tiny", kl_coef=0.0, grad_clip=0.0, micro_batch_tokens=30, share_group_prompt=share,
+                                    update_host_index=True, update_capture=True, compile_update=compiled)
+                optimizer = torch.optim.SGD(model.parameters(), lr=0.0)
+                grpo._update(model, None, generated, attention, advantages, prompt_width, 2, config, optimizer, torch.device("cpu"),
+                             grpo.SINGLE)
+                assert grpo._CAPTURES[model].compiled == compiled and grpo._CAPTURES[model].stats["fallbacks"] == 0
+                grads.append([p.grad.clone() for p in model.parameters()])
+            assert any(g.abs().max() > 0 for g in grads[1])
+            assert all(torch.allclose(a, b, atol=1e-5) for a, b in zip(*grads))
+    finally:
+        torch._dynamo.reset()
+
+
 def test_update_capture_refuses_a_backward_out_of_order():
     torch.manual_seed(8)
     model = _tiny_model()

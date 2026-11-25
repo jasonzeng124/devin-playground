@@ -12477,3 +12477,21 @@ identical, then an ABBA timing run on a B200.
   says new options are off by default so existing configs behave as before, and the r102-r121 configs are frozen.
   The options keep training the same, so leaving the code defaults alone changes nothing in a result.
 - r134 (30486822) still runs as a GPU-node smoke check of the thread, not as a timing gate.
+
+## 2026-11-25 13:16 EST: compile_update inside update_capture (efficiency item 1, fusing the update's chains)
+
+- r132's update profile shows the captured body is still eager HF Llama: about 1,100 copies, 940 float binary ops,
+  1,660 bf16 copies and 1,050 adds per update, from the RMSNorm fp32 chains, RoPE and the per-call weight casts.
+  compile_update fuses them (r123: busy 0.122 to 0.094 s, launches down 40-48 %), but it was kept out of
+  update_capture. Now the two run together. With compile_update on, `_UpdateCapture` runs each new shape once
+  eagerly on the capture stream (forward and backward, zero gradients) before capturing it. Dynamo, inductor and the
+  AOT backward then compile outside the CUDA-graph capture, and the graphs replay the compiled kernels.
+- This leaves training the same (same puzzles, prompts and update maths; only the kernels change), so under INBOX
+  c5e94e0 it needs an equivalence check and a benchmark, nothing else. The CPU test
+  (`test_update_capture_runs_the_compiled_layers`, aot_eager) gives the eager captured gradients with and without
+  shared prompts, with no fallbacks.
+- The GPU check is `scripts/research/check_capture_compile.py` on the D 007 s0 final weights (16 prompts x 8,
+  one 65,536-token micro-batch). Rule, written before the run: compiled is no further from the fp32 gradient than
+  the eager capture is (cosine at least captured's minus 1e-4, relative error at most 1.1x captured's), and every
+  gradient is finite. The benchmark is the median of 20 updates each way. If it holds and compiled is faster,
+  compile_update joins update_capture in new configs. It is queued for the next free GPU slot, since 6 are pending.

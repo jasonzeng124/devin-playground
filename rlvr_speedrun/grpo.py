@@ -55,7 +55,8 @@ class GRPOConfig:
     # the update's model body (everything before the vocabulary projection) runs as CUDA graphs, captured once per
     # bucketed shape (`_UpdateCapture`) and replayed, with the gradients bound to fixed .grad tensors; the same maths
     # up to rounding, and the captures count in the clock. Needs update_host_index and micro_batch_tokens; not with
-    # grad_checkpoint or compile_update (LOG r125)
+    # grad_checkpoint (LOG r125). With compile_update the compiled layers run inside the graphs: each new shape runs
+    # once eagerly (forward and backward) before its capture, so dynamo and inductor compile outside it (LOG 11-25)
     update_capture: bool = False
     # update_capture's buckets: width a multiple of update_capture_width_step, rows a multiple of
     # update_capture_row_step (0: steps of 8 up to 64 rows, 16 up to 128, 32 up to 256, then 64) and shared-prompt
@@ -980,8 +981,9 @@ class _UpdateCapture:
     before the next forward); otherwise it raises. On CPU the same path runs eagerly, which the tests use."""
 
     def __init__(self, model, device: torch.device, micro_batch_tokens: int, width_step: int = 64, row_step: int = 0,
-                 group_step: int = 8):
+                 group_step: int = 8, compiled: bool = False):
         self.device, self.cuda = device, device.type == "cuda"
+        self.compiled = compiled  # compile_update: warm every new shape outside its capture, not just the first
         self.width_step, self.row_step, self.group_step = width_step, row_step, group_step
         self.params = [p for p in model.parameters() if p.requires_grad]
         self.grads = [torch.zeros_like(p) for p in self.params]
@@ -1095,7 +1097,8 @@ class _UpdateCapture:
     def _capture(self, e: _CaptureEntry) -> None:
         current = torch.cuda.current_stream(self.device)
         t0 = _now(self.device)
-        if not self.warmed:  # once, eagerly on the capture stream, so its libraries are set up before any capture
+        if not self.warmed or self.compiled:  # eagerly on the capture stream, so its libraries are set up (and with
+            # compile_update, this shape's graphs compiled) before the capture
             self.stream.wait_stream(current)
             with torch.cuda.stream(self.stream):
                 h = e.run()
@@ -1104,9 +1107,10 @@ class _UpdateCapture:
                 del h
             current.wait_stream(self.stream)
             torch.cuda.synchronize(self.device)
-            torch.cuda.empty_cache()
-            self._buffers(hidden_dim, dtype)
-            self.warmed = True
+            if not self.warmed:
+                torch.cuda.empty_cache()
+                self._buffers(hidden_dim, dtype)
+                self.warmed = True
         self._views(e)
         e.fwd, e.bwd = torch.cuda.CUDAGraph(), torch.cuda.CUDAGraph()
         self.stream.wait_stream(current)
@@ -1208,7 +1212,8 @@ def _update(
         capture = _CAPTURES.get(model)
         if capture is None:
             capture = _CAPTURES[model] = _UpdateCapture(model, device, config.micro_batch_tokens, config.update_capture_width_step,
-                                                        config.update_capture_row_step, config.update_capture_group_step)
+                                                        config.update_capture_row_step, config.update_capture_group_step,
+                                                        config.compile_update)
         capture.bind_grads()
     else:
         optimizer.zero_grad(set_to_none=True)
@@ -1884,8 +1889,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
         if config.rollout_backend == "hf" or config.grad_checkpoint:
             raise ValueError("compile_update needs rollout_backend 'native' or 'vllm' and no grad_checkpoint")
         _compile_layers(model)
-    if config.update_capture and (not config.update_host_index or config.micro_batch_tokens <= 0 or config.grad_checkpoint or config.compile_update):
-        raise ValueError("update_capture needs update_host_index and micro_batch_tokens > 0, and no grad_checkpoint or compile_update")
+    if config.update_capture and (not config.update_host_index or config.micro_batch_tokens <= 0 or config.grad_checkpoint):
+        raise ValueError("update_capture needs update_host_index and micro_batch_tokens > 0, and no grad_checkpoint")
     if config.update_capture_width_step < 1 or config.update_capture_row_step < 0 or config.update_capture_group_step < 1:
         raise ValueError("update_capture's steps: width_step and group_step at least 1, row_step at least 0")
     ref_model = None
