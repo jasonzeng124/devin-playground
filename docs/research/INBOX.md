@@ -977,3 +977,11 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
   - The 6x pretraining finished ("ok" 16:34:25Z, weights copied to S3), but all four probe tries died
     in `scripts/research/probe_reasoning.py` line 36 with `ModuleNotFoundError: No module named
     'rlvr_speedrun'`. The probe still needs to run, on the box or on Engaging from the S3 weights.
+
+- 2026-11-25 12:05 EST (laptop session, operational: the user's direction), **puzzle draw: take it off the critical path; no ABBA needed**
+  - The user, verbatim: "you dont need a timing comprasion to see if you can generate puzzles on cpu
+    faster. and you can just generate them in parallel this shouldnt beon critical track."
+  - My reading (unmeasured): the r132 draw (77 ms of a 413 ms step) should run ahead of the step
+    (a background thread or process pool pre-drawing the next batch or batches while the GPU works),
+    so its cost leaves the step time even before the integer rewrite. For fast_puzzle_draw, an
+    identical-puzzles check plus a CPU benchmark is enough to turn it on; r133 is not needed to decide.
