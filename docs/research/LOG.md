@@ -12513,3 +12513,25 @@ identical, then an ABBA timing run on a B200.
   both ranks hold the same weights. ruff and pytest pass.
 - Still to do: the GPU benchmark (2 GPUs, the same short run with and without the flag, tokens/s per GPU) when a
   slot is free. If it is faster, the flag goes on in the next multi-GPU pretraining run.
+
+## 2026-11-25 16:49 EST: 11-25 box, r108's first round (four seeds) and U25's 6x item done
+
+- Pulled from the box (`box_s3.sh pull`; done list: r130 u25_6x 0, r108 d007rl_ctl 0 and 1, sil256 0, mini3 0, all
+  ok). config.json and result.json come from the checkpoint side, as for the 11-18 box. The second round (ctl 2,
+  sil256 1 and 2, mini3 1) and r85's track A pairs (seeds 3 and 4) are running.
+- r108, 17,400 s on one H100 each, dev ladder (n 600), final pass rate and steps:
+
+| arm | seed | final dev | steps |
+|---|---|---|---|
+| ctl | 0 | 0.2417 | 27,332 |
+| ctl | 1 | 0.2733 | 26,799 |
+| sil256 | 0 | 0.2450 | 18,699 |
+| mini3 | 0 | 0.2500 | 22,007 |
+
+- Seed-0 pairs (by script): sil256 +0.0033, mini3 +0.0083. One pair each, so nothing is read yet; the arms have
+  three seeds. At matched steps (mean of the last three evals against ctl's evals at or below the same step) the
+  arms are higher: sil256 0.2528 vs 0.2294 at about 18,500 steps, mini3 0.2533 vs 0.2417 at about 22,000. Both
+  cost steps in a fixed wall time (sil256 32 % fewer, mini3 19 % fewer), which is what the plan's ranges assumed.
+- The two controls (mean 0.2575) sit a little under the plan's 0.27 to 0.29 for an H100. They are within one
+  seed's spread of r101's B200 native seeds (0.283 to 0.303 at 35,000 to 45,000 steps) given about 27,000 steps here.
+- The u25_6x item's pretraining was read at 11-25 13:11; its probe is the next item to read from the pull.
