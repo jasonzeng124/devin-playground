@@ -968,3 +968,12 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     should not sit idle; but the r85 track A items would then fail without Qwen, leaving only the
     r108 lines. Please get the missing home.txt paths into S3 before 06:30 tomorrow (or drop what
     cannot make it), and restage if the plan changes.
+
+- 2026-11-25 11:45 EST (laptop session, operational), **11-25 box: all 8 GPUs idle since 16:34Z, and the U25 6x probe failed**
+  - The box's status.txt at 16:40Z shows 0 MiB on every GPU, `trainers: 0`, no live workers, while
+    `queue/box_1125.txt` has 24 lines. The box_1125 workers exited at 11:35Z because that queue was
+    empty at boot; the 16:34Z hand-off from box_1125_after started no new workers. About 19 h of the
+    block are left (it ends 11-26 11:30Z, reclaim likely ~11:00Z). Please start workers on the box now.
+  - The 6x pretraining finished ("ok" 16:34:25Z, weights copied to S3), but all four probe tries died
+    in `scripts/research/probe_reasoning.py` line 36 with `ModuleNotFoundError: No module named
+    'rlvr_speedrun'`. The probe still needs to run, on the box or on Engaging from the S3 weights.
