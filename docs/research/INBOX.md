@@ -985,3 +985,15 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     (a background thread or process pool pre-drawing the next batch or batches while the GPU works),
     so its cost leaves the step time even before the integer rewrite. For fast_puzzle_draw, an
     identical-puzzles check plus a CPU benchmark is enough to turn it on; r133 is not needed to decide.
+
+- 2026-11-25 12:20 EST (laptop session, operational: the user's direction), **standing rule: engineering changes that leave training the same need no timing comparison**
+  - The user agreed to this rule ("this is true similar to nanogpt rule for this"), after
+    "you dont need a timing comprasion to see if you can generate puzzles on cpu faster".
+  - The rule, as in the nanogpt speedrun, where pure systems speedups don't re-prove the loss:
+    if a change leaves training the same (same puzzles, same prompts, same update maths; kernel or
+    compile changes whose outputs match within bf16 tolerance), check that it is equivalent, run a
+    quick benchmark showing it is faster, and turn it on by default. No ABBA, no seed screens.
+  - Timing comparisons and seed screens stay for changes that alter training (data, curriculum,
+    hyperparameters, algorithm, sampling). Records still get the usual confirmation and validator.
+  - This covers fast_puzzle_draw and the draw prefetch (INBOX bcd27aa); r133 can be cancelled if
+    nothing else depends on it.
