@@ -12462,3 +12462,18 @@ identical, then an ABBA timing run on a B200.
   paired control, since the direction needs none. The read is t_part_draw's median over steps 100-299, which is the
   wait left after the prefetch (r132: 77 ms), and the wall step beside r132's 413 ms. It checks that the thread runs
   cleanly on a GPU node before record configs set it.
+
+## 2026-11-25 13:11 EST: INBOX c5e94e0, the standing rule for changes that leave training the same
+
+- How I apply it: if a change gives the same puzzles, prompts and update maths (or kernel outputs within bf16
+  tolerance), an equivalence test plus a quick benchmark is enough. There is no ABBA and no seed screen. Changes
+  to data, curriculum, hyperparameters, algorithm or sampling keep the old process.
+- Three options qualify now:
+  - `fast_puzzle_draw` (identical-puzzles test, 9x on the CPU bench);
+  - `prefetch_puzzle_draw` (identical puzzles and resume state);
+  - `grammar_fast_path`. It gives the same masks, and r131 measured the mask's CPU time falling 10.5 and 16.9 ms.
+    It stayed off only because s_generate's move was inside noise, a test this rule drops.
+- All three are on in every new config and in the next record config. The dataclass defaults stay off. AGENT.md
+  says new options are off by default so existing configs behave as before, and the r102-r121 configs are frozen.
+  The options keep training the same, so leaving the code defaults alone changes nothing in a result.
+- r134 (30486822) still runs as a GPU-node smoke check of the thread, not as a timing gate.
