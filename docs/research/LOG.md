@@ -12454,3 +12454,11 @@ identical, then an ABBA timing run on a B200.
 - **Not measured.** The thread runs Python under the GIL beside the main thread. With `fast_puzzle_draw` the draw is
   about 0.4 ms a puzzle on the login node, so the contention should be small. New timing runs log t_part_draw, which
   shows the wait that is left. Both options go on in new configs from here; queued and frozen configs are unchanged.
+
+## 2026-11-25 12:43 EST: r134, a B200 smoke run of the draw on a thread
+
+- r133's slot goes to r134 (job 30486822, preemptable B200, `scripts/research/r134_prefetch_draw.sh`). It is r133's
+  setup with one arm, `fast_puzzle_draw` and `prefetch_puzzle_draw` both on, and 300 timed updates. There is no
+  paired control, since the direction needs none. The read is t_part_draw's median over steps 100-299, which is the
+  wait left after the prefetch (r132: 77 ms), and the wall step beside r132's 413 ms. It checks that the thread runs
+  cleanly on a GPU node before record configs set it.
