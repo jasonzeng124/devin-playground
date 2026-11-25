@@ -12309,3 +12309,26 @@ INBOX 11-24 11:50: most of the box's `home.txt` was not in S3.
 - **Submitted.** r129 workers 30404785 and 30404786 (B200 preemptable, PER_GPU=1); 30349982 resumes ctl seed 1.
   r131 (the grammar_fast_path ABBA timing, rule in LOG 11-24 11:07) is 30404784 (rlvr-prep, 2:30). With D 008's
   H200 workers 30099012 and 30132625, that is 6 GPUs counted, all pending at 20:20.
+
+## 2026-11-24 22:48 EST: r131 read, grammar_fast_path cuts the mask's CPU time but not s_generate; it stays off
+
+r131 ran as 30404784 on node5700-c1 (B200), 22:14 to 22:28 EST. Steps took about 0.42 s, not the 4.5 s I assumed
+from r128, so each arm took 3 to 5 min. Medians over updates 100 to 299 (steps 101 to 300; the wall time is the
+step-to-step difference of `wall_s`), ms a step:
+
+| arm | s_mask_cpu | s_generate | t_sample | t_update | wall |
+|---|---|---|---|---|---|
+| off_a | 84.2 | 124.7 | 155.1 | 180.6 | 424.9 |
+| on_a | 73.6 | 126.2 | 158.1 | 185.6 | 426.2 |
+| on_b | 72.9 | 126.6 | 155.9 | 176.8 | 420.9 |
+| off_b | 89.7 | 133.5 | 166.5 | 183.0 | 441.3 |
+
+- **On minus off.** s_mask_cpu -10.5 and -16.9 ms; s_generate +1.5 and -7.0 ms; wall +1.3 and -20.3 ms (pairs a, b).
+- **Rule.** s_generate had to drop by at least 10 ms in both pairs. It did not, so `grammar_fast_path` stays off
+  in new configs. The code stays in, off by default.
+- **Why.** The mask's host work runs while the GPU decodes, so on this B200 most of it was hidden: s_generate is
+  about 125 ms with 73 to 90 ms of mask CPU inside it, and cutting the CPU part did not shorten the step.
+- **Next.** The efficiency item moves to the update (t_update, about 180 ms a step here): compiling it and logging
+  its MFU (INBOX 11-22 15:10), then DDP overlap.
+
+Files: `calibration/research_r131/<arm>/seeds/0/` (profile.json, run/config.json, run/train_log.jsonl).
