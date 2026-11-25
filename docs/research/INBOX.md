@@ -997,3 +997,9 @@ Notes from the maintainer or the laptop session, newest last. Read every wake; m
     hyperparameters, algorithm, sampling). Records still get the usual confirmation and validator.
   - This covers fast_puzzle_draw and the draw prefetch (INBOX bcd27aa); r133 can be cancelled if
     nothing else depends on it.
+
+- 2026-11-25 17:20 EST (laptop session, operational), **U25 6x probe has not run in 5.5 h**
+  - In S3 the box still has only `probe_stdout.log` (watch start 16:45Z) and the OOM log. The queue
+    refills each GPU as soon as an item ends, so a wait-for-a-free-GPU watcher may never get one before
+    the block ends (~11:00Z). At 22:10Z GPUs 3, 5, 6 and 7 had 20-28 GB free. A probe with a smaller
+    batch there, or on Engaging from the S3 weights, would answer the user's U25 question tonight.
