@@ -86,6 +86,9 @@ class GRPOConfig:
     # synced wall-clock timers around the parts of the RL update, logged as t_part_* (INBOX 11-17 17:14); the
     # synchronisations slow the step a little, so timing runs only
     time_update_parts: bool = False
+    # train_mix 'ladder': the draw's "needs" test uses integer maths (`countdown.reaches`) instead of Fractions; the
+    # same puzzles in the same order, less host time before each step (LOG 2026-11-25 00:23: 77 ms of a 413 ms step)
+    fast_puzzle_draw: bool = False
     adv_norm: str = "std"
     # multiplies the positive advantages (W-REINFORCE, Zhu et al. 2025): below 1 damps the push toward sampled
     # solutions, which narrows the policy, and keeps the push away from failures; 1 = unchanged
@@ -1703,7 +1706,7 @@ def _train_streams(config: GRPOConfig, offset: int = 0):
         names = tuple(config.train_ladder_levels.split(",")) if config.train_ladder_levels else LADDER_LEVELS
         allowed = LADDER_LEVELS + MINI_LEVEL_NAMES  # the mini levels (3 numbers) are training-only and off unless named
         assert set(names) <= set(allowed), f"train_ladder_levels must be a subset of {allowed}"
-        stream = ladder_stream(config.seed + offset * 10_000_000, names, exclude=ladder_keys())
+        stream = ladder_stream(config.seed + offset * 10_000_000, names, exclude=ladder_keys(), fast=config.fast_puzzle_draw)
     elif config.train_mix:
         raise ValueError(f"unknown train_mix {config.train_mix!r} (expected '' or 'ladder')")
     else:

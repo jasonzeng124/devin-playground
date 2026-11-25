@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 
-from .countdown import Puzzle, generate_puzzle, reachable
+from .countdown import Puzzle, generate_puzzle, reachable, reaches
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 # dev: for in-loop evals and recipe tuning (it was the draft eval set of every v3 pilot).
@@ -72,25 +72,29 @@ def _plus_minus_values(numbers: tuple[int, ...]) -> set[int]:
     return {sum(s * x for s, x in zip(signs, numbers)) for signs in itertools.product((1, -1), repeat=len(numbers)) if 1 in signs}
 
 
-def _meets_needs(puzzle: Puzzle, level: Level) -> bool:
+def _meets_needs(puzzle: Puzzle, level: Level, fast: bool = False) -> bool:
+    """`fast` answers each reachability test with `countdown.reaches` (integer maths, the same answers)."""
     nums = tuple(sorted(Fraction(x) for x in puzzle.numbers))
     target = Fraction(puzzle.target)
+
+    def hits(ops: str) -> bool:
+        return reaches(puzzle.numbers, ops, puzzle.target) if fast else target in reachable(nums, ops)
+
     if level.needs == "":
         return sum(puzzle.numbers) != puzzle.target
     if level.needs == "all":  # no proper subset of the allowed operators reaches the target
-        return all(target not in reachable(nums, "".join(sub)) for k in range(1, len(puzzle.ops))
+        return all(not hits("".join(sub)) for k in range(1, len(puzzle.ops))
                    for sub in itertools.combinations(puzzle.ops, k))
     if level.n_numbers > 4:  # full brute force is too slow; + and - alone must not reach the target
         return puzzle.target not in _plus_minus_values(puzzle.numbers)
-    without = "".join(op for op in puzzle.ops if op not in level.needs)
-    return target not in reachable(nums, without)
+    return not hits("".join(op for op in puzzle.ops if op not in level.needs))
 
 
-def generate_level_puzzle(rng: random.Random, level: Level, max_tries: int = 10_000) -> Puzzle:
+def generate_level_puzzle(rng: random.Random, level: Level, max_tries: int = 10_000, fast: bool = False) -> Puzzle:
     ops = rng.choice(level.ops)  # chosen once, so operator sets that rarely qualify keep their share
     for _ in range(max_tries):
         puzzle = generate_puzzle(rng, n_numbers=level.n_numbers, target_range=level.target_range, ops=ops)
-        if _meets_needs(puzzle, level):
+        if _meets_needs(puzzle, level, fast):
             return Puzzle(puzzle.numbers, puzzle.target, puzzle.solution, puzzle.ops, level.name)
     raise RuntimeError(f"no puzzle for {level.name} within {max_tries} tries")
 
@@ -99,12 +103,13 @@ def level_by_name(name: str) -> Level:
     return next(level for level in LEVELS + MINI_LEVELS if level.name == name)
 
 
-def ladder_stream(seed: int, names: tuple[str, ...] = LEVEL_NAMES, exclude: frozenset = frozenset()):
-    """Unbounded training stream, uniform over `names`, skipping (numbers, target, ops) keys in `exclude`."""
+def ladder_stream(seed: int, names: tuple[str, ...] = LEVEL_NAMES, exclude: frozenset = frozenset(), fast: bool = False):
+    """Unbounded training stream, uniform over `names`, skipping (numbers, target, ops) keys in `exclude`. `fast`
+    draws the same puzzles with integer maths in the "needs" test (GRPOConfig.fast_puzzle_draw)."""
     rng = random.Random(1_000_000 + seed)
     levels = [level_by_name(name) for name in names]
     while True:
-        puzzle = generate_level_puzzle(rng, rng.choice(levels))
+        puzzle = generate_level_puzzle(rng, rng.choice(levels), fast=fast)
         if puzzle_key(puzzle) not in exclude:
             yield puzzle
 

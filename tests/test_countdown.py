@@ -183,3 +183,32 @@ def test_ladder_levels_meet_their_requirements():
     keys = frozenset(puzzle_key(p) for p in small)
     stream = ladder_stream(0, exclude=keys)
     assert all(puzzle_key(next(stream)) not in keys for _ in range(50))
+
+
+def test_fast_reachability_matches_fractions():
+    """`reaches` (integer maths, each split once) gives `reachable`'s answers, and a fast ladder stream draws the
+    same puzzles in the same order (GRPOConfig.fast_puzzle_draw)."""
+    import itertools
+    import random
+    from fractions import Fraction
+
+    from rlvr_speedrun.countdown import _reachable_ints, _reachable_ratios, reachable, reaches
+    from rlvr_speedrun.ladder import LEVEL_NAMES, MINI_LEVEL_NAMES, ladder_stream
+
+    rng = random.Random(3)
+    for _ in range(60):
+        nums = tuple(sorted(rng.randint(0 if rng.random() < 0.2 else 1, 30) for _ in range(rng.choice((1, 2, 3, 4)))))
+        for k in range(0, 5):
+            for sub in itertools.combinations("+-*/", k):
+                ops = "".join(sub)
+                want = reachable(tuple(Fraction(x) for x in nums), ops)
+                if "/" in ops:
+                    got = frozenset(Fraction(p, q) for p, q in _reachable_ratios(nums, ops))
+                else:
+                    got = frozenset(Fraction(v) for v in _reachable_ints(nums, ops))
+                assert got == want, (nums, ops)
+                for t in [int(v) for v in want if v.denominator == 1][:5] + [rng.randint(-50, 300)]:
+                    assert reaches(nums, ops, t) == (Fraction(t) in want)
+    for names in (LEVEL_NAMES, MINI_LEVEL_NAMES):
+        slow, fast = ladder_stream(5, names), ladder_stream(5, names, fast=True)
+        assert [next(slow) for _ in range(40)] == [next(fast) for _ in range(40)]

@@ -13,6 +13,7 @@ import re
 from dataclasses import dataclass, field
 from fractions import Fraction
 from functools import lru_cache
+from math import gcd
 
 ANSWER_RE = re.compile(r"<answer>(.*?)</answer>", re.DOTALL | re.IGNORECASE)
 
@@ -357,6 +358,71 @@ def reachable(nums: tuple[Fraction, ...], ops: str) -> frozenset[Fraction]:
                 if "/" in ops and y != 0:
                     out.add(x / y)
     return frozenset(out)
+
+
+@lru_cache(maxsize=1 << 16)
+def _reachable_ints(nums: tuple[int, ...], ops: str) -> frozenset[int]:
+    """`reachable` for operators without "/": every value is an integer, so plain ints stand in for Fractions."""
+    if len(nums) == 1:
+        return frozenset(nums)
+    out = set()
+    n = len(nums)
+    add, sub, mul = "+" in ops, "-" in ops, "*" in ops
+    for mask in range(1, (1 << n) - 1, 2):  # the splits with nums[0] on the left: each unordered split once
+        right = _reachable_ints(tuple(nums[i] for i in range(n) if not mask >> i & 1), ops)
+        for x in _reachable_ints(tuple(nums[i] for i in range(n) if mask >> i & 1), ops):
+            for y in right:
+                if add:
+                    out.add(x + y)
+                if sub:
+                    out.add(x - y)
+                    out.add(y - x)
+                if mul:
+                    out.add(x * y)
+    return frozenset(out)
+
+
+def _ratio(p: int, q: int) -> tuple[int, int]:
+    if q < 0:
+        p, q = -p, -q
+    g = gcd(p, q)
+    return (p // g, q // g) if g != 1 else (p, q)
+
+
+@lru_cache(maxsize=1 << 16)
+def _reachable_ratios(nums: tuple[int, ...], ops: str) -> frozenset[tuple[int, int]]:
+    """`reachable` with each value as a (numerator, denominator) pair in lowest terms, denominator positive."""
+    if len(nums) == 1:
+        return frozenset(((nums[0], 1),))
+    out = set()
+    n = len(nums)
+    add, sub, mul, div = "+" in ops, "-" in ops, "*" in ops, "/" in ops
+    for mask in range(1, (1 << n) - 1, 2):
+        right = _reachable_ratios(tuple(nums[i] for i in range(n) if not mask >> i & 1), ops)
+        for a, b in _reachable_ratios(tuple(nums[i] for i in range(n) if mask >> i & 1), ops):
+            for c, d in right:
+                if add:
+                    out.add(_ratio(a * d + c * b, b * d))
+                if sub:
+                    out.add(_ratio(a * d - c * b, b * d))
+                    out.add(_ratio(c * b - a * d, b * d))
+                if mul:
+                    out.add(_ratio(a * c, b * d))
+                if div:
+                    if c:
+                        out.add(_ratio(a * d, b * c))
+                    if a:
+                        out.add(_ratio(c * b, d * a))
+    return frozenset(out)
+
+
+def reaches(numbers: tuple[int, ...], ops: str, target: int) -> bool:
+    """Whether `target` is in `reachable` of `numbers` and `ops`, the same answer from integer maths: the puzzle
+    draw's "needs" test spent most of its time in Fraction's hashing and arithmetic (LOG 2026-11-25 00:23)."""
+    nums = tuple(sorted(numbers))
+    if "/" in ops:
+        return (target, 1) in _reachable_ratios(nums, ops)
+    return target in _reachable_ints(nums, ops)
 
 
 def level(puzzle: Puzzle) -> str:

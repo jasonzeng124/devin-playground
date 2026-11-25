@@ -12396,3 +12396,21 @@ weight sync on its own.
 operator set has no division, normalised integer pairs when it has, and each unordered split of the numbers once
 instead of twice. The check is that the value sets equal `reachable`'s and that the drawn puzzle lists are
 identical, then an ABBA timing run on a B200.
+
+## 2026-11-25 00:29 EST: `fast_puzzle_draw` (the ladder draw's "needs" test in integer maths); r133 times it
+
+- **The change** (off by default, so other configs are unchanged). `countdown.reaches(numbers, ops, target)`
+  answers whether `reachable` holds the target from integer maths: plain ints when the operators have no division,
+  (numerator, denominator) pairs in lowest terms when they have, and each unordered split of the numbers once (both
+  orders of - and / are added) instead of twice. Under `fast_puzzle_draw`, `ladder_stream`'s "needs" test uses it.
+  The rng is consumed as before, so the stream is the same.
+- **Same maths.** `test_fast_reachability_matches_fractions` checks the value sets against `reachable` for random
+  1-4 number sets (zeros included) and every operator subset, `reaches` against membership, and that the fast and
+  slow streams give the same 40 puzzles for the L levels and the mini levels.
+- **Login-node time** (one process, 640 draws after 1,280 warm-up draws, seeds 11-13): 3.0 to 3.7 ms a puzzle off
+  and 0.34 to 0.40 ms on, about 9x. The B200 node drew in about 1.2 ms a puzzle in r132, so the draw should fall from
+  77 ms to under 10 ms a step if the ratio holds there.
+- **r133** (job 30426785, B200, `scripts/research/r133_fast_draw.sh`): r132's setup, ABBA (off, on, on, off), 300
+  timed updates an arm. The read is the medians over steps 100-299 of t_part_draw and of the wall_s difference.
+  Rule, written before the run: the option goes on in new configs if the wall step falls in both pairs by at least
+  half the drop in t_part_draw.
