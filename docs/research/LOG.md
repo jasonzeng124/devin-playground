@@ -12435,3 +12435,22 @@ identical, then an ABBA timing run on a B200.
   the checkout) waits for `box_1125` to empty and for a GPU that no worker holds, then runs the probe there with
   the defaults (batch 200, the same as the 3x run). If the box is reclaimed first, the probe runs on Engaging from
   the bucket's weights. The 6x rule (12193) is applied when the samples are in.
+
+## 2026-11-25 12:18 EST: INBOX bcd27aa, the puzzle draw goes off the critical path (`prefetch_puzzle_draw`); r133 cancelled
+
+- **The direction.** The draw should run in parallel with the step, and no timing comparison is needed to turn on a
+  faster CPU draw. So `fast_puzzle_draw` goes on in new configs on the strength of its identical-puzzles test and
+  its login-node benchmark (LOG 11-25 00:29). r133 (job 30426785, pending, ABBA on a B200) is cancelled.
+- **The change** (off by default, so other configs are unchanged). Under `prefetch_puzzle_draw`, a background thread
+  draws step s + 1's puzzles while step s runs. The thread owns the streams and a copy of the mix rng, and hands each
+  step its puzzles with the mix rng's state after them. The loop sets that state on its own mix rng, so the state
+  saved for a resume is the same as without the thread. The inline draw and the thread share `_draw_puzzles`, so
+  the maths is the same.
+- **Checks.** `test_prefetch_puzzle_draw_matches_inline_draw` compares the thread's puzzles and rng states with the
+  inline draw over 7 steps, for both train mixes, with the curriculum's easy streams in play and from a mid-run rng
+  state. `test_run_prefetch_puzzle_draw_gives_the_same_steps_and_resumes` runs the tiny model with an interruption
+  at step 3 and a resume, and every step's puzzles match the run without the thread. With the loop's setstate
+  removed, this test fails, so it catches a resume state that includes the draw ahead. ruff and pytest pass (231).
+- **Not measured.** The thread runs Python under the GIL beside the main thread. With `fast_puzzle_draw` the draw is
+  about 0.4 ms a puzzle on the login node, so the contention should be small. New timing runs log t_part_draw, which
+  shows the wait that is left. Both options go on in new configs from here; queued and frozen configs are unchanged.

@@ -14,6 +14,7 @@ import subprocess
 import time
 import weakref
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
 
@@ -89,6 +90,9 @@ class GRPOConfig:
     # train_mix 'ladder': the draw's "needs" test uses integer maths (`countdown.reaches`) instead of Fractions; the
     # same puzzles in the same order, less host time before each step (LOG 2026-11-25 00:23: 77 ms of a 413 ms step)
     fast_puzzle_draw: bool = False
+    # draw the next step's puzzles on a background thread while this step runs, so the draw leaves the step's wall
+    # time (INBOX 11-25 12:05); the same puzzles in the same order, and the mix rng is saved as without it
+    prefetch_puzzle_draw: bool = False
     adv_norm: str = "std"
     # multiplies the positive advantages (W-REINFORCE, Zhu et al. 2025): below 1 damps the push toward sampled
     # solutions, which narrows the policy, and keeps the push away from failures; 1 = unchanged
@@ -1722,6 +1726,46 @@ def _train_streams(config: GRPOConfig, offset: int = 0):
     return stream, easy_streams
 
 
+def _draw_puzzles(config: GRPOConfig, step: int, rng: random.Random, stream, easy_streams) -> list:
+    """The step's puzzles: each from the main stream or, early in the curriculum, from one of the easy streams."""
+    easy_frac = max(0.0, 1.0 - step / config.curriculum_steps) if config.curriculum_steps > 0 else 0.0
+    puzzles = []
+    for _ in range(config.prompts_per_step * max(1, config.oversample)):
+        u = rng.random()
+        source = stream if u >= easy_frac else easy_streams[int(u >= easy_frac / 2)]
+        puzzles.append(next(source))
+    return puzzles
+
+
+class _DrawAhead:
+    """prefetch_puzzle_draw: one background thread draws step s + 1's puzzles while step s runs. The thread owns
+    the streams and its own copy of the mix rng; `get` returns a step's puzzles and the mix rng's state after them,
+    which the caller sets on its mix rng, so saved states (and resumes) are as without the thread."""
+
+    def __init__(self, config: GRPOConfig, mix_rng: random.Random, stream, easy_streams, first_step: int):
+        self.config, self.stream, self.easy_streams = config, stream, easy_streams
+        self.rng = random.Random()
+        self.rng.setstate(mix_rng.getstate())
+        self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="draw")
+        self.next_step = first_step
+        self.future = self.pool.submit(self._draw, first_step)
+
+    def _draw(self, step: int):
+        puzzles = _draw_puzzles(self.config, step, self.rng, self.stream, self.easy_streams)
+        return puzzles, self.rng.getstate()
+
+    def get(self, step: int):
+        assert step == self.next_step, (step, self.next_step)
+        puzzles, state = self.future.result()
+        self.next_step = step + 1
+        if step < self.config.max_steps:
+            self.future = self.pool.submit(self._draw, step + 1)
+        return puzzles, state
+
+    def close(self):
+        self.pool.shutdown(wait=True, cancel_futures=True)
+
+
 def _rng_state(mix_rng: random.Random, device: torch.device) -> dict:
     return {"mix": mix_rng.getstate(), "random": random.getstate(), "numpy": np.random.get_state(), "torch": torch.get_rng_state(),
             "cuda": torch.cuda.get_rng_state(device) if device.type == "cuda" else None}
@@ -1909,15 +1953,15 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
             engine.sync(model)
     last_save = time.perf_counter() - start - eval_s
     last_entropy = None  # the previous step's logged entropy, for entropy_target
+    ahead = _DrawAhead(config, mix_rng, stream, easy_streams, first_step) if config.prefetch_puzzle_draw else None
     try:
         for step in range(first_step, config.max_steps + 1):
-            easy_frac = max(0.0, 1.0 - step / config.curriculum_steps) if config.curriculum_steps > 0 else 0.0
             draw_start = time.perf_counter()
-            puzzles = []
-            for _ in range(config.prompts_per_step * max(1, config.oversample)):
-                u = mix_rng.random()
-                source = stream if u >= easy_frac else easy_streams[int(u >= easy_frac / 2)]
-                puzzles.append(next(source))
+            if ahead is not None:
+                puzzles, mix_state = ahead.get(step)
+                mix_rng.setstate(mix_state)
+            else:
+                puzzles = _draw_puzzles(config, step, mix_rng, stream, easy_streams)
             if scheduled:
                 spent = (step - 1) / config.budget_steps * config.time_budget_s if config.budget_steps else time.perf_counter() - start - eval_s
                 for group in optimizer.param_groups:
@@ -2012,6 +2056,8 @@ def run(config: GRPOConfig, dist: Dist = SINGLE) -> dict:
             if out_of_time:
                 break
     finally:
+        if ahead is not None:
+            ahead.close()
         if train_log is not None:
             train_log.close()
         if eval_log is not None:

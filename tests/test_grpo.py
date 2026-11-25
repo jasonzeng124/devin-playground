@@ -1576,3 +1576,61 @@ def test_pg_skip_zeroes_the_policy_gradient_of_the_masked_tokens_only():
     )
     for plain, masked in zip(grads[1], [p.grad for p in model.parameters()]):
         assert torch.allclose(plain, masked, atol=1e-6)
+
+
+def test_prefetch_puzzle_draw_matches_inline_draw():
+    """prefetch_puzzle_draw: the thread's puzzles and the mix rng states after each step equal the inline draw's,
+    with the curriculum's easy streams in play and from a resumed rng state."""
+    import random as _random
+
+    _DrawAhead, _draw_puzzles, _train_streams = grpo._DrawAhead, grpo._draw_puzzles, grpo._train_streams
+    for mix in ("", "ladder"):
+        config = GRPOConfig(train_mix=mix, curriculum_steps=6, prompts_per_step=5, oversample=2, max_steps=9,
+                            fast_puzzle_draw=mix == "ladder")
+        rng = _random.Random(config.seed)
+        rng.random()  # a mid-run state, as after a resume
+        stream, easy = _train_streams(config)
+        inline = []
+        for step in range(3, 10):
+            inline.append((_draw_puzzles(config, step, rng, stream, easy), rng.getstate()))
+        rng = _random.Random(config.seed)
+        rng.random()
+        stream, easy = _train_streams(config)
+        ahead = _DrawAhead(config, rng, stream, easy, 3)
+        try:
+            got = [ahead.get(step) for step in range(3, 10)]
+        finally:
+            ahead.close()
+        assert got == inline
+        assert any(p != q for p, q in zip(got[0][0], got[-1][0]))
+
+
+def test_run_prefetch_puzzle_draw_gives_the_same_steps_and_resumes(monkeypatch, tmp_path):
+    """run with prefetch_puzzle_draw: every step's puzzles equal those without it, through an interruption and a
+    resume from the saved state (whose mix rng must not include the thread's draw ahead)."""
+    _patch_tiny_training(monkeypatch, tmp_path)
+    real_step = grpo.grpo_step
+
+    def puzzles_by_step(prefetch):
+        name = "on" if prefetch else "off"
+        config = GRPOConfig(model="tiny", group_size=2, prompts_per_step=3, max_new_tokens=4, max_steps=5, eval_every=100,
+                            eval_limit=1, kl_coef=0.0, no_save=True, curriculum_steps=50, prefetch_puzzle_draw=prefetch,
+                            resume_dir=str(tmp_path / f"resume_{name}"), resume_every_s=1e-9, out_dir=str(tmp_path / name))
+        seen = []
+
+        def step(*args, **kwargs):
+            seen.append(list(args[3]))
+            if len(seen) == 3:
+                raise KeyboardInterrupt("preempted")
+            return real_step(*args, **kwargs)
+
+        monkeypatch.setattr(grpo, "grpo_step", step)
+        with pytest.raises(KeyboardInterrupt):
+            run(config)
+        monkeypatch.setattr(grpo, "grpo_step", lambda *a, **k: seen.append(list(a[3])) or real_step(*a, **k))
+        assert run(config)["total_steps"] == 5
+        return seen
+
+    off, on = puzzles_by_step(False), puzzles_by_step(True)
+    assert len(off) == 6  # steps 1-3 (3 interrupted), then 3-5 after the resume
+    assert on == off
