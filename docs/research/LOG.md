@@ -12294,3 +12294,18 @@ INBOX 11-24 11:50: most of the box's `home.txt` was not in S3.
   `finemath_kw_0_31.bin` is 11,054,703,932 bytes, about 5.5B tokens with r116's shards 0-2 (md5 1d9d3290...).
   Upload 30362713 took 2 min. `box_s3.sh check` now says "check ok", so no fallback is needed and the stage at
   ac11caf stands. (2026-11-24 12:13)
+
+## 2026-11-24 20:20 r129 workers on nodes without scratch; a CKPT_DIR guard; r131 submitted
+
+- **What failed.** Three r129 B200 workers landed on nodes where `~/orcd/scratch` (the CKPT_DIR parent) was not
+  mounted: 30347231 on node5800-c1, 30348240 and 30349981 on node5702-c1. Each item failed in seconds
+  ("mkdir: cannot create directory '/home/zjason/orcd/scratch': File exists"), so the queue worker marked it FAILED
+  on the first quick failure and exited on the second. Lost: ctl seed 0 and fmkw2 seeds 0 and 1. These were host
+  failures, not the configs. fmkw2 seed 0 hit such a node twice. The interrupted dirs are in `extra/`.
+- **Fix.** The three items were requeued once, as the host-failure rule allows. New submits exclude node5800-c1 and
+  node5702-c1 as well as node5500-c1. `packed_worker.sbatch` now checks that the CKPT_DIR parent is readable
+  (`stat -L`, 60 s), next to its venv check, and exits holding no item if it is not. Already-pending jobs keep the
+  copy of the script made when they were submitted.
+- **Submitted.** r129 workers 30404785 and 30404786 (B200 preemptable, PER_GPU=1); 30349982 resumes ctl seed 1.
+  r131 (the grammar_fast_path ABBA timing, rule in LOG 11-24 11:07) is 30404784 (rlvr-prep, 2:30). With D 008's
+  H200 workers 30099012 and 30132625, that is 6 GPUs counted, all pending at 20:20.

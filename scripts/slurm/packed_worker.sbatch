@@ -39,6 +39,13 @@ if [[ -n "${VENV:-}" ]] && ! timeout 60 stat "$VENV/bin/activate" >/dev/null 2>&
     | tee -a queue/worker.log
   exit 1
 fi
+# On node5800-c1 and node5702-c1 (LOG 2026-11-24) ~/orcd/scratch was not mounted: every item failed in seconds
+# ("mkdir: cannot create directory '/home/zjason/orcd/scratch': File exists") and was marked FAILED.
+if [[ -n "${CKPT_DIR:-}" ]] && ! timeout 60 stat -L "$(dirname "$CKPT_DIR")" >/dev/null 2>&1; then
+  echo "$(date -u +%FT%TZ) worker $job (${QUEUE:-}): $(dirname "$CKPT_DIR") unreadable on $(hostname) in 60 s; exiting" \
+    | tee -a queue/worker.log
+  exit 1
+fi
 for k in $(seq 1 "$n"); do
   SLURM_JOB_ID=$job-$k bash scripts/slurm/queue_worker.sbatch &
   (( k < n )) && sleep "${STAGGER_S:-120}"
