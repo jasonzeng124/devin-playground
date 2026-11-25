@@ -18,7 +18,9 @@ without its validation slice; validation stays on --tokens.
 weights and draws its own rows, the gradients are averaged in flat buckets after each step's micro-batches, and rank
 0's clock is broadcast every step, so all ranks take the same lr and stop together. --batch-tokens stays the global
 batch. At each validation the ranks' weight sums are compared (`rank_spread` in the log) and rank 0's weights are
-sent to all.
+sent to all. `--ddp-overlap` (off by default; needs --ddp) averages the gradients with torch's DistributedDataParallel
+instead, which all_reduces each bucket during the last micro-batch's backward pass (the earlier micro-batches run
+under `no_sync`); the same average up to the summation order.
 `--resume-every-minutes N` (0, the default: never) saves the model, the optimizers, the step, the tokens and the
 elapsed training time to `<out>/resume/state.pt` every N minutes; `--resume` continues from that file if it exists
 (the clock and the budget carry on from the saved time, the log is appended to, so rows logged after the save
@@ -113,6 +115,20 @@ def allreduce_grads(params, bucket_bytes: int = 256 << 20) -> None:
             offset += g.numel()
 
 
+def accumulate(loss_fn, draw, accum: int, net=None):
+    """One step's micro-batches: `accum` times draw (x, y) and backpropagate loss_fn(x, y) / accum. With `net` (a
+    DistributedDataParallel wrapper, --ddp-overlap) every micro-batch but the last runs under `net.no_sync()`, so the
+    gradient average happens once, overlapped with the last backward pass. Returns the last micro-batch's loss."""
+    from contextlib import nullcontext
+
+    for i in range(accum):
+        with net.no_sync() if net is not None and i < accum - 1 else nullcontext():
+            x, y = draw()
+            loss = loss_fn(x, y) / accum
+            loss.backward()
+    return loss
+
+
 def save_resume(path, model, opts, meta: dict) -> None:
     """Write the model's and the optimizers' state with `meta` (step, tokens, elapsed seconds) to `path`, atomically."""
     import torch
@@ -184,13 +200,29 @@ def train(args) -> None:
     resumed = load_resume(resume_path, model, opts, "cuda") if args.resume and resume_path.exists() else None
     ckw = {"mode": args.compile_mode} if args.compile_mode else {}
     compiled = torch.compile(model, **ckw)
+    net = None
+    if args.ddp_overlap:  # the training forward goes through DDP, whose bucket hooks all_reduce during the backward
+        from torch.nn.parallel import DistributedDataParallel
 
-    def _fused(x, y):  # only with --fused-loss: Inductor fuses the fp32 upcast into the loss
+        net = DistributedDataParallel(model, gradient_as_bucket_view=True, bucket_cap_mb=args.ddp_bucket_mb)
+    train_compiled = torch.compile(net, **ckw) if net is not None else compiled
+
+    def _make_fused(module):
+        def _fused(x, y):  # only with --fused-loss: Inductor fuses the fp32 upcast into the loss
+            with torch.autocast("cuda", dtype=torch.bfloat16):
+                logits = module(input_ids=x, use_cache=False).logits
+            return F.cross_entropy(logits.float().view(-1, logits.size(-1)), y.reshape(-1))
+        return _fused
+
+    fused_loss = torch.compile(_make_fused(model), **ckw) if args.fused_loss else None
+    train_fused = (torch.compile(_make_fused(net), **ckw) if net is not None else fused_loss) if args.fused_loss else None
+
+    def train_loss(x, y):
+        if train_fused is not None:
+            return train_fused(x, y)
         with torch.autocast("cuda", dtype=torch.bfloat16):
-            logits = model(input_ids=x, use_cache=False).logits
-        return F.cross_entropy(logits.float().view(-1, logits.size(-1)), y.reshape(-1))
-
-    fused_loss = torch.compile(_fused, **ckw) if args.fused_loss else None
+            logits = train_compiled(input_ids=x).logits
+            return F.cross_entropy(logits.float().view(-1, logits.size(-1)), y.reshape(-1))
     seq, micro = args.seq_len, args.micro_batch
     accum, step_tokens, total_steps = step_layout(args.batch_tokens, seq, micro, world, args.max_tokens)
     if resumed:
@@ -292,16 +324,8 @@ def train(args) -> None:
         for opt in opts:
             for group in opt.param_groups:
                 group["lr"] = lr_at(step, elapsed / budget)
-        for _ in range(accum):
-            x, y = train_batch()
-            if fused_loss is not None:
-                loss = fused_loss(x, y) / accum
-            else:
-                with torch.autocast("cuda", dtype=torch.bfloat16):
-                    logits = compiled(input_ids=x).logits
-                    loss = F.cross_entropy(logits.float().view(-1, logits.size(-1)), y.reshape(-1)) / accum
-            loss.backward()
-        if args.ddp:
+        loss = accumulate(train_loss, train_batch, accum, net)
+        if args.ddp and net is None:
             allreduce_grads(model.parameters())
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         for opt in opts:
@@ -371,10 +395,15 @@ def main() -> None:
     r.add_argument("--prefetch", type=int, default=0,
                    help="gather this many training micro-batches ahead into pinned memory on a thread (0, the default: none)")
     r.add_argument("--ddp", action="store_true", help="data-parallel under torchrun, one process a GPU; off by default")
+    r.add_argument("--ddp-overlap", action="store_true",
+                   help="with --ddp: average the gradients with DistributedDataParallel, overlapped with the backward pass; off by default")
+    r.add_argument("--ddp-bucket-mb", type=float, default=25.0, help="--ddp-overlap's bucket size in MB (torch's default, 25)")
     r.add_argument("--resume-every-minutes", type=float, default=0.0,
                    help="save <out>/resume/state.pt every this many minutes of training (0, the default: never)")
     r.add_argument("--resume", action="store_true", help="continue from <out>/resume/state.pt if it exists; off by default")
     args = parser.parse_args()
+    if args.cmd == "train" and args.ddp_overlap and not args.ddp:
+        parser.error("--ddp-overlap needs --ddp")
     tokenize(args) if args.cmd == "tokenize" else train(args)
 
 

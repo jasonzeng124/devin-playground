@@ -12495,3 +12495,21 @@ identical, then an ABBA timing run on a B200.
   the eager capture is (cosine at least captured's minus 1e-4, relative error at most 1.1x captured's), and every
   gradient is finite. The benchmark is the median of 20 updates each way. If it holds and compiled is faster,
   compile_update joins update_capture in new configs. It is queued for the next free GPU slot, since 6 are pending.
+
+## 2026-11-25 15:30 EST: --ddp-overlap for pretraining (efficiency item 2), off by default
+
+- U25's 6x rung kept 0.72 of the per-GPU rate, and its LOG entry left overlapping the all_reduce with the backward
+  pass for later. `scripts/pretrain_scratch.py --ddp --ddp-overlap` wraps the model in torch's
+  DistributedDataParallel (gradient_as_bucket_view, `--ddp-bucket-mb`, 25 by default) and compiles the wrapper, so
+  each bucket's all_reduce starts while the rest of the backward is still running. The first accum-1 micro-batches
+  run under `no_sync`, so there is still one average per step. `allreduce_grads` is skipped. Validation, the resume
+  file and the saved weights use the plain model as before.
+- Under the standing rule (INBOX c5e94e0) this leaves training the same: DDP divides the summed gradient by the
+  world size just as allreduce_grads does, and only the order of the sums changes. The micro-batch loop moved into
+  `accumulate()`, which both paths use, so the default path runs the same calls as before.
+- Equivalence check (CPU, gloo, 2 ranks): `test_ddp_overlap_matches_allreduce_grads` runs two steps of 3
+  micro-batches each way from the same start, with different data per rank, SGD with momentum and set_to_none
+  between steps. The gradients after each step and the final weights match allreduce_grads to float tolerance, and
+  both ranks hold the same weights. ruff and pytest pass.
+- Still to do: the GPU benchmark (2 GPUs, the same short run with and without the flag, tokens/s per GPU) when a
+  slot is free. If it is faster, the flag goes on in the next multi-GPU pretraining run.

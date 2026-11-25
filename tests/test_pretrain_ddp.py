@@ -7,7 +7,7 @@ import torch
 import torch.distributed
 import torch.multiprocessing as mp
 
-from scripts.pretrain_scratch import allreduce_grads, load_resume, save_resume, step_layout
+from scripts.pretrain_scratch import accumulate, allreduce_grads, load_resume, save_resume, step_layout
 
 WORLD = 2
 # (shape, dtype): the dtype change and the 64-byte buckets make several buckets, one parameter has no grad.
@@ -95,3 +95,55 @@ def test_resume_refuses_another_optimizer_count(tmp_path):
     save_resume(tmp_path / "state.pt", model, opts, {"step": 0, "tokens": 0, "elapsed": 0.0})
     with pytest.raises(SystemExit):
         load_resume(tmp_path / "state.pt", model, opts[:1])
+
+
+ACCUM = 3
+
+
+def _overlap_worker(rank: int, init_file: str, out_dir: str):
+    """Two steps of three micro-batches each way: the plain backward + allreduce_grads (--ddp) and DDP with no_sync
+    on the first two micro-batches (--ddp-overlap), same start, same data per rank, set_to_none between steps."""
+    torch.distributed.init_process_group("gloo", init_method=f"file://{init_file}", rank=rank, world_size=WORLD)
+    out = {}
+    for way in ("plain", "overlap"):
+        torch.manual_seed(0)
+        model = torch.nn.Sequential(torch.nn.Linear(8, 16), torch.nn.Tanh(), torch.nn.Linear(16, 3))
+        net = None
+        if way == "overlap":
+            net = torch.nn.parallel.DistributedDataParallel(model, gradient_as_bucket_view=True, bucket_cap_mb=0.0002)
+        opt = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
+        data = torch.Generator().manual_seed(50 + rank)
+        fwd = net if net is not None else model
+
+        def draw(data=data):
+            return torch.randn(4, 8, generator=data), torch.randint(0, 3, (4,), generator=data)
+
+        def loss_fn(x, y, fwd=fwd):
+            return torch.nn.functional.cross_entropy(fwd(x), y)
+
+        grads = []
+        for _ in range(2):
+            accumulate(loss_fn, draw, ACCUM, net)
+            if net is None:
+                allreduce_grads(model.parameters())
+            grads.append([p.grad.detach().clone() for p in model.parameters()])
+            opt.step()
+            opt.zero_grad(set_to_none=True)
+        out[way] = {"grads": grads, "weights": [p.detach().clone() for p in model.parameters()]}
+    torch.save(out, Path(out_dir) / f"{rank}.pt")
+    torch.distributed.destroy_process_group()
+
+
+def test_ddp_overlap_matches_allreduce_grads(tmp_path):
+    mp.spawn(_overlap_worker, args=(str(tmp_path / "init"), str(tmp_path)), nprocs=WORLD, join=True)
+    got = [torch.load(tmp_path / f"{r}.pt") for r in range(WORLD)]
+    for rank in range(WORLD):
+        plain, overlap = got[rank]["plain"], got[rank]["overlap"]
+        for gp, go in zip(plain["grads"], overlap["grads"]):
+            for a, b in zip(gp, go):
+                torch.testing.assert_close(b, a)
+        for a, b in zip(plain["weights"], overlap["weights"]):
+            torch.testing.assert_close(b, a)
+        for a, b in zip(got[0]["overlap"]["weights"], overlap["weights"]):
+            torch.testing.assert_close(b, a)  # the ranks stay in step
+    assert not torch.allclose(got[0]["plain"]["grads"][0][0], torch.zeros(()))
